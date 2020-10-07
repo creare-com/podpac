@@ -119,7 +119,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
 
         node_dir = self._get_node_dir(node)
         obj_names = fnmatch.filter(obj_names, self._get_filename_pattern(node, key, coordinates))
-        paths = [self._path_join([node_dir, filename]) for filename in obj_names]
+        paths = [self._path_join(node_dir, filename) for filename in obj_names]
         return paths
 
     # -----------------------------------------------------------------------------------------------------------------

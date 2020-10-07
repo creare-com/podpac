@@ -49,9 +49,14 @@ class TestTraitletsHelpers(object):
         assert not trait_is_defined(x, "other")
 
         x = MyClass()
-        assert trait_is_defined(x, "a")
-        assert trait_is_defined(x, "b")
-        assert not trait_is_defined(x, "c")
+        if tl.version_info[0] >= 5:
+            assert not trait_is_defined(x, "a")
+            assert not trait_is_defined(x, "b")
+            assert not trait_is_defined(x, "c")
+        else:
+            assert trait_is_defined(x, "a")
+            assert trait_is_defined(x, "b")
+            assert not trait_is_defined(x, "c")
 
         x.c
         assert trait_is_defined(x, "c")
