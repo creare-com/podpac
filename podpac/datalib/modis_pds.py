@@ -247,6 +247,8 @@ class MODIS(S3Mixin, OrderedCompositor):
     end_date = datetime.date.today().strftime("%Y-%m-%d")
     anon = tl.Bool(True)
 
+    dims = ["time", "lat", "lon"]
+
     _repr_keys = ["product", "data_key"]
 
     @cached_property
