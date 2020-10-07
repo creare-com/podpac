@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.3.0
+### Introduction 
+
+Adding subdataset support for hdf4 data sources (i.e. downloaded MODIS netcdf file), wrapping SoilScape data, and adding
+expiration to cache. 
+
+This release also drops Python 3.5 support. 
+
+### Features
+* Subdataset support in Rasterio Node, see #410
+* Adding SoilScape data source, and disk cache expiration, see #419
+* PyDAP node will now retry requests incase of server throttling, see 514dc5da3975fa1c6051f0da1691cf5ba4972bf8
+
+### Bugfixes
+* Added dimensions to `modis` and `cosmos` compositors
+* Fixed version numbers in `smap_egi` datasource, and these are now looked up automatically
+
 ## 2.2.2
 ### Bug Fixes
 * Fixed floating point errors on selection of data subset (short circuit optimization to avoid unnecessary interpolation)
