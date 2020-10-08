@@ -1320,6 +1320,15 @@ class TestCoordinatesMethods(object):
         assert c2["lat"] == c["lat"][1:4]
         assert c2["lon"] == c["lon"][2:5]
 
+        # Confusing time intersection
+        ct = Coordinates([["2012-05-19T12:00:00", "2012-05-19T13:00:00", "2012-05-20T14:00:00"]], ["time"])
+        cti = Coordinates([["2012-05-18", "2012-05-19"]], ["time"])
+        ct2 = ct.intersect(cti, outer=True)
+        assert ct2.size == 3
+
+        ct2 = ct.intersect(cti, outer=False)
+        assert ct2.size == 0  # Is this behavior desired?
+
     def test_intersect_dims(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name="lon")

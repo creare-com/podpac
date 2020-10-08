@@ -539,6 +539,52 @@ def lower_precision_time_bounds(my_bounds, other_bounds, outer):
     return my_bounds, other_bounds
 
 
+def higher_precision_time_bounds(my_bounds, other_bounds, outer):
+    """
+    When given two bounds of np.datetime64, this function will convert both bounds to the higher-precision (in terms of 
+    time unit) numpy datetime4 object if outer==True, otherwise only my_bounds will be converted.
+    
+    Parameters
+    -----------
+    my_bounds : List(np.datetime64)
+        The bounds of the coordinates of the dataset
+    other_bounds : List(np.datetime64)
+        The bounds used for the selection
+    outer : bool
+        When the other_bounds are higher precision than the input_bounds, only convert these IF outer=True
+        
+    Returns
+    --------
+    my_bounds : List(np.datetime64)
+        The bounds of the coordinates of the dataset at the new precision
+    other_bounds : List(np.datetime64)
+        The bounds used for the selection at the new precision, if outer == True, otherwise return original coordinates    
+        
+    Notes
+    ------
+    When converting the upper bound with outer=True, the whole lower-precision time unit is valid. E.g. when converting
+    YYYY-MM-DD to YYYY-MM-DD HH, the largest value for HH is used, since the whole day is valid.
+    """
+    if not isinstance(other_bounds[0], np.datetime64) or not isinstance(other_bounds[1], np.datetime64):
+        raise TypeError("Input bounds should be of type np.datetime64 when selecting data from:", str(my_bounds))
+
+    if not isinstance(my_bounds[0], np.datetime64) or not isinstance(my_bounds[1], np.datetime64):
+        raise TypeError("Native bounds should be of type np.datetime64 when selecting data using:", str(other_bounds))
+
+    if my_bounds[0].dtype > other_bounds[0].dtype and outer:
+        # for the upper bound, the whole lower-precision time unit is valid (see note)
+        # select the largest value for the higher-precision time unit by adding one lower-precision time unit and
+        # subtracting one higher-precision time unit.
+        other_bounds = [
+            other_bounds[0].astype(my_bounds[0].dtype),
+            (other_bounds[1] + 1).astype(my_bounds[0].dtype) - 1,
+        ]
+    else:
+        my_bounds = [b.astype(other_bounds[0].dtype) for b in my_bounds]
+
+    return my_bounds, other_bounds
+
+
 def has_alt_units(crs):
     """
     Check if the CRS has vertical units.
