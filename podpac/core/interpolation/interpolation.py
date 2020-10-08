@@ -1,543 +1,316 @@
+import traitlets as tl
+
 from __future__ import division, unicode_literals, print_function, absolute_import
 from copy import deepcopy
 from collections import OrderedDict
 from six import string_types
+import logging
 
 import traitlets as tl
 import numpy as np
 
+from podpac.core.node import Node
+from podpac.core.utils import NodeTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims
-from podpac.core.interpolation.interpolator import Interpolator
-from podpac.core.interpolation.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyPoint, ScipyGrid
+from podpac.core.interpolation.interpolation import Interpolation
 
-INTERPOLATION_DEFAULT = "nearest"
-"""str : Default interpolation method used when creating a new :class:`Interpolation` class """
-
-INTERPOLATORS = [NearestNeighbor, NearestPreview, Rasterio, ScipyPoint, ScipyGrid]
-"""list : list of available interpolator classes"""
-
-INTERPOLATORS_DICT = {}
-"""dict : Dictionary of a string interpolator name and associated interpolator class"""
-
-INTERPOLATION_METHODS = [
-    "nearest_preview",
-    "nearest",
-    "bilinear",
-    "cubic",
-    "cubic_spline",
-    "lanczos",
-    "average",
-    "mode",
-    "gauss",
-    "max",
-    "min",
-    "med",
-    "q1",
-    "q3",
-    "spline_2",
-    "spline_3",
-    "spline_4",
-]
-
-INTERPOLATION_METHODS_DICT = {}
-"""dict: Dictionary of string interpolation methods and associated interpolator classes
-   (i.e. ``'nearest': [NearestNeighbor, Rasterio, Scipy]``) """
+_logger = logging.getLogger(__name__)
 
 
-def load_interpolators():
-    """Load interpolators from :list:`INTERPOLATORS`
-
-    Defines :dict:`INTERPOLATORS_DICT`, and :dict:`INTERPOLATION_METHODS_DICT`
-    """
-
-    # create empty arrays in INTEPROLATOR_METHODS
-    for method in INTERPOLATION_METHODS:
-        INTERPOLATION_METHODS_DICT[method] = []
-
-    # fill dictionaries with interpolator properties
-    for interpolator_class in INTERPOLATORS:
-        interpolator = interpolator_class()
-        INTERPOLATORS_DICT[interpolator.name] = interpolator_class
-
-        for method in INTERPOLATION_METHODS:
-            if method in interpolator.methods_supported:
-                INTERPOLATION_METHODS_DICT[method].append(interpolator_class)
+def interpolation_decorator():
+    pass  ## TODO
 
 
-# load interpolators when module is first loaded
-# TODO does this really only load once?
-# TODO maybe move this whole section?
-load_interpolators()
+class HarmonizationForward(object):
+    source_class = None
+    harmonization_class = None
+    source_node = None
+    harmonization_node = None
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __getattr__(self, item):
+        _logger.debug("Get {}".format(item))
+        # pass get calls to THIS class
+        if item in ["interpolation", "source"]:
+            return super().__getattribute__(item)
+
+        _logger.debug("get source")
+        source = super().__getattribute__("source")
+        _logger.debug("got source")
+        if source.has_trait(item):
+            return getattr(source, item)
+        _logger.debug("Check source hasattr")
+        if hasattr(source, item):
+            return getattr(source, item)
+        _logger.debug("Get interp")
+        interp = super().__getattribute__("interpolation")
+        _logger.debug("got interp")
+        if interp.has_trait(item):
+            return getattr(interp, item)
+        raise AttributeError()
 
 
-class InterpolationException(Exception):
-    """
-    Custom label for interpolation exceptions
-    """
-
-    pass
-
-
-class Interpolation(object):
-    """Create an interpolation class to handle one interpolation method per unstacked dimension.
-    Used to interpolate data within a datasource.
+class Harmnonization(Node):
+    """Base node for any data obtained directly from a single source.
     
     Parameters
     ----------
-    definition : str, tuple (str, list of podpac.core.data.interpolator.Interpolator), dict
-        Interpolation definition used to define interpolation methods for each definiton.
-        See :attr:`podpac.data.DataSource.interpolation` for more details.
+    source : Any
+        The source node which will be interpolated
+    interpolation : str, dict, optional
+        {interpolation_long}
+    cache_output : bool
+        Should the node's output be cached? If not provided or None, uses default based on 
+        settings["CACHE_DATASOURCE_OUTPUT_DEFAULT"]. If True, outputs will be cached and retrieved from cache. If False,
+        outputs will not be cached OR retrieved from cache (even if they exist in cache). 
     
-    Raises
-    ------
-    InterpolationException
-        Raised when definition parameter is improperly formatted
-    
+    Notes
+    -----
+    Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_coordinates` methods.
     """
 
-    definition = None
-    config = OrderedDict()  # container for interpolation methods for each dimension
-    _last_interpolator_queue = None  # container for the last run interpolator queue - useful for debugging
-    _last_select_queue = None  # container for the last run select queue - useful for debugging
+    source = NodeTrait()
 
-    def __init__(self, definition=INTERPOLATION_DEFAULT):
+    interpolation = InterpolationTrait().tag(attr=True)
+    cache_output = tl.Bool()
 
-        self.definition = deepcopy(definition)
-        self.config = OrderedDict()
+    # privates
+    _interpolation = tl.Instance(Interpolation)
+    _coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
 
-        # if definition is None, set to default
-        # TODO: do we want to always have a default for interpolation?
-        # Or should there be an option to turn off interpolation?
-        if self.definition is None:
-            self.definition = INTERPOLATION_DEFAULT
+    _requested_source_coordinates = tl.Instance(Coordinates)
+    _requested_source_coordinates_index = tl.Tuple()
+    _requested_source_data = tl.Instance(UnitsDataArray)
+    _evaluated_coordinates = tl.Instance(Coordinates)
 
-        # set each dim to interpolator definition
-        if isinstance(definition, (dict, list)):
+    # this adds a more helpful error message if user happens to try an inspect _interpolation before evaluate
+    @tl.default("_interpolation")
+    def _default_interpolation(self):
+        self._set_interpolation()
+        return self._interpolation
 
-            # convert dict to list
-            if isinstance(definition, dict):
-                definition = [definition]
+    @tl.default("cache_output")
+    def _cache_output_default(self):
+        return settings["CACHE_NODE_OUTPUT_DEFAULT"]
 
-            for interp_definition in definition:
+    # ------------------------------------------------------------------------------------------------------------------
+    # Properties
+    # ------------------------------------------------------------------------------------------------------------------
 
-                # get interpolation method dict
-                method = self._parse_interpolation_method(interp_definition)
-
-                # specify dims
-                if "dims" in interp_definition:
-                    if isinstance(interp_definition["dims"], list):
-                        udims = tuple(
-                            sorted(interp_definition["dims"])
-                        )  # make sure the dims are always in the same order
-                    else:
-                        raise TypeError('The "dims" key of an interpolation definition must be a list')
-                else:
-                    udims = ("default",)
-
-                # make sure udims are not already specified in config
-                for config_dims in iter(self.config):
-                    if set(config_dims) & set(udims):
-                        raise InterpolationException(
-                            'Dimensions "{}" cannot be defined '.format(udims)
-                            + "multiple times in interpolation definition {}".format(interp_definition)
-                        )
-                # add all udims to definition
-                self._set_interpolation_method(udims, method)
-
-            # set default if its not been specified in the dict
-            if ("default",) not in self.config:
-
-                default_method = self._parse_interpolation_method(INTERPOLATION_DEFAULT)
-                self._set_interpolation_method(("default",), default_method)
-
-        elif isinstance(definition, string_types):
-            method = self._parse_interpolation_method(definition)
-            self._set_interpolation_method(("default",), method)
-
-        else:
-            raise TypeError(
-                '"{}" is not a valid interpolation definition type. '.format(definition)
-                + "Interpolation definiton must be a string or list of dicts"
-            )
-
-        # make sure ('default',) is always the last entry in config dictionary
-        default = self.config.pop(("default",))
-        self.config[("default",)] = default
-
-    def __repr__(self):
-        rep = str(self.__class__.__name__)
-        for udims in iter(self.config):
-            # rep += '\n\t%s:\n\t\tmethod: %s\n\t\tinterpolators: %s\n\t\tparams: %s' % \
-            rep += "\n\t%s: %s, %s, %s" % (
-                udims,
-                self.config[udims]["method"],
-                [i.__class__.__name__ for i in self.config[udims]["interpolators"]],
-                self.config[udims]["params"],
-            )
-
-        return rep
-
-    def _parse_interpolation_method(self, definition):
-        """parse interpolation definitions into a tuple of (method, Interpolator)
+    @property
+    def interpolation_class(self):
+        """Get the interpolation class currently set for this data source.
         
-        Parameters
-        ----------
-        definition : str, dict
-            interpolation definition
-            See :attr:`podpac.data.DataSource.interpolation` for more details.
+        The DataSource ``interpolation`` property is used to define the
+        :class:`podpac.data.Interpolation` class that will handle interpolation for requested coordinates.
         
         Returns
         -------
-        dict
-            dict with keys 'method', 'interpolators', and 'params'
-        
-        Raises
-        ------
-        InterpolationException
-        TypeError
-        """
-        if isinstance(definition, string_types):
-            if definition not in INTERPOLATION_METHODS:
-                raise InterpolationException(
-                    '"{}" is not a valid interpolation shortcut. '.format(definition)
-                    + "Valid interpolation shortcuts: {}".format(INTERPOLATION_METHODS)
-                )
-            return {"method": definition, "interpolators": INTERPOLATION_METHODS_DICT[definition], "params": {}}
-
-        elif isinstance(definition, dict):
-
-            # confirm method in dict
-            if "method" not in definition:
-                raise InterpolationException(
-                    "{} is not a valid interpolation definition. ".format(definition)
-                    + 'Interpolation definition dict must contain key "method" string value'
-                )
-            else:
-                method_string = definition["method"]
-
-            # if specifying custom method, user must include interpolators
-            if "interpolators" not in definition and method_string not in INTERPOLATION_METHODS:
-                raise InterpolationException(
-                    '"{}" is not a valid interpolation shortcut. '.format(method_string)
-                    + 'Specify list "interpolators" or change "method" '
-                    + "to a valid interpolation shortcut: {}".format(INTERPOLATION_METHODS)
-                )
-            elif "interpolators" not in definition:
-                interpolators = INTERPOLATION_METHODS_DICT[method_string]
-            else:
-                interpolators = definition["interpolators"]
-
-            # default for params
-            if "params" in definition:
-                params = definition["params"]
-            else:
-                params = {}
-
-            # confirm types
-            if not isinstance(method_string, string_types):
-                raise TypeError(
-                    "{} is not a valid interpolation method. ".format(method_string)
-                    + "Interpolation method must be a string"
-                )
-
-            if not isinstance(interpolators, list):
-                raise TypeError(
-                    "{} is not a valid interpolator definition. ".format(interpolators)
-                    + "Interpolator definition must be of type list containing Interpolator"
-                )
-
-            if not isinstance(params, dict):
-                raise TypeError(
-                    "{} is not a valid interpolation params definition. ".format(params)
-                    + "Interpolation params must be a dict"
-                )
-
-            # handle when interpolator is a string (most commonly from a node definition)
-            for idx, interpolator_class in enumerate(interpolators):
-                if isinstance(interpolator_class, string_types):
-                    if interpolator_class in INTERPOLATORS_DICT.keys():
-                        interpolators[idx] = INTERPOLATORS_DICT[interpolator_class]
-                    else:
-                        raise TypeError(
-                            'Interpolator "{}" is not in the dictionary of valid '.format(interpolator_class)
-                            + "interpolators: {}".format(INTERPOLATORS_DICT)
-                        )
-
-            # validate interpolator class
-            for interpolator in interpolators:
-                self._validate_interpolator(interpolator)
-
-            # if all checks pass, return the definition
-            return {"method": method_string, "interpolators": interpolators, "params": params}
-
-        else:
-            raise TypeError(
-                '"{}" is not a valid Interpolator definition. '.format(definition)
-                + "Interpolation definiton must be a string or dict."
-            )
-
-    def _validate_interpolator(self, interpolator):
-        """Make sure interpolator is a subclass of Interpolator
-        
-        Parameters
-        ----------
-        interpolator : any
-            input definition to validate
-        
-        Raises
-        ------
-        TypeError
-            Raises a type error if interpolator is not a subclass of Interpolator
-        """
-        try:
-            valid = issubclass(interpolator, Interpolator)
-            if not valid:
-                raise TypeError()
-        except TypeError:
-            raise TypeError(
-                "{} is not a valid interpolator type. ".format(interpolator)
-                + "Interpolator must be of type {}".format(Interpolator)
-            )
-
-    def _set_interpolation_method(self, udims, definition):
-        """Set the list of interpolation definitions to the input dimension
-        
-        Parameters
-        ----------
-        udims : tuple
-            tuple of dimensiosn to assign definition to
-        definition : dict
-            dict definition returned from _parse_interpolation_method
+        :class:`podpac.data.Interpolation`
+            Interpolation class defined by DataSource `interpolation` definition
         """
 
-        method = deepcopy(definition["method"])
-        interpolators = deepcopy(definition["interpolators"])
-        params = deepcopy(definition["params"])
+        return self._interpolation
 
-        # instantiate interpolators
-        for (idx, interpolator) in enumerate(interpolators):
-            interpolators[idx] = interpolator(method=method, **params)
-
-        definition["interpolators"] = interpolators
-
-        # set to interpolation configuration for dims
-        self.config[udims] = definition
-
-    def _select_interpolator_queue(self, source_coordinates, eval_coordinates, select_method, strict=False):
-        """Create interpolator queue based on interpolation configuration and requested/native source_coordinates
-        
-        Parameters
-        ----------
-        source_coordinates : :class:`podpac.Coordinates`
-            Description
-        eval_coordinates : :class:`podpac.Coordinates`
-            Description
-        select_method : function
-            method used to determine if interpolator can handle dimensions
-        strict : bool, optional
-            Raise an error if all dimensions can't be handled
+    @property
+    def interpolators(self):
+        """Return the interpolators selected for the previous node evaluation interpolation.
+        If the node has not been evaluated, or if interpolation was not necessary, this will return
+        an empty OrderedDict
         
         Returns
         -------
         OrderedDict
-            Dict of (udims: Interpolator) to run in order
+            Key are tuple of unstacked dimensions, the value is the interpolator used to interpolate these dimensions
+        """
+
+        if self._interpolation._last_interpolator_queue is not None:
+            return self._interpolation._last_interpolator_queue
+        else:
+            return OrderedDict()
+
+    def _set_interpolation(self):
+        """Update _interpolation property
+        """
+
+        # define interpolator with source coordinates dimensions
+        if isinstance(self.interpolation, Interpolation):
+            self._interpolation = self.interpolation
+        else:
+            self._interpolation = Interpolation(self.interpolation)
+
+    @common_doc(COMMON_DATA_DOC)
+    @node_eval
+    def eval(self, coordinates, output=None):
+        """Evaluates this node using the supplied coordinates.
+
+        The coordinates are mapped to the requested coordinates, interpolated if necessary, and set to
+        `_requested_source_coordinates` with associated index `_requested_source_coordinates_index`. The requested
+        source coordinates and index are passed to `get_data()` returning the source data at the
+        coordinatesset to `_requested_source_data`. Finally `_requested_source_data` is interpolated
+        using the `interpolate` method and set to the `output` attribute of the node.
+
+
+        Parameters
+        ----------
+        coordinates : :class:`podpac.Coordinates`
+            {requested_coordinates}
+            
+            An exception is raised if the requested coordinates are missing dimensions in the DataSource.
+            Extra dimensions in the requested coordinates are dropped.
+        output : :class:`podpac.UnitsDataArray`, optional
+            {eval_output}
         
+        Returns
+        -------
+        {eval_return}
+
         Raises
         ------
-        InterpolationException
-            If `strict` is True, InterpolationException is raised when all dimensions cannot be handled
+        ValueError
+            Cannot evaluate these coordinates
         """
-        source_dims = set(source_coordinates.udims)
-        handled_dims = set()
 
-        interpolator_queue = OrderedDict()
+        log.debug("Evaluating {} data source".format(self.__class__.__name__))
 
-        # go through all dims in config
-        for key in iter(self.config):
+        # store requested coordinates for debugging
+        if settings["DEBUG"]:
+            self._original_requested_coordinates = coordinates
 
-            # if the key is set to (default,), it represents all the remaining dimensions that have not been handled
-            # __init__ makes sure that (default,) will always be the last key in on
-            if key == ("default",):
-                udims = tuple(sorted(source_dims - handled_dims))
+        # check for missing dimensions
+        for c in self.coordinates.values():
+            if isinstance(c, Coordinates1d):
+                if c.name not in coordinates.udims:
+                    raise ValueError("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
+            elif isinstance(c, StackedCoordinates):
+                if any(s.name not in coordinates.udims for s in c):
+                    raise ValueError("Cannot evaluate these coordinates, missing at least one dim in '%s'" % c.name)
+
+        # remove extra dimensions
+        extra = [
+            c.name
+            for c in coordinates.values()
+            if (isinstance(c, Coordinates1d) and c.name not in self.coordinates.udims)
+            or (isinstance(c, StackedCoordinates) and all(dim not in self.coordinates.udims for dim in c.dims))
+        ]
+        coordinates = coordinates.drop(extra)
+
+        # store input coordinates to evaluated coordinates
+        self._evaluated_coordinates = deepcopy(coordinates)
+
+        # transform coordinates into native crs if different
+        if self.coordinates.crs.lower() != coordinates.crs.lower():
+            coordinates = coordinates.transform(self.coordinates.crs)
+
+        # intersect the coordinates with requested coordinates to get coordinates within requested coordinates bounds
+        # TODO: support coordinate_index_type parameter to define other index types
+        (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
+        self._requested_source_coordinates = rsc
+        self._requested_source_coordinates_index = rsci
+
+        # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
+        if self._requested_source_coordinates.size == 0:
+            if output is None:
+                output = self.create_output_array(self._evaluated_coordinates)
+                if "output" in output.dims and self.output is not None:
+                    output = output.sel(output=self.output)
             else:
-                udims = key
+                output[:] = np.nan
+            return output
 
-            # get configured list of interpolators for dim definition
-            interpolators = self.config[key]["interpolators"]
+        # reset interpolation
+        self._set_interpolation()
 
-            # iterate through interpolators recording which dims they support
-            for interpolator in interpolators:
-                # if all dims have been handled already, skip the rest
-                if not udims:
-                    break
+        # interpolate requested coordinates before getting data
+        (rsc, rsci) = self._interpolation.select_coordinates(
+            self._requested_source_coordinates, self._requested_source_coordinates_index, coordinates
+        )
+        self._requested_source_coordinates = rsc
+        self._requested_source_coordinates_index = rsci
 
-                # see which dims the interpolator can handle
-                can_handle = getattr(interpolator, select_method)(udims, source_coordinates, eval_coordinates)
+        # Check the coordinate_index_type
+        if self.coordinate_index_type == "slice":  # Most restrictive
+            new_rsci = []
+            for rsci in self._requested_source_coordinates_index:
+                if isinstance(rsci, slice):
+                    new_rsci.append(rsci)
+                    continue
 
-                # if interpolator can handle all udims
-                if not set(udims) - set(can_handle):
+                if len(rsci) > 1:
+                    mx, mn = np.max(rsci), np.min(rsci)
+                    df = np.diff(rsci)
+                    if np.all(df == df[0]):
+                        step = df[0]
+                    else:
+                        step = 1
+                    new_rsci.append(slice(mn, mx + 1, step))
+                else:
+                    new_rsci.append(slice(np.max(rsci), np.max(rsci) + 1))
 
-                    # save union of dims that can be handled by this interpolator and already supported dims for next iteration
-                    handled_dims = handled_dims | set(can_handle)
+            self._requested_source_coordinates_index = tuple(new_rsci)
 
-                    # set interpolator to work on that dimension in the interpolator_queue if dim has no interpolator
-                    if udims not in interpolator_queue:
+        # get data from data source
+        self._requested_source_data = self._get_data()
 
-                        interpolator_queue[udims] = interpolator
+        # if not provided, create output using the evaluated coordinates, or
+        # if provided, set the order of coordinates to match the output dims
+        # Note that at this point the coordinates are in the same CRS as the coordinates
+        if output is None:
+            requested_dims = None
+            output_dims = None
+            output = self.create_output_array(coordinates)
+            if "output" in output.dims and self.output is not None:
+                output = output.sel(output=self.output)
+        else:
+            requested_dims = self._evaluated_coordinates.dims
+            output_dims = output.dims
+            o = output
+            if "output" in output.dims:
+                requested_dims = requested_dims + ("output",)
+            output = output.transpose(*requested_dims)
 
-        # throw error if the source_dims don't encompass all the supported dims
-        # this should happen rarely because of default
-        if len(source_dims) > len(handled_dims) and strict:
-            missing_dims = list(source_dims - handled_dims)
-            raise InterpolationException(
-                "Dimensions {} ".format(missing_dims)
-                + "can't be handled by interpolation definition:\n {}".format(self)
-            )
-
-        # TODO: adjust by interpolation cost
-        return interpolator_queue
-
-    def select_coordinates(self, source_coordinates, source_coordinates_index, eval_coordinates):
-        """
-        Select a subset or coordinates if interpolator can downselect.
-        
-        At this point in the execution process, podpac has selected a subset of source_coordinates that intersects
-        with the requested coordinates, dropped extra dimensions from requested coordinates, and confirmed
-        source coordinates are not missing any dimensions.
-        
-        Parameters
-        ----------
-        source_coordinates : :class:`podpac.Coordinates`
-            Intersected source coordinates
-        source_coordinates_index : list
-            Index of intersected source coordinates. See :class:`podpac.data.DataSource` for
-            more information about valid values for the source_coordinates_index
-        eval_coordinates : :class:`podpac.Coordinates`
-            Requested coordinates to evaluate
-        
-        Returns
-        -------
-        (:class:`podpac.Coordinates`, list)
-            Returns tuple with the first element subset of selected coordinates and the second element the indicies
-            of the selected coordinates
-        """
-
-        # TODO: short circuit if source_coordinates contains eval_coordinates
-        # short circuit if source and eval coordinates are the same
-        if source_coordinates == eval_coordinates:
-            return source_coordinates, tuple(source_coordinates_index)
-
-        interpolator_queue = self._select_interpolator_queue(source_coordinates, eval_coordinates, "can_select")
-
-        self._last_select_queue = interpolator_queue
-
-        selected_coords = deepcopy(source_coordinates)
-        selected_coords_idx = deepcopy(source_coordinates_index)
-
-        for udims in interpolator_queue:
-            interpolator = interpolator_queue[udims]
-
-            # run interpolation. mutates selected coordinates and selected coordinates index
-            selected_coords, selected_coords_idx = interpolator.select_coordinates(
-                udims, selected_coords, selected_coords_idx, eval_coordinates
-            )
-
-        return selected_coords, tuple(selected_coords_idx)
-
-    def interpolate(self, source_coordinates, source_data, eval_coordinates, output_data):
-        """Interpolate data from requested coordinates to source coordinates
-        
-        Parameters
-        ----------
-        source_coordinates : :class:`podpac.Coordinates`
-            Description
-        source_data : podpac.core.units.UnitsDataArray
-            Description
-        eval_coordinates : :class:`podpac.Coordinates`
-            Description
-        output_data : podpac.core.units.UnitsDataArray
-            Description
-        
-        Returns
-        -------
-        podpac.core.units.UnitDataArray
-            returns the new output UnitDataArray of interpolated data
-        
-        Raises
-        ------
-        InterpolationException
-            Raises InterpolationException when interpolator definition can't support all the dimensions
-            of the requested coordinates
-        """
-
-        # loop through multiple outputs if necessary
-        if "output" in output_data.dims:
-            for output in output_data.coords["output"]:
-                output_data.sel(output=output)[:] = self.interpolate(
-                    source_coordinates,
-                    source_data.sel(output=output).drop("output"),
-                    eval_coordinates,
-                    output_data.sel(output=output).drop("output"),
+            # check crs compatibility
+            if output.crs != self._evaluated_coordinates.crs:
+                raise ValueError(
+                    "Output coordinate reference system ({}) does not match".format(output.crs)
+                    + "request Coordinates coordinate reference system ({})".format(coordinates.crs)
                 )
-            return output_data
 
-        # drop already-selected output variable
-        if "output" in output_data.coords:
-            source_data = source_data.drop("output")
-            output_data = output_data.drop("output")
+        # get indexed boundary
+        self._requested_source_boundary = self._get_boundary(self._requested_source_coordinates_index)
 
-        # TODO does this allow undesired extrapolation?
-        # short circuit if the source data and requested coordinates are of shape == 1
-        if source_data.size == 1 and eval_coordinates.size == 1:
-            output_data.data[:] = source_data.data.flatten()[0]
-            return output_data
-
-        # short circuit if source_coordinates contains eval_coordinates
-        if eval_coordinates.issubset(source_coordinates):
-            try:
-                output_data.data[:] = source_data.sel(output_data.coords, method="nearest").transpose(*output_data.dims)
-            except NotImplementedError:
-                output_data.data[:] = source_data.sel(output_data.coords).transpose(*output_data.dims)
-            return output_data
-
-        interpolator_queue = self._select_interpolator_queue(
-            source_coordinates, eval_coordinates, "can_interpolate", strict=True
+        # interpolate data into output
+        output = self._interpolation.interpolate(
+            self._requested_source_coordinates, self._requested_source_data, coordinates, output
         )
 
-        # for debugging purposes, save the last defined interpolator queue
-        self._last_interpolator_queue = interpolator_queue
+        # Fill the output that was passed to eval with the new data
+        if requested_dims is not None and requested_dims != output_dims:
+            o = o.transpose(*output_dims)
+            o.data[:] = output.transpose(*output_dims).data
 
-        # iterate through each dim tuple in the queue
-        dtype = output_data.dtype
-        for udims, interpolator in interpolator_queue.items():
-            # TODO move the above short-circuits into this loop
+        # if requested crs is differented than coordinates,
+        # fabricate a new output with the original coordinates and new values
+        if self._evaluated_coordinates.crs != coordinates.crs:
+            output = self.create_output_array(self._evaluated_coordinates, data=output[:].values)
 
-            # interp_coordinates are essentially intermediate eval_coordinates
-            interp_dims = [dim for dim, c in source_coordinates.items() if set(c.dims).issubset(udims)]
-            other_dims = [dim for dim, c in eval_coordinates.items() if not set(c.dims).issubset(udims)]
-            interp_coordinates = merge_dims([source_coordinates.drop(interp_dims), eval_coordinates.drop(other_dims)])
-            interp_data = UnitsDataArray.create(interp_coordinates, dtype=dtype)
-            interp_data = interpolator.interpolate(
-                udims, source_coordinates, source_data, interp_coordinates, interp_data
-            )
+        # save output to private for debugging
+        if settings["DEBUG"]:
+            self._output = output
 
-            # prepare for the next iteration
-            source_data = interp_data
-            source_coordinates = interp_coordinates
+        return output
 
-        output_data.data = interp_data.transpose(*output_data.dims)
+    def find_coordinates(self):
+        """
+        Get the available coordinates for the Node. For a DataSource, this is just the coordinates.
 
-        return output_data
+        Returns
+        -------
+        coords_list : list
+            singleton list containing the coordinates (Coordinates object)
+        """
 
-
-class InterpolationTrait(tl.Union):
-    default_value = INTERPOLATION_DEFAULT
-
-    def __init__(
-        self,
-        trait_types=[tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(Interpolation)],
-        *args,
-        **kwargs
-    ):
-        super(InterpolationTrait, self).__init__(trait_types=trait_types, *args, **kwargs)
+        return self.source.find_coordinates()
