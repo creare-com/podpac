@@ -16,6 +16,7 @@ This release also drops Python 3.5 support.
 ### Bugfixes
 * Added dimensions to `modis` and `cosmos` compositors
 * Fixed version numbers in `smap_egi` datasource, and these are now looked up automatically
+* Fixed a precision bug on selection with time coordinates
 
 ## 2.2.2
 ### Bug Fixes
