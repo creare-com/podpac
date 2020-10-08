@@ -562,7 +562,8 @@ def higher_precision_time_bounds(my_bounds, other_bounds, outer):
         
     Notes
     ------
-    When converting a YYYY-MM-DD to YYYY-MM-DD HH with outer=True, the largest value for HH is used, since the whole day is valid
+    When converting the upper bound with outer=True, the whole lower-precision time unit is valid. E.g. when converting
+    YYYY-MM-DD to YYYY-MM-DD HH, the largest value for HH is used, since the whole day is valid.
     """
     if not isinstance(other_bounds[0], np.datetime64) or not isinstance(other_bounds[1], np.datetime64):
         raise TypeError("Input bounds should be of type np.datetime64 when selecting data from:", str(my_bounds))
@@ -571,8 +572,13 @@ def higher_precision_time_bounds(my_bounds, other_bounds, outer):
         raise TypeError("Native bounds should be of type np.datetime64 when selecting data using:", str(other_bounds))
 
     if my_bounds[0].dtype > other_bounds[0].dtype and outer:
-        sign = [0, 1]
-        other_bounds = [(b + s).astype(my_bounds[0].dtype) - 1 for s, b in zip(sign, other_bounds)]
+        # for the upper bound, the whole lower-precision time unit is valid (see note)
+        # select the largest value for the higher-precision time unit by adding one lower-precision time unit and
+        # subtracting one higher-precision time unit.
+        other_bounds = [
+            other_bounds[0].astype(my_bounds[0].dtype),
+            (other_bounds[1] + 1).astype(my_bounds[0].dtype) - 1,
+        ]
     else:
         my_bounds = [b.astype(other_bounds[0].dtype) for b in my_bounds]
 
