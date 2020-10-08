@@ -52,10 +52,10 @@ class BaseAlgorithm(Node):
 
 class Algorithm(BaseAlgorithm):
     """Base class for computation nodes with a custom algorithm.
-    
+
     Notes
     ------
-    Developers of new Algorithm nodes need to implement the `algorithm` method. 
+    Developers of new Algorithm nodes need to implement the `algorithm` method.
     """
 
     def algorithm(self, inputs):
@@ -64,7 +64,7 @@ class Algorithm(BaseAlgorithm):
         ----------
         inputs : dict
             Evaluated outputs of the input nodes. The keys are the attribute names.
-        
+
         Raises
         ------
         NotImplementedError
@@ -76,14 +76,14 @@ class Algorithm(BaseAlgorithm):
     @node_eval
     def eval(self, coordinates, output=None):
         """Evalutes this nodes using the supplied coordinates. 
-        
+
         Parameters
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        
+
         Returns
         -------
         {eval_return}

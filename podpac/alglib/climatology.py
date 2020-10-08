@@ -25,7 +25,7 @@ class BetaFitDayOfYear(DayOfYearWindow):
     """
     This fits a beta distribution to day of the year in the requested coordinates over a window. It returns the beta
     distribution parameters 'a', and 'b' as part of the output. It may also return a number of percentiles.
-    
+
     Attributes
     -----------
     percentiles: list, optional
