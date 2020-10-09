@@ -90,4 +90,4 @@ class TestInterpolation(object):
         s2c, s2ci = self.s2.coordinates.intersect(self.coords2c, outer=True, return_indices=True)
 
         assert s1c.shape == (3, 3)
-        assert s2c.shape == (3, 3)
+        assert s2c.shape == (2, 3)
