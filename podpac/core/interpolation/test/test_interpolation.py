@@ -12,9 +12,11 @@ import numpy as np
 
 import podpac
 from podpac.core.units import UnitsDataArray
+from podpac.core.node import Node
 from podpac.core.coordinates import Coordinates
 from podpac.core.interpolation.interpolation import Interpolation, InterpolationMixin
 from podpac.core.data.array_source import Array, ArrayBase
+from podpac.core.compositor.ordered_compositor import OrderedCompositor
 
 
 class TestInterpolationMixin(object):
@@ -39,18 +41,43 @@ class TestInterpolationMixin(object):
 
 
 class TestInterpolation(object):
+    s1 = ArrayBase(
+        source=np.random.rand(4, 5),
+        coordinates=Coordinates([np.linspace(0, 3, 4), np.linspace(0, 4, 5)], ["lat", "lon"]),
+    )
+    s2 = ArrayBase(
+        source=np.random.rand(4, 5),
+        coordinates=Coordinates([np.linspace(4, 7, 4), np.linspace(0, 4, 5)], ["lat", "lon"]),
+    )
+    interp = Interpolation(source=s1, interpolation="nearest")
+    coords = Coordinates([np.linspace(0, 3, 7), np.linspace(0, 4, 9)], ["lat", "lon"])
+    coords2 = Coordinates([np.linspace(0, 7, 8), np.linspace(0, 4, 5)], ["lat", "lon"])
+    coords2c = Coordinates([np.linspace(0, 7, 4), np.linspace(0, 4, 3)], ["lat", "lon"])
+
     def test_basic_interpolation(self):
         # This JUST tests the interface, tests for the actual value of the interpolation is left
         # to the test_interpolation_manager.py file
-        data = np.random.rand(4, 5)
-        native_coords = Coordinates([np.linspace(0, 3, 4), np.linspace(0, 4, 5)], ["lat", "lon"])
-        arrb_src = ArrayBase(source=data, coordinates=native_coords)
-        interp = Interpolation(interpolation="nearest")
 
-        coords = Coordinates([np.linspace(0, 3, 7), np.linspace(0, 4, 9)], ["lat", "lon"])
-        o = interp.eval(coords)
+        o = self.interp.eval(self.coords)
 
         assert o.shape == [7, 9]
 
     def test_interpolation_definition(self):
-        pass
+        node = Node.from_json(self.interp.json)
+        o1 = node.eval(self.coords)
+        o2 = self.interp.eval(self.coords)
+        np.testing.assert_array_equal(o1.data, o2.data)
+        assert node.json == self.interp.json
+
+    def test_compositor_chain(self):
+        c = OrderedCompositor(sources=[self.s2, self.s1])
+        o = c.eval(self.coords2)
+
+        np.testing.assert_array_equal(o.data, np.concatenate([self.s1.data, self.s2.data], axis=1))
+
+    def test_compositor_chain_optimized_find(self):
+        c = OrderedCompositor(sources=[self.s2, self.s1])
+        node = Interpolation(source=c, interpolation="nearest")
+        o = node.eval(self.coords2c)
+
+        np.testing.assert_array_equal(o.data, np.concatenate([self.s1.data, self.s2.data], axis=1))
