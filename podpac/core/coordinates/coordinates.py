@@ -76,6 +76,9 @@ class Coordinates(tl.HasTraits):
         Tuple of individual dimension names, always unstacked.
     """
 
+    selector = tl.Any(
+        allow_none=True, default_value=None
+    )  # This should be Callable, but I can't find that in my install of traitlets??
     crs = tl.Unicode(read_only=True, allow_none=True)
 
     _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates), default_value=OrderedDict())
@@ -1090,6 +1093,7 @@ class Coordinates(tl.HasTraits):
         if dims is not None:
             bounds = {dim: bounds[dim] for dim in dims}  # if dim in bounds}
 
+        # TODO: Do something with the selector if it exists
         return self.select(bounds, outer=outer, return_indices=return_indices)
 
     def select(self, bounds, return_indices=False, outer=False):
@@ -1162,6 +1166,9 @@ class Coordinates(tl.HasTraits):
         # self._requested_source_coordinates_index = tuple(new_rsci)
 
         return self._make_selected_coordinates(selections, return_indices)
+
+    def set_selector(self, selector):
+        self.selector = selector
 
     def _make_selected_coordinates(self, selections, return_indices):
         if return_indices:

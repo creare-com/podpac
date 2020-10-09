@@ -60,7 +60,7 @@ class TestInterpolation(object):
 
         o = self.interp.eval(self.coords)
 
-        assert o.shape == [7, 9]
+        assert o.shape == (17, 29)
 
     def test_interpolation_definition(self):
         node = Node.from_json(self.interp.json)

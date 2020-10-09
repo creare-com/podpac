@@ -371,7 +371,7 @@ class DataSource(Node):
         # if provided, set the order of coordinates to match the output dims
         # Note that at this point the coordinates are in the same CRS as the coordinates
         if isinstance(self._requested_source_data, UnitsDataArray):
-            output = self._requested_source_data.transpose(self._evaluated_coordinates.dims)
+            output = self._requested_source_data.transpose(*self._evaluated_coordinates.dims)
         elif output is None:
             requested_dims = None
             output_dims = None

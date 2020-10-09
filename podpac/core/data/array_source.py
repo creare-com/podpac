@@ -17,9 +17,10 @@ from podpac.core.cache import CacheCtrl
 from podpac.core.node import NoCacheMixin
 from podpac.core.coordinates import Coordinates
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
+from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
-class Array(NoCacheMixin, DataSource):
+class ArrayBase(NoCacheMixin, DataSource):
     """Create a DataSource from an array -- this node is mostly meant for small experiments
     
     Attributes
@@ -92,3 +93,7 @@ class Array(NoCacheMixin, DataSource):
     def set_coordinates(self, value):
         """ Not needed. """
         pass
+
+
+class Array(InterpolationMixin, ArrayBase):
+    pass

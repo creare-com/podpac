@@ -9,6 +9,7 @@ import logging
 import traitlets as tl
 import numpy as np
 
+from podpac.core.settings import settings
 from podpac.core.node import Node, node_eval
 from podpac.core.utils import NodeTrait, common_doc
 from podpac.core.units import UnitsDataArray
@@ -22,35 +23,18 @@ def interpolation_decorator():
     pass  ## TODO
 
 
-class InterpolationMixin(object):
-    source_class = None
-    harmonization_class = None
-    source_node = None
-    harmonization_node = None
+class InterpolationMixin(tl.HasTraits):
+    interpolation = InterpolationTrait().tag(attr=True)
 
-    def __init__(self, *args, **kwargs):
-        pass
+    @node_eval
+    def eval(self, coordinates, output=None):
+        node = Interpolation(interpolation=self.interpolation)
+        node._set_interpolation()
+        coordinates.set_selector(node._interpolation.select_coordinates)
+        source = super().eval(coordinates)
+        node.set_trait("source", source)
 
-    def __getattr__(self, item):
-        _logger.debug("Get {}".format(item))
-        # pass get calls to THIS class
-        if item in ["interpolation", "source"]:
-            return super().__getattribute__(item)
-
-        _logger.debug("get source")
-        source = super().__getattribute__("source")
-        _logger.debug("got source")
-        if source.has_trait(item):
-            return getattr(source, item)
-        _logger.debug("Check source hasattr")
-        if hasattr(source, item):
-            return getattr(source, item)
-        _logger.debug("Get interp")
-        interp = super().__getattribute__("interpolation")
-        _logger.debug("got interp")
-        if interp.has_trait(item):
-            return getattr(interp, item)
-        raise AttributeError()
+        return node.eval(coordinates, output)
 
 
 class Interpolation(Node):
@@ -72,7 +56,7 @@ class Interpolation(Node):
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_coordinates` methods.
     """
 
-    source = NodeTrait()
+    source = tl.Union([tl.Instance(UnitsDataArray), NodeTrait()]).tag(attr=True)
 
     interpolation = InterpolationTrait().tag(attr=True)
     cache_output = tl.Bool()
@@ -94,7 +78,7 @@ class Interpolation(Node):
 
     @tl.default("cache_output")
     def _cache_output_default(self):
-        return podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"]
+        return settings["CACHE_NODE_OUTPUT_DEFAULT"]
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -173,134 +157,53 @@ class Interpolation(Node):
             Cannot evaluate these coordinates
         """
 
-        log.debug("Evaluating {} data source".format(self.__class__.__name__))
+        _logger.debug("Evaluating {} data source".format(self.__class__.__name__))
 
         # store requested coordinates for debugging
         if settings["DEBUG"]:
             self._original_requested_coordinates = coordinates
 
-        # check for missing dimensions
-        for c in self.coordinates.values():
-            if isinstance(c, Coordinates1d):
-                if c.name not in coordinates.udims:
-                    raise ValueError("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
-            elif isinstance(c, StackedCoordinates):
-                if any(s.name not in coordinates.udims for s in c):
-                    raise ValueError("Cannot evaluate these coordinates, missing at least one dim in '%s'" % c.name)
-
-        # remove extra dimensions
-        extra = [
-            c.name
-            for c in coordinates.values()
-            if (isinstance(c, Coordinates1d) and c.name not in self.coordinates.udims)
-            or (isinstance(c, StackedCoordinates) and all(dim not in self.coordinates.udims for dim in c.dims))
-        ]
-        coordinates = coordinates.drop(extra)
-
         # store input coordinates to evaluated coordinates
         self._evaluated_coordinates = deepcopy(coordinates)
-
-        # transform coordinates into native crs if different
-        if self.coordinates.crs.lower() != coordinates.crs.lower():
-            coordinates = coordinates.transform(self.coordinates.crs)
-
-        # intersect the coordinates with requested coordinates to get coordinates within requested coordinates bounds
-        # TODO: support coordinate_index_type parameter to define other index types
-        (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
-        self._requested_source_coordinates = rsc
-        self._requested_source_coordinates_index = rsci
-
-        # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
-        if self._requested_source_coordinates.size == 0:
-            if output is None:
-                output = self.create_output_array(self._evaluated_coordinates)
-                if "output" in output.dims and self.output is not None:
-                    output = output.sel(output=self.output)
-            else:
-                output[:] = np.nan
-            return output
 
         # reset interpolation
         self._set_interpolation()
 
-        # interpolate requested coordinates before getting data
-        (rsc, rsci) = self._interpolation.select_coordinates(
-            self._requested_source_coordinates, self._requested_source_coordinates_index, coordinates
-        )
-        self._requested_source_coordinates = rsc
-        self._requested_source_coordinates_index = rsci
+        self._evaluated_coordinates.set_selector(self._interpolation.select_coordinates)
 
-        # Check the coordinate_index_type
-        if self.coordinate_index_type == "slice":  # Most restrictive
-            new_rsci = []
-            for rsci in self._requested_source_coordinates_index:
-                if isinstance(rsci, slice):
-                    new_rsci.append(rsci)
-                    continue
+        source_out = self._source_eval(self._evaluated_coordinates)
+        source_coords = Coordinates.from_xarray(source_out.coords)
 
-                if len(rsci) > 1:
-                    mx, mn = np.max(rsci), np.min(rsci)
-                    df = np.diff(rsci)
-                    if np.all(df == df[0]):
-                        step = df[0]
-                    else:
-                        step = 1
-                    new_rsci.append(slice(mn, mx + 1, step))
-                else:
-                    new_rsci.append(slice(np.max(rsci), np.max(rsci) + 1))
+        # Drop extra coordinates
+        extra_dims = [d for d in coordinates.dims if d not in source_coords.dims]
+        coordinates.drop(extra_dims)
 
-            self._requested_source_coordinates_index = tuple(new_rsci)
+        # Transform so that interpolation happens on the source data coordinate system
+        if source_coords.crs.lower() != coordinates.crs.lower():
+            coordinates = coordinates.transform(source_coords.crs)
 
-        # get data from data source
-        self._requested_source_data = self._get_data()
-
-        # if not provided, create output using the evaluated coordinates, or
-        # if provided, set the order of coordinates to match the output dims
-        # Note that at this point the coordinates are in the same CRS as the coordinates
         if output is None:
-            requested_dims = None
-            output_dims = None
             output = self.create_output_array(coordinates)
-            if "output" in output.dims and self.output is not None:
-                output = output.sel(output=self.output)
-        else:
-            requested_dims = self._evaluated_coordinates.dims
-            output_dims = output.dims
-            o = output
-            if "output" in output.dims:
-                requested_dims = requested_dims + ("output",)
-            output = output.transpose(*requested_dims)
-
-            # check crs compatibility
-            if output.crs != self._evaluated_coordinates.crs:
-                raise ValueError(
-                    "Output coordinate reference system ({}) does not match".format(output.crs)
-                    + "request Coordinates coordinate reference system ({})".format(coordinates.crs)
-                )
-
-        # get indexed boundary
-        self._requested_source_boundary = self._get_boundary(self._requested_source_coordinates_index)
 
         # interpolate data into output
-        output = self._interpolation.interpolate(
-            self._requested_source_coordinates, self._requested_source_data, coordinates, output
-        )
-
-        # Fill the output that was passed to eval with the new data
-        if requested_dims is not None and requested_dims != output_dims:
-            o = o.transpose(*output_dims)
-            o.data[:] = output.transpose(*output_dims).data
+        output = self._interpolation.interpolate(source_coords, source_out, coordinates, output)
 
         # if requested crs is differented than coordinates,
         # fabricate a new output with the original coordinates and new values
         if self._evaluated_coordinates.crs != coordinates.crs:
-            output = self.create_output_array(self._evaluated_coordinates, data=output[:].values)
+            output = self.create_output_array(self._evaluated_coordinates.drop(extra_dims), data=output[:].values)
 
         # save output to private for debugging
         if settings["DEBUG"]:
             self._output = output
 
         return output
+
+    def _source_eval(self, coordinates, output=None):
+        if isinstance(self.source, Node):
+            return self.source.eval(coordinates, output)
+        elif isinstance(self.source, UnitsDataArray):
+            return self.source
 
     def find_coordinates(self):
         """
