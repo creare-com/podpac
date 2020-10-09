@@ -85,7 +85,7 @@ class TestInterpolation(object):
         # First let's assign a selector to the input coordinates
         self.coords2c.set_selector(node._interpolation.select_coordinates)
 
-        # Now the intersection function will only return the needed coordinates
+        # Now the intersection function inside the Datasource will only return the needed coordinates
         s1c, s1ci = self.s1.coordinates.intersect(self.coords2c, outer=True, return_indices=True)
         s2c, s2ci = self.s2.coordinates.intersect(self.coords2c, outer=True, return_indices=True)
 
