@@ -540,7 +540,7 @@ class InterpolationTrait(tl.Union):
 
     def __init__(
         self,
-        trait_types=[tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(Interpolation)],
+        trait_types=[tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(InterpolationManager)],
         *args,
         **kwargs
     ):

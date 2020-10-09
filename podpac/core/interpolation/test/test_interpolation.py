@@ -42,17 +42,17 @@ class TestInterpolationMixin(object):
 
 class TestInterpolation(object):
     s1 = ArrayBase(
-        source=np.random.rand(4, 5),
-        coordinates=Coordinates([np.linspace(0, 3, 4), np.linspace(0, 4, 5)], ["lat", "lon"]),
+        source=np.random.rand(9, 15),
+        coordinates=Coordinates([np.linspace(0, 8, 9), np.linspace(0, 14, 15)], ["lat", "lon"]),
     )
     s2 = ArrayBase(
-        source=np.random.rand(4, 5),
-        coordinates=Coordinates([np.linspace(4, 7, 4), np.linspace(0, 4, 5)], ["lat", "lon"]),
+        source=np.random.rand(9, 15),
+        coordinates=Coordinates([np.linspace(9, 17, 9), np.linspace(0, 14, 15)], ["lat", "lon"]),
     )
     interp = Interpolation(source=s1, interpolation="nearest")
-    coords = Coordinates([np.linspace(0, 3, 7), np.linspace(0, 4, 9)], ["lat", "lon"])
-    coords2 = Coordinates([np.linspace(0, 7, 8), np.linspace(0, 4, 5)], ["lat", "lon"])
-    coords2c = Coordinates([np.linspace(0, 7, 4), np.linspace(0, 4, 3)], ["lat", "lon"])
+    coords = Coordinates([np.linspace(0, 8, 17), np.linspace(0, 14, 29)], ["lat", "lon"])
+    coords2 = Coordinates([np.linspace(0, 17, 18), np.linspace(0, 14, 29)], ["lat", "lon"])
+    coords2c = Coordinates([np.linspace(0.1, 16.8, 5), np.linspace(0.1, 13.8, 3)], ["lat", "lon"])
 
     def test_basic_interpolation(self):
         # This JUST tests the interface, tests for the actual value of the interpolation is left
@@ -70,14 +70,24 @@ class TestInterpolation(object):
         assert node.json == self.interp.json
 
     def test_compositor_chain(self):
-        c = OrderedCompositor(sources=[self.s2, self.s1])
-        o = c.eval(self.coords2)
+        oc = OrderedCompositor(sources=[self.s2, self.s1])
+        o = oc.eval(self.coords2)
 
         np.testing.assert_array_equal(o.data, np.concatenate([self.s1.data, self.s2.data], axis=1))
 
-    def test_compositor_chain_optimized_find(self):
-        c = OrderedCompositor(sources=[self.s2, self.s1])
-        node = Interpolation(source=c, interpolation="nearest")
-        o = node.eval(self.coords2c)
+    def test_compositor_chain_optimized_find_coordinates(self):
+        oc = OrderedCompositor(sources=[self.s2, self.s1])
+        node = Interpolation(source=oc, interpolation="nearest")
 
-        np.testing.assert_array_equal(o.data, np.concatenate([self.s1.data, self.s2.data], axis=1))
+        # This section now emulates what essentially will happen inside the eval
+        # so this is a bit of a bootstrap test, and some of this might be moved
+        # to the datasource
+        # First let's assign a selector to the input coordinates
+        self.coords2c.set_selector(node._interpolation.select_coordinates)
+
+        # Now the intersection function will only return the needed coordinates
+        s1c, s1ci = self.s1.coordinates.intersect(self.coords2c, outer=True, return_indices=True)
+        s2c, s2ci = self.s2.coordinates.intersect(self.coords2c, outer=True, return_indices=True)
+
+        assert s1c.shape == (3, 3)
+        assert s2c.shape == (3, 3)

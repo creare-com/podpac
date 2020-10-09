@@ -141,7 +141,7 @@ class DataSource(Node):
     nan_vals : List, optional
         List of values from source data that should be interpreted as 'no data' or 'nans'
     coordinate_index_type : str, optional
-        Type of index to use for data source. Possible values are ``['list', 'numpy', 'xarray', 'pandas']``
+        Type of index to use for data source. Possible values are ``['slice', 'list', 'numpy']``
         Default is 'numpy'
     cache_coordinates : bool
         Whether to cache coordinates using the podpac ``cache_ctrl``. Default False.

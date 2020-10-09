@@ -1,6 +1,6 @@
-import traitlets as tl
-
 from __future__ import division, unicode_literals, print_function, absolute_import
+
+import traitlets as tl
 from copy import deepcopy
 from collections import OrderedDict
 from six import string_types
@@ -9,11 +9,11 @@ import logging
 import traitlets as tl
 import numpy as np
 
-from podpac.core.node import Node
-from podpac.core.utils import NodeTrait
+from podpac.core.node import Node, node_eval
+from podpac.core.utils import NodeTrait, common_doc
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import merge_dims
-from podpac.core.interpolation.interpolation import Interpolation
+from podpac.core.coordinates import merge_dims, Coordinates
+from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationTrait
 
 _logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def interpolation_decorator():
     pass  ## TODO
 
 
-class HarmonizationForward(object):
+class InterpolationMixin(object):
     source_class = None
     harmonization_class = None
     source_node = None
@@ -53,7 +53,7 @@ class HarmonizationForward(object):
         raise AttributeError()
 
 
-class Harmnonization(Node):
+class Interpolation(Node):
     """Base node for any data obtained directly from a single source.
     
     Parameters
@@ -78,7 +78,7 @@ class Harmnonization(Node):
     cache_output = tl.Bool()
 
     # privates
-    _interpolation = tl.Instance(Interpolation)
+    _interpolation = tl.Instance(InterpolationManager)
     _coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
 
     _requested_source_coordinates = tl.Instance(Coordinates)
@@ -94,7 +94,7 @@ class Harmnonization(Node):
 
     @tl.default("cache_output")
     def _cache_output_default(self):
-        return settings["CACHE_NODE_OUTPUT_DEFAULT"]
+        return podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"]
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -105,12 +105,12 @@ class Harmnonization(Node):
         """Get the interpolation class currently set for this data source.
         
         The DataSource ``interpolation`` property is used to define the
-        :class:`podpac.data.Interpolation` class that will handle interpolation for requested coordinates.
+        :class:`podpac.data.InterpolationManager` class that will handle interpolation for requested coordinates.
         
         Returns
         -------
-        :class:`podpac.data.Interpolation`
-            Interpolation class defined by DataSource `interpolation` definition
+        :class:`podpac.data.InterpolationManager`
+            InterpolationManager class defined by DataSource `interpolation` definition
         """
 
         return self._interpolation
@@ -137,12 +137,11 @@ class Harmnonization(Node):
         """
 
         # define interpolator with source coordinates dimensions
-        if isinstance(self.interpolation, Interpolation):
+        if isinstance(self.interpolation, InterpolationManager):
             self._interpolation = self.interpolation
         else:
-            self._interpolation = Interpolation(self.interpolation)
+            self._interpolation = InterpolationManager(self.interpolation)
 
-    @common_doc(COMMON_DATA_DOC)
     @node_eval
     def eval(self, coordinates, output=None):
         """Evaluates this node using the supplied coordinates.
