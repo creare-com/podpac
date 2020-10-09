@@ -251,8 +251,7 @@ class FileKeysMixin(tl.HasTraits):
 
     @common_doc(COMMON_DATA_DOC)
     def get_coordinates(self):
-        """{get_coordinates}
-        """
+        """{get_coordinates}"""
 
         cs = [self.dataset[self._lookup_key(dim)] for dim in self.dims]
         if self.cf_time and "time" in self.dims:

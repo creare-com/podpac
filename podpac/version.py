@@ -28,7 +28,7 @@ VERSION = (VERSION_INFO["MAJOR"], VERSION_INFO["MINOR"], VERSION_INFO["HOTFIX"])
 
 def semver():
     """Return semantic version of current PODPAC installation
-    
+
     Returns
     -------
     str
@@ -39,7 +39,7 @@ def semver():
 
 def version():
     """Retrieve PODPAC semantic version as string
-    
+
     Returns
     -------
     str

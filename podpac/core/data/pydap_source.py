@@ -32,7 +32,7 @@ _logger = logging.getLogger(__name__)
 @common_doc(COMMON_DATA_DOC)
 class PyDAP(authentication.RequestsSessionMixin, DataSource):
     """Create a DataSource from an OpenDAP server feed.
-    
+
     Attributes
     ----------
     data_key : str
@@ -67,7 +67,7 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
     @common_doc(COMMON_DATA_DOC)
     def get_coordinates(self):
         """{get_coordinates}
-        
+
         Raises
         ------
         NotImplementedError
@@ -99,8 +99,7 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
         data = None
         count = self.server_throttle_retries
         while data is None:
@@ -121,7 +120,7 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
     @cached_property
     def keys(self):
         """The list of available keys from the OpenDAP dataset.
-        
+
         Returns
         -------
         List

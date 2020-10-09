@@ -75,7 +75,7 @@ class Algorithm(BaseAlgorithm):
     @common_doc(COMMON_DOC)
     @node_eval
     def eval(self, coordinates, output=None):
-        """Evalutes this nodes using the supplied coordinates. 
+        """Evalutes this nodes using the supplied coordinates.
 
         Parameters
         ----------

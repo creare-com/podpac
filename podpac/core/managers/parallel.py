@@ -30,10 +30,10 @@ _log = logging.getLogger(__name__)
 
 class Parallel(Node):
     """
-    This class launches the parallel node evaluations in separate threads. As such, the node does not need to return 
-    immediately (i.e. does NOT have to be asynchronous). For asynchronous nodes 
+    This class launches the parallel node evaluations in separate threads. As such, the node does not need to return
+    immediately (i.e. does NOT have to be asynchronous). For asynchronous nodes
     (i.e. aws.Lambda with download_result=False) use ParrallelAsync
-    
+
     Attributes
     -----------
     chunks: dict
@@ -42,7 +42,7 @@ class Parallel(Node):
         set the coordinates of missing dimensions in the final file.
     fill_output: bool
         Default is True. When True, the final results will be assembled and returned to the user. If False, the final
-        results should be written to a file by specifying the output_format in a Process or Lambda node. 
+        results should be written to a file by specifying the output_format in a Process or Lambda node.
         See note below.
     source: podpac.Node
         The source dataset for the computation
@@ -51,7 +51,7 @@ class Parallel(Node):
     start_i: int, optional
         Default is 0. Starting chunk. This allow you to restart a run without having to check/submit 1000's of workers
         before getting back to where you were. Empty chunks make the submission slower.
-        
+
     Notes
     ------
     In some cases where the input and output coordinates of the source node is not the same (such as reduce nodes)
@@ -148,12 +148,12 @@ class Parallel(Node):
 
 class ParallelAsync(Parallel):
     """
-    This class launches the parallel node evaluations in threads up to n_workers, and expects the node.eval to return 
-    quickly for parallel execution. This Node was written with aws.Lambda(eval_timeout=1.25<small>) Nodes in mind. 
-    
-    Users can implement the `check_worker_available` method or specify the `no_worker_exception` attribute, which is an 
+    This class launches the parallel node evaluations in threads up to n_workers, and expects the node.eval to return
+    quickly for parallel execution. This Node was written with aws.Lambda(eval_timeout=1.25<small>) Nodes in mind.
+
+    Users can implement the `check_worker_available` method or specify the `no_worker_exception` attribute, which is an
     exception thrown if workers are not available.
-    
+
     Attributes
     -----------
     chunks: dict
@@ -162,19 +162,19 @@ class ParallelAsync(Parallel):
         set the coordinates of missing dimensions in the final file.
     fill_output: bool
         Default is True. When True, the final results will be assembled and returned to the user. If False, the final
-        results should be written to a file by specifying the output_format in a Process or Lambda node. 
+        results should be written to a file by specifying the output_format in a Process or Lambda node.
         See note below.
     source: podpac.Node
         The source dataset for the computation
     sleep_time: float
         Default is 1 second. Number of seconds to sleep between trying to submit new workers
     no_worker_exception: Exception, optional
-        Default is .Exception class used to identify when a submission failed due to no available workers. The default 
-        is chosen to work with the podpac.managers.Lambda node. 
+        Default is .Exception class used to identify when a submission failed due to no available workers. The default
+        is chosen to work with the podpac.managers.Lambda node.
     async_exception: Exception
         Default is botocore.exceptions.ReadTimeoutException. This is an exception thrown by the async function in case
         it time out waiting for a return. In our case, this is a success. The default is chosen to work with the
-        podpac.managers.Lambda node. 
+        podpac.managers.Lambda node.
     Notes
     ------
     In some cases where the input and output coordinates of the source node is not the same (such as reduce nodes)
@@ -226,22 +226,22 @@ class ZarrOutputMixin(tl.HasTraits):
     """
     This class assumes that the node has a 'output_format' attribute
     (currently the "Lambda" Node, and the "Process" Node)
-    
+
     Attributes
     -----------
     zarr_file: str
-        Path to the output zarr file that collects all of the computed results. This can reside on S3. 
+        Path to the output zarr file that collects all of the computed results. This can reside on S3.
     dataset: ZarrGroup
         A handle to the zarr group pointing to the output file
     fill_output: bool, optional
         Default is False (unlike parent class). If True, will collect the output data and return it as an xarray.
     init_file_mode: str, optional
-        Default is 'w'. Mode used for initializing the zarr file. 
+        Default is 'w'. Mode used for initializing the zarr file.
     zarr_chunks: dict
         Size of the chunks in the zarr file for each dimension
     zarr_shape: dict, optional
-        Default is the {coordinated.dims: coordinates.shape}, where coordinates used as part of the eval call. This 
-        does not need to be specified unless the Node modifies the input coordinates (as part of a Reduce operation, 
+        Default is the {coordinated.dims: coordinates.shape}, where coordinates used as part of the eval call. This
+        does not need to be specified unless the Node modifies the input coordinates (as part of a Reduce operation,
         for example). The result can be incorrect and requires care/checking by the user.
     zarr_coordinates: podpac.Coordinates, optional
         Default is None. If the node modifies the shape of the input coordinates, this allows users to set the
@@ -250,9 +250,9 @@ class ZarrOutputMixin(tl.HasTraits):
         Default is False. If true, this will check to see if the results already exist. And if so, it will not
         submit a job for that particular coordinate evaluation. This assumes self.chunks == self.zar_chunks
     list_dir: bool, optional
-        Default is False. If skip_existing is True, by default existing files are checked by asking for an 'exists' call. 
+        Default is False. If skip_existing is True, by default existing files are checked by asking for an 'exists' call.
         If list_dir is True, then at the first opportunity a "list_dir" is performed on the directory and the results
-        are cached. 
+        are cached.
     """
 
     zarr_file = tl.Unicode().tag(attr=True)

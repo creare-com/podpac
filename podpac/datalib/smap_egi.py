@@ -162,16 +162,16 @@ class SMAP(EGI):
 
     def read_file(self, filelike):
         """Interpret individual SMAP file from  EGI zip archive.
-        
+
         Parameters
         ----------
         filelike : filelike
             Reference to file inside EGI zip archive
-        
+
         Returns
         -------
         podpac.UnitsDataArray
-        
+
         Raises
         ------
         ValueError
@@ -236,14 +236,14 @@ class SMAP(EGI):
 
     def append_file(self, all_data, data):
         """Append data
-        
+
         Parameters
         ----------
         all_data : podpac.UnitsDataArray
             aggregated data
         data : podpac.UnitsDataArray
             new data to append
-        
+
         Raises
         ------
         NotImplementedError

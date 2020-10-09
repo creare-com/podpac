@@ -447,9 +447,7 @@ class Coordinates(tl.HasTraits):
 
     @classmethod
     def from_geotransform(cls, geotransform, shape, crs=None):
-        """ Creates Coordinates from GDAL Geotransform. 
-        
-        """
+        """Creates Coordinates from GDAL Geotransform."""
         tol = 1e-15  # tolerance for deciding when a number is zero
         # Handle the case of rotated coordinates
         try:
@@ -1444,7 +1442,7 @@ class Coordinates(tl.HasTraits):
         return t_lat, t_lon
 
     def issubset(self, other):
-        """ Report whether other Coordinates contains these coordinates.
+        """Report whether other Coordinates contains these coordinates.
 
         Note that the dimension order and stacking is ignored.
 

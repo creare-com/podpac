@@ -21,28 +21,28 @@ from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 
 class Array(NoCacheMixin, DataSource):
     """Create a DataSource from an array -- this node is mostly meant for small experiments
-    
+
     Attributes
     ----------
     source : np.ndarray
         Numpy array containing the source data
     coordinates : podpac.Coordinates
         The coordinates of the source data
-        
+
     Notes
     ------
     `coordinates` need to supplied by the user when instantiating this node.
-    
-    This Node is not meant for large arrays, and cause issues with caching. As such, this Node override the default 
+
+    This Node is not meant for large arrays, and cause issues with caching. As such, this Node override the default
     cache behavior as having no cache -- its data is in RAM already and caching is not helpful.
-    
+
     Example
     ---------
     >>> # Create a time series of 10 32x34 images with R-G-B channels
     >>> import numpy as np
     >>> import podpac
     >>> data = np.random.rand(10, 32, 34, 3)
-    >>> coords = podpac.Coordinates([podpac.clinspace(1, 10, 10, 'time'), 
+    >>> coords = podpac.Coordinates([podpac.clinspace(1, 10, 10, 'time'),
                                      podpac.clinspace(1, 32, 32, 'lat'),
                                      podpac.clinspace(1, 34, 34, 'lon')])
     >>> node = podpac.data.Array(source=data, coordinates=coords, outputs=['R', 'G', 'B'])
@@ -74,7 +74,7 @@ class Array(NoCacheMixin, DataSource):
     @property
     def shape(self):
         """Returns the shape of :attr:`self.source`
-        
+
         Returns
         -------
         tuple
@@ -84,8 +84,7 @@ class Array(NoCacheMixin, DataSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
         d = self.create_output_array(coordinates, data=self.source[coordinates_index])
         return d
 

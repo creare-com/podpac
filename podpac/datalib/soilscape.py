@@ -497,16 +497,16 @@ class SoilSCAPEFile(podpac.data.Dataset):
 
 
 class SoilSCAPENode(SoilSCAPEFile):
-    """ SoilSCAPE 20min soil moisture for a particular node.
+    """SoilSCAPE 20min soil moisture for a particular node.
 
-        Data is loaded from the THREDDS https fileserver.
+    Data is loaded from the THREDDS https fileserver.
 
-        Attributes
-        ----------
-        site : str
-            SoilSCAPE site, e.g. 'Canton_OK'.
-        node : int
-            SoilSCAPE node id.
+    Attributes
+    ----------
+    site : str
+        SoilSCAPE site, e.g. 'Canton_OK'.
+    node : int
+        SoilSCAPE node id.
     """
 
     site = tl.Enum(list(NODES)).tag(attr=True)
@@ -532,23 +532,23 @@ class SoilSCAPENode(SoilSCAPEFile):
 
 
 class SoilSCAPE20min(podpac.core.compositor.compositor.BaseCompositor):
-    """ SoilSCAPE 20min soil moisture data for an entire site.
+    """SoilSCAPE 20min soil moisture data for an entire site.
 
-        Data is loaded from the THREDDS https fileserver.
+    Data is loaded from the THREDDS https fileserver.
 
-        Attributes
-        ----------
-        site : str
-            SoilSCAPE site, e.g. 'Canton_OK'.
-        exclude : list
-            data points with these quality flags will be excluded. Default excludes [1, 2, 3, 4].
-            Flags::
-             * 0 - (G) Good (Standard for all data)
-             * 1 - (D) Dubious (Automatically flagged, spikes etc.,)
-             * 2 - (I) Interpolated / Estimated
-             * 3 - (B) Bad (Manually flagged)
-             * 4 - (M) Missing
-             * 5 - (C) Exceeds field size (Negative SM values, fixed at 0.1 percent)
+    Attributes
+    ----------
+    site : str
+        SoilSCAPE site, e.g. 'Canton_OK'.
+    exclude : list
+        data points with these quality flags will be excluded. Default excludes [1, 2, 3, 4].
+        Flags::
+         * 0 - (G) Good (Standard for all data)
+         * 1 - (D) Dubious (Automatically flagged, spikes etc.,)
+         * 2 - (I) Interpolated / Estimated
+         * 3 - (B) Bad (Manually flagged)
+         * 4 - (M) Missing
+         * 5 - (C) Exceeds field size (Negative SM values, fixed at 0.1 percent)
     """
 
     site = tl.Enum(list(NODES), allow_none=True, default_value=None).tag(attr=True)
