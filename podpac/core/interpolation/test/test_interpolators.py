@@ -14,7 +14,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.data.rasterio_source import rasterio
 from podpac.core.data.datasource import DataSource
-from podpac.core.interpolation.interpolation import Interpolation, InterpolationException
+from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationException
 from podpac.core.interpolation.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyGrid, ScipyPoint
 
 
@@ -33,7 +33,7 @@ class TestNearest(object):
         reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
         srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
 
-        interp = Interpolation("nearest_preview")
+        interp = InterpolationManager("nearest_preview")
 
         srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
         coords, cidx = interp.select_coordinates(srccoords, srccoords_index, reqcoords)
@@ -48,7 +48,7 @@ class TestNearest(object):
         reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
         srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
 
-        interp = Interpolation(
+        interp = InterpolationManager(
             [{"method": "nearest_preview", "dims": ["lat"]}, {"method": "nearest_preview", "dims": ["lon"]}]
         )
 
@@ -65,7 +65,7 @@ class TestNearest(object):
         # reqcoords = Coordinates([[-.5, 1.5, 3.5], [.5, 2.5, 4.5]], dims=['lat', 'lon'])
         # srccoords = Coordinates([([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5])], dims=['lat_lon'])
 
-        # interp = Interpolation('nearest_preview')
+        # interp = InterpolationManager('nearest_preview')
 
         # srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
         # coords, cidx = interp.select_coordinates(reqcoords, srccoords, srccoords_index)

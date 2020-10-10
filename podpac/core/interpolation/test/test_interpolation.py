@@ -16,6 +16,7 @@ from podpac.core.node import Node
 from podpac.core.coordinates import Coordinates
 from podpac.core.interpolation.interpolation import Interpolation, InterpolationMixin
 from podpac.core.data.array_source import Array, ArrayBase
+from podpac.core.compositor.data_compositor import DataCompositor
 from podpac.core.compositor.ordered_compositor import OrderedCompositor
 
 
@@ -51,7 +52,7 @@ class TestInterpolation(object):
     )
     interp = Interpolation(source=s1, interpolation="nearest")
     coords = Coordinates([np.linspace(0, 8, 17), np.linspace(0, 14, 29)], ["lat", "lon"])
-    coords2 = Coordinates([np.linspace(0, 17, 18), np.linspace(0, 14, 29)], ["lat", "lon"])
+    coords2 = Coordinates([np.linspace(0, 17, 18), np.linspace(0, 14, 15)], ["lat", "lon"])
     coords2c = Coordinates([np.linspace(0.1, 16.8, 5), np.linspace(0.1, 13.8, 3)], ["lat", "lon"])
 
     def test_basic_interpolation(self):
@@ -70,14 +71,15 @@ class TestInterpolation(object):
         assert node.json == self.interp.json
 
     def test_compositor_chain(self):
-        oc = OrderedCompositor(sources=[self.s2, self.s1])
-        o = oc.eval(self.coords2)
+        dc = DataCompositor(sources=[self.s2, self.s1])
+        node = Interpolation(source=dc, interpolation="nearest")
+        o = node.eval(self.coords2)
 
-        np.testing.assert_array_equal(o.data, np.concatenate([self.s1.data, self.s2.data], axis=1))
+        np.testing.assert_array_equal(o.data, np.concatenate([self.s1.source, self.s2.source], axis=0))
 
     def test_compositor_chain_optimized_find_coordinates(self):
-        oc = OrderedCompositor(sources=[self.s2, self.s1])
-        node = Interpolation(source=oc, interpolation="nearest")
+        dc = DataCompositor(sources=[self.s2, self.s1])
+        node = Interpolation(source=dc, interpolation="nearest")
 
         # This section now emulates what essentially will happen inside the eval
         # so this is a bit of a bootstrap test, and some of this might be moved

@@ -147,14 +147,6 @@ class BaseCompositor(Node):
             i = I[0]
             sources = np.array(self.sources)[i].tolist()
 
-        # set the interpolation properties for sources
-        if self.trait_is_defined("interpolation") and self.interpolation is not None:
-            for s in sources:
-                if s.has_trait("interpolation"):
-                    s.set_trait("interpolation", self.interpolation)
-                    if hasattr(s, "_podpac_cached_property_definition"):
-                        del s._podpac_cached_property_definition
-
         return sources
 
     def composite(self, coordinates, data_arrays, result=None):

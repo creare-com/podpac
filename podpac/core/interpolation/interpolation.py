@@ -32,9 +32,7 @@ class InterpolationMixin(tl.HasTraits):
         node._set_interpolation()
         coordinates.set_selector(node._interpolation.select_coordinates)
         source = super().eval(coordinates)
-        node.set_trait("source", source)
-
-        return node.eval(coordinates, output)
+        return node.eval(coordinates, output, source=source)
 
 
 class Interpolation(Node):
@@ -127,7 +125,7 @@ class Interpolation(Node):
             self._interpolation = InterpolationManager(self.interpolation)
 
     @node_eval
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, source=None):
         """Evaluates this node using the supplied coordinates.
 
         The coordinates are mapped to the requested coordinates, interpolated if necessary, and set to
@@ -146,6 +144,8 @@ class Interpolation(Node):
             Extra dimensions in the requested coordinates are dropped.
         output : :class:`podpac.UnitsDataArray`, optional
             {eval_output}
+        source : :class:`podpac.UnitsDataArray`, optional
+            If provided, self.source will be ignored and interpolation of the input source will be used
         
         Returns
         -------
@@ -171,7 +171,10 @@ class Interpolation(Node):
 
         self._evaluated_coordinates.set_selector(self._interpolation.select_coordinates)
 
-        source_out = self._source_eval(self._evaluated_coordinates)
+        if source is None:
+            source_out = self._source_eval(self._evaluated_coordinates)
+        else:
+            source_out = source
         source_coords = Coordinates.from_xarray(source_out.coords)
 
         # Drop extra coordinates
