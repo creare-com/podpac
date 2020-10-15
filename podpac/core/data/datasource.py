@@ -255,7 +255,7 @@ class DataSource(Node):
             # TODO: check order of coordinates here
             udata_array = self.create_output_array(rc, data=data.data)
         elif isinstance(data, np.ndarray):
-            udata_array = self.create_output_array(src, data=data)
+            udata_array = self.create_output_array(rc, data=data)
         else:
             raise ValueError(
                 "Unknown data type passed back from "
@@ -280,7 +280,7 @@ class DataSource(Node):
 
     @common_doc(COMMON_DATA_DOC)
     @node_eval
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         """Evaluates this node using the supplied coordinates.
 
         The coordinates are mapped to the requested coordinates, interpolated if necessary, and set to
@@ -299,6 +299,8 @@ class DataSource(Node):
             Extra dimensions in the requested coordinates are dropped.
         output : :class:`podpac.UnitsDataArray`, optional
             {eval_output}
+        selector: callable(coordinates, request_coordinates)
+            {eval_selector}
         
         Returns
         -------
@@ -349,6 +351,7 @@ class DataSource(Node):
 
         # intersect the coordinates with requested coordinates to get coordinates within requested coordinates bounds
         (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=self.coordinate_index_type)
+
         self._requested_source_coordinates = rsc
         self._requested_source_coordinates_index = rsci
 
@@ -361,6 +364,31 @@ class DataSource(Node):
             else:
                 output[:] = np.nan
             return output
+
+        # Use the selector
+        if selector is not None:
+            (rsc, rsci) = selector(rsc, rsci, coordinates)
+
+        # Check the coordinate_index_type
+        if self.coordinate_index_type == "slice":  # Most restrictive
+            new_rsci = []
+            for rsci in self._requested_source_coordinates_index:
+                if isinstance(rsci, slice):
+                    new_rsci.append(rsci)
+                    continue
+
+                if len(rsci) > 1:
+                    mx, mn = np.max(rsci), np.min(rsci)
+                    df = np.diff(rsci)
+                    if np.all(df == df[0]):
+                        step = df[0]
+                    else:
+                        step = 1
+                    new_rsci.append(slice(mn, mx + 1, step))
+                else:
+                    new_rsci.append(slice(np.max(rsci), np.max(rsci) + 1))
+
+            self._requested_source_coordinates_index = tuple(new_rsci)
 
         # get data from data source
         self._requested_source_data = self._get_data(

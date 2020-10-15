@@ -76,9 +76,6 @@ class Coordinates(tl.HasTraits):
         Tuple of individual dimension names, always unstacked.
     """
 
-    selector = tl.Any(
-        allow_none=True, default_value=None
-    )  # This should be Callable, but I can't find that in my install of traitlets??
     crs = tl.Unicode(read_only=True, allow_none=True)
 
     _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates), default_value=OrderedDict())
@@ -1071,9 +1068,8 @@ class Coordinates(tl.HasTraits):
             Restrict intersection to the given dimensions. Default is all available dimensions.
         outer : bool, optional
             If True, do an *outer* intersection. Default False.
-        return_indices : bool, str, optional
+        return_indices : bool, optional
             If True, return slice or indices for the selection in addition to coordinates. Default False.
-            If 'slice' will only return 'slice' indices. If 'numpy' may return integer indices.
 
         Returns
         -------
@@ -1093,7 +1089,6 @@ class Coordinates(tl.HasTraits):
         if dims is not None:
             bounds = {dim: bounds[dim] for dim in dims}  # if dim in bounds}
 
-        # TODO: Do something with the selector if it exists
         return self.select(bounds, outer=outer, return_indices=return_indices)
 
     def select(self, bounds, return_indices=False, outer=False):
@@ -1130,9 +1125,8 @@ class Coordinates(tl.HasTraits):
             Selection bounds for the desired coordinates.
         outer : bool, optional
             If True, do *outer* selections. Default False.
-        return_indices : bool, str, optional
+        return_indices : bool, optional
             If True, return slice or indices for the selection in addition to coordinates. Default False.
-            If 'slice' will only return 'slice' indices. If 'numpy' may return integer indices.
 
         Returns
         -------
@@ -1144,31 +1138,7 @@ class Coordinates(tl.HasTraits):
 
         selections = [c.select(bounds, outer=outer, return_indices=return_indices) for c in self._coords.values()]
 
-        # Check the coordinate_index_type
-        # if self.coordinate_index_type == "slice":  # Most restrictive
-        # new_rsci = []
-        # for rsci in self._requested_source_coordinates_index:
-        # if isinstance(rsci, slice):
-        # new_rsci.append(rsci)
-        # continue
-
-        # if len(rsci) > 1:
-        # mx, mn = np.max(rsci), np.min(rsci)
-        # df = np.diff(rsci)
-        # if np.all(df == df[0]):
-        # step = df[0]
-        # else:
-        # step = 1
-        # new_rsci.append(slice(mn, mx + 1, step))
-        # else:
-        # new_rsci.append(slice(np.max(rsci), np.max(rsci) + 1))
-
-        # self._requested_source_coordinates_index = tuple(new_rsci)
-
         return self._make_selected_coordinates(selections, return_indices)
-
-    def set_selector(self, selector):
-        self.selector = selector
 
     def _make_selected_coordinates(self, selections, return_indices):
         if return_indices:

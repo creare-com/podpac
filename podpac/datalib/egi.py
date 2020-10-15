@@ -215,7 +215,7 @@ class EGI(DataSource):
             return np.array([])
 
     @node_eval
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         # download data for coordinate bounds, then handle that data as an H5PY node
         zip_files = self._download(coordinates)
         try:

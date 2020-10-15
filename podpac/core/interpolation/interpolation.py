@@ -27,12 +27,11 @@ class InterpolationMixin(tl.HasTraits):
     interpolation = InterpolationTrait().tag(attr=True)
 
     @node_eval
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         node = Interpolation(interpolation=self.interpolation)
         node._set_interpolation()
-        coordinates.set_selector(node._interpolation.select_coordinates)
-        source = super().eval(coordinates)
-        return node.eval(coordinates, output, source=source)
+        node._source_xr = super().eval(coordinates, selector=node._interpolation.select_coordinates)
+        return node.eval(coordinates, output)
 
 
 class Interpolation(Node):
@@ -54,7 +53,8 @@ class Interpolation(Node):
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_coordinates` methods.
     """
 
-    source = tl.Union([tl.Instance(UnitsDataArray), NodeTrait()]).tag(attr=True)
+    source = NodeTrait(allow_none=True).tag(attr=True)
+    _source_xr = tl.Instance(UnitsDataArray, allow_none=True)  # This is needed for the Interpolation Mixin
 
     interpolation = InterpolationTrait().tag(attr=True)
     cache_output = tl.Bool()
@@ -125,7 +125,7 @@ class Interpolation(Node):
             self._interpolation = InterpolationManager(self.interpolation)
 
     @node_eval
-    def eval(self, coordinates, output=None, source=None):
+    def eval(self, coordinates, output=None, selector=None):
         """Evaluates this node using the supplied coordinates.
 
         The coordinates are mapped to the requested coordinates, interpolated if necessary, and set to
@@ -144,9 +144,9 @@ class Interpolation(Node):
             Extra dimensions in the requested coordinates are dropped.
         output : :class:`podpac.UnitsDataArray`, optional
             {eval_output}
-        source : :class:`podpac.UnitsDataArray`, optional
-            If provided, self.source will be ignored and interpolation of the input source will be used
-        
+        selector : 
+            {eval_selector}
+
         Returns
         -------
         {eval_return}
@@ -169,10 +169,10 @@ class Interpolation(Node):
         # reset interpolation
         self._set_interpolation()
 
-        self._evaluated_coordinates.set_selector(self._interpolation.select_coordinates)
+        selector = self._interpolation.select_coordinates
 
         if source is None:
-            source_out = self._source_eval(self._evaluated_coordinates)
+            source_out = self._source_eval(self._evaluated_coordinates, selector)
         else:
             source_out = source
         source_coords = Coordinates.from_xarray(source_out.coords)
@@ -202,11 +202,11 @@ class Interpolation(Node):
 
         return output
 
-    def _source_eval(self, coordinates, output=None):
-        if isinstance(self.source, Node):
-            return self.source.eval(coordinates, output)
-        elif isinstance(self.source, UnitsDataArray):
-            return self.source
+    def _source_eval(self, coordinates, selector, output=None):
+        if isinstance(self._source_xr, UnitsDataArray):
+            return self._source_xr
+        elif isinstance(self.source, Node):
+            return self.source.eval(coordinates, output, selector)
 
     def find_coordinates(self):
         """

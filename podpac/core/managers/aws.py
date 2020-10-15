@@ -432,7 +432,7 @@ class Lambda(Node):
         return d
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         """
         Evaluate the source node on the AWS Lambda Function at the given coordinates
         """

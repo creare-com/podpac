@@ -37,6 +37,9 @@ COMMON_NODE_DOC = {
     "eval_output": """Default is None. Optional input array used to store the output data. When supplied, the node will not
             allocate its own memory for the output array. This array needs to have the correct dimensions,
             coordinates, and coordinate reference system.""",
+    "eval_selector": """The selector function is an optimization that enables nodes to only select data needed by an interpolator. 
+            It returns a new Coordinates object, and an index object that indexes into the `coordinates` parameter 
+            If not provided, the Coordinates.intersect() method will be used instead.""",
     "eval_return": """
         :class:`podpac.UnitsDataArray`
             Unit-aware xarray DataArray containing the results of the node evaluation.
@@ -249,7 +252,7 @@ class Node(tl.HasTraits):
         return "<%s(%s) attrs: %s>" % (self.__class__.__name__, self._repr_info, ", ".join(self.attrs))
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         """
         Evaluate the node at the given coordinates.
 
@@ -259,6 +262,8 @@ class Node(tl.HasTraits):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
+        selector: callable(coordinates, request_coordinates)
+            {eval_selector}
 
         Returns
         -------
@@ -975,7 +980,7 @@ def node_eval(fn):
     cache_key = "output"
 
     @functools.wraps(fn)
-    def wrapper(self, coordinates, output=None):
+    def wrapper(self, coordinates, output=None, selector=None):
         if settings["DEBUG"]:
             self._requested_coordinates = coordinates
         key = cache_key

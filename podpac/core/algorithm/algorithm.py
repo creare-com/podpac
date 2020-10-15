@@ -74,7 +74,7 @@ class Algorithm(BaseAlgorithm):
 
     @common_doc(COMMON_DOC)
     @node_eval
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         """Evalutes this nodes using the supplied coordinates. 
         
         Parameters
@@ -83,6 +83,8 @@ class Algorithm(BaseAlgorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
+        selector: callable(coordinates, request_coordinates)
+            {eval_selector}
         
         Returns
         -------

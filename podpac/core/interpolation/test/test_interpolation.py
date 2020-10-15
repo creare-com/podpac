@@ -76,20 +76,3 @@ class TestInterpolation(object):
         o = node.eval(self.coords2)
 
         np.testing.assert_array_equal(o.data, np.concatenate([self.s1.source, self.s2.source], axis=0))
-
-    def test_compositor_chain_optimized_find_coordinates(self):
-        dc = DataCompositor(sources=[self.s2, self.s1])
-        node = Interpolation(source=dc, interpolation="nearest")
-
-        # This section now emulates what essentially will happen inside the eval
-        # so this is a bit of a bootstrap test, and some of this might be moved
-        # to the datasource
-        # First let's assign a selector to the input coordinates
-        self.coords2c.set_selector(node._interpolation.select_coordinates)
-
-        # Now the intersection function inside the Datasource will only return the needed coordinates
-        s1c, s1ci = self.s1.coordinates.intersect(self.coords2c, outer=True, return_indices=True)
-        s2c, s2ci = self.s2.coordinates.intersect(self.coords2c, outer=True, return_indices=True)
-
-        assert s1c.shape == (3, 3)
-        assert s2c.shape == (2, 3)
