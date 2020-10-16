@@ -14,7 +14,7 @@ from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 
 _logger = logging.getLogger(__name__)
 
-
+# TODO: Move this to algorithm Nodes based on the Interpolation Refactor -- should be much more streamlined now.
 class ReprojectedSource(DataSource):
     """Create a DataSource with a different resolution from another Node. This can be used to bilinearly interpolated a
     dataset after averaging over a larger area.

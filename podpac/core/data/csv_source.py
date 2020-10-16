@@ -5,10 +5,11 @@ from podpac.core.utils import common_doc, cached_property
 from podpac.core.coordinates import Coordinates, StackedCoordinates
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin, LoadFileMixin
+from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 @common_doc(COMMON_DATA_DOC)
-class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
+class CSVBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
     """Create a DataSource from a .csv file.
 
     This class assumes that the data has a storage format such as:
@@ -150,3 +151,7 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     def _get_col(self, key):
         return key if isinstance(key, int) else self.dataset.columns.get_loc(key)
+
+
+class CSV(InterpolationMixin, CSVBase):
+    pass

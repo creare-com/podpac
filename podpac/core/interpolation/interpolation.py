@@ -171,10 +171,7 @@ class Interpolation(Node):
 
         selector = self._interpolation.select_coordinates
 
-        if source is None:
-            source_out = self._source_eval(self._evaluated_coordinates, selector)
-        else:
-            source_out = source
+        source_out = self._source_eval(self._evaluated_coordinates, selector)
         source_coords = Coordinates.from_xarray(source_out.coords)
 
         # Drop extra coordinates
