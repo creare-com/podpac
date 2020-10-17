@@ -23,15 +23,15 @@ _log = logging.getLogger(__name__)
 
 class BetaFitDayOfYear(DayOfYearWindow):
     """
-    This fits a beta distribution to day of the year in the requested coordinates over a window. It returns the beta 
-    distribution parameters 'a', and 'b' as part of the output. It may also return a number of percentiles. 
-    
+    This fits a beta distribution to day of the year in the requested coordinates over a window. It returns the beta
+    distribution parameters 'a', and 'b' as part of the output. It may also return a number of percentiles.
+
     Attributes
     -----------
     percentiles: list, optional
         Default is []. After computing the beta distribution, optionally compute the value of the function for the given
-        percentiles in the list. The results will be available as an output named ['d0', 'd1',...] for each entry in 
-        the list. 
+        percentiles in the list. The results will be available as an output named ['d0', 'd1',...] for each entry in
+        the list.
     """
 
     percentiles = tl.List().tag(attr=True)

@@ -126,9 +126,9 @@ def np2smap_date(date):
 
 
 def _infer_SMAP_product_version(product, base_url, session):
-    """Helper function to automatically infer the version number of SMAP 
+    """Helper function to automatically infer the version number of SMAP
     products in case user did not specify a version, or the version changed
-    
+
     Parameters
     ------------
     product: str
@@ -226,7 +226,7 @@ class SMAPSessionMixin(authentication.RequestsSessionMixin):
     def session(self):
         """Requests Session object for making calls to remote `self.hostname`
         See https://2.python-requests.org/en/master/api/#sessionapi
-        
+
         Returns
         -------
         :class:requests.Session
@@ -245,14 +245,14 @@ class SMAPSessionMixin(authentication.RequestsSessionMixin):
         Overrides from the library to keep headers when redirected to or from
         the NASA auth host.
         See https://2.python-requests.org/en/master/api/#requests.Session.rebuild_auth
-        
+
         Parameters
         ----------
         prepared_request : :class:`requests.Request`
             See https://2.python-requests.org/en/master/api/#requests.Session.rebuild_auth
         response : :class:`requests.Response`
             See https://2.python-requests.org/en/master/api/#requests.Session.rebuild_auth
-        
+
         Returns
         -------
         None
@@ -313,12 +313,12 @@ class SMAPCompositor(OrderedCompositor):
 
     def select_sources(self, coordinates):
         """Select sources based on requested coordinates, including setting coordinates, if possible.
-        
+
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
             Coordinates to evaluate at compositor sources
-        
+
         Returns
         -------
         sources : :class:`np.ndarray`
@@ -396,8 +396,7 @@ class SMAPSource(SMAPSessionMixin, DiskCacheMixin, PyDAP):
 
     @property
     def version(self):
-        """SMAP product version from the OpenDAP URL
-        """
+        """SMAP product version from the OpenDAP URL"""
         src = self.source.split("/")
         return int(src[src.index("SMAP") + 1].split(".")[1])
 
@@ -442,8 +441,7 @@ class SMAPSource(SMAPSessionMixin, DiskCacheMixin, PyDAP):
 
     @common_doc(COMMON_DOC)
     def get_coordinates(self):
-        """{get_coordinates}
-        """
+        """{get_coordinates}"""
         lons = np.array(self.dataset[self.lon_key][:, :])
         lats = np.array(self.dataset[self.lat_key][:, :])
         lons[lons == self.nan_vals[0]] = np.nan
@@ -455,8 +453,7 @@ class SMAPSource(SMAPSessionMixin, DiskCacheMixin, PyDAP):
 
     @common_doc(COMMON_DOC)
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
         # We actually ignore the time slice
         s = tuple([slc for d, slc in zip(coordinates.dims, coordinates_index) if "time" not in d])
         if "SM_P_" in self.source:
@@ -484,12 +481,12 @@ class SMAPSource(SMAPSessionMixin, DiskCacheMixin, PyDAP):
 
 
 class SMAPProperties(SMAPSource):
-    """Accesses properties related to the generation of SMAP products. 
+    """Accesses properties related to the generation of SMAP products.
 
     Attributes
     ----------
     property : str
-        A SMAP property, which includes: 
+        A SMAP property, which includes:
                         'clsm_dzsf', 'mwrtm_bh', 'clsm_cdcr2', 'mwrtm_poros',
                         'clsm_dzgt3', 'clsm_dzgt2', 'mwrtm_rghhmax',
                         'mwrtm_rghpolmix', 'clsm_dzgt1', 'clsm_wp', 'mwrtm_lewt',
@@ -501,7 +498,7 @@ class SMAPProperties(SMAPSource):
                         'cell_land_fraction', 'mwrtm_omega', 'mwrtm_soilcls',
                         'clsm_dzgt6', 'mwrtm_rghnrv', 'mwrtm_clay', 'mwrtm_sand'
     source : str, optional
-         Source OpenDAP url for SMAP properties. Default is (SMAP_BASE_URL() + 
+         Source OpenDAP url for SMAP properties. Default is (SMAP_BASE_URL() +
                                                              'SPL4SMLM{latest_version}/2015.03.31/'
                                                              'SMAP_L4_SM_lmc_00000000T000000_Vv{latest_version}.h5')
     """
@@ -564,8 +561,7 @@ class SMAPProperties(SMAPSource):
 
     @common_doc(COMMON_DOC)
     def get_coordinates(self):
-        """{get_coordinates}
-        """
+        """{get_coordinates}"""
         lons = np.array(self.dataset[self.lon_key][:, :])
         lats = np.array(self.dataset[self.lat_key][:, :])
         lons[lons == self.nan_vals[0]] = np.nan
@@ -710,7 +706,7 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
     @property
     def is_source_coordinates_complete(self):
         """Flag use to optimize creation of coordinates. If the source_coordinates are complete,
-        coordinates can easily be reconstructed, and same with shared coordinates. 
+        coordinates can easily be reconstructed, and same with shared coordinates.
 
         Returns
         -------
@@ -757,7 +753,7 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
         Raises
         ------
         RuntimeError
-            If the NSIDC website cannot be accessed 
+            If the NSIDC website cannot be accessed
         """
         r = _get_from_url(self.folder_url, self.session)
         if r is None:
@@ -812,8 +808,7 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
     @property
     @common_doc(COMMON_DOC)
     def keys(self):
-        """{keys}
-        """
+        """{keys}"""
         return self.sources[0].keys
 
 
@@ -855,12 +850,12 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
 
     @tl.default("shared_coordinates")
     def _default_shared_coordinates(self):
-        """Coordinates that are shared by all files in the SMAP product family. 
+        """Coordinates that are shared by all files in the SMAP product family.
 
         Notes
         ------
-        For example, the gridded SMAP data have the same lat-lon coordinates in every file (global at some resolution), 
-        and the only difference between files is the time coordinate. 
+        For example, the gridded SMAP data have the same lat-lon coordinates in every file (global at some resolution),
+        and the only difference between files is the time coordinate.
         This is not true for the SMAP-Sentinel product, in which case this function returns None
         """
         if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
@@ -897,8 +892,7 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
     @common_doc(COMMON_DOC)
     @cached_property
     def source_coordinates(self):
-        """{source_coordinates}
-        """
+        """{source_coordinates}"""
         available_times = [np.datetime64(date.replace(".", "-")) for date in self.available_dates]
         return Coordinates([available_times], dims=["time"])
 
@@ -916,15 +910,14 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
     @property
     @common_doc(COMMON_DOC)
     def keys(self):
-        """{keys}
-        """
+        """{keys}"""
         return self.sources[0].keys
 
     @common_doc(COMMON_DOC)
     def find_coordinates(self):
         """
         {coordinates}
-        
+
         Notes
         -----
         These coordinates are computed, assuming dataset is regular.
@@ -939,41 +932,41 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
         return [podpac.coordinates.merge_dims([Coordinates([full_times], ["time"]), self.shared_coordinates])]
 
     def get_filename_coordinates_sources(self, bounds=None, update_cache=False):
-        """Returns coordinates solely based on the filenames of the sources. This function was motivated by the 
-        SMAP-Sentinel product, which does not have regularly stored tiles (in space and time). 
+        """Returns coordinates solely based on the filenames of the sources. This function was motivated by the
+        SMAP-Sentinel product, which does not have regularly stored tiles (in space and time).
 
         Parameters
         -----------
         bounds: :class:`podpac.Coordinates`, Optional
-            Default is None. Return the coordinates based on filenames of the source only within the specified bounds. 
+            Default is None. Return the coordinates based on filenames of the source only within the specified bounds.
             When not None, the result is not cached.
-            
+
         update_cache: bool, optional
-            Default is False. The results of this call are automatically cached to disk. This function will try to 
+            Default is False. The results of this call are automatically cached to disk. This function will try to
             update the cache if new data arrives. Only set this flag to True to rebuild_auth the entire index locally (which
             may be needed when version numbers in the filenames change).
 
         Returns
         -------
-        :class:`podpac.Coordinates` 
+        :class:`podpac.Coordinates`
             Coordinates of all the sources in the product family
         Container
             Container that will generate an array of the SMAPSources pointing to unique OpenDAP urls corresponding to
             the returned coordinates
-        
+
 
         Notes
         ------
-        The outputs of this function can be used to find source that overlap spatially or temporally with a subset 
+        The outputs of this function can be used to find source that overlap spatially or temporally with a subset
         region specified by the user.
 
         If 'bounds' is not specified, the result is cached for faster future access after the first invocation.
-        
+
         This call uses NASA's Common Metadata Repository (CMR) and requires an internet connection.
         """
 
         def cmr_query(kwargs=None, bounds=None):
-            """ Helper function for making and parsing cmr queries. This is used for building the initial index
+            """Helper function for making and parsing cmr queries. This is used for building the initial index
             and for updating the cached index with new data.
             """
             if not kwargs:
@@ -1083,8 +1076,7 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
 
 
 class SMAPBestAvailable(OrderedCompositor):
-    """Compositor of SMAP-Sentinel and the Level 4 SMAP Analysis Update soil moisture
-    """
+    """Compositor of SMAP-Sentinel and the Level 4 SMAP Analysis Update soil moisture"""
 
     @cached_property
     def sources(self):

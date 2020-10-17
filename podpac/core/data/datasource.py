@@ -128,7 +128,7 @@ COMMON_DATA_DOC.update(DATA_DOC)  # inherit and overwrite with DATA_DOC
 @common_doc(COMMON_DATA_DOC)
 class DataSource(Node):
     """Base node for any data obtained directly from a single source.
-    
+
     Parameters
     ----------
     source : Any
@@ -146,10 +146,10 @@ class DataSource(Node):
     cache_coordinates : bool
         Whether to cache coordinates using the podpac ``cache_ctrl``. Default False.
     cache_output : bool
-        Should the node's output be cached? If not provided or None, uses default based on 
+        Should the node's output be cached? If not provided or None, uses default based on
         settings["CACHE_DATASOURCE_OUTPUT_DEFAULT"]. If True, outputs will be cached and retrieved from cache. If False,
-        outputs will not be cached OR retrieved from cache (even if they exist in cache). 
-    
+        outputs will not be cached OR retrieved from cache (even if they exist in cache).
+
     Notes
     -----
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_coordinates` methods.
@@ -230,12 +230,12 @@ class DataSource(Node):
 
     def _get_data(self, rc, rci):
         """Wrapper for `self.get_data` with pre and post processing
-        
+
         Returns
         -------
         podpac.core.units.UnitsDataArray
             Returns UnitsDataArray with coordinates defined by _requested_source_coordinates
-        
+
         Raises
         ------
         ValueError
@@ -294,14 +294,14 @@ class DataSource(Node):
         ----------
         coordinates : :class:`podpac.Coordinates`
             {requested_coordinates}
-            
+
             An exception is raised if the requested coordinates are missing dimensions in the DataSource.
             Extra dimensions in the requested coordinates are dropped.
         output : :class:`podpac.UnitsDataArray`, optional
             {eval_output}
         selector: callable(coordinates, request_coordinates)
             {eval_selector}
-        
+
         Returns
         -------
         {eval_return}
@@ -463,7 +463,7 @@ class DataSource(Node):
         raise NotImplementedError
 
     def set_coordinates(self, coordinates, force=False):
-        """ Set the coordinates. Used by Compositors as an optimization.
+        """Set the coordinates. Used by Compositors as an optimization.
 
         Arguments
         ---------

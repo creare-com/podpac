@@ -23,14 +23,14 @@ class Coordinates1d(BaseCoordinates):
 
     Coordinates1d objects contain values and metadata for a single dimension of coordinates. :class:`podpac.Coordinates` and
     :class:`StackedCoordinates` use Coordinate1d objects.
-    
+
     Parameters
     ----------
     name : str
         Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
     coordinates : array, read-only
         Full array of coordinate values.
-    
+
     See Also
     --------
     :class:`ArrayCoordinates1d`, :class:`UniformCoordinates1d`
@@ -208,7 +208,7 @@ class Coordinates1d(BaseCoordinates):
         raise NotImplementedError
 
     def simplify(self):
-        """ Get the simplified/optimized representation of these coordinates.
+        """Get the simplified/optimized representation of these coordinates.
 
         Returns
         -------
@@ -226,12 +226,12 @@ class Coordinates1d(BaseCoordinates):
         ---------
         boundary : float, timedelta, array, None
             Boundary offsets in this dimension.
-            
-            * For a centered uniform boundary (same for every coordinate), use a single positive float or timedelta 
+
+            * For a centered uniform boundary (same for every coordinate), use a single positive float or timedelta
                 offset. This represents the "total segment length" / 2.
-            * For a uniform boundary (segment or polygon same for every coordinate), use an array of float or 
+            * For a uniform boundary (segment or polygon same for every coordinate), use an array of float or
                 timedelta offsets
-            * For a fully specified boundary, use an array of boundary arrays (2-D array, N_coords x boundary spec), 
+            * For a fully specified boundary, use an array of boundary arrays (2-D array, N_coords x boundary spec),
                  one per coordinate. The boundary_spec can be a single number, two numbers, or an array of numbers.
             * For point coordinates, use None.
 
@@ -298,19 +298,19 @@ class Coordinates1d(BaseCoordinates):
             Out[2]: array([2.])
 
         The *outer* selection returns the minimal set of coordinates that contain the bounds::
-        
+
             In [3]: c.select([1.5, 2.5], outer=True).coordinates
             Out[3]: array([1., 2., 3.])
 
         The *outer* selection also returns a boundary coordinate if a bound is outside this coordinates bounds but
         *inside* its area bounds::
-        
+
             In [4]: c.select([3.25, 3.35], outer=True).coordinates
             Out[4]: array([3.0], dtype=float64)
 
             In [5]: c.select([10.0, 11.0], outer=True).coordinates
             Out[5]: array([], dtype=float64)
-        
+
         Parameters
         ----------
         bounds : (low, high) or dict
@@ -382,7 +382,7 @@ class Coordinates1d(BaseCoordinates):
         return ArrayCoordinates1d(tcoordinates, **self.properties)
 
     def issubset(self, other):
-        """ Report whether other coordinates contains these coordinates.
+        """Report whether other coordinates contains these coordinates.
 
         Arguments
         ---------

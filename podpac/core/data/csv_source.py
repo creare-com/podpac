@@ -16,7 +16,7 @@ class CSVBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
     header 1,   header 2,   header 3, ...
     row1_data1, row1_data2, row1_data3, ...
     row2_data1, row2_data2, row2_data3, ...
-    
+
     Attributes
     ----------
     source : str
@@ -116,7 +116,7 @@ class CSVBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
     @common_doc(COMMON_DATA_DOC)
     def get_coordinates(self):
         """{get_coordinates}
-        
+
         Note: CSV files have StackedCoordinates.
         """
 
@@ -128,8 +128,7 @@ class CSVBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
 
         if not isinstance(self.data_key, list):
             I = self._get_col(self.data_key)

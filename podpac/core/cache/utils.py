@@ -18,21 +18,21 @@ class CacheWildCard(object):
 
 def expiration_timestamp(value):
     """
-	Parse and calculate an expiration timestamp.
+    Parse and calculate an expiration timestamp.
 
-	Arguments
-	---------
-	value : float, datetime, timedelta, str
-		User-friendly expiration value.
-		 * string values are parsed as datetime or timedelta.
-		 * timedeltas are added to the current time.
-		 * floats are interpreted as timestamps
+    Arguments
+    ---------
+    value : float, datetime, timedelta, str
+            User-friendly expiration value.
+             * string values are parsed as datetime or timedelta.
+             * timedeltas are added to the current time.
+             * floats are interpreted as timestamps
 
-	Returns
-	-------
-	expiration : float
-		expiration timestamp
-	"""
+    Returns
+    -------
+    expiration : float
+            expiration timestamp
+    """
 
     if value is None:
         return None

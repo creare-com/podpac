@@ -18,7 +18,7 @@ from podpac.core.interpolation.interpolation import InterpolationMixin
 
 class ZarrBase(S3Mixin, FileKeysMixin, BaseFileSource):
     """Create a DataSource node using zarr.
-    
+
     Attributes
     ----------
     source : str
@@ -65,9 +65,9 @@ class ZarrBase(S3Mixin, FileKeysMixin, BaseFileSource):
 
     def chunk_exists(self, index=None, chunk_str=None, data_key=None, chunks=None, list_dir=[]):
         """
-        Test to see if a chunk exists for a particular slice. 
-        Note: Only the start of the index is used. 
-        
+        Test to see if a chunk exists for a particular slice.
+        Note: Only the start of the index is used.
+
         Parameters
         -----------
         index: tuple(slice), optional
@@ -75,7 +75,7 @@ class ZarrBase(S3Mixin, FileKeysMixin, BaseFileSource):
         chunk_str: str, optional
             Default is None. A string equivalent to the filename of the chunk (.e.g. "1.0.5")
         data_key: str, optional
-            Default is None. The data_key for the zarr array that will be queried. 
+            Default is None. The data_key for the zarr array that will be queried.
         chunks: list, optional
             Defaut is None. The chunk structure of the zarr array. If not provided will use self.dataset[data_key].chunks
         list_dir: list, optional
@@ -187,8 +187,7 @@ class ZarrBase(S3Mixin, FileKeysMixin, BaseFileSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
         data = self.create_output_array(coordinates)
         if not isinstance(self.data_key, list):
             data[:] = self.dataset[self.data_key][coordinates_index]

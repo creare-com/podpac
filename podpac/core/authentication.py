@@ -21,7 +21,7 @@ _log = logging.getLogger(__name__)
 
 def set_credentials(hostname, username=None, password=None):
     """Set authentication credentials for a remote URL in the :class:`podpac.settings`.
-    
+
     Parameters
     ----------
     hostname : str
@@ -62,12 +62,12 @@ class RequestsSessionMixin(tl.HasTraits):
     def username(self):
         """Returns username stored in settings for accessing `self.hostname`.
         The username is stored under key `username@<hostname>`
-        
+
         Returns
         -------
         str
             username stored in settings for accessing `self.hostname`
-        
+
         Raises
         ------
         ValueError
@@ -88,12 +88,12 @@ class RequestsSessionMixin(tl.HasTraits):
     def password(self):
         """Returns password stored in settings for accessing `self.hostname`.
         The password is stored under key `password@<hostname>`
-        
+
         Returns
         -------
         str
             password stored in settings for accessing `self.hostname`
-        
+
         Raises
         ------
         ValueError
@@ -114,7 +114,7 @@ class RequestsSessionMixin(tl.HasTraits):
     def session(self):
         """Requests Session object for making calls to remote `self.hostname`
         See https://2.python-requests.org/en/master/api/#sessionapi
-        
+
         Returns
         -------
         :class:requests.Session
@@ -124,7 +124,7 @@ class RequestsSessionMixin(tl.HasTraits):
 
     def set_credentials(self, username=None, password=None):
         """Shortcut to :func:`podpac.authentication.set_crendentials` using class member :attr:`self.hostname` for the hostname
-        
+
         Parameters
         ----------
         username : str, optional
@@ -140,7 +140,7 @@ class RequestsSessionMixin(tl.HasTraits):
 
     def _create_session(self):
         """Creates a :class:`requests.Session` with username and password defined
-        
+
         Returns
         -------
         :class:`requests.Session`
@@ -165,11 +165,11 @@ class NASAURSSessionMixin(RequestsSessionMixin):
 
     def _create_session(self):
         """Creates an authenticated :class:`requests.Session` with username and password defined
-        
+
         Returns
         -------
         :class:`requests.Session`
-        
+
         Notes
         -----
         The session is authenticated against the user-provided self.check_url

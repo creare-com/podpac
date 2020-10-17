@@ -38,7 +38,7 @@ from . import settings
 
 
 def common_doc(doc_dict):
-    """ Decorator: replaces commond fields in a function docstring
+    """Decorator: replaces commond fields in a function docstring
 
     Parameters
     -----------
@@ -295,14 +295,14 @@ def _get_query_params_from_url(url):
 
 def _get_from_url(url, session=None):
     """Helper function to get data from an url with error checking.
-    
+
     Parameters
     ----------
     url : str
         URL to website
     session : :class:`requests.Session`, optional
         Requests session to use when making the GET request to `url`
-    
+
     Returns
     -------
     str
@@ -342,7 +342,7 @@ def cached_property(*args, **kwargs):
         attribute. Default False.
     expires : float, datetime, timedelta
         Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
-        Ignored if use_cache_ctrl=False. 
+        Ignored if use_cache_ctrl=False.
 
     Notes
     -----
@@ -404,7 +404,7 @@ def cached_property(*args, **kwargs):
 
 
 def ind2slice(Is):
-    """ Convert boolean and integer index arrays to slices.
+    """Convert boolean and integer index arrays to slices.
 
     Integer and boolean arrays are converted to slices that span the selected elements, but may include additional
     elements. If possible, the slices are stepped.

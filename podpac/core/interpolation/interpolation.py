@@ -36,7 +36,7 @@ class InterpolationMixin(tl.HasTraits):
 
 class Interpolation(Node):
     """Base node for any data obtained directly from a single source.
-    
+
     Parameters
     ----------
     source : Any
@@ -44,10 +44,10 @@ class Interpolation(Node):
     interpolation : str, dict, optional
         {interpolation_long}
     cache_output : bool
-        Should the node's output be cached? If not provided or None, uses default based on 
+        Should the node's output be cached? If not provided or None, uses default based on
         settings["CACHE_DATASOURCE_OUTPUT_DEFAULT"]. If True, outputs will be cached and retrieved from cache. If False,
-        outputs will not be cached OR retrieved from cache (even if they exist in cache). 
-    
+        outputs will not be cached OR retrieved from cache (even if they exist in cache).
+
     Notes
     -----
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_coordinates` methods.
@@ -85,10 +85,10 @@ class Interpolation(Node):
     @property
     def interpolation_class(self):
         """Get the interpolation class currently set for this data source.
-        
+
         The DataSource ``interpolation`` property is used to define the
         :class:`podpac.data.InterpolationManager` class that will handle interpolation for requested coordinates.
-        
+
         Returns
         -------
         :class:`podpac.data.InterpolationManager`
@@ -102,7 +102,7 @@ class Interpolation(Node):
         """Return the interpolators selected for the previous node evaluation interpolation.
         If the node has not been evaluated, or if interpolation was not necessary, this will return
         an empty OrderedDict
-        
+
         Returns
         -------
         OrderedDict
@@ -115,8 +115,7 @@ class Interpolation(Node):
             return OrderedDict()
 
     def _set_interpolation(self):
-        """Update _interpolation property
-        """
+        """Update _interpolation property"""
 
         # define interpolator with source coordinates dimensions
         if isinstance(self.interpolation, InterpolationManager):
@@ -139,12 +138,12 @@ class Interpolation(Node):
         ----------
         coordinates : :class:`podpac.Coordinates`
             {requested_coordinates}
-            
+
             An exception is raised if the requested coordinates are missing dimensions in the DataSource.
             Extra dimensions in the requested coordinates are dropped.
         output : :class:`podpac.UnitsDataArray`, optional
             {eval_output}
-        selector : 
+        selector :
             {eval_selector}
 
         Returns

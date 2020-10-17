@@ -31,13 +31,13 @@ _log = logging.getLogger(__name__)
 
 class Reduce(UnaryAlgorithm):
     """Base node for statistical algorithms
-    
+
     Attributes
     ----------
     dims : list
         List of strings that give the dimensions which should be reduced
     source : podpac.Node
-        The source node that will be reduced. 
+        The source node that will be reduced.
     """
 
     dims = tl.List().tag(attr=True)
@@ -51,13 +51,13 @@ class Reduce(UnaryAlgorithm):
         return super(Reduce, self)._first_init(**kwargs)
 
     def dims_axes(self, output):
-        """Finds the indices for the dimensions that will be reduced. This is passed to numpy. 
-        
+        """Finds the indices for the dimensions that will be reduced. This is passed to numpy.
+
         Parameters
         ----------
         output : UnitsDataArray
             The output array with the reduced dimensions
-        
+
         Returns
         -------
         list
@@ -69,7 +69,7 @@ class Reduce(UnaryAlgorithm):
     @property
     def chunk_size(self):
         """Size of chunks for parallel processing or large arrays that do not fit in memory
-        
+
         Returns
         -------
         int
@@ -84,7 +84,7 @@ class Reduce(UnaryAlgorithm):
 
     def _get_chunk_shape(self, coords):
         """Shape of chunks for parallel processing or large arrays that do not fit in memory.
-        
+
         Returns
         -------
         list
@@ -114,12 +114,12 @@ class Reduce(UnaryAlgorithm):
         Transpose and reshape a DataArray to put the reduce dimensions together
         as axis 0. This is useful for example for scipy.stats.skew and kurtosis
         which only calculate over a single axis, by default 0.
-        
+
         Parameters
         ----------
         x : xr.DataArray
             Input DataArray
-        
+
         Returns
         -------
         a : np.array
@@ -137,7 +137,7 @@ class Reduce(UnaryAlgorithm):
 
     def iteroutputs(self, coordinates):
         """Generator for the chunks of the output
-        
+
         Yields
         ------
         UnitsDataArray
@@ -150,8 +150,8 @@ class Reduce(UnaryAlgorithm):
     @common_doc(COMMON_DOC)
     @node_eval
     def eval(self, coordinates, output=None, selector=None):
-        """Evaluates this nodes using the supplied coordinates. 
-        
+        """Evaluates this nodes using the supplied coordinates.
+
         Parameters
         ----------
         coordinates : podpac.Coordinates
@@ -160,7 +160,7 @@ class Reduce(UnaryAlgorithm):
             {eval_output}
         selector: callable(coordinates, request_coordinates)
             {eval_selector}
-        
+
         Returns
         -------
         {eval_return}
@@ -198,14 +198,14 @@ class Reduce(UnaryAlgorithm):
     def reduce(self, x):
         """
         Reduce a full array, e.g. x.mean(dims).
-        
+
         Must be defined in each child.
-        
+
         Parameters
         ----------
         x : UnitsDataArray
             Array that needs to be reduced.
-        
+
         Raises
         ------
         NotImplementedError
@@ -217,14 +217,14 @@ class Reduce(UnaryAlgorithm):
     def reduce_chunked(self, xs, output):
         """
         Reduce a list of xs with a memory-effecient iterative algorithm.
-        
+
         Optionally defined in each child.
-        
+
         Parameters
         ----------
         xs : list, generator
             List of UnitsDataArray's that need to be reduced together.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -238,7 +238,7 @@ class ReduceOrthogonal(Reduce):
     """
     Extended Reduce class that enables chunks that are smaller than the reduced
     output array.
-    
+
     The base Reduce node ensures that each chunk is at least as big as the
     reduced output, which works for statistics that can be calculated in O(1)
     space. For statistics that require O(n) space, the node must iterate
@@ -248,7 +248,7 @@ class ReduceOrthogonal(Reduce):
 
     def _get_chunk_shape(self, coords):
         """Shape of chunks for parallel processing or large arrays that do not fit in memory.
-        
+
         Returns
         -------
         list
@@ -278,7 +278,7 @@ class ReduceOrthogonal(Reduce):
 
     def iteroutputs(self, coordinates):
         """Generator for the chunks of the output
-        
+
         Yields
         ------
         UnitsDataArray
@@ -292,14 +292,14 @@ class ReduceOrthogonal(Reduce):
     def reduce_chunked(self, xs, output):
         """
         Reduce a list of xs with a memory-effecient iterative algorithm.
-        
+
         Optionally defined in each child.
-        
+
         Parameters
         ----------
         xs : list, generator
             List of UnitsDataArray's that need to be reduced together.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -318,17 +318,16 @@ class ReduceOrthogonal(Reduce):
 
 
 class Min(Reduce):
-    """Computes the minimum across dimension(s)
-    """
+    """Computes the minimum across dimension(s)"""
 
     def reduce(self, x):
         """Computes the minimum across dimension(s)
-        
+
         Parameters
         ----------
         x : UnitsDataArray
             Source data.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -338,12 +337,12 @@ class Min(Reduce):
 
     def reduce_chunked(self, xs, output):
         """Computes the minimum across a chunk
-        
+
         Parameters
         ----------
         xs : iterable
             Iterable of sources
-        
+
         Returns
         -------
         UnitsDataArray
@@ -357,17 +356,16 @@ class Min(Reduce):
 
 
 class Max(Reduce):
-    """Computes the maximum across dimension(s)
-    """
+    """Computes the maximum across dimension(s)"""
 
     def reduce(self, x):
         """Computes the maximum across dimension(s)
-        
+
         Parameters
         ----------
         x : UnitsDataArray
             Source data.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -377,12 +375,12 @@ class Max(Reduce):
 
     def reduce_chunked(self, xs, output):
         """Computes the maximum across a chunk
-        
+
         Parameters
         ----------
         xs : iterable
             Iterable of sources
-        
+
         Returns
         -------
         UnitsDataArray
@@ -396,17 +394,16 @@ class Max(Reduce):
 
 
 class Sum(Reduce):
-    """Computes the sum across dimension(s)
-    """
+    """Computes the sum across dimension(s)"""
 
     def reduce(self, x):
         """Computes the sum across dimension(s)
-        
+
         Parameters
         ----------
         x : UnitsDataArray
             Source data.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -416,12 +413,12 @@ class Sum(Reduce):
 
     def reduce_chunked(self, xs, output):
         """Computes the sum across a chunk
-        
+
         Parameters
         ----------
         xs : iterable
             Iterable of sources
-        
+
         Returns
         -------
         UnitsDataArray
@@ -434,17 +431,16 @@ class Sum(Reduce):
 
 
 class Count(Reduce):
-    """Counts the finite values across dimension(s)
-    """
+    """Counts the finite values across dimension(s)"""
 
     def reduce(self, x):
         """Counts the finite values across dimension(s)
-        
+
         Parameters
         ----------
         x : UnitsDataArray
             Source data.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -454,12 +450,12 @@ class Count(Reduce):
 
     def reduce_chunked(self, xs, output):
         """Counts the finite values across a chunk
-        
+
         Parameters
         ----------
         xs : iterable
             Iterable of sources
-        
+
         Returns
         -------
         UnitsDataArray
@@ -472,17 +468,16 @@ class Count(Reduce):
 
 
 class Mean(Reduce):
-    """Computes the mean across dimension(s)
-    """
+    """Computes the mean across dimension(s)"""
 
     def reduce(self, x):
         """Computes the mean across dimension(s)
-        
+
         Parameters
         ----------
         x : UnitsDataArray
             Source data.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -492,12 +487,12 @@ class Mean(Reduce):
 
     def reduce_chunked(self, xs, output):
         """Computes the mean across a chunk
-        
+
         Parameters
         ----------
         xs : iterable
             Iterable of sources
-        
+
         Returns
         -------
         UnitsDataArray
@@ -514,17 +509,16 @@ class Mean(Reduce):
 
 
 class Variance(Reduce):
-    """Computes the variance across dimension(s)
-    """
+    """Computes the variance across dimension(s)"""
 
     def reduce(self, x):
         """Computes the variance across dimension(s)
-        
+
         Parameters
         ----------
         x : UnitsDataArray
             Source data.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -534,12 +528,12 @@ class Variance(Reduce):
 
     def reduce_chunked(self, xs, output):
         """Computes the variance across a chunk
-        
+
         Parameters
         ----------
         xs : iterable
             Iterable of sources
-        
+
         Returns
         -------
         UnitsDataArray
@@ -569,12 +563,12 @@ class Skew(Reduce):
 
     def reduce(self, x):
         """Computes the skew across dimension(s)
-        
+
         Parameters
         ----------
         x : UnitsDataArray
             Source data.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -595,12 +589,12 @@ class Skew(Reduce):
 
     def reduce_chunked(self, xs, output):
         """Computes the skew across a chunk
-        
+
         Parameters
         ----------
         xs : iterable
             Iterable of sources
-        
+
         Returns
         -------
         UnitsDataArray
@@ -655,12 +649,12 @@ class Kurtosis(Reduce):
 
     def reduce(self, x):
         """Computes the kurtosis across dimension(s)
-        
+
         Parameters
         ----------
         x : UnitsDataArray
             Source data.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -681,12 +675,12 @@ class Kurtosis(Reduce):
 
     def reduce_chunked(self, xs, output):
         """Computes the kurtosis across a chunk
-        
+
         Parameters
         ----------
         xs : iterable
             Iterable of sources
-        
+
         Returns
         -------
         UnitsDataArray
@@ -745,17 +739,16 @@ class Kurtosis(Reduce):
 
 
 class StandardDeviation(Variance):
-    """Computes the standard deviation across dimension(s)
-    """
+    """Computes the standard deviation across dimension(s)"""
 
     def reduce(self, x):
         """Computes the standard deviation across dimension(s)
-        
+
         Parameters
         ----------
         x : UnitsDataArray
             Source data.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -765,12 +758,12 @@ class StandardDeviation(Variance):
 
     def reduce_chunked(self, xs, output):
         """Computes the standard deviation across a chunk
-        
+
         Parameters
         ----------
         xs : iterable
             Iterable of sources
-        
+
         Returns
         -------
         UnitsDataArray
@@ -782,7 +775,7 @@ class StandardDeviation(Variance):
 
 class Median(ReduceOrthogonal):
     """Computes the median across dimension(s)
-    
+
     Example
     ---------
     coords.dims == ['lat', 'lon', 'time']
@@ -793,12 +786,12 @@ class Median(ReduceOrthogonal):
 
     def reduce(self, x):
         """Computes the median across dimension(s)
-        
+
         Parameters
         ----------
         x : UnitsDataArray
             Source data.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -809,7 +802,7 @@ class Median(ReduceOrthogonal):
 
 class Percentile(ReduceOrthogonal):
     """Computes the percentile across dimension(s)
-    
+
     Attributes
     ----------
     percentile : TYPE
@@ -820,12 +813,12 @@ class Percentile(ReduceOrthogonal):
 
     def reduce(self, x):
         """Computes the percentile across dimension(s)
-        
+
         Parameters
         ----------
         x : UnitsDataArray
             Source data.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -845,7 +838,7 @@ _REDUCE_FUNCTIONS = ["all", "any", "count", "max", "mean", "median", "min", "pro
 class GroupReduce(UnaryAlgorithm):
     """
     Group a time-dependent source node and then compute a statistic for each result.
-    
+
     Attributes
     ----------
     custom_reduce_fn : function
@@ -875,8 +868,8 @@ class GroupReduce(UnaryAlgorithm):
     @common_doc(COMMON_DOC)
     @node_eval
     def eval(self, coordinates, output=None, selector=None):
-        """Evaluates this nodes using the supplied coordinates. 
-        
+        """Evaluates this nodes using the supplied coordinates.
+
         Parameters
         ----------
         coordinates : podpac.Coordinates
@@ -885,11 +878,11 @@ class GroupReduce(UnaryAlgorithm):
             {eval_output}
         selector: callable(coordinates, request_coordinates)
             {eval_selector}
-        
+
         Returns
         -------
         {eval_return}
-        
+
         Raises
         ------
         ValueError
@@ -930,7 +923,7 @@ class GroupReduce(UnaryAlgorithm):
     def base_ref(self):
         """
         Default node reference/name in node definitions
-        
+
         Returns
         -------
         str
@@ -942,7 +935,7 @@ class GroupReduce(UnaryAlgorithm):
 class ResampleReduce(UnaryAlgorithm):
     """
     Resample a time-dependent source node using a statistical operation to achieve the result.
-    
+
     Attributes
     ----------
     custom_reduce_fn : function
@@ -972,8 +965,8 @@ class ResampleReduce(UnaryAlgorithm):
     @common_doc(COMMON_DOC)
     @node_eval
     def eval(self, coordinates, output=None, selector=None):
-        """Evaluates this nodes using the supplied coordinates. 
-        
+        """Evaluates this nodes using the supplied coordinates.
+
         Parameters
         ----------
         coordinates : podpac.Coordinates
@@ -982,11 +975,11 @@ class ResampleReduce(UnaryAlgorithm):
             {eval_output}
         selector: callable(coordinates, request_coordinates)
             {eval_selector}
-        
+
         Returns
         -------
         {eval_return}
-        
+
         Raises
         ------
         ValueError
@@ -1026,7 +1019,7 @@ class ResampleReduce(UnaryAlgorithm):
     def base_ref(self):
         """
         Default node reference/name in node definitions
-        
+
         Returns
         -------
         str
@@ -1038,7 +1031,7 @@ class ResampleReduce(UnaryAlgorithm):
 class DayOfYear(GroupReduce):
     """
     Group a time-dependent source node by day of year and compute a statistic for each group.
-    
+
     Attributes
     ----------
     custom_reduce_fn : function
@@ -1054,30 +1047,30 @@ class DayOfYear(GroupReduce):
 
 class DayOfYearWindow(Algorithm):
     """
-    This applies a function over a moving window around day-of-year in the requested coordinates. 
+    This applies a function over a moving window around day-of-year in the requested coordinates.
     It includes the ability to rescale the input/outputs. Note if, the input coordinates include multiple years, the
-    moving window will include all of the data inside the day-of-year window. 
-    
-    Users need to implement the 'function' method. 
-    
+    moving window will include all of the data inside the day-of-year window.
+
+    Users need to implement the 'function' method.
+
     Attributes
     -----------
     source: podpac.Node
         The source node from which the statistics will be computed
     window: int, optional
-        Default is 0. The size of the window over which to compute the distrubtion. This is always centered about the   
-        day-of-year. The total number of days is always an odd number. For example, window=2 and window=3 will compute  
+        Default is 0. The size of the window over which to compute the distrubtion. This is always centered about the
+        day-of-year. The total number of days is always an odd number. For example, window=2 and window=3 will compute
         the beta distribution for [x-1, x, x + 1] and report it as the result for x, where x is a day of the year.
     scale_max: podpac.Node, optional
-        Default is None. A source dataset that can be used to scale the maximum value of the source function so that it 
-        will fall between [0, 1]. If None, uses self.scale_float[0]. 
+        Default is None. A source dataset that can be used to scale the maximum value of the source function so that it
+        will fall between [0, 1]. If None, uses self.scale_float[0].
     scale_min: podpac.Node, optional
-        Default is None. A source dataset that can be used to scale the minimum value of the source function so that it 
+        Default is None. A source dataset that can be used to scale the minimum value of the source function so that it
         will fall between [0, 1]. If None, uses self.scale_float[1].
     scale_float: list, optional
-        Default is []. Floating point numbers used to scale the max [0] and min [1] of the source so that it falls 
-        between [0, 1]. If scale_max or scale_min are defined, this property is ignored. If these are defined, the data 
-        will be rescaled only if rescale=True below. 
+        Default is []. Floating point numbers used to scale the max [0] and min [1] of the source so that it falls
+        between [0, 1]. If scale_max or scale_min are defined, this property is ignored. If these are defined, the data
+        will be rescaled only if rescale=True below.
         If None and scale_max/scale_min are not defined, the data is not scaled in any way.
     rescale: bool, optional
         Rescales the output data after being scaled from scale_float or scale_min/max

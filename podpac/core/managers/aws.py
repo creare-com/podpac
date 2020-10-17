@@ -61,7 +61,7 @@ class Lambda(Node):
     eval_settings : dict, optional
         Default is podpac.settings. PODPAC settings that will be used to evaluate the Lambda function.
     eval_timeout : float, optional
-        Default is None. The amount of time to wait for an eval to return. To get near asynchronous response, set this to a small number. 
+        Default is None. The amount of time to wait for an eval to return. To get near asynchronous response, set this to a small number.
 
     Other Attributes
     ----------------
@@ -92,7 +92,7 @@ class Lambda(Node):
     function_memory : int, optional
         Memory allocated for each Lambda function. Defaults to 2048 MB.
     function_restrict_pipelines : list, optional
-        List of Node hashes (see :class:`podpac.Node.hash`). 
+        List of Node hashes (see :class:`podpac.Node.hash`).
         Restricts lambda function evaluation to specific Node definitions.
     function_role_assume_policy_document : dict, optional.
         Assume policy document for role created. Defaults to allowing role to assume Lambda function.
@@ -126,7 +126,7 @@ class Lambda(Node):
         AWS Tags for Lambda function resource. Defaults to :attr:`podpac.settings["AWS_TAGS"]` or {}.
     function_budget_amount : float, optional
         EXPERIMENTAL FEATURE
-        Monthly budget for function and associated AWS resources. 
+        Monthly budget for function and associated AWS resources.
         When usage reaches 80% of this amount, AWS will notify :attr:`function_budget_email`.
         Defaults to :attr:`podpac.settings["AWS_BUDGET_AMOUNT"]`.
     function_budget_email : str, optional
@@ -505,7 +505,7 @@ class Lambda(Node):
 
     def validate(self, raise_exceptions=False):
         """
-        Validate cloud resources and interoperability of resources for 
+        Validate cloud resources and interoperability of resources for
         PODPAC usage
 
         Parameters
@@ -559,7 +559,7 @@ class Lambda(Node):
 
     def delete(self, confirm=False):
         """Remove all cloud resources associated with function
-        
+
         Parameters
         ----------
         confirm : bool, optional
@@ -578,8 +578,7 @@ class Lambda(Node):
             raise ValueError("You must pass confirm=True to delete all AWS resources")
 
     def describe(self):
-        """Show a description of the Lambda Utilities
-        """
+        """Show a description of the Lambda Utilities"""
         # TODO: change this to format strings when we deprecate py 2
         status = "(staged)" if not self._function_valid else "(built)"
 
@@ -725,8 +724,7 @@ Lambda Node {status}
 
     # Function
     def create_function(self):
-        """Build Lambda function on AWS
-        """
+        """Build Lambda function on AWS"""
         if self.function_name is None:
             raise AttributeError("Function name is not defined")
 
@@ -761,8 +759,7 @@ Lambda Node {status}
         self._set_function(function)
 
     def update_function(self):
-        """Update lambda function with new parameters
-        """
+        """Update lambda function with new parameters"""
         if self.function_name is None:
             raise AttributeError("Function name is not defined")
 
@@ -780,7 +777,7 @@ Lambda Node {status}
 
     def get_function(self):
         """Get function definition from AWS
-            
+
         Returns
         -------
         dict
@@ -805,8 +802,7 @@ Lambda Node {status}
         return True
 
     def delete_function(self):
-        """Remove AWS Lambda function and associated resources on AWS
-        """
+        """Remove AWS Lambda function and associated resources on AWS"""
 
         self.get_function()
 
@@ -821,7 +817,7 @@ Lambda Node {status}
 
     def add_trigger(self, statement_id, principle, source_arn):
         """Add trigger (permission) to lambda function
-        
+
         Parameters
         ----------
         statement_id : str
@@ -836,7 +832,7 @@ Lambda Node {status}
 
     def remove_trigger(self, statement_id):
         """Remove trigger (permission) from lambda function
-        
+
         Parameters
         ----------
         statement_id : str
@@ -858,8 +854,7 @@ Lambda Node {status}
 
     # IAM Roles
     def create_role(self):
-        """Create IAM role to execute podpac lambda function
-        """
+        """Create IAM role to execute podpac lambda function"""
 
         # add special tag - value is hash
         self.function_role_tags["_podpac_resource_hash"] = self.hash
@@ -878,9 +873,9 @@ Lambda Node {status}
 
     def get_role(self):
         """Get role definition from AWS
-        
+
         See :attr:`self.function_role_name` for role_name
-        
+
         Returns
         -------
         dict
@@ -940,8 +935,7 @@ Lambda Node {status}
 
     # S3 Creation
     def create_bucket(self):
-        """Create S3 bucket to work with function
-        """
+        """Create S3 bucket to work with function"""
         if self.function_name is None:
             raise AttributeError("Function name must be defined when creating S3 bucket and trigger")
 
@@ -1018,7 +1012,7 @@ Lambda Node {status}
 
     def get_bucket(self):
         """Get S3 Bucket for function
-        
+
         Returns
         -------
         dict
@@ -1055,7 +1049,7 @@ Lambda Node {status}
 
     def delete_bucket(self, delete_objects=False):
         """Delete bucket associated with this function
-        
+
         Parameters
         ----------
         delete_objects : bool, optional
@@ -1072,8 +1066,7 @@ Lambda Node {status}
 
     # API Gateway
     def create_api(self):
-        """Create API Gateway API for lambda function
-        """
+        """Create API Gateway API for lambda function"""
 
         if "APIGateway" not in self.function_triggers:
             _log.debug("Skipping API creation because 'APIGateway' not in the function triggers")
@@ -1139,7 +1132,7 @@ Lambda Node {status}
 
     def get_api(self):
         """Get API Gateway definition for function
-        
+
         Returns
         -------
         dict
@@ -1215,7 +1208,7 @@ Lambda Node {status}
         """
         EXPERIMENTAL FEATURE
         Get budget definition for function
-        
+
         Returns
         -------
         dict
@@ -1234,7 +1227,7 @@ Lambda Node {status}
 
     def validate_budget(self):
         """Validate budget definition for function
-        
+
         Returns
         -------
         dict
@@ -1252,8 +1245,7 @@ Lambda Node {status}
         return True
 
     def delete_budget(self):
-        """Delete budget associated with function
-        """
+        """Delete budget associated with function"""
         self.get_budget()
 
         # delete budget
@@ -1265,7 +1257,7 @@ Lambda Node {status}
     # Logs
     def get_logs(self, limit=5, start=None, end=None):
         """Get Cloudwatch logs from lambda function execution
-        
+
         See :func:`podpac.managers.aws.get_logs`
 
         Parameters
@@ -1278,7 +1270,7 @@ Lambda Node {status}
         end : str, optional
             Datetime string. Must work as input to np.datetime64 (i.e np.datetime64(end))
             Defaults to now.
-        
+
         Returns
         -------
         list
@@ -1296,7 +1288,7 @@ Lambda Node {status}
 
     def _set_function(self, function):
         """Set function class members
-        
+
         Parameters
         ----------
         function : dict
@@ -1341,7 +1333,7 @@ Lambda Node {status}
 
     def _set_bucket(self, bucket):
         """Set bucket class members
-        
+
         Parameters
         ----------
         bucket : dict
@@ -1355,7 +1347,7 @@ Lambda Node {status}
 
     def _set_api(self, api):
         """Set api class members
-        
+
         Parameters
         ----------
         api : dict
@@ -1540,8 +1532,7 @@ Lambda Node {status}
         pass
 
     def _get_api_url(self):
-        """Generated API url
-        """
+        """Generated API url"""
         if (
             self._function_api_id is not None
             and self.function_api_stage is not None
@@ -1605,7 +1596,7 @@ class Session(boto3.Session):
 
     def get_account_id(self):
         """Return the account ID assciated with this AWS session. The credentials will determine the account ID.
-        
+
         Returns
         -------
         str
@@ -1619,7 +1610,7 @@ class Session(boto3.Session):
 # -----------------------------------------------------------------------------------------------------------------
 def create_bucket(session, bucket_name, bucket_region=None, bucket_policy=None, bucket_tags={}):
     """Create S3 bucket
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -1629,15 +1620,15 @@ def create_bucket(session, bucket_name, bucket_region=None, bucket_policy=None, 
     bucket_region : str, optional
         Location constraint for bucket. Defaults to no location constraint
     bucket_policy : dict, optional
-        Bucket policy document as dict. For parameters, see https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketPolicy.html#API_PutBucketPolicy_RequestSyntax 
+        Bucket policy document as dict. For parameters, see https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketPolicy.html#API_PutBucketPolicy_RequestSyntax
     bucket_tags : dict, optional
         Bucket tags
-    
+
     Returns
     -------
     dict
         See :func:`podpac.managers.aws.get_bucket`
-    
+
     Raises
     ------
     ValueError
@@ -1689,9 +1680,9 @@ def create_bucket(session, bucket_name, bucket_region=None, bucket_policy=None, 
 
 def get_object(session, bucket_name, bucket_path):
     """Get an object from an S3 bucket
-    
+
     See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.get_object
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -1720,9 +1711,9 @@ def get_object(session, bucket_name, bucket_path):
 
 def put_object(session, bucket_name, bucket_path, file=None, object_acl="private", object_metadata=None):
     """Simple wrapper to put an object in an S3 bucket
-    
+
     See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -1766,14 +1757,14 @@ def put_object(session, bucket_name, bucket_path, file=None, object_acl="private
 
 def get_bucket(session, bucket_name):
     """Get S3 bucket parameters
-    
+
     Parameters
     ----------
     session : :class:`Session`
         AWS Boto3 Session. See :class:`Session` for creation.
     bucket_name : str
         Bucket name
-    
+
     Returns
     -------
     dict
@@ -1820,7 +1811,7 @@ def get_bucket(session, bucket_name):
 
 def delete_bucket(session, bucket_name, delete_objects=False):
     """Remove S3 bucket from AWS resources
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -1828,7 +1819,7 @@ def delete_bucket(session, bucket_name, delete_objects=False):
     bucket_name : str
         Bucket name to delete
     delete_objects : bool, optional
-        Must be set to True if the bucket contains files. This helps avoid deleting buckets inadvertantly    
+        Must be set to True if the bucket contains files. This helps avoid deleting buckets inadvertantly
     """
     if bucket_name is None:
         _log.error("`bucket_name` not defined in delete_bucket")
@@ -1873,7 +1864,7 @@ def create_function(
     function_source_dist_key=None,
 ):
     """Build Lambda function and associated resources on AWS
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -1902,7 +1893,7 @@ def create_function(
         S3 Bucket containing .zip archive of the function source. If defined, :attr:`function_source_dist_key` must be defined.
     function_source_dist_key : str
         If :attr:`function_source_bucket` is defined, this is the path to the .zip archive of the function source.
-    
+
     Returns
     -------
     dict
@@ -1966,12 +1957,12 @@ def create_function(
 
 def get_function(session, function_name):
     """Get function definition from AWS
-    
+
     Parameters
     ----------
     function_name : str
         Function name
-        
+
     Returns
     -------
     dict
@@ -2006,7 +1997,7 @@ def update_function(
     session, function_name, function_source_dist_zip=None, function_source_bucket=None, function_source_dist_key=None
 ):
     """Update function on AWS
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -2019,7 +2010,7 @@ def update_function(
         S3 Bucket containing .zip archive of the function source. If defined, :attr:`function_source_dist_key` must be defined.
     function_source_dist_key : str
         If :attr:`function_source_bucket` is defined, this is the path to the .zip archive of the function source.
-    
+
     Returns
     -------
     dict
@@ -2062,7 +2053,7 @@ def update_function(
 
 def delete_function(session, function_name):
     """Remove AWS Lambda function
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -2090,7 +2081,7 @@ def delete_function(session, function_name):
 
 def add_function_trigger(session, function_name, statement_id, principle, source_arn):
     """Add trigger (permission) to lambda function
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -2121,7 +2112,7 @@ def add_function_trigger(session, function_name, statement_id, principle, source
 
 def remove_function_trigger(session, function_name, statement_id):
     """Remove trigger (permission) from lambda function
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -2157,7 +2148,7 @@ def create_role(
     role_tags={},
 ):
     """Create IAM role
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -2172,13 +2163,13 @@ def create_role(
     role_policy_arns : list, optional
         List of role policy ARN's to attach to role
     role_assume_policy_document : None, optional
-        Role policy document. 
+        Role policy document.
         Defaults to trust policy allowing role to execute lambda functions.
         See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.create_role
     role_tags : dict, optional
         Role tags
-    
-    
+
+
     Returns
     -------
     dict
@@ -2243,14 +2234,14 @@ def create_role(
 
 def get_role(session, role_name):
     """Get role definition from AWS
-    
+
     Parameters
     ----------
     session : :class:`Session`
         AWS Boto3 Session. See :class:`Session` for creation.
     role_name : str
         Role name
-    
+
     Returns
     -------
     dict
@@ -2306,14 +2297,14 @@ def get_role(session, role_name):
 def get_role_name(session, role_arn):
     """
     Get function role name based on role_arn
-    
+
     Parameters
     ----------
     session : :class:`Session`
         AWS Boto3 Session. See :class:`Session` for creation.
     role_arn : str
         Role arn
-    
+
     Returns
     -------
     str
@@ -2332,7 +2323,7 @@ def get_role_name(session, role_arn):
 
 def delete_role(session, role_name):
     """Remove role from AWS resources
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -2378,7 +2369,7 @@ def create_api(
     session, api_name="podpac-api", api_description="PODPAC API", api_version=None, api_tags={}, api_endpoint="eval"
 ):
     """Create API Gateway REST API
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -2393,7 +2384,7 @@ def create_api(
         API tags. Defaults to {}.
     api_endpoint : str, optional
         API endpoint. Defaults to "eval".
-    
+
     Returns
     -------
     dict
@@ -2461,7 +2452,7 @@ def create_api(
 
 def get_api(session, api_name, api_endpoint=None):
     """Get API Gateway definition
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -2470,7 +2461,7 @@ def get_api(session, api_name, api_endpoint=None):
         API Name
     api_endpoint : str, optional
         API endpoint path, defaults to returning the first endpoint it finds
-    
+
     Returns
     -------
     dict
@@ -2526,7 +2517,7 @@ def get_api(session, api_name, api_endpoint=None):
 
 def deploy_api(session, api_id, api_stage):
     """Deploy API gateway definition
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -2550,7 +2541,7 @@ def deploy_api(session, api_id, api_stage):
 
 def delete_api(session, api_name):
     """Delete API Gateway API
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -2594,7 +2585,7 @@ def create_budget(
     EXPERIMENTAL FEATURE
     Create a budget for podpac AWS resources based on tags.
     By default, this creates a budget for all podpac created resources with the tag: {"_podpac_resource": "true"}
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -2615,7 +2606,7 @@ def create_budget(
     budget_filter_tags : dict, optional
         Create budget for specific set of resource tags.
         By default, the budget is created for all podpac created resources.
-    
+
     Returns
     -------
     dict
@@ -2700,14 +2691,14 @@ def get_budget(session, budget_name):
     """
     EXPERIMENTAL FEATURE
     Get a budget by name
-    
+
     Parameters
     ----------
     session : :class:`Session`
         AWS Boto3 Session. See :class:`Session` for creation.
     budget_name : str
         Budget name
-    
+
     Returns
     -------
     dict
@@ -2731,14 +2722,14 @@ def get_budget(session, budget_name):
 
 def delete_budget(session, budget_name):
     """Delete a budget by name
-    
+
     Parameters
     ----------
     session : :class:`Session`
         AWS Boto3 Session. See :class:`Session` for creation.
     budget_name : str
         Budget name
-    
+
     Returns
     -------
     None
@@ -2759,7 +2750,7 @@ def delete_budget(session, budget_name):
 # -----------------------------------------------------------------------------------------------------------------
 def get_logs(session, log_group_name, limit=100, start=None, end=None):
     """Get logs from cloudwatch from specific log groups
-    
+
     Parameters
     ----------
     session : :class:`Session`
@@ -2774,7 +2765,7 @@ def get_logs(session, log_group_name, limit=100, start=None, end=None):
     end : str, optional
         Datetime string. Must work as input to np.datetime64 (i.e np.datetime64(end))
         Defaults to now.
-    
+
     Returns
     -------
     list

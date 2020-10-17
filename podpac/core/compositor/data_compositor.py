@@ -12,7 +12,7 @@ from podpac.core.units import UnitsDataArray
 @common_doc(COMMON_COMPOSITOR_DOC)
 class DataCompositor(BaseCompositor):
     """Compositor that combines tiled sources.
-    
+
     The requested data does not need to be interpolated by the sources before being composited
 
     Attributes
@@ -26,7 +26,7 @@ class DataCompositor(BaseCompositor):
     @common_doc(COMMON_COMPOSITOR_DOC)
     def composite(self, coordinates, data_arrays, result=None):
         """Composites data_arrays in order that they appear. Once a request contains no nans, the result is returned.
-        
+
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
@@ -35,7 +35,7 @@ class DataCompositor(BaseCompositor):
             Evaluated source data, in the same order as the sources.
         result : podpac.UnitsDataArray, optional
             {eval_output}
-        
+
         Returns
         -------
         {eval_return} This composites the sources together until there are no nans or no more sources.

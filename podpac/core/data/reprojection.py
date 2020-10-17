@@ -18,7 +18,7 @@ _logger = logging.getLogger(__name__)
 class ReprojectedSource(DataSource):
     """Create a DataSource with a different resolution from another Node. This can be used to bilinearly interpolated a
     dataset after averaging over a larger area.
-    
+
     Attributes
     ----------
     source : Node
@@ -26,7 +26,7 @@ class ReprojectedSource(DataSource):
     source_interpolation : str
         Type of interpolation method to use for the source node
     reprojected_coordinates : :class:`podpac.Coordinates`
-        Coordinates where the source node should be evaluated. 
+        Coordinates where the source node should be evaluated.
     """
 
     source = NodeTrait().tag(attr=True)
@@ -67,8 +67,7 @@ class ReprojectedSource(DataSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_coordinates(self):
-        """{get_coordinates}
-        """
+        """{get_coordinates}"""
 
         # cannot guarantee that coordinates exist
         if not isinstance(self.source, DataSource):
@@ -83,8 +82,7 @@ class ReprojectedSource(DataSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
 
         data = self.eval_source.eval(coordinates)
 

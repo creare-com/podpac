@@ -96,10 +96,10 @@ class Node(tl.HasTraits):
     Attributes
     ----------
     cache_output: bool
-        Should the node's output be cached? If not provided or None, uses default based on settings 
-        (CACHE_NODE_OUTPUT_DEFAULT for general Nodes, and CACHE_DATASOURCE_OUTPUT_DEFAULT  for DataSource nodes). 
-        If True, outputs will be cached and retrieved from cache. If False, outputs will not be cached OR retrieved from cache (even if 
-        they exist in cache). 
+        Should the node's output be cached? If not provided or None, uses default based on settings
+        (CACHE_NODE_OUTPUT_DEFAULT for general Nodes, and CACHE_DATASOURCE_OUTPUT_DEFAULT  for DataSource nodes).
+        If True, outputs will be cached and retrieved from cache. If False, outputs will not be cached OR retrieved from cache (even if
+        they exist in cache).
     force_eval: bool
         Default is False. Should the node's cached output be updated from the source data? If True it ignores the cache
         when computing outputs but puts results into the cache (thereby updating the cache)
@@ -225,8 +225,7 @@ class Node(tl.HasTraits):
         return kwargs
 
     def init(self):
-        """Overwrite this method if a node needs to do any additional initialization after the standard initialization.
-        """
+        """Overwrite this method if a node needs to do any additional initialization after the standard initialization."""
         pass
 
     @property
@@ -823,7 +822,7 @@ class Node(tl.HasTraits):
         Notes
         -------
         The request can specify the PODPAC node by four different mechanism:
-        
+
         * Direct node name: PODPAC will look for an appropriate node in podpac.datalib
         * JSON definition passed using the 'PARAMS' query string: Need to specify the special LAYER/COVERAGE value of
           "%PARAMS%"

@@ -52,24 +52,24 @@ class Convolution(UnaryAlgorithm):
     """Compute a general convolution over a source node.
 
     This node automatically resizes the requested coordinates to avoid edge effects.
-    
+
     Attributes
     ----------
     source : podpac.Node
-        Source node on which convolution will be performed. 
+        Source node on which convolution will be performed.
     kernel : np.ndarray, optional
         The convolution kernel. This kernel must include the dimensions of source node outputs. The dimensions for this
-        array are labelled by `kernel_dims`. Any dimensions not in the soucr nodes outputs will be summed over. 
+        array are labelled by `kernel_dims`. Any dimensions not in the soucr nodes outputs will be summed over.
     kernel_dims : list, optional
-        A list of the dimensions for the kernel axes. The dimensions in this list must match the 
+        A list of the dimensions for the kernel axes. The dimensions in this list must match the
         coordinates in the source, or contain additional dimensions, and the order does not need to match.
-        Any extra dimensions are summed out. 
+        Any extra dimensions are summed out.
     kernel_type : str, optional
         If kernel is not defined, kernel_type will create a kernel based on the inputs, and it will have the
         same number of axes as kernel_ndim.
         The format for the created  kernels is '<kernel_type>, <kernel_size>, <kernel_params>'.
         Any kernel defined in `scipy.signal` as well as `mean` can be used. For example:
-        kernel_type = 'mean, 8' or kernel_type = 'gaussian,16,8' are both valid. 
+        kernel_type = 'mean, 8' or kernel_type = 'gaussian,16,8' are both valid.
         Note: These kernels are automatically normalized such that kernel.sum() == 1
     """
 
@@ -103,7 +103,7 @@ class Convolution(UnaryAlgorithm):
     @node_eval
     def eval(self, coordinates, output=None, selector=None):
         """Evaluates this nodes using the supplied coordinates.
-        
+
         Parameters
         ----------
         coordinates : podpac.Coordinates
@@ -112,7 +112,7 @@ class Convolution(UnaryAlgorithm):
             {eval_output}
         selector: callable(coordinates, request_coordinates)
             {eval_selector}
-        
+
         Returns
         -------
         {eval_return}
@@ -226,6 +226,5 @@ class Convolution(UnaryAlgorithm):
         return k / k.sum()
 
     def _get_full_kernel(self, coordinates):
-        """{full_kernel}
-        """
+        """{full_kernel}"""
         return self.kernel
