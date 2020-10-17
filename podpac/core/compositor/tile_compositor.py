@@ -28,7 +28,7 @@ class TileCompositor(DataSource):
 
     @property
     def sources(self):
-        """ Tiled data sources (using the TileMixin).
+        """Tiled data sources (using the TileMixin).
 
         Child classes should define these sources including a reference to itself and the tile_coordinates_index.
         """
@@ -36,8 +36,7 @@ class TileCompositor(DataSource):
         raise NotImplementedError()
 
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
 
         output = self.create_output_array(coordinates)
         for source in self.sources:
@@ -75,7 +74,7 @@ class UniformTileCompositor(TileCompositor):
 
     @property
     def sources(self):
-        """ Tiled data sources (using the UniformTileMixin).
+        """Tiled data sources (using the UniformTileMixin).
 
         Child classes should define these sources including a reference to itself and the tile index in the grid.
         """
@@ -121,8 +120,7 @@ class UniformTileMixin(tl.HasTraits):
         return self.grid.tile_width
 
     def get_coordinates(self):
-        """{get_coordinates}
-        """
+        """{get_coordinates}"""
         Is = tuple(slice(w * i, w * (i + 1)) for i, w in zip(self.tile, self.width))
         return self.grid.coordinates[Is]
 

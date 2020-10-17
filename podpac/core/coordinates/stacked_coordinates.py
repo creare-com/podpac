@@ -13,6 +13,7 @@ from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
+from podpac.core.coordinates.utils import make_coord_value
 
 
 class StackedCoordinates(BaseCoordinates):
@@ -56,7 +57,7 @@ class StackedCoordinates(BaseCoordinates):
         xarray coordinates (container of coordinate arrays)
     coordinates : pandas.MultiIndex
         MultiIndex of stacked coordinates values.
-        
+
     """
 
     _coords = tl.List(trait=tl.Instance(Coordinates1d), read_only=True)
@@ -69,7 +70,7 @@ class StackedCoordinates(BaseCoordinates):
         ----------
         coords : list, :class:`StackedCoordinates`
             Coordinate values in a list, or a StackedCoordinates object to copy.
-        
+
         See Also
         --------
         clinspace, crange
@@ -237,6 +238,14 @@ class StackedCoordinates(BaseCoordinates):
 
         # set (and check) new coords list
         self.set_trait("_coords", coords)
+
+    def __contains__(self, item):
+        try:
+            item = tuple(make_coord_value(value) for value in item)
+        except:
+            return False
+
+        return item in self.coordinates
 
     def __eq__(self, other):
         if not isinstance(other, StackedCoordinates):
@@ -467,7 +476,7 @@ class StackedCoordinates(BaseCoordinates):
         in_place : boolean, optional
             If True, transpose the dimensions in-place.
             Otherwise (default), return a new, transposed Coordinates object.
-        
+
         Returns
         -------
         transposed : :class:`StackedCoordinates`
@@ -491,7 +500,7 @@ class StackedCoordinates(BaseCoordinates):
             return StackedCoordinates(coordinates)
 
     def issubset(self, other):
-        """ Report whether other coordinates contains these coordinates.
+        """Report whether other coordinates contains these coordinates.
 
         Arguments
         ---------

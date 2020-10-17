@@ -16,8 +16,8 @@ from collections import OrderedDict
 ## UPDATE VERSION HERE
 ##############
 MAJOR = 2
-MINOR = 2
-HOTFIX = 2
+MINOR = 3
+HOTFIX = 0
 ##############
 
 
@@ -28,7 +28,7 @@ VERSION = (VERSION_INFO["MAJOR"], VERSION_INFO["MINOR"], VERSION_INFO["HOTFIX"])
 
 def semver():
     """Return semantic version of current PODPAC installation
-    
+
     Returns
     -------
     str
@@ -39,7 +39,7 @@ def semver():
 
 def version():
     """Retrieve PODPAC semantic version as string
-    
+
     Returns
     -------
     str

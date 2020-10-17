@@ -228,6 +228,14 @@ class DependentCoordinates(BaseCoordinates):
             else:
                 return DependentCoordinates(coordinates, **self.properties)
 
+    def __contains__(self, item):
+        try:
+            item = tuple(make_coord_value(value) for value in item)
+        except:
+            return False
+
+        return item in list(zip(*[c.flatten() for c in self.coordinates]))
+
     def _properties_at(self, index=None, dim=None):
         if index is None:
             index = self.dims.index(dim)
@@ -469,7 +477,7 @@ class DependentCoordinates(BaseCoordinates):
         in_place : boolean, optional
             If True, transpose the dimensions in-place.
             Otherwise (default), return a new, transposed Coordinates object.
-        
+
         Returns
         -------
         transposed : :class:`DependentCoordinates`
@@ -496,7 +504,7 @@ class DependentCoordinates(BaseCoordinates):
             return DependentCoordinates(coordinates, **properties)
 
     def issubset(self, other):
-        """ Report whether other coordinates contains these coordinates.
+        """Report whether other coordinates contains these coordinates.
 
         Arguments
         ---------
@@ -572,7 +580,7 @@ class DependentCoordinates(BaseCoordinates):
 class ArrayCoordinatesNd(ArrayCoordinates1d):
     """
     Partial implementation for internal use.
-    
+
     Provides name, dtype, size, bounds (and others).
     Prohibits coords, intersect, select (and others).
 
@@ -594,6 +602,9 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
         """
 
         self.set_trait("coordinates", coordinates)
+        if self.coordinates.dtype not in [float, np.datetime64]:
+            dtype = make_coord_array(self.coordinates.flatten()).dtype
+            self.set_trait("coordinates", self.coordinates.astype(dtype))
         self._is_monotonic = None
         self._is_descending = None
         self._is_uniform = None
@@ -613,6 +624,17 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
     def shape(self):
         """:tuple: Shape of the coordinates."""
         return self.coordinates.shape
+
+    def __contains__(self, item):
+        try:
+            item = make_coord_value(item)
+        except:
+            return False
+
+        if type(item) != self.dtype:
+            return False
+
+        return item in self.coordinates.flatten()
 
     # Restricted methods and properties
 
@@ -650,7 +672,7 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
         raise RuntimeError("ArrayCoordinatesNd select is unavailable.")
 
     def issubset(self, other):
-        """ Report whether other coordinates contains these coordinates.
+        """Report whether other coordinates contains these coordinates.
 
         Arguments
         ---------

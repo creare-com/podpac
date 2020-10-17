@@ -122,7 +122,10 @@ class TestNode(object):
 
     def test_trait_is_defined(self):
         node = Node()
-        assert node.trait_is_defined("units")
+        if tl.version_info[0] >= 5:
+            assert not node.trait_is_defined("units")
+        else:
+            assert node.trait_is_defined("units")
 
     def test_init(self):
         class MyNode(Node):
@@ -444,6 +447,19 @@ class TestCaching(object):
         assert self.node.has_cache("c", coordinates=self.coords)
         assert self.node.has_cache("c", coordinates=self.coords2)
         assert self.node.has_cache("d", coordinates=self.coords)
+
+    def test_put_has_expires(self):
+        self.node.put_cache(10, "key1", expires="1,D")
+        self.node.put_cache(10, "key2", expires="-1,D")
+        assert self.node.has_cache("key1")
+        assert not self.node.has_cache("key2")
+
+    def test_put_get_expires(self):
+        self.node.put_cache(10, "key1", expires="1,D")
+        self.node.put_cache(10, "key2", expires="-1,D")
+        assert self.node.get_cache("key1") == 10
+        with pytest.raises(NodeException, match="cached data not found"):
+            self.node.get_cache("key2")
 
     # node definition errors
     # this demonstrates both classes of error in the has_cache case, but only one for put/get/rem

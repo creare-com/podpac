@@ -117,7 +117,7 @@ class GroupCoordinates(tl.HasTraits):
         return self._items.__iter__()
 
     def append(self, c):
-        """ Append :class:`Coordinates` to the group.
+        """Append :class:`Coordinates` to the group.
 
         Arguments
         ---------

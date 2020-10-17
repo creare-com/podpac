@@ -8,7 +8,7 @@ from podpac.core.settings import settings
 
 def pytest_addoption(parser):
     """Add command line option to pytest
-    Note you MUST invoke test as `pytest podpac --ci` to use these options. 
+    Note you MUST invoke test as `pytest podpac --ci` to use these options.
     Using only `pytest --ci` will result in an error
 
     Parameters

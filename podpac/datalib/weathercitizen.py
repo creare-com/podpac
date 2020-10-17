@@ -42,7 +42,7 @@ _logger = logging.getLogger(__name__)
 
 class WeatherCitizen(DataSource):
     """DataSource to handle WeatherCitizen data
-       
+
     Attributes
     ----------
     source : str
@@ -74,8 +74,7 @@ class WeatherCitizen(DataSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_coordinates(self):
-        """{get_coordinates}
-        """
+        """{get_coordinates}"""
 
         # TODO: how to limit data retrieval for large queries?
 
@@ -131,8 +130,7 @@ class WeatherCitizen(DataSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
 
         # TODO: how to limit data retrieval for large queries?
 
@@ -222,7 +220,7 @@ def get(
     return_length=False,
 ):
     """Get documents from the server for devices in a timerange
-    
+
     Parameters
     ----------
     collection : str, list(str)
@@ -266,7 +264,7 @@ def get(
         Defaults to False.
     return_length : bool, optional
         Return length of the documents that match the query
-    
+
     Returns
     -------
     list
@@ -328,7 +326,7 @@ def get(
 
 def get_record(collection, obj_id, url=URL):
     """Get a single record from a collection by obj_id
-    
+
     Parameters
     ----------
     collection : str
@@ -352,7 +350,7 @@ def get_record(collection, obj_id, url=URL):
 
 def get_file(media, save=False, output_path=None):
     """Get media file
-    
+
     Parameters
     ----------
     media : str, dict
@@ -361,12 +359,12 @@ def get_file(media, save=False, output_path=None):
         Save to file
     output_path : None, optional
         If save is True, output the file to different file path
-    
+
     Returns
     -------
     bytes
         If output_path is None, returns raw file content as bytes
-    
+
     Raises
     ------
     ValueError
@@ -407,17 +405,17 @@ def get_file(media, save=False, output_path=None):
 
 def read_sensorburst(media):
     """Download and read sensorburst records.
-    
-    Requires: 
+
+    Requires:
     - read-protobuf: `pip install read-protobuf`
     - sensorburst_pb2: Download from https://api.weathercitizen.org/static/sensorburst_pb2.py
         - Once downloaded, put this file in the directory as your analysis
-    
+
     Parameters
     ----------
     media : str, dict, list of str, list of dict
         Media record(s) or media record object id(s) in the media or geomedia collections.
-    
+
     Returns
     -------
     pd.DataFrame
@@ -464,7 +462,7 @@ def read_sensorburst(media):
 
 def to_dataframe(items):
     """Create normalized dataframe from records
-    
+
     Parameters
     ----------
     items : list of dict
@@ -500,7 +498,7 @@ def to_dataframe(items):
 
 def to_csv(items, filename="weathercitizen-data.csv"):
     """Convert items to CSV output
-    
+
     Parameters
     ----------
     items : list of dict
@@ -547,7 +545,7 @@ def _build_query(
 ):
     """Build a query string for a single collection.
     See :func:`get` for type definitions of each input
-    
+
     Returns
     -------
     string
@@ -618,7 +616,7 @@ def _build_query(
 def _get(query, items=None, url=URL, verbose=False, return_length=False):
     """Internal method to query API.
     See `get` for interface.
-    
+
     Parameters
     ----------
     query : dict, str
@@ -632,11 +630,11 @@ def _get(query, items=None, url=URL, verbose=False, return_length=False):
         Display log messages or progress
     return_length : bool, optional
         Return length of the documents that match the query
-    
+
     Returns
     -------
     list
-    
+
     Raises
     ------
     ValueError

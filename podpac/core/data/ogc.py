@@ -35,7 +35,7 @@ WCS_DEFAULT_CRS = "EPSG:4326"
 
 class WCS(DataSource):
     """Create a DataSource from an OGC-compliant WCS service
-    
+
     Attributes
     ----------
     crs : 'str'
@@ -70,7 +70,7 @@ class WCS(DataSource):
     @property
     def capabilities_url(self):
         """Constructs the url that requests the WCS capabilities
-        
+
         Returns
         -------
         str
@@ -81,16 +81,16 @@ class WCS(DataSource):
 
     @cached_property
     def wcs_coordinates(self):
-        """ Coordinates reported by the WCS service.
-        
+        """Coordinates reported by the WCS service.
+
         Returns
         -------
         Coordinates
-        
+
         Notes
         -------
         This assumes a `time`, `lat`, `lon` order for the coordinates, and currently doesn't handle `alt` coordinates
-        
+
         Raises
         ------
         Exception
@@ -169,10 +169,10 @@ class WCS(DataSource):
     @common_doc(COMMON_DATA_DOC)
     def get_coordinates(self):
         """{get_coordinates}
-            
+
         Notes
         ------
-        This is a little tricky and doesn't fit into the usual PODPAC method, as the service is actually doing the 
+        This is a little tricky and doesn't fit into the usual PODPAC method, as the service is actually doing the
         data wrangling for us...
         """
 
@@ -199,7 +199,7 @@ class WCS(DataSource):
 
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
-        
+
         Raises
         ------
         Exception

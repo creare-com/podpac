@@ -375,6 +375,14 @@ class TestDependentCoordinatesIndexing(object):
         assert a == c["lat"]
         assert b == c["lon"]
 
+    def test_in(self):
+        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
+
+        assert (LAT[0, 0], LON[0, 0]) in c
+        assert (LAT[0, 0], LON[0, 1]) not in c
+        assert (LON[0, 0], LAT[0, 0]) not in c
+        assert LAT[0, 0] not in c
+
 
 class TestDependentCoordinatesSelection(object):
     def test_select_single(self):
@@ -484,6 +492,14 @@ class TestDependentCoordinatesTranspose(object):
 
 
 class TestArrayCoordinatesNd(object):
+    def test_in(self):
+        c = ArrayCoordinatesNd([[20, 50, 60], [90, 40, 10]], name="lat")
+        assert 20.0 in c
+        assert 20 in c
+        assert 5.0 not in c
+        assert np.datetime64("2018") not in c
+        assert "a" not in c
+
     def test_unavailable(self):
         with pytest.raises(RuntimeError, match="ArrayCoordinatesNd from_definition is unavailable"):
             ArrayCoordinatesNd.from_definition({})

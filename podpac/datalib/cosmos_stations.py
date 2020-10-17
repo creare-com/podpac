@@ -140,6 +140,7 @@ class COSMOSStation(podpac.data.DataSource):
 class COSMOSStations(podpac.compositor.OrderedCompositor):
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/")
     stations_url = tl.Unicode("sitesNoLegend.js")
+    dims = ["lat", "lon", "time"]
 
     ## PROPERTIES
     @cached_property(use_cache_ctrl=True)
@@ -181,13 +182,13 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
 
     ## UTILITY FUNCTIONS
     def stations_value(self, key, stations_data=None):
-        """ Returns a list of values for all the station for a particular key
-        
+        """Returns a list of values for all the station for a particular key
+
         Parameters
         -----------
         key: str
-           Key describing the station data. See self.available_data_keys for available keys. 
-           
+           Key describing the station data. See self.available_data_keys for available keys.
+
         Returns
         --------
         list
@@ -199,8 +200,7 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         return self._stations_value(key, stations_data)
 
     def _stations_value(self, key, stations_data=None):
-        """ helper function for stations_value
-        """
+        """helper function for stations_value"""
         if stations_data is None:
             stations_data = self.stations_data
 
@@ -211,20 +211,20 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         return self.stations_value("label")
 
     def label_from_latlon(self, lat_lon):
-        """ Returns the COSMOS station's label given it's lat/lon coordinates
-        
+        """Returns the COSMOS station's label given it's lat/lon coordinates
+
         Parameters
         -----------
         lat_lon : podpac.Coordinates
             The lat/lon locations whose station name will be returned. Note, the lat/lon coordinates have to match
             exactly the coordinates given in station_data[N]['location'], where N is the station.
             This should be Coordinates object with 'lat_lon' stacked coordinates as one of the dimensions.
-            
+
         Returns
         --------
         list
-            List of COSMOS station names corresponding to the given coordinates. If a coordinate has no match, then 
-            "None" is returned.        
+            List of COSMOS station names corresponding to the given coordinates. If a coordinate has no match, then
+            "None" is returned.
         """
         if "lon_lat" in lat_lon.dims:
             lat_lon = lat_lon.transpose("lon_lat")
@@ -236,13 +236,13 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         return labels
 
     def latlon_from_label(self, label):
-        """ Returns the lat/lon coordinates of COSMOS stations that match the given labels
-        
+        """Returns the lat/lon coordinates of COSMOS stations that match the given labels
+
         Parameters
         ------------
         label: str, list
-            Strings that partially describe a COSMOS station label. 
-            
+            Strings that partially describe a COSMOS station label.
+
         Returns
         --------
         podpac.Coordinates
@@ -270,21 +270,21 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         return ind
 
     def get_calibration_data(self, label=None, lat_lon=None):
-        """ Returns the calibration information for a station. Users must supply a label or lat_lon coordinates.
-        
+        """Returns the calibration information for a station. Users must supply a label or lat_lon coordinates.
+
         Parameters
         ------------
         label: str, List (optional)
             Labels describing the station.
-        
+
         lat_lon: podpac.Coordinates (optional)
             Coordinates of the COSMOS station. Note, this object has to have a 'lat_lon' dimension which matches exactly
-            with the COSMOS stations. 
-            
+            with the COSMOS stations.
+
         Returns
         --------
         list
-            A list of dictionaries containing the calibration data for the requested stations. 
+            A list of dictionaries containing the calibration data for the requested stations.
         """
 
         if label is None and lat_lon is None:
@@ -301,21 +301,21 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         return [self.sources[i].calibration_data for i in inds]
 
     def get_site_properties(self, label=None, lat_lon=None):
-        """ Returns the site properties for a station. Users must supply a label or lat_lon coordinates.
-        
+        """Returns the site properties for a station. Users must supply a label or lat_lon coordinates.
+
         Parameters
         ------------
         label: str, List (optional)
             Labels describing the station.
-        
+
         lat_lon: podpac.Coordinates (optional)
             Coordinates of the COSMOS station. Note, this object has to have a 'lat_lon' dimension which matches exactly
-            with the COSMOS stations. 
-            
+            with the COSMOS stations.
+
         Returns
         --------
         list
-            A list of dictionaries containing the properties for the requested stations. 
+            A list of dictionaries containing the properties for the requested stations.
         """
 
         if label is None and lat_lon is None:
@@ -332,21 +332,21 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         return [self.sources[i].site_properties for i in inds]
 
     def get_station_data(self, label=None, lat_lon=None):
-        """ Returns the station data. Users must supply a label or lat_lon coordinates.
-        
+        """Returns the station data. Users must supply a label or lat_lon coordinates.
+
         Parameters
         ------------
         label: str, List (optional)
             Labels describing the station.
-        
+
         lat_lon: podpac.Coordinates (optional)
             Coordinates of the COSMOS station. Note, this object has to have a 'lat_lon' dimension which matches exactly
-            with the COSMOS stations. 
-            
+            with the COSMOS stations.
+
         Returns
         --------
         list
-            A list of dictionaries containing the data for the requested stations. 
+            A list of dictionaries containing the data for the requested stations.
         """
 
         if label is None and lat_lon is None:

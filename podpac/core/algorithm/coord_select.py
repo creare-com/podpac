@@ -21,7 +21,7 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 class ModifyCoordinates(UnaryAlgorithm):
     """
     Base class for nodes that modify the requested coordinates before evaluation.
-    
+
     Attributes
     ----------
     source : podpac.Node
@@ -55,11 +55,11 @@ class ModifyCoordinates(UnaryAlgorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-            
+
         Returns
         -------
         {eval_return}
-        
+
         Notes
         -------
         The input coordinates are modified and the passed to the base class implementation of eval.
@@ -108,9 +108,9 @@ class ExpandCoordinates(ModifyCoordinates):
         Expansion parameters for the given dimension: The options are::
          * [start_offset, end_offset, step] to expand uniformly around each input coordinate.
          * [start_offset, end_offset] to expand using the available source coordinates around each input coordinate.
-         
+
     bounds_only: bool
-        Default is False. If True, will only expand the bounds of the overall coordinates request. Otherwise, it will 
+        Default is False. If True, will only expand the bounds of the overall coordinates request. Otherwise, it will
         expand around EACH coordinate in the request. For example, with bounds_only == True, and an expansion of 3
         you may expand [5, 6, 8] to [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], whereas with bounds_only == False, it becomes
         [[2, 5, 8], [3, 6, 9], [5, 8, 11]] (brackets added for clarity, they will be concatenated).
@@ -122,14 +122,14 @@ class ExpandCoordinates(ModifyCoordinates):
     def get_modified_coordinates1d(self, coords, dim):
         """Returns the expanded coordinates for the requested dimension, depending on the expansion parameter for the
         given dimension.
-        
+
         Parameters
         ----------
         coords : Coordinates
             The requested input coordinates
         dim : str
             Dimension to expand
-        
+
         Returns
         -------
         expanded : :class:`podpac.coordinates.Coordinates1d`
@@ -186,8 +186,8 @@ class ExpandCoordinates(ModifyCoordinates):
 class SelectCoordinates(ModifyCoordinates):
     """Evaluate a source node with select coordinates.
 
-    While this is simple to do when 
-    evaluating a single node (just provide the coordinates), this functionality is needed for nodes buried deeper in a 
+    While this is simple to do when
+    evaluating a single node (just provide the coordinates), this functionality is needed for nodes buried deeper in a
     pipeline. For example, if a single spatial reference point is used for a particular comparison, and this reference
     point is different than the requested coordinates, we need to explicitly select those coordinates using this Node.
 
@@ -209,7 +209,7 @@ class SelectCoordinates(ModifyCoordinates):
             The requested input coordinates
         dim : str
             Dimension for doing the selection
-        
+
         Returns
         -------
         coords1d : ArrayCoordinates1d
@@ -265,7 +265,7 @@ class YearSubstituteCoordinates(ModifyCoordinates):
             The requested input coordinates
         dim : str
             Dimension for doing the selection
-        
+
         Returns
         -------
         coords1d : ArrayCoordinates1d
@@ -321,7 +321,7 @@ class TransformTimeUnits(ModifyCoordinates):
             The requested input coordinates
         dim : str
             Dimension for doing the selection
-        
+
         Returns
         -------
         coords1d : ArrayCoordinates1d

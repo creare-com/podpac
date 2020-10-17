@@ -7,8 +7,7 @@ from podpac.core.data.csv_source import CSV
 
 
 class TestCSV(object):
-    """ test csv data source
-    """
+    """test csv data source"""
 
     source_single = os.path.join(os.path.dirname(__file__), "assets/points-single.csv")
     source_multiple = os.path.join(os.path.dirname(__file__), "assets/points-multiple.csv")

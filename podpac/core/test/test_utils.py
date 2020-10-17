@@ -49,9 +49,14 @@ class TestTraitletsHelpers(object):
         assert not trait_is_defined(x, "other")
 
         x = MyClass()
-        assert trait_is_defined(x, "a")
-        assert trait_is_defined(x, "b")
-        assert not trait_is_defined(x, "c")
+        if tl.version_info[0] >= 5:
+            assert not trait_is_defined(x, "a")
+            assert not trait_is_defined(x, "b")
+            assert not trait_is_defined(x, "c")
+        else:
+            assert trait_is_defined(x, "a")
+            assert trait_is_defined(x, "b")
+            assert not trait_is_defined(x, "c")
 
         x.c
         assert trait_is_defined(x, "c")
@@ -384,6 +389,48 @@ class TestCachedPropertyDecorator(object):
         assert c.my_cache_ctrl_property == 30
         assert c.my_cache_ctrl_property == 30
         assert c.my_cache_ctrl_property_called == 1
+
+    def test_cached_property_expires(self):
+        class MyNode(podpac.Node):
+            expires_tomorrow_called = 0
+            expired_yesterday_called = 0
+
+            @cached_property(use_cache_ctrl=True, expires="1,D")
+            def expires_tomorrow(self):
+                self.expires_tomorrow_called += 1
+                return 10
+
+            @cached_property(use_cache_ctrl=True, expires="-1,D")
+            def expired_yesterday(self):
+                self.expired_yesterday_called += 1
+                return 20
+
+        a = MyNode(cache_ctrl=["ram"])
+        b = MyNode(cache_ctrl=["ram"])
+
+        # not expired, b uses cached version
+        assert a.expires_tomorrow_called == 0
+        assert b.expires_tomorrow_called == 0
+
+        assert a.expires_tomorrow == 10
+        assert a.expires_tomorrow == 10
+        assert b.expires_tomorrow == 10
+        assert b.expires_tomorrow == 10
+
+        assert a.expires_tomorrow_called == 1
+        assert b.expires_tomorrow_called == 0  # cache was used!
+
+        # expired, b can't use cached version
+        assert a.expired_yesterday_called == 0
+        assert b.expired_yesterday_called == 0
+
+        assert a.expired_yesterday == 20
+        assert a.expired_yesterday == 20
+        assert b.expired_yesterday == 20
+        assert b.expired_yesterday == 20
+
+        assert a.expired_yesterday_called == 1  # note the expiration only applies to fetching from the cache
+        assert b.expired_yesterday_called == 1  # cache was not used!
 
     def test_invalid_argument(self):
         with pytest.raises(TypeError, match="cached_property decorator does not accept keyword argument"):

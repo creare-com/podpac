@@ -9,7 +9,7 @@ from podpac.core.data.file_source import BaseFileSource, FileKeysMixin, LoadFile
 @common_doc(COMMON_DATA_DOC)
 class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
     """Create a DataSource node using xarray.open_dataset.
-    
+
     Attributes
     ----------
     source : str
@@ -32,7 +32,7 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
     crs : str
         Coordinate reference system of the coordinates
     extra_dim : dict
-        In cases where the data contain dimensions other than ['lat', 'lon', 'time', 'alt'], these dimensions need to be selected. 
+        In cases where the data contain dimensions other than ['lat', 'lon', 'time', 'alt'], these dimensions need to be selected.
         For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim=dict(channel=1)`
     """
 
@@ -66,8 +66,7 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
 
         if not isinstance(self.data_key, list):
             data = self.dataset[self.data_key]
