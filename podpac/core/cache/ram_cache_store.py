@@ -31,12 +31,12 @@ class RamCacheStore(CacheStore):
 
     def __init__(self, max_size=None, use_settings_limit=True):
         """Summary
-        
+
         Raises
         ------
         CacheException
             Description
-        
+
         Parameters
         ----------
         max_size : None, optional
@@ -59,7 +59,7 @@ class RamCacheStore(CacheStore):
 
     def put(self, node, data, key, coordinates=None, expires=None, update=True):
         """Cache data for specified node.
-        
+
         Parameters
         ------------
         node : Node
@@ -109,7 +109,7 @@ class RamCacheStore(CacheStore):
 
     def get(self, node, key, coordinates=None):
         """Get cached data for this node.
-        
+
         Parameters
         ------------
         node : Node
@@ -118,12 +118,12 @@ class RamCacheStore(CacheStore):
             Cached object key, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
-            
+
         Returns
         -------
         data : any
             The cached data.
-        
+
         Raises
         -------
         CacheException
@@ -146,7 +146,7 @@ class RamCacheStore(CacheStore):
 
     def has(self, node, key, coordinates=None):
         """Check for cached data for this node
-        
+
         Parameters
         ------------
         node : Node
@@ -155,7 +155,7 @@ class RamCacheStore(CacheStore):
             Cached object key, e.g. 'output'.
         coordinates: Coordinate, optional
             Coordinates for which cached object should be checked
-        
+
         Returns
         -------
         has_cache : bool
@@ -170,7 +170,7 @@ class RamCacheStore(CacheStore):
 
     def rem(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
         """Delete cached data for this node.
-        
+
         Parameters
         ------------
         node : Node

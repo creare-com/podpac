@@ -36,8 +36,7 @@ class TestInterpolation(object):
         assert len(set(INTERPOLATION_METHODS) & set(INTERPOLATION_METHODS_DICT.keys())) == len(INTERPOLATION_METHODS)
 
     def test_interpolator_init_type(self):
-        """test constructor
-        """
+        """test constructor"""
 
         # should throw an error if definition is not str, dict, or Interpolator
         with pytest.raises(TypeError):

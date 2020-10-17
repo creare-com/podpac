@@ -86,9 +86,9 @@ class CacheCtrl(object):
     def __init__(self, cache_stores=[]):
         """Initialize a CacheCtrl object with a list of CacheStore objects.
         Care should be taken to provide the cache_stores list in the order that
-        they should be interogated. CacheStore objects with faster access times 
+        they should be interogated. CacheStore objects with faster access times
         (e.g. RAM) should appear before others (e.g. local disk, or s3).
-        
+
         Parameters
         ----------
         cache_stores : list, optional
@@ -109,7 +109,7 @@ class CacheCtrl(object):
 
     def put(self, node, data, key, coordinates=None, expires=None, mode="all", update=True):
         """Cache data for specified node.
-        
+
         Parameters
         ------------
         node : Node
@@ -148,7 +148,7 @@ class CacheCtrl(object):
 
     def get(self, node, key, coordinates=None, mode="all"):
         """Get cached data for this node.
-        
+
         Parameters
         ------------
         node : Node
@@ -159,12 +159,12 @@ class CacheCtrl(object):
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         mode : str
             determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
-            
+
         Returns
         -------
         data : any
             The cached data.
-        
+
         Raises
         -------
         CacheError
@@ -193,7 +193,7 @@ class CacheCtrl(object):
 
     def has(self, node, key, coordinates=None, mode="all"):
         """Check for cached data for this node
-        
+
         Parameters
         ------------
         node : Node
@@ -204,7 +204,7 @@ class CacheCtrl(object):
             Coordinates for which cached object should be checked
         mode : str
             determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
-        
+
         Returns
         -------
         has_cache : bool
@@ -234,7 +234,7 @@ class CacheCtrl(object):
 
     def rem(self, node, key, coordinates=None, mode="all"):
         """Delete cached data for this node.
-        
+
         Parameters
         ----------
         node : Node, str

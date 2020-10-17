@@ -26,7 +26,7 @@ COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
 @common_doc(COMMON_COMPOSITOR_DOC)
 class BaseCompositor(Node):
     """A base class for compositor nodes.
-    
+
     Attributes
     ----------
     sources : list
@@ -35,7 +35,7 @@ class BaseCompositor(Node):
         Coordinates that make each source unique. Must the same size as ``sources`` and single-dimensional. Optional.
     interpolation : str, dict, optional
         {interpolation}
-    
+
     Notes
     -----
     Developers of compositor subclasses nodes need to implement the `composite` method.
@@ -118,12 +118,12 @@ class BaseCompositor(Node):
 
     def select_sources(self, coordinates):
         """Select and prepare sources based on requested coordinates.
-        
+
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
             Coordinates to evaluate at compositor sources
-        
+
         Returns
         -------
         sources : :class:`np.ndarray`
@@ -159,7 +159,7 @@ class BaseCompositor(Node):
 
     def composite(self, coordinates, data_arrays, result=None):
         """Implements the rules for compositing multiple sources together. Must be implemented by child classes.
-        
+
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
@@ -171,19 +171,19 @@ class BaseCompositor(Node):
 
         Returns
         -------
-        {eval_return} 
+        {eval_return}
         """
 
         raise NotImplementedError()
 
     def iteroutputs(self, coordinates):
         """Summary
-        
+
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
             Coordinates to evaluate at compositor sources
-        
+
         Yields
         ------
         :class:`podpac.core.units.UnitsDataArray`
@@ -226,7 +226,7 @@ class BaseCompositor(Node):
     @node_eval
     @common_doc(COMMON_COMPOSITOR_DOC)
     def eval(self, coordinates, output=None):
-        """Evaluates this nodes using the supplied coordinates. 
+        """Evaluates this nodes using the supplied coordinates.
 
         Parameters
         ----------
@@ -234,7 +234,7 @@ class BaseCompositor(Node):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-            
+
         Returns
         -------
         {eval_return}

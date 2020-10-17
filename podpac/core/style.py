@@ -72,10 +72,10 @@ class Style(tl.HasTraits):
 
     @property
     def json(self):
-        """ JSON-serialized style definition
-        
-        The `json` can be used to create new styles. 
-        
+        """JSON-serialized style definition
+
+        The `json` can be used to create new styles.
+
         See Also
         ----------
         from_json
@@ -106,8 +106,8 @@ class Style(tl.HasTraits):
 
     @classmethod
     def from_json(cls, s):
-        """ Create podpac Style from a style JSON definition.
-        
+        """Create podpac Style from a style JSON definition.
+
         Parameters
         -----------
         s : str

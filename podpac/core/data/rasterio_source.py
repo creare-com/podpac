@@ -22,7 +22,7 @@ from podpac.core.data.file_source import BaseFileSource, LoadFileMixin
 @common_doc(COMMON_DATA_DOC)
 class Rasterio(LoadFileMixin, BaseFileSource):
     """Create a DataSource using rasterio.
- 
+
     Attributes
     ----------
     source : str, :class:`io.BytesIO`
@@ -38,7 +38,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
         specify the crs in case this information is missing from the file.
     read_as_filename : bool, optional
         Default is False. If True, the file will be read using rasterio.open(self.source) instead of being automatically
-        parsed to handle ftp, s3, in-memory files, etc. 
+        parsed to handle ftp, s3, in-memory files, etc.
     """
 
     # dataset = tl.Instance(rasterio.DatasetReader).tag(readonly=True)
@@ -83,14 +83,13 @@ class Rasterio(LoadFileMixin, BaseFileSource):
             return mf.open(driver=self.driver)
 
     def close_dataset(self):
-        """Closes the file for the datasource
-        """
+        """Closes the file for the datasource"""
         self.dataset.close()
 
     @common_doc(COMMON_DATA_DOC)
     def get_coordinates(self):
         """{get_coordinates}
-        
+
         The default implementation tries to find the lat/lon coordinates based on dataset.affine.
         It cannot determine the alt or time dimensions, so child classes may
         have to overload this method.
@@ -115,8 +114,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
         data = self.create_output_array(coordinates)
         slc = coordinates_index
 
@@ -153,12 +151,12 @@ class Rasterio(LoadFileMixin, BaseFileSource):
 
     @cached_property
     def band_descriptions(self):
-        """ A description of each band contained in dataset.tags
-        
+        """A description of each band contained in dataset.tags
+
         Returns
         -------
         OrderedDict
-            Dictionary of band_number: band_description pairs. The band_description values are a dictionary, each 
+            Dictionary of band_number: band_description pairs. The band_description values are a dictionary, each
             containing a number of keys -- depending on the metadata
         """
 
@@ -167,11 +165,11 @@ class Rasterio(LoadFileMixin, BaseFileSource):
     @cached_property
     def band_keys(self):
         """An alternative view of band_descriptions based on the keys present in the metadata
-        
+
         Returns
         -------
         dict
-            Dictionary of metadata keys, where the values are the value of the key for each band. 
+            Dictionary of metadata keys, where the values are the value of the key for each band.
             For example, band_keys['TIME'] = ['2015', '2016', '2017'] for a dataset with three bands.
         """
 
@@ -180,14 +178,14 @@ class Rasterio(LoadFileMixin, BaseFileSource):
 
     def get_band_numbers(self, key, value):
         """Return the bands that have a key equal to a specified value.
-        
+
         Parameters
         ----------
         key : str / list
             Key present in the metadata of the band. Can be a single key, or a list of keys.
         value : str / list
             Value of the key that should be returned. Can be a single value, or a list of values
-        
+
         Returns
         -------
         np.ndarray

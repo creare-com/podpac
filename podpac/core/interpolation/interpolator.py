@@ -162,7 +162,7 @@ class Interpolator(tl.HasTraits):
     Attributes
     ----------
     {interpolator_attributes}
-    
+
     """
 
     # defined by implementing Interpolator class
@@ -231,7 +231,7 @@ class Interpolator(tl.HasTraits):
 
     def _dim_in(self, dim, *coords, **kwargs):
         """Verify the dim exists on coordinates
-        
+
         Parameters
         ----------
         dim : str, list of str
@@ -241,7 +241,7 @@ class Interpolator(tl.HasTraits):
         unstacked : bool, optional
             True if you want to compare dimensions in unstacked form, otherwise compare dimensions however
             they are defined on the DataSource. Defaults to False.
-        
+
         Returns
         -------
         Boolean

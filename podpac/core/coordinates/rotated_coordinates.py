@@ -209,8 +209,8 @@ class RotatedCoordinates(DependentCoordinates):
 
     @property
     def affine(self):
-        """ :rasterio.Affine: affine transformation for computing the coordinates from indexing values. Contains the 
-            tranlation, rotation, and scaling.
+        """:rasterio.Affine: affine transformation for computing the coordinates from indexing values. Contains the
+        tranlation, rotation, and scaling.
         """
         t = rasterio.Affine.translation(*self.origin)
         r = rasterio.Affine.rotation(self.deg)
@@ -224,7 +224,7 @@ class RotatedCoordinates(DependentCoordinates):
 
     @property
     def geotransform(self):
-        """ :tuple: GDAL geotransform. 
+        """:tuple: GDAL geotransform.
         Note: This property may not provide the correct order of lat/lon in the geotransform as this class does not
         always have knowledge of the dimension order of the specified dataset. As such it always supplies
         geotransforms assuming that dims = ['lat', 'lon']

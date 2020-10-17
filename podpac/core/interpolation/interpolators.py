@@ -33,7 +33,7 @@ from podpac.core.coordinates.utils import get_timedelta
 @common_doc(COMMON_INTERPOLATOR_DOCS)
 class NearestNeighbor(Interpolator):
     """Nearest Neighbor Interpolation
-    
+
     {nearest_neighbor_attributes}
     """
 
@@ -121,7 +121,7 @@ class NearestNeighbor(Interpolator):
 @common_doc(COMMON_INTERPOLATOR_DOCS)
 class NearestPreview(NearestNeighbor):
     """Nearest Neighbor (Preview) Interpolation
-    
+
     {nearest_neighbor_attributes}
     """
 
@@ -204,7 +204,7 @@ class NearestPreview(NearestNeighbor):
 @common_doc(COMMON_INTERPOLATOR_DOCS)
 class Rasterio(Interpolator):
     """Rasterio Interpolation
-    
+
     Attributes
     ----------
     {interpolator_attributes}
@@ -304,7 +304,7 @@ class Rasterio(Interpolator):
 @common_doc(COMMON_INTERPOLATOR_DOCS)
 class ScipyPoint(Interpolator):
     """Scipy Point Interpolation
-    
+
     Attributes
     ----------
     {interpolator_attributes}
@@ -412,7 +412,7 @@ class ScipyPoint(Interpolator):
 @common_doc(COMMON_INTERPOLATOR_DOCS)
 class ScipyGrid(ScipyPoint):
     """Scipy Interpolation
-    
+
     Attributes
     ----------
     {interpolator_attributes}

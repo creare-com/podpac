@@ -122,7 +122,10 @@ class TestNode(object):
 
     def test_trait_is_defined(self):
         node = Node()
-        assert node.trait_is_defined("units")
+        if tl.version_info[0] >= 5:
+            assert not node.trait_is_defined("units")
+        else:
+            assert node.trait_is_defined("units")
 
     def test_init(self):
         class MyNode(Node):

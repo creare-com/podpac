@@ -12,7 +12,7 @@ from podpac.core.data.file_source import BaseFileSource, FileKeysMixin
 @common_doc(COMMON_DATA_DOC)
 class H5PY(FileKeysMixin, BaseFileSource):
     """Create a DataSource node using h5py.
-    
+
     Attributes
     ----------
     source : str
@@ -86,8 +86,7 @@ class H5PY(FileKeysMixin, BaseFileSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
         data = self.create_output_array(coordinates)
         if not isinstance(self.data_key, list):
             data[:] = self.dataset[self.data_key][coordinates_index]
@@ -101,8 +100,7 @@ class H5PY(FileKeysMixin, BaseFileSource):
     # -------------------------------------------------------------------------
 
     def dataset_attrs(self, key="/"):
-        """Dataset or group key for which attributes will be summarized.
-        """
+        """Dataset or group key for which attributes will be summarized."""
         return dict(self.dataset[key].attrs)
 
     @staticmethod

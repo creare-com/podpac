@@ -57,7 +57,7 @@ class StackedCoordinates(BaseCoordinates):
         xarray coordinates (container of coordinate arrays)
     coordinates : pandas.MultiIndex
         MultiIndex of stacked coordinates values.
-        
+
     """
 
     _coords = tl.List(trait=tl.Instance(Coordinates1d), read_only=True)
@@ -70,7 +70,7 @@ class StackedCoordinates(BaseCoordinates):
         ----------
         coords : list, :class:`StackedCoordinates`
             Coordinate values in a list, or a StackedCoordinates object to copy.
-        
+
         See Also
         --------
         clinspace, crange
@@ -476,7 +476,7 @@ class StackedCoordinates(BaseCoordinates):
         in_place : boolean, optional
             If True, transpose the dimensions in-place.
             Otherwise (default), return a new, transposed Coordinates object.
-        
+
         Returns
         -------
         transposed : :class:`StackedCoordinates`
@@ -500,7 +500,7 @@ class StackedCoordinates(BaseCoordinates):
             return StackedCoordinates(coordinates)
 
     def issubset(self, other):
-        """ Report whether other coordinates contains these coordinates.
+        """Report whether other coordinates contains these coordinates.
 
         Arguments
         ---------

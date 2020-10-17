@@ -9,7 +9,7 @@ from podpac.core.settings import settings
 
 class CacheStore(object):
     """Abstract parent class for classes representing actual data stores (e.g. RAM, local disk, network storage).
-    Includes implementation of common hashing operations and call signature for required abstract methods: 
+    Includes implementation of common hashing operations and call signature for required abstract methods:
     put(), get(), rem(), has()
     """
 
@@ -31,7 +31,7 @@ class CacheStore(object):
 
     def put(self, node, data, key, coordinates=None, expires=None, update=True):
         """Cache data for specified node.
-        
+
         Parameters
         -----------
         node : Node
@@ -51,7 +51,7 @@ class CacheStore(object):
 
     def get(self, node, key, coordinates=None):
         """Get cached data for this node.
-        
+
         Parameters
         ------------
         node : Node
@@ -60,12 +60,12 @@ class CacheStore(object):
             Cached object key, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
-            
+
         Returns
         -------
         data : any
             The cached data.
-        
+
         Raises
         -------
         CacheError
@@ -75,7 +75,7 @@ class CacheStore(object):
 
     def rem(self, node=None, key=None, coordinates=None):
         """Delete cached data for this node.
-        
+
         Parameters
         ------------
         node : Node
@@ -89,7 +89,7 @@ class CacheStore(object):
 
     def has(self, node, key, coordinates=None):
         """Check for cached data for this node
-        
+
         Parameters
         ------------
         node : Node
@@ -98,7 +98,7 @@ class CacheStore(object):
             Cached object key, e.g. 'output'.
         coordinates: Coordinate, optional
             Coordinates for which cached object should be checked
-        
+
         Returns
         -------
         has_cache : bool

@@ -82,18 +82,18 @@ class InterpolationException(Exception):
 class Interpolation(object):
     """Create an interpolation class to handle one interpolation method per unstacked dimension.
     Used to interpolate data within a datasource.
-    
+
     Parameters
     ----------
     definition : str, tuple (str, list of podpac.core.data.interpolator.Interpolator), dict
         Interpolation definition used to define interpolation methods for each definiton.
         See :attr:`podpac.data.DataSource.interpolation` for more details.
-    
+
     Raises
     ------
     InterpolationException
         Raised when definition parameter is improperly formatted
-    
+
     """
 
     definition = None
@@ -180,18 +180,18 @@ class Interpolation(object):
 
     def _parse_interpolation_method(self, definition):
         """parse interpolation definitions into a tuple of (method, Interpolator)
-        
+
         Parameters
         ----------
         definition : str, dict
             interpolation definition
             See :attr:`podpac.data.DataSource.interpolation` for more details.
-        
+
         Returns
         -------
         dict
             dict with keys 'method', 'interpolators', and 'params'
-        
+
         Raises
         ------
         InterpolationException
@@ -279,12 +279,12 @@ class Interpolation(object):
 
     def _validate_interpolator(self, interpolator):
         """Make sure interpolator is a subclass of Interpolator
-        
+
         Parameters
         ----------
         interpolator : any
             input definition to validate
-        
+
         Raises
         ------
         TypeError
@@ -302,7 +302,7 @@ class Interpolation(object):
 
     def _set_interpolation_method(self, udims, definition):
         """Set the list of interpolation definitions to the input dimension
-        
+
         Parameters
         ----------
         udims : tuple
@@ -326,7 +326,7 @@ class Interpolation(object):
 
     def _select_interpolator_queue(self, source_coordinates, eval_coordinates, select_method, strict=False):
         """Create interpolator queue based on interpolation configuration and requested/native source_coordinates
-        
+
         Parameters
         ----------
         source_coordinates : :class:`podpac.Coordinates`
@@ -337,12 +337,12 @@ class Interpolation(object):
             method used to determine if interpolator can handle dimensions
         strict : bool, optional
             Raise an error if all dimensions can't be handled
-        
+
         Returns
         -------
         OrderedDict
             Dict of (udims: Interpolator) to run in order
-        
+
         Raises
         ------
         InterpolationException
@@ -401,11 +401,11 @@ class Interpolation(object):
     def select_coordinates(self, source_coordinates, source_coordinates_index, eval_coordinates):
         """
         Select a subset or coordinates if interpolator can downselect.
-        
+
         At this point in the execution process, podpac has selected a subset of source_coordinates that intersects
         with the requested coordinates, dropped extra dimensions from requested coordinates, and confirmed
         source coordinates are not missing any dimensions.
-        
+
         Parameters
         ----------
         source_coordinates : :class:`podpac.Coordinates`
@@ -415,7 +415,7 @@ class Interpolation(object):
             more information about valid values for the source_coordinates_index
         eval_coordinates : :class:`podpac.Coordinates`
             Requested coordinates to evaluate
-        
+
         Returns
         -------
         (:class:`podpac.Coordinates`, list)
@@ -447,7 +447,7 @@ class Interpolation(object):
 
     def interpolate(self, source_coordinates, source_data, eval_coordinates, output_data):
         """Interpolate data from requested coordinates to source coordinates
-        
+
         Parameters
         ----------
         source_coordinates : :class:`podpac.Coordinates`
@@ -458,12 +458,12 @@ class Interpolation(object):
             Description
         output_data : podpac.core.units.UnitsDataArray
             Description
-        
+
         Returns
         -------
         podpac.core.units.UnitDataArray
             returns the new output UnitDataArray of interpolated data
-        
+
         Raises
         ------
         InterpolationException

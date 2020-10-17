@@ -477,7 +477,7 @@ class DependentCoordinates(BaseCoordinates):
         in_place : boolean, optional
             If True, transpose the dimensions in-place.
             Otherwise (default), return a new, transposed Coordinates object.
-        
+
         Returns
         -------
         transposed : :class:`DependentCoordinates`
@@ -504,7 +504,7 @@ class DependentCoordinates(BaseCoordinates):
             return DependentCoordinates(coordinates, **properties)
 
     def issubset(self, other):
-        """ Report whether other coordinates contains these coordinates.
+        """Report whether other coordinates contains these coordinates.
 
         Arguments
         ---------
@@ -580,7 +580,7 @@ class DependentCoordinates(BaseCoordinates):
 class ArrayCoordinatesNd(ArrayCoordinates1d):
     """
     Partial implementation for internal use.
-    
+
     Provides name, dtype, size, bounds (and others).
     Prohibits coords, intersect, select (and others).
 
@@ -672,7 +672,7 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
         raise RuntimeError("ArrayCoordinatesNd select is unavailable.")
 
     def issubset(self, other):
-        """ Report whether other coordinates contains these coordinates.
+        """Report whether other coordinates contains these coordinates.
 
         Arguments
         ---------

@@ -32,7 +32,7 @@ class ArrayCoordinates1d(Coordinates1d):
         Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
     coordinates : array, read-only
         Full array of coordinate values.
-    
+
     See Also
     --------
     :class:`Coordinates1d`, :class:`UniformCoordinates1d`
@@ -177,7 +177,7 @@ class ArrayCoordinates1d(Coordinates1d):
         return ArrayCoordinates1d(self.coordinates, **self.properties)
 
     def simplify(self):
-        """ Get the simplified/optimized representation of these coordinates.
+        """Get the simplified/optimized representation of these coordinates.
 
         Returns
         -------

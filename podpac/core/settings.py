@@ -72,21 +72,21 @@ class PodpacSettings(dict):
     home directory (``~/.config/podpac/settings.json``), or $XDG_CONFIG_HOME/podpac/settings.json when first run.
 
     Default settings can be overridden or extended by:
-      * editing the ``settings.json`` file in the settings directory (i.e. ``~/.podpac/settings.json`` or 
+      * editing the ``settings.json`` file in the settings directory (i.e. ``~/.podpac/settings.json`` or
       ``$XDG_CONFIG_HOME/podpac/settings.json``)
       * creating a ``settings.json`` in the current working directory (i.e. ``./settings.json``)
-    
+
     If ``settings.json`` files exist in multiple places, podpac will load settings in the following order,
     overwriting previously loaded settings in the process (i.e. highest numbered settings file prefered):
       1. podpac settings defaults
       2. settings directory  (``~/.podpac/settings.json``  or ``$XDG_CONFIG_HOME/podpac/settings.json``)
       3. current working directory settings (``./settings.json``)
-    
+
     :attr:`settings.settings_path` shows the path of the last loaded settings file (e.g. the active settings file).
     To persistently update the active settings file as changes are made at runtime,
     set the ``settings['AUTOSAVE_SETTINGS']`` field to ``True``. The active setting file can be persistently
     saved at any time using :meth:`settings.save`.
-    
+
     The default settings are shown below:
 
     Attributes
@@ -118,23 +118,23 @@ class PodpacSettings(dict):
     CACHE_DATASOURCE_OUTPUT_DEFAULT : bool
         Default value for DataSource nodes ``cache_output`` trait. If True, the outputs of nodes (eval) will be automatically cached.
     RAM_CACHE_MAX_BYTES : int
-        Maximum RAM cache size in bytes. 
-        Note, for RAM cache only, the limit is applied to the total amount of RAM used by the python process; 
+        Maximum RAM cache size in bytes.
+        Note, for RAM cache only, the limit is applied to the total amount of RAM used by the python process;
         not just the contents of the RAM cache. The python process will not be restrited by this limit,
         but once the limit is reached, additions to the cache will be subject to it.
-        Defaults to ``1e9`` (~1G). 
+        Defaults to ``1e9`` (~1G).
         Set to `None` explicitly for no limit.
     DISK_CACHE_MAX_BYTES : int
-        Maximum disk space for use by the disk cache in bytes. 
-        Defaults to ``10e9`` (~10G). 
+        Maximum disk space for use by the disk cache in bytes.
+        Defaults to ``10e9`` (~10G).
         Set to `None` explicitly for no limit.
     S3_CACHE_MAX_BYTES : int
-        Maximum storage space for use by the s3 cache in bytes. 
-        Defaults to ``10e9`` (~10G). 
+        Maximum storage space for use by the s3 cache in bytes.
+        Defaults to ``10e9`` (~10G).
         Set to `None` explicitly for no limit.
     DISK_CACHE_DIR : str
-        Subdirectory to use for the disk cache. Defaults to ``'cache'`` in the podpac root directory. 
-        Use settings.cache_path to access this settings (this property looks for the environmental variable 
+        Subdirectory to use for the disk cache. Defaults to ``'cache'`` in the podpac root directory.
+        Use settings.cache_path to access this settings (this property looks for the environmental variable
         `XDG_CACHE_HOME` to adjust the location of the cache directory)
     S3_CACHE_DIR : str
         Subdirectory to use for S3 cache (within the specified S3 bucket). Defaults to ``'cache'``.
@@ -207,7 +207,7 @@ class PodpacSettings(dict):
 
     def _load_user_settings(self, path=None, filename="settings.json"):
         """Load user settings from settings.json file
-        
+
         Parameters
         ----------
         path : str
@@ -372,7 +372,7 @@ class PodpacSettings(dict):
 
     def set_unsafe_eval(self, allow=False):
         """Allow unsafe evaluation for this podpac environment
-        
+
         Parameters
         ----------
         allow : bool, optional

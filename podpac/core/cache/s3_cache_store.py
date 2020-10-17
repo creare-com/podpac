@@ -20,7 +20,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
 
     def __init__(self, s3_bucket=None, aws_region_name=None, aws_access_key_id=None, aws_secret_access_key=None):
         """Initialize a cache that uses a folder on a local disk file system.
-        
+
         Parameters
         ----------
         max_size : None, optional
@@ -92,7 +92,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
 
     def search(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
         """Fileglob to match files that could be storing cached data for specified node,key,coordinates
-        
+
         Parameters
         ----------
         node : podpac.core.node.Node
@@ -100,7 +100,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
             CacheWildCard indicates to match any key
         coordinates : podpac.core.coordinates.coordinates.Coordinates, CacheWildCard, None
             CacheWildCard indicates to macth any coordinates
-        
+
         Returns
         -------
         TYPE : str
@@ -119,7 +119,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
 
         node_dir = self._get_node_dir(node)
         obj_names = fnmatch.filter(obj_names, self._get_filename_pattern(node, key, coordinates))
-        paths = [self._path_join([node_dir, filename]) for filename in obj_names]
+        paths = [self._path_join(node_dir, filename) for filename in obj_names]
         return paths
 
     # -----------------------------------------------------------------------------------------------------------------

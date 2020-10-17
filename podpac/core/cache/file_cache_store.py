@@ -27,8 +27,7 @@ def _hash_string(s):
 
 
 class FileCacheStore(CacheStore):
-    """Abstract class with functionality common to persistent CacheStore objects (e.g. local disk, s3) that store things using multiple paths (filepaths or object paths)
-    """
+    """Abstract class with functionality common to persistent CacheStore objects (e.g. local disk, s3) that store things using multiple paths (filepaths or object paths)"""
 
     cache_mode = ""
     cache_modes = ["all"]
@@ -41,7 +40,7 @@ class FileCacheStore(CacheStore):
 
     def has(self, node, key, coordinates=None):
         """Check for valid cached data for this node.
-        
+
         Parameters
         ------------
         node : Node
@@ -50,7 +49,7 @@ class FileCacheStore(CacheStore):
             Cached object key, e.g. 'output'.
         coordinates: Coordinate, optional
             Coordinates for which cached object should be checked
-        
+
         Returns
         -------
         has_cache : bool
@@ -62,7 +61,7 @@ class FileCacheStore(CacheStore):
 
     def put(self, node, data, key, coordinates=None, expires=None, update=True):
         """Cache data for specified node.
-        
+
         Parameters
         ------------
         node : Node
@@ -153,7 +152,7 @@ class FileCacheStore(CacheStore):
 
     def get(self, node, key, coordinates=None):
         """Get cached data for this node.
-        
+
         Parameters
         ------------
         node : Node
@@ -162,12 +161,12 @@ class FileCacheStore(CacheStore):
             Cached object key, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
-            
+
         Returns
         -------
         data : any
             The cached data.
-        
+
         Raises
         -------
         CacheError
@@ -212,7 +211,7 @@ class FileCacheStore(CacheStore):
 
     def rem(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
         """Delete cached data for this node.
-        
+
         Parameters
         ------------
         node : Node

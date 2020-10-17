@@ -30,7 +30,7 @@ class UniformCoordinates1d(Coordinates1d):
     ``datetime64`` and timedelta strings such as ``'1,D'`` to ``timedelta64``.
 
     UniformCoordinates1d can also be created by specifying the size instead of the step.
-    
+
     Parameters
     ----------
     start : float or datetime64
@@ -296,7 +296,7 @@ class UniformCoordinates1d(Coordinates1d):
 
     @property
     def dtype(self):
-        """ :type: Coordinates dtype.
+        """:type: Coordinates dtype.
 
         ``float`` for numerical coordinates and numpy ``datetime64`` for datetime coordinates.
         """
@@ -361,7 +361,7 @@ class UniformCoordinates1d(Coordinates1d):
         return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
 
     def simplify(self):
-        """ Get the simplified/optimized representation of these coordinates.
+        """Get the simplified/optimized representation of these coordinates.
 
         Returns
         -------
@@ -372,7 +372,7 @@ class UniformCoordinates1d(Coordinates1d):
         return self
 
     def issubset(self, other):
-        """ Report whether other coordinates contains these coordinates.
+        """Report whether other coordinates contains these coordinates.
 
         Arguments
         ---------
