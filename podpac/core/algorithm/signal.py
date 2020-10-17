@@ -1,11 +1,5 @@
 """
 Signal Summary
-
-NOTE: another option for the convolution kernel input would be to accept an
-    xarray and add and transpose dimensions as necessary.
-
-NOTE: At the moment this module is quite brittle... it makes assumptions about
-    the input node (i.e. alt coordinates would likely break this)
 """
 
 import podpac
@@ -64,7 +58,8 @@ class Convolution(UnaryAlgorithm):
     source : podpac.Node
         Source node on which convolution will be performed. 
     kernel : np.ndarray, optional
-        The convolution kernel. This kernel must have the same number of dimensions as the source data outputs
+        The convolution kernel. This kernel must include the dimensions of source node outputs. The dimensions for this
+        array are labelled by `kernel_dims`. Any dimensions not in the soucr nodes outputs will be summed over. 
     kernel_dims : list, optional
         A list of the dimensions for the kernel axes. The dimensions in this list must match the 
         coordinates in the source, or contain additional dimensions, and the order does not need to match.
