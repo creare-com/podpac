@@ -16,9 +16,10 @@ from podpac.core.data.rasterio_source import rasterio
 from podpac.core.data.datasource import DataSource
 from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationException
 from podpac.core.interpolation.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyGrid, ScipyPoint
+from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
-class MockArrayDataSource(DataSource):
+class MockArrayDataSource(InterpolationMixin, DataSource):
     data = ArrayTrait().tag(attr=True)
     coordinates = tl.Instance(Coordinates).tag(attr=True)
 

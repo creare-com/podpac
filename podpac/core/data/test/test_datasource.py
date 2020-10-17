@@ -15,12 +15,13 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, NodeException
 from podpac.core.style import Style
 from podpac.core.coordinates import Coordinates, clinspace, crange
-from podpac.core.interpolation.interpolation import Interpolation, Interpolator
+from podpac.core.interpolation.interpolation_manager import InterpolationManager
 from podpac.core.interpolation.interpolator import Interpolator
 from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
+from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
-class MockDataSource(DataSource):
+class MockDataSource(InterpolationMixin, DataSource):
     data = np.ones((11, 11))
     data[0, 0] = 10
     data[0, 1] = 1
@@ -225,29 +226,6 @@ class TestDataSource(object):
         node = DataSource()
         repr(node)
 
-    def test_interpolation_class(self):
-        node = DataSource(interpolation="max")
-        assert node.interpolation_class
-        assert isinstance(node.interpolation_class, Interpolation)
-        assert node.interpolation_class.definition == "max"
-        assert isinstance(node.interpolation_class.config, OrderedDict)
-        assert ("default",) in node.interpolation_class.config
-
-    def test_interpolators(self):
-        node = MockDataSource()
-        node.eval(node.coordinates)
-
-        assert isinstance(node.interpolators, OrderedDict)
-
-        # when no interpolation happens, this returns as an empty ordered dict
-        assert not node.interpolators
-
-        # when interpolation happens, this is filled
-        node.eval(Coordinates([clinspace(-11, 11, 7), clinspace(-11, 11, 7)], dims=["lat", "lon"]))
-        assert "lat" in list(node.interpolators.keys())[0]
-        assert "lon" in list(node.interpolators.keys())[0]
-        assert isinstance(list(node.interpolators.values())[0], Interpolator)
-
     def test_evaluate_at_coordinates(self):
         """evaluate node at coordinates"""
 
@@ -295,11 +273,11 @@ class TestDataSource(object):
 
         # default crs EPSG:4193
         node = MockDataSource()
-        c = Coordinates([crange(20, 30, 1), crange(20, 30, 1)], dims=["lat", "lon"])
+        c = Coordinates([crange(20, 30, 1), crange(20, 30, 1)], dims=["lat", "lon"], crs="EPSG:4326")
         c_x = Coordinates([crange(20, 30, 1), crange(20, 30, 1)], dims=["lat", "lon"], crs="EPSG:2193")
 
-        # this will not throw an error because the requested coordinates will be transformed before request
-        output = node.create_output_array(c)
+        # this will not throw an error because the requested coordinates is in the same crs as the output
+        output = node.create_output_array(c_x)
         node.eval(c_x, output=output)
 
         # this will throw an error because output is not in the same crs as node
@@ -589,7 +567,7 @@ class TestInterpolateData(object):
     def test_interpolate_time(self):
         """ for now time uses nearest neighbor """
 
-        class MyDataSource(DataSource):
+        class MyDataSource(InterpolationMixin, DataSource):
             coordinates = Coordinates([clinspace(0, 10, 5)], dims=["time"])
 
             def get_data(self, coordinates, coordinates_index):
@@ -609,7 +587,7 @@ class TestInterpolateData(object):
     def test_interpolate_alt(self):
         """ for now alt uses nearest neighbor """
 
-        class MyDataSource(DataSource):
+        class MyDataSource(InterpolationMixin, DataSource):
             coordinates = Coordinates([clinspace(0, 10, 5)], dims=["alt"], crs="+proj=merc +vunits=m")
 
             def get_data(self, coordinates, coordinates_index):

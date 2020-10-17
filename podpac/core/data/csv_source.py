@@ -50,7 +50,7 @@ class CSVBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     @tl.default("data_key")
     def _default_data_key(self):
-        return super(CSV, self)._default_data_key()
+        return super(CSVBase, self)._default_data_key()
 
     @tl.validate("data_key")
     def _validate_data_key(self, d):
@@ -120,7 +120,7 @@ class CSVBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
         Note: CSV files have StackedCoordinates.
         """
 
-        coords = super(CSV, self).get_coordinates()
+        coords = super(CSVBase, self).get_coordinates()
         if len(coords) == 1:
             return coords
         stacked = StackedCoordinates(list(coords.values()))

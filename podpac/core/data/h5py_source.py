@@ -55,7 +55,7 @@ class H5PYBase(FileKeysMixin, BaseFileSource):
 
     def close_dataset(self):
         """Closes the file. """
-        super(H5PY, self).close_dataset()
+        super(H5PYBase, self).close_dataset()
         self.dataset.close()
 
     # -------------------------------------------------------------------------

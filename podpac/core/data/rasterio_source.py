@@ -56,7 +56,7 @@ class RasterioBase(LoadFileMixin, BaseFileSource):
             self.set_trait("read_from_source", True)
             return rasterio.open(self.source)
         else:
-            return super(Rasterio, self).dataset
+            return super(RasterioBase, self).dataset
 
     @tl.default("band")
     def _band_default(self):

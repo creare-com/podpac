@@ -350,7 +350,7 @@ class DataSource(Node):
             coordinates = coordinates.transform(self.coordinates.crs)
 
         # intersect the coordinates with requested coordinates to get coordinates within requested coordinates bounds
-        (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=self.coordinate_index_type)
+        (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
 
         self._requested_source_coordinates = rsc
         self._requested_source_coordinates_index = rsci
@@ -399,7 +399,7 @@ class DataSource(Node):
         # if provided, set the order of coordinates to match the output dims
         # Note that at this point the coordinates are in the same CRS as the coordinates
         if isinstance(self._requested_source_data, UnitsDataArray):
-            output = self._requested_source_data.transpose(*self._evaluated_coordinates.dims)
+            output = self._requested_source_data.part_transpose(self._evaluated_coordinates.dims)
         elif output is None:
             requested_dims = None
             output_dims = None
@@ -415,12 +415,6 @@ class DataSource(Node):
                 requested_dims = requested_dims + ("output",)
             output = output.transpose(*requested_dims)
 
-            # check crs compatibility
-            if output.crs != self._evaluated_coordinates.crs:
-                raise ValueError(
-                    "Output coordinate reference system ({}) does not match".format(output.crs)
-                    + "request Coordinates coordinate reference system ({})".format(coordinates.crs)
-                )
             output.loc[self._requested_source_coordinates.coords] = self._requested_source_data
             output = output.transpose(*output_dims)
 

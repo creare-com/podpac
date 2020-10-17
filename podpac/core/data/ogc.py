@@ -368,7 +368,7 @@ class WCSBase(DataSource):
     def base_ref(self):
         """ definition base_ref """
         if not self.layer_name:
-            return super(WCS, self).base_ref
+            return super(WCSBase, self).base_ref
 
         return self.layer_name.rsplit(".", 1)[1]
 

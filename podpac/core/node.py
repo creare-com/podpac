@@ -981,6 +981,13 @@ def node_eval(fn):
 
     @functools.wraps(fn)
     def wrapper(self, coordinates, output=None, selector=None):
+        # check crs compatibility
+        if (output is not None) and ("crs" in output.attrs) and (output.attrs["crs"] != coordinates.crs):
+            raise ValueError(
+                "Output coordinate reference system ({}) does not match".format(output.crs)
+                + "request Coordinates coordinate reference system ({})".format(coordinates.crs)
+            )
+
         if settings["DEBUG"]:
             self._requested_coordinates = coordinates
         key = cache_key
@@ -1007,7 +1014,7 @@ def node_eval(fn):
         order = [dim for dim in coordinates.idims if dim in data.dims]
         if "output" in data.dims:
             order.append("output")
-        data = data.transpose(*order, transpose_coords=False)
+        data = data.part_transpose(order)
 
         if settings["DEBUG"]:
             self._output = data

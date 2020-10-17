@@ -6,6 +6,7 @@ import traitlets as tl
 
 from podpac.core.utils import common_doc
 from podpac.core.compositor.compositor import COMMON_COMPOSITOR_DOC, BaseCompositor
+from podpac.core.units import UnitsDataArray
 
 
 @common_doc(COMMON_COMPOSITOR_DOC)
@@ -44,6 +45,7 @@ class DataCompositor(BaseCompositor):
         res = next(data_arrays)
         for arr in data_arrays:
             res = res.combine_first(arr)
+        res = UnitsDataArray(res)
 
         if result is not None:
             result.data[:] = res.transponse(*result.dims).data

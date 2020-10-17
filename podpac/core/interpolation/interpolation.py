@@ -172,17 +172,19 @@ class Interpolation(Node):
         selector = self._interpolation.select_coordinates
 
         source_out = self._source_eval(self._evaluated_coordinates, selector)
-        source_coords = Coordinates.from_xarray(source_out.coords)
+        source_coords = Coordinates.from_xarray(source_out.coords, crs=source_out.crs)
 
         # Drop extra coordinates
-        extra_dims = [d for d in coordinates.dims if d not in source_coords.dims]
-        coordinates.drop(extra_dims)
+        extra_dims = [d for d in coordinates.udims if d not in source_coords.udims]
+        coordinates = coordinates.drop(extra_dims)
 
         # Transform so that interpolation happens on the source data coordinate system
         if source_coords.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(source_coords.crs)
 
         if output is None:
+            if "output" in source_out.dims:
+                self.set_trait("outputs", source_out.coords["output"].data.tolist())
             output = self.create_output_array(coordinates)
 
         # interpolate data into output
