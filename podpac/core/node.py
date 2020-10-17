@@ -999,7 +999,7 @@ def node_eval(fn):
                 output.transpose(*order)[:] = data
             self._from_cache = True
         else:
-            data = fn(self, coordinates, output=output)
+            data = fn(self, coordinates, output=output, selector=selector)
             if self.cache_output:
                 self.put_cache(data, key, cache_coordinates)
             self._from_cache = False

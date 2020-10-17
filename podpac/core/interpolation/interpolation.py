@@ -203,7 +203,7 @@ class Interpolation(Node):
     def _source_eval(self, coordinates, selector, output=None):
         if isinstance(self._source_xr, UnitsDataArray):
             return self._source_xr
-        elif isinstance(self.source, Node):
+        else:
             return self.source.eval(coordinates, output, selector)
 
     def find_coordinates(self):
