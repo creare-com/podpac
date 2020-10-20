@@ -58,6 +58,7 @@ class MockDataSourceArray(DataSource):
     def get_data(self, coordinates, coordinates_index):
         return self.data[coordinates_index]
 
+
 class TestDataDocs(object):
     def test_common_data_doc(self):
         # all DATA_DOC keys should be in the COMMON_DATA_DOC
