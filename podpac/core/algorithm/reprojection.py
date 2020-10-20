@@ -19,9 +19,9 @@ from podpac.core.utils import NodeTrait
 
 class Reproject(Interpolation):
     """
-    Create a Algorithm that evalutes a Node with one set of coordinates, and then interpolates it. 
+    Create a Algorithm that evalutes a Node with one set of coordinates, and then interpolates it.
     This can be used to bilinearly interpolate an averaged dataset, for example.
-    
+
     Attributes
     ----------
     source : Node
@@ -29,7 +29,7 @@ class Reproject(Interpolation):
     interpolation : str
         Type of interpolation method to use for the interpolation
     coordinates: Coordinates, Node, str, dict
-        Coordinates used to evaluate the source. These can be specified as a dictionary, json-formatted string, 
+        Coordinates used to evaluate the source. These can be specified as a dictionary, json-formatted string,
         PODPAC Coordinates, or a PODPAC Node, where the node MUST implement the 'coordinates' attribute.
     """
 

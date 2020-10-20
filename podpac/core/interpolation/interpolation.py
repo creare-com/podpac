@@ -35,22 +35,61 @@ class InterpolationMixin(tl.HasTraits):
 
 
 class Interpolation(Node):
-    """Base node for any data obtained directly from a single source.
+    """Node to used to interpolate from self.source.coordinates to the user-specified, evaluated coordinates.
 
     Parameters
     ----------
     source : Any
         The source node which will be interpolated
     interpolation : str, dict, optional
-        {interpolation_long}
+        Interpolation definition for the data source.
+        By default, the interpolation method is set to ``'nearest'`` for all dimensions.
+
+         If input is a string, it must match one of the interpolation shortcuts defined in
+        :attr:`podpac.data.INTERPOLATION_SHORTCUTS`. The interpolation method associated
+        with this string will be applied to all dimensions at the same time.
+
+        If input is a dict or list of dict, the dict or dict elements must adhere to the following format:
+
+        The key ``'method'`` defining the interpolation method name.
+        If the interpolation method is not one of :attr:`podpac.data.INTERPOLATION_SHORTCUTS`, a
+        second key ``'interpolators'`` must be defined with a list of
+        :class:`podpac.interpolators.Interpolator` classes to use in order of uages.
+        The dictionary may contain an option ``'params'`` key which contains a dict of parameters to pass along to
+        the :class:`podpac.interpolators.Interpolator` classes associated with the interpolation method.
+
+        The dict may contain the key ``'dims'`` which specifies dimension names (i.e. ``'time'`` or ``('lat', 'lon')`` ).
+        If the dictionary does not contain a key for all unstacked dimensions of the source coordinates, the
+        :attr:`podpac.data.INTERPOLATION_DEFAULT` value will be used.
+        All dimension keys must be unstacked even if the underlying coordinate dimensions are stacked.
+        Any extra dimensions included but not found in the source coordinates will be ignored.
+
+        The dict may contain a key ``'params'`` that can be used to configure the :class:`podpac.interpolators.Interpolator` classes associated with the interpolation method.
+
+        If input is a :class:`podpac.data.Interpolation` class, this Interpolation
+        class will be used without modification.
     cache_output : bool
         Should the node's output be cached? If not provided or None, uses default based on
         settings["CACHE_DATASOURCE_OUTPUT_DEFAULT"]. If True, outputs will be cached and retrieved from cache. If False,
         outputs will not be cached OR retrieved from cache (even if they exist in cache).
 
-    Notes
+    Examples
     -----
-    Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_coordinates` methods.
+    # To use bilinear interpolation for [lat,lon]  a specific interpolator for [time], and the default for [alt], use:
+    >>> interp_node = Interpolation(
+            source=some_node,
+            interpolation=interpolation = [
+                {
+                'method': 'bilinear',
+                'dims': ['lat', 'lon']
+                },
+                {
+                'method': [podpac.interpolators.NearestNeighbor],
+                'dims': ['time']
+                }
+            ]
+        )
+
     """
 
     source = NodeTrait(allow_none=True).tag(attr=True)

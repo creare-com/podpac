@@ -46,7 +46,7 @@ class ModifyCoordinates(UnaryAlgorithm):
         return self.source
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -55,6 +55,8 @@ class ModifyCoordinates(UnaryAlgorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
+        selector: callable(coordinates, request_coordinates)
+            {eval_selector}
 
         Returns
         -------
