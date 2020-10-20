@@ -225,7 +225,7 @@ class BaseCompositor(Node):
 
     @node_eval
     @common_doc(COMMON_COMPOSITOR_DOC)
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -234,6 +234,8 @@ class BaseCompositor(Node):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
+        selector: callable(coordinates, request_coordinates)
+            {eval_selector}
 
         Returns
         -------

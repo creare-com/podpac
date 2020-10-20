@@ -177,7 +177,7 @@ class TestNode(object):
 
     def test_eval_group(self):
         class MyNode(Node):
-            def eval(self, coordinates, output=None):
+            def eval(self, coordinates, output=None, selector=None):
                 return self.create_output_array(coordinates)
 
         c1 = podpac.Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])
@@ -276,7 +276,7 @@ class TestNodeEval(object):
             outputs = ["a", "b", "c"]
 
             @node_eval
-            def eval(self, coordinates, output=None):
+            def eval(self, coordinates, output=None, selector=None):
                 return self.create_output_array(coordinates)
 
         # don't extract when no output field is requested
@@ -294,7 +294,7 @@ class TestNodeEval(object):
             outputs = ["a", "b", "c"]
 
             @node_eval
-            def eval(self, coordinates, output=None):
+            def eval(self, coordinates, output=None, selector=None):
                 out = self.create_output_array(coordinates)
                 return out.sel(output=self.output)
 

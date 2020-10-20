@@ -17,10 +17,11 @@ from podpac.core.utils import common_doc, cached_property
 from podpac.core.coordinates import UniformCoordinates1d, Coordinates
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, LoadFileMixin
+from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 @common_doc(COMMON_DATA_DOC)
-class Rasterio(LoadFileMixin, BaseFileSource):
+class RasterioBase(LoadFileMixin, BaseFileSource):
     """Create a DataSource using rasterio.
 
     Attributes
@@ -55,7 +56,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
             self.set_trait("read_from_source", True)
             return rasterio.open(self.source)
         else:
-            return super(Rasterio, self).dataset
+            return super(RasterioBase, self).dataset
 
     @tl.default("band")
     def _band_default(self):
@@ -203,3 +204,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
         matches = np.where(match)[0] + 1
 
         return matches
+
+
+class Rasterio(InterpolationMixin, RasterioBase):
+    pass

@@ -149,7 +149,7 @@ class Reduce(UnaryAlgorithm):
 
     @common_doc(COMMON_DOC)
     @node_eval
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -158,6 +158,8 @@ class Reduce(UnaryAlgorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
+        selector: callable(coordinates, request_coordinates)
+            {eval_selector}
 
         Returns
         -------
@@ -865,7 +867,7 @@ class GroupReduce(UnaryAlgorithm):
 
     @common_doc(COMMON_DOC)
     @node_eval
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -874,6 +876,8 @@ class GroupReduce(UnaryAlgorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
+        selector: callable(coordinates, request_coordinates)
+            {eval_selector}
 
         Returns
         -------
@@ -960,7 +964,7 @@ class ResampleReduce(UnaryAlgorithm):
 
     @common_doc(COMMON_DOC)
     @node_eval
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -969,6 +973,8 @@ class ResampleReduce(UnaryAlgorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
+        selector: callable(coordinates, request_coordinates)
+            {eval_selector}
 
         Returns
         -------

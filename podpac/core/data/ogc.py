@@ -15,6 +15,8 @@ from podpac.core.settings import settings
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
+from podpac.core.interpolation.interpolation import InterpolationMixin
+
 
 # Optional dependencies
 from lazy_import import lazy_module, lazy_class
@@ -33,7 +35,7 @@ WCS_DEFAULT_VERSION = "1.0.0"
 WCS_DEFAULT_CRS = "EPSG:4326"
 
 
-class WCS(DataSource):
+class WCSBase(DataSource):
     """Create a DataSource from an OGC-compliant WCS service
 
     Attributes
@@ -366,6 +368,10 @@ class WCS(DataSource):
     def base_ref(self):
         """ definition base_ref """
         if not self.layer_name:
-            return super(WCS, self).base_ref
+            return super(WCSBase, self).base_ref
 
         return self.layer_name.rsplit(".", 1)[1]
+
+
+class WCS(InterpolationMixin, WCSBase):
+    pass

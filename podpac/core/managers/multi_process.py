@@ -45,7 +45,7 @@ class Process(Node):
     def outputs(self):
         return self.source.outputs
 
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         definition = self.source.json
         coords = coordinates.json
 

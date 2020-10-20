@@ -15,8 +15,8 @@ from podpac.core.data.zarr_source import Zarr
 from podpac.core.data.ogc import WCS
 from podpac.core.data.reprojection import ReprojectedSource
 
-from podpac.core.interpolation.interpolation import (
-    Interpolation,
+from podpac.core.interpolation.interpolation import Interpolation
+from podpac.core.interpolation.interpolation_manager import (
     InterpolationException,
     InterpolationTrait,
     INTERPOLATION_DEFAULT,

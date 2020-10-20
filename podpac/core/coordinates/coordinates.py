@@ -1124,7 +1124,7 @@ class Coordinates(tl.HasTraits):
         outer : bool, optional
             If True, do *outer* selections. Default False.
         return_indices : bool, optional
-            If True, return slice or indices for the selections in addition to coordinates. Default False.
+            If True, return slice or indices for the selection in addition to coordinates. Default False.
 
         Returns
         -------
@@ -1135,6 +1135,7 @@ class Coordinates(tl.HasTraits):
         """
 
         selections = [c.select(bounds, outer=outer, return_indices=return_indices) for c in self._coords.values()]
+
         return self._make_selected_coordinates(selections, return_indices)
 
     def _make_selected_coordinates(self, selections, return_indices):

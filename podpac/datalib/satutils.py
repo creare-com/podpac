@@ -138,7 +138,7 @@ class SatUtils(S3Mixin, OrderedCompositor):
         ]
 
     @node_eval
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         # update sources with search
         _ = self.search(coordinates)
 

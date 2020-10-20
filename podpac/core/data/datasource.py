@@ -136,13 +136,11 @@ class DataSource(Node):
         numpy array, or dictionary as a few examples.
     coordinates : :class:`podpac.Coordinates`
         {coordinates}
-    interpolation : str, dict, optional
-        {interpolation_long}
     nan_vals : List, optional
         List of values from source data that should be interpreted as 'no data' or 'nans'
     coordinate_index_type : str, optional
-        Type of index to use for data source. Possible values are ``['list', 'numpy', 'xarray', 'pandas']``
-        Default is 'numpy'
+        Type of index to use for data source. Possible values are ``['slice', 'numpy']``
+        Default is 'numpy', which allows a tuple of integer indices.
     cache_coordinates : bool
         Whether to cache coordinates using the podpac ``cache_ctrl``. Default False.
     cache_output : bool
@@ -159,12 +157,11 @@ class DataSource(Node):
     nan_vals = tl.List().tag(attr=True)
     boundary = tl.Dict().tag(attr=True)
 
-    coordinate_index_type = tl.Enum(["slice", "list", "numpy"], default_value="numpy")  # , "xarray", "pandas"],
+    coordinate_index_type = tl.Enum(["slice", "numpy"], default_value="numpy")  # ,"list", "xarray", "pandas"],
     cache_coordinates = tl.Bool(False)
     cache_output = tl.Bool()
 
     # privates
-    _interpolation = tl.Instance(Interpolation)
     _coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
 
     _original_requested_coordinates = tl.Instance(Coordinates, allow_none=True)
@@ -172,12 +169,6 @@ class DataSource(Node):
     _requested_source_coordinates_index = tl.Tuple()
     _requested_source_data = tl.Instance(UnitsDataArray)
     _evaluated_coordinates = tl.Instance(Coordinates)
-
-    # this adds a more helpful error message if user happens to try an inspect _interpolation before evaluate
-    @tl.default("_interpolation")
-    def _default_interpolation(self):
-        self._set_interpolation()
-        return self._interpolation
 
     @tl.validate("boundary")
     def _validate_boundary(self, d):
@@ -216,38 +207,6 @@ class DataSource(Node):
     # ------------------------------------------------------------------------------------------------------------------
 
     @property
-    def interpolation_class(self):
-        """Get the interpolation class currently set for this data source.
-
-        The DataSource ``interpolation`` property is used to define the
-        :class:`podpac.data.Interpolation` class that will handle interpolation for requested coordinates.
-
-        Returns
-        -------
-        :class:`podpac.data.Interpolation`
-            Interpolation class defined by DataSource `interpolation` definition
-        """
-
-        return self._interpolation
-
-    @property
-    def interpolators(self):
-        """Return the interpolators selected for the previous node evaluation interpolation.
-        If the node has not been evaluated, or if interpolation was not necessary, this will return
-        an empty OrderedDict
-
-        Returns
-        -------
-        OrderedDict
-            Key are tuple of unstacked dimensions, the value is the interpolator used to interpolate these dimensions
-        """
-
-        if self._interpolation._last_interpolator_queue is not None:
-            return self._interpolation._last_interpolator_queue
-        else:
-            return OrderedDict()
-
-    @property
     def coordinates(self):
         """{coordinates}"""
 
@@ -267,16 +226,7 @@ class DataSource(Node):
     # Private Methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def _set_interpolation(self):
-        """Update _interpolation property"""
-
-        # define interpolator with source coordinates dimensions
-        if isinstance(self.interpolation, Interpolation):
-            self._interpolation = self.interpolation
-        else:
-            self._interpolation = Interpolation(self.interpolation)
-
-    def _get_data(self):
+    def _get_data(self, rc, rci):
         """Wrapper for `self.get_data` with pre and post processing
 
         Returns
@@ -293,7 +243,7 @@ class DataSource(Node):
 
         """
         # get data from data source at requested source coordinates and requested source coordinates index
-        data = self.get_data(self._requested_source_coordinates, self._requested_source_coordinates_index)
+        data = self.get_data(rc, rci)
 
         # convert data into UnitsDataArray depending on format
         # TODO: what other processing needs to happen here?
@@ -301,9 +251,9 @@ class DataSource(Node):
             udata_array = data
         elif isinstance(data, xr.DataArray):
             # TODO: check order of coordinates here
-            udata_array = self.create_output_array(self._requested_source_coordinates, data=data.data)
+            udata_array = self.create_output_array(rc, data=data.data)
         elif isinstance(data, np.ndarray):
-            udata_array = self.create_output_array(self._requested_source_coordinates, data=data)
+            udata_array = self.create_output_array(rc, data=data)
         else:
             raise ValueError(
                 "Unknown data type passed back from "
@@ -328,7 +278,7 @@ class DataSource(Node):
 
     @common_doc(COMMON_DATA_DOC)
     @node_eval
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, output=None, selector=None):
         """Evaluates this node using the supplied coordinates.
 
         The coordinates are mapped to the requested coordinates, interpolated if necessary, and set to
@@ -347,6 +297,8 @@ class DataSource(Node):
             Extra dimensions in the requested coordinates are dropped.
         output : :class:`podpac.UnitsDataArray`, optional
             {eval_output}
+        selector: callable(coordinates, request_coordinates)
+            {eval_selector}
 
         Returns
         -------
@@ -357,7 +309,6 @@ class DataSource(Node):
         ValueError
             Cannot evaluate these coordinates
         """
-
         log.debug("Evaluating {} data source".format(self.__class__.__name__))
 
         if self.coordinate_index_type not in ["slice", "numpy"]:
@@ -397,8 +348,8 @@ class DataSource(Node):
             coordinates = coordinates.transform(self.coordinates.crs)
 
         # intersect the coordinates with requested coordinates to get coordinates within requested coordinates bounds
-        # TODO: support coordinate_index_type parameter to define other index types
         (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
+
         self._requested_source_coordinates = rsc
         self._requested_source_coordinates_index = rsci
 
@@ -412,15 +363,9 @@ class DataSource(Node):
                 output[:] = np.nan
             return output
 
-        # reset interpolation
-        self._set_interpolation()
-
-        # interpolate requested coordinates before getting data
-        (rsc, rsci) = self._interpolation.select_coordinates(
-            self._requested_source_coordinates, self._requested_source_coordinates_index, coordinates
-        )
-        self._requested_source_coordinates = rsc
-        self._requested_source_coordinates_index = rsci
+        # Use the selector
+        if selector is not None:
+            (rsc, rsci) = selector(rsc, rsci, coordinates)
 
         # Check the coordinate_index_type
         if self.coordinate_index_type == "slice":  # Most restrictive
@@ -444,49 +389,20 @@ class DataSource(Node):
             self._requested_source_coordinates_index = tuple(new_rsci)
 
         # get data from data source
-        self._requested_source_data = self._get_data()
+        self._requested_source_data = self._get_data(
+            self._requested_source_coordinates, self._requested_source_coordinates_index
+        )
 
         # if not provided, create output using the evaluated coordinates, or
         # if provided, set the order of coordinates to match the output dims
-        # Note that at this point the coordinates are in the same CRS as the coordinates
         if output is None:
-            requested_dims = None
-            output_dims = None
-            output = self.create_output_array(coordinates)
-            if "output" in output.dims and self.output is not None:
-                output = output.sel(output=self.output)
+            output = self._requested_source_data.part_transpose(self._evaluated_coordinates.dims)
         else:
-            requested_dims = self._evaluated_coordinates.dims
-            output_dims = output.dims
-            o = output
-            if "output" in output.dims:
-                requested_dims = requested_dims + ("output",)
-            output = output.transpose(*requested_dims)
-
-            # check crs compatibility
-            if output.crs != self._evaluated_coordinates.crs:
-                raise ValueError(
-                    "Output coordinate reference system ({}) does not match".format(output.crs)
-                    + "request Coordinates coordinate reference system ({})".format(coordinates.crs)
-                )
+            output.data[:] = self._requested_source_data.part_transpose(self._evaluated_coordinates.dims).data
 
         # get indexed boundary
         self._requested_source_boundary = self._get_boundary(self._requested_source_coordinates_index)
-
-        # interpolate data into output
-        output = self._interpolation.interpolate(
-            self._requested_source_coordinates, self._requested_source_data, coordinates, output
-        )
-
-        # Fill the output that was passed to eval with the new data
-        if requested_dims is not None and requested_dims != output_dims:
-            o = o.transpose(*output_dims)
-            o.data[:] = output.transpose(*output_dims).data
-
-        # if requested crs is differented than coordinates,
-        # fabricate a new output with the original coordinates and new values
-        if self._evaluated_coordinates.crs != coordinates.crs:
-            output = self.create_output_array(self._evaluated_coordinates, data=output[:].values)
+        output.attrs["boundary_data"] = self._requested_source_boundary
 
         # save output to private for debugging
         if settings["DEBUG"]:
