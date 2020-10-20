@@ -45,6 +45,19 @@ class MockDataSourceStacked(DataSource):
         return self.create_output_array(coordinates, data=self.data[coordinates_index])
 
 
+class MockDataSourceArray(DataSource):
+    data = np.ones((11, 11))
+    data[0, 0] = 10
+    data[0, 1] = 1
+    data[1, 0] = 5
+    data[1, 1] = None
+
+    def get_coordinates(self):
+        return Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
+
+    def get_data(self, coordinates, coordinates_index):
+        return self.data[coordinates_index]
+
 class TestDataDocs(object):
     def test_common_data_doc(self):
         # all DATA_DOC keys should be in the COMMON_DATA_DOC
@@ -268,6 +281,21 @@ class TestDataSource(object):
         output[3:8, 3:8] = node.eval(coords, output=output[3:8, 3:8])
 
         np.testing.assert_equal(output.data, expected.data)
+
+    def test_evaluate_with_get_data_array(self):
+        node = MockDataSourceArray()
+
+        # initialize a large output array
+        fullcoords = Coordinates([crange(20, 30, 1), crange(20, 30, 1)], dims=["lat", "lon"])
+
+        # evaluate a subset of the full coordinates
+        coords = Coordinates([fullcoords["lat"][3:8], fullcoords["lon"][3:8]])
+
+        # evaluate the subset coords, passing in the cooresponding slice of the initialized output array
+        # TODO: discuss if we should be using the same reference to output slice?
+        output = node.eval(coords)
+
+        assert isinstance(output, UnitsDataArray)
 
     def test_evaluate_with_output_different_crs(self):
 

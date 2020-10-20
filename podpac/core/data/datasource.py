@@ -136,8 +136,6 @@ class DataSource(Node):
         numpy array, or dictionary as a few examples.
     coordinates : :class:`podpac.Coordinates`
         {coordinates}
-    interpolation : str, dict, optional
-        {interpolation_long}
     nan_vals : List, optional
         List of values from source data that should be interpreted as 'no data' or 'nans'
     coordinate_index_type : str, optional
@@ -397,26 +395,10 @@ class DataSource(Node):
 
         # if not provided, create output using the evaluated coordinates, or
         # if provided, set the order of coordinates to match the output dims
-        # Note that at this point the coordinates are in the same CRS as the coordinates
-        if isinstance(self._requested_source_data, UnitsDataArray):
+        if output is None:
             output = self._requested_source_data.part_transpose(self._evaluated_coordinates.dims)
-        elif output is None:
-            requested_dims = None
-            output_dims = None
-            output = self.create_output_array(self._requested_source_coordinates, data=self._requested_source_data)
-            if "output" in output.dims and self.output is not None:
-                output = output.sel(output=self.output)
-            output.transpose(self._evaluated_coordinates.dims)
         else:
-            requested_dims = self._evaluated_coordinates.dims
-            output_dims = output.dims
-            o = output
-            if "output" in output.dims:
-                requested_dims = requested_dims + ("output",)
-            output = output.transpose(*requested_dims)
-
-            output.loc[self._requested_source_coordinates.coords] = self._requested_source_data
-            output = output.transpose(*output_dims)
+            output.data[:] = self._requested_source_data.part_transpose(self._evaluated_coordinates.dims).data
 
         # get indexed boundary
         self._requested_source_boundary = self._get_boundary(self._requested_source_coordinates_index)
