@@ -29,7 +29,6 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore
 from podpac.core.node import Node, NodeException, NodeDefinitionError
-from podpac.core.node import node_eval
 from podpac.core.node import NoCacheMixin, DiskCacheMixin
 
 
@@ -203,10 +202,10 @@ class TestNode(object):
     def test_eval_not_implemented(self):
         node = Node()
         with pytest.raises(NotImplementedError):
-            node.eval(None)
+            node.eval(podpac.Coordinates([]))
 
         with pytest.raises(NotImplementedError):
-            node.eval(None, output=None)
+            node.eval(podpac.Coordinates([]), output=None)
 
     def test_find_coordinates_not_implemented(self):
         node = Node()
@@ -275,8 +274,7 @@ class TestNodeEval(object):
         class MyNode1(Node):
             outputs = ["a", "b", "c"]
 
-            @node_eval
-            def eval(self, coordinates, output=None, selector=None):
+            def _eval(self, coordinates, output=None, selector=None):
                 return self.create_output_array(coordinates)
 
         # don't extract when no output field is requested
@@ -293,8 +291,7 @@ class TestNodeEval(object):
         class MyNode2(Node):
             outputs = ["a", "b", "c"]
 
-            @node_eval
-            def eval(self, coordinates, output=None, selector=None):
+            def _eval(self, coordinates, output=None, selector=None):
                 out = self.create_output_array(coordinates)
                 return out.sel(output=self.output)
 

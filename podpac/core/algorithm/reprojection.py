@@ -62,7 +62,7 @@ class Reproject(Interpolate):
             raise TypeError("The coordinates attribute is of the wrong type.")
 
     def _source_eval(self, coordinates, selector, output=None):
-        return self.source.eval(self._coordinates, output, selector)
+        return self.source.eval(self._coordinates, output=output, _selector=selector)
 
     @property
     def base_ref(self):

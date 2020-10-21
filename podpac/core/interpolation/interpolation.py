@@ -10,7 +10,7 @@ import traitlets as tl
 import numpy as np
 
 from podpac.core.settings import settings
-from podpac.core.node import Node, node_eval
+from podpac.core.node import Node
 from podpac.core.utils import NodeTrait, common_doc
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims, Coordinates
@@ -26,12 +26,11 @@ def interpolation_decorator():
 class InterpolationMixin(tl.HasTraits):
     interpolation = InterpolationTrait().tag(attr=True)
 
-    @node_eval
-    def eval(self, coordinates, output=None, selector=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         node = Interpolate(interpolation=self.interpolation)
         node._set_interpolation()
-        node._source_xr = super().eval(coordinates, selector=node._interpolation.select_coordinates)
-        return node.eval(coordinates, output)
+        node._source_xr = super()._eval(coordinates, _selector=node._interpolation.select_coordinates)
+        return node.eval(coordinates, output=output)
 
 
 class Interpolate(Node):
@@ -162,8 +161,7 @@ class Interpolate(Node):
         else:
             self._interpolation = InterpolationManager(self.interpolation)
 
-    @node_eval
-    def eval(self, coordinates, output=None, selector=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         """Evaluates this node using the supplied coordinates.
 
         The coordinates are mapped to the requested coordinates, interpolated if necessary, and set to
@@ -182,7 +180,7 @@ class Interpolate(Node):
             Extra dimensions in the requested coordinates are dropped.
         output : :class:`podpac.UnitsDataArray`, optional
             {eval_output}
-        selector :
+        _selector :
             {eval_selector}
 
         Returns
@@ -243,7 +241,7 @@ class Interpolate(Node):
         if isinstance(self._source_xr, UnitsDataArray):
             return self._source_xr
         else:
-            return self.source.eval(coordinates, output, selector)
+            return self.source.eval(coordinates, output=output, _selector=selector)
 
     def find_coordinates(self):
         """

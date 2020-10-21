@@ -16,7 +16,7 @@ from podpac.core.coordinates import add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import UnaryAlgorithm
 from podpac.core.utils import common_doc, ArrayTrait, NodeTrait
-from podpac.core.node import COMMON_NODE_DOC, node_eval
+from podpac.core.node import COMMON_NODE_DOC
 
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
@@ -100,8 +100,7 @@ class Convolution(UnaryAlgorithm):
         return super(Convolution, self)._first_init(**kwargs)
 
     @common_doc(COMMON_DOC)
-    @node_eval
-    def eval(self, coordinates, output=None, selector=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -110,7 +109,7 @@ class Convolution(UnaryAlgorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        selector: callable(coordinates, request_coordinates)
+        _selector: callable(coordinates, request_coordinates)
             {eval_selector}
 
         Returns
@@ -162,7 +161,7 @@ class Convolution(UnaryAlgorithm):
             self._expanded_coordinates = expanded_coordinates
 
         # evaluate source using expanded coordinates, convolve, and then slice out original coordinates
-        source = self.source.eval(expanded_coordinates)
+        source = self.source.eval(expanded_coordinates, _selector=_selector)
 
         # Check dimensions
         if any([d not in kernel_dims for d in source.dims if d != "output"]):

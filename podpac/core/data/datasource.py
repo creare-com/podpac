@@ -23,7 +23,6 @@ from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES, make_coord_delt
 from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
-from podpac.core.node import node_eval
 from podpac.core.interpolation.interpolation import Interpolate, InterpolationTrait
 
 log = logging.getLogger(__name__)
@@ -277,8 +276,7 @@ class DataSource(Node):
     # ------------------------------------------------------------------------------------------------------------------
 
     @common_doc(COMMON_DATA_DOC)
-    @node_eval
-    def eval(self, coordinates, output=None, selector=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         """Evaluates this node using the supplied coordinates.
 
         The coordinates are mapped to the requested coordinates, interpolated if necessary, and set to
@@ -297,7 +295,7 @@ class DataSource(Node):
             Extra dimensions in the requested coordinates are dropped.
         output : :class:`podpac.UnitsDataArray`, optional
             {eval_output}
-        selector: callable(coordinates, request_coordinates)
+        _selector: callable(coordinates, request_coordinates)
             {eval_selector}
 
         Returns
@@ -364,8 +362,8 @@ class DataSource(Node):
             return output
 
         # Use the selector
-        if selector is not None:
-            (rsc, rsci) = selector(rsc, rsci, coordinates)
+        if _selector is not None:
+            (rsc, rsci) = _selector(rsc, rsci, coordinates)
 
         # Check the coordinate_index_type
         if self.coordinate_index_type == "slice":  # Most restrictive

@@ -22,7 +22,6 @@ import podpac
 from podpac.compositor import OrderedCompositor
 from podpac.data import Rasterio
 from podpac.core.units import UnitsDataArray
-from podpac.core.node import node_eval
 from podpac.authentication import S3Mixin
 from podpac import settings
 
@@ -137,13 +136,12 @@ class SatUtils(S3Mixin, OrderedCompositor):
             for item_idx, item in enumerate(items)
         ]
 
-    @node_eval
-    def eval(self, coordinates, output=None, selector=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         # update sources with search
         _ = self.search(coordinates)
 
         # run normal eval once self.data is prepared
-        return super(SatUtils, self).eval(coordinates, output)
+        return super(SatUtils, self)._eval(coordinates, output=output, _selector=_selector)
 
     ##########
     # Data I/O

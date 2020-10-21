@@ -251,7 +251,7 @@ class Node(tl.HasTraits):
         return "<%s(%s) attrs: %s>" % (self.__class__.__name__, self._repr_info, ", ".join(self.attrs))
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None, selector=None):
+    def eval(self, coordinates, **kwargs):
         """
         Evaluate the node at the given coordinates.
 
@@ -259,16 +259,62 @@ class Node(tl.HasTraits):
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
-        output : podpac.UnitsDataArray, optional
-            {eval_output}
-        selector: callable(coordinates, request_coordinates)
-            {eval_selector}
+        **kwargs: **dict
+            Additional key-word arguments passed down the node pipelines, used internally
 
         Returns
         -------
         output : {eval_return}
         """
+        output = kwargs.get("output", None)
+        # check crs compatibility
+        if (output is not None) and ("crs" in output.attrs) and (output.attrs["crs"] != coordinates.crs):
+            raise ValueError(
+                "Output coordinate reference system ({}) does not match".format(output.crs)
+                + "request Coordinates coordinate reference system ({})".format(coordinates.crs)
+            )
 
+        if settings["DEBUG"]:
+            self._requested_coordinates = coordinates
+        key = "output"
+        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
+
+        if not self.force_eval and self.cache_output and self.has_cache(key, cache_coordinates):
+            data = self.get_cache(key, cache_coordinates)
+            if output is not None:
+                order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
+                output.transpose(*order)[:] = data
+            self._from_cache = True
+        else:
+            data = self._eval(coordinates, **kwargs)
+            if self.cache_output:
+                self.put_cache(data, key, cache_coordinates)
+            self._from_cache = False
+
+        # extract single output, if necessary
+        # subclasses should extract single outputs themselves if possible, but this provides a backup
+        if "output" in data.dims and self.output is not None:
+            data = data.sel(output=self.output)
+
+        # transpose data to match the dims order of the requested coordinates
+        order = [dim for dim in coordinates.idims if dim in data.dims]
+        if "output" in data.dims:
+            order.append("output")
+        data = data.part_transpose(order)
+
+        if settings["DEBUG"]:
+            self._output = data
+
+        # Add style information
+        data.attrs["layer_style"] = self.style
+
+        # Add crs if it is missing
+        if "crs" not in data.attrs:
+            data.attrs["crs"] = coordinates.crs
+
+        return data
+
+    def _eval(self, coordinates, output=None, _selector=None):
         raise NotImplementedError
 
     def eval_group(self, group):
@@ -961,70 +1007,3 @@ class DiskCacheMixin(tl.HasTraits):
 # --------------------------------------------------------#
 #  Decorators
 # --------------------------------------------------------#
-
-
-def node_eval(fn):
-    """
-    Decorator for Node eval methods that handles caching and a user provided output argument.
-
-    fn : function
-        Node eval method to wrap
-
-    Returns
-    -------
-    wrapper : function
-        Wrapped node eval method
-    """
-
-    cache_key = "output"
-
-    @functools.wraps(fn)
-    def wrapper(self, coordinates, output=None, selector=None):
-        # check crs compatibility
-        if (output is not None) and ("crs" in output.attrs) and (output.attrs["crs"] != coordinates.crs):
-            raise ValueError(
-                "Output coordinate reference system ({}) does not match".format(output.crs)
-                + "request Coordinates coordinate reference system ({})".format(coordinates.crs)
-            )
-
-        if settings["DEBUG"]:
-            self._requested_coordinates = coordinates
-        key = cache_key
-        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
-
-        if not self.force_eval and self.cache_output and self.has_cache(key, cache_coordinates):
-            data = self.get_cache(key, cache_coordinates)
-            if output is not None:
-                order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
-                output.transpose(*order)[:] = data
-            self._from_cache = True
-        else:
-            data = fn(self, coordinates, output=output, selector=selector)
-            if self.cache_output:
-                self.put_cache(data, key, cache_coordinates)
-            self._from_cache = False
-
-        # extract single output, if necessary
-        # subclasses should extract single outputs themselves if possible, but this provides a backup
-        if "output" in data.dims and self.output is not None:
-            data = data.sel(output=self.output)
-
-        # transpose data to match the dims order of the requested coordinates
-        order = [dim for dim in coordinates.idims if dim in data.dims]
-        if "output" in data.dims:
-            order.append("output")
-        data = data.part_transpose(order)
-
-        if settings["DEBUG"]:
-            self._output = data
-
-        # Add style information
-        data.attrs["layer_style"] = self.style
-
-        # Add crs if it is missing
-        if "crs" not in data.attrs:
-            data.attrs["crs"] = coordinates.crs
-
-        return data
-
-    return wrapper
