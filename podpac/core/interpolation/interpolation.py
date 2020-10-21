@@ -28,13 +28,13 @@ class InterpolationMixin(tl.HasTraits):
 
     @node_eval
     def eval(self, coordinates, output=None, selector=None):
-        node = Interpolation(interpolation=self.interpolation)
+        node = Interpolate(interpolation=self.interpolation)
         node._set_interpolation()
         node._source_xr = super().eval(coordinates, selector=node._interpolation.select_coordinates)
         return node.eval(coordinates, output)
 
 
-class Interpolation(Node):
+class Interpolate(Node):
     """Node to used to interpolate from self.source.coordinates to the user-specified, evaluated coordinates.
 
     Parameters

@@ -13,11 +13,11 @@ import traitlets as tl
 # Internal dependencies
 from podpac.core.node import Node
 from podpac.core.coordinates.coordinates import Coordinates
-from podpac.core.interpolation.interpolation import Interpolation
+from podpac.core.interpolation.interpolation import Interpolate
 from podpac.core.utils import NodeTrait
 
 
-class Reproject(Interpolation):
+class Reproject(Interpolate):
     """
     Create a Algorithm that evalutes a Node with one set of coordinates, and then interpolates it.
     This can be used to bilinearly interpolate an averaged dataset, for example.

@@ -228,7 +228,7 @@ class TestJSONEncoder(object):
         json.dumps(style, cls=JSONEncoder)
 
     def test_interpolation(self):
-        interpolation = podpac.data.Interpolation()
+        interpolation = podpac.data.Interpolate()
         json.dumps(interpolation, cls=JSONEncoder)
 
     def test_interpolator(self):

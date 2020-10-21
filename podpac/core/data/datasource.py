@@ -24,7 +24,7 @@ from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
-from podpac.core.interpolation.interpolation import Interpolation, InterpolationTrait
+from podpac.core.interpolation.interpolation import Interpolate, InterpolationTrait
 
 log = logging.getLogger(__name__)
 

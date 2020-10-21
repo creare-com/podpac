@@ -14,7 +14,7 @@ import podpac
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node
 from podpac.core.coordinates import Coordinates
-from podpac.core.interpolation.interpolation import Interpolation, InterpolationMixin
+from podpac.core.interpolation.interpolation import Interpolate, InterpolationMixin
 from podpac.core.data.array_source import Array, ArrayBase
 from podpac.core.compositor.data_compositor import DataCompositor
 from podpac.core.compositor.ordered_compositor import OrderedCompositor
@@ -50,7 +50,7 @@ class TestInterpolation(object):
         source=np.random.rand(9, 15),
         coordinates=Coordinates([np.linspace(9, 17, 9), np.linspace(0, 14, 15)], ["lat", "lon"]),
     )
-    interp = Interpolation(source=s1, interpolation="nearest")
+    interp = Interpolate(source=s1, interpolation="nearest")
     coords = Coordinates([np.linspace(0, 8, 17), np.linspace(0, 14, 29)], ["lat", "lon"])
     coords2 = Coordinates([np.linspace(0, 17, 18), np.linspace(0, 14, 15)], ["lat", "lon"])
     coords2c = Coordinates([np.linspace(0.1, 16.8, 5), np.linspace(0.1, 13.8, 3)], ["lat", "lon"])
@@ -72,7 +72,7 @@ class TestInterpolation(object):
 
     def test_compositor_chain(self):
         dc = DataCompositor(sources=[self.s2, self.s1])
-        node = Interpolation(source=dc, interpolation="nearest")
+        node = Interpolate(source=dc, interpolation="nearest")
         o = node.eval(self.coords2)
 
         np.testing.assert_array_equal(o.data, np.concatenate([self.s1.source, self.s2.source], axis=0))
