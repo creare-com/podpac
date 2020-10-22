@@ -31,7 +31,6 @@ from podpac import authentication
 from podpac import settings
 from podpac import cached_property
 from podpac.core.units import UnitsDataArray
-from podpac.core.node import node_eval
 
 # Set up logging
 _log = logging.getLogger(__name__)
@@ -214,8 +213,7 @@ class EGI(DataSource):
             _log.warning("No data found in EGI source")
             return np.array([])
 
-    @node_eval
-    def eval(self, coordinates, output=None, selector=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         # download data for coordinate bounds, then handle that data as an H5PY node
         zip_files = self._download(coordinates)
         try:
@@ -229,7 +227,7 @@ class EGI(DataSource):
             raise e
 
         # run normal eval once self.data is prepared
-        return super(EGI, self).eval(coordinates, output)
+        return super(EGI, self)._eval(coordinates, output=output, _selector=_selector)
 
     ##########
     # Data I/O

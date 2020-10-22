@@ -15,7 +15,7 @@ from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.coordinates.utils import Dimension
 from podpac.core.utils import common_doc, NodeTrait
-from podpac.core.node import COMMON_NODE_DOC, node_eval, Node
+from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.interpolation.interpolation import InterpolationTrait
 from podpac.core.managers.multi_threading import thread_manager
@@ -176,7 +176,7 @@ class BaseCompositor(Node):
 
         raise NotImplementedError()
 
-    def iteroutputs(self, coordinates):
+    def iteroutputs(self, coordinates, _selector=None):
         """Summary
 
         Parameters
@@ -211,7 +211,7 @@ class BaseCompositor(Node):
             # evaluate nodes in parallel using thread pool
             self._multi_threaded = True
             pool = thread_manager.get_thread_pool(processes=n_threads)
-            outputs = pool.map(lambda src: src.eval(coordinates), sources)
+            outputs = pool.map(lambda src: src.eval(coordinates, _selector=_selector), sources)
             pool.close()
             thread_manager.release_n_threads(n_threads)
             for output in outputs:
@@ -221,11 +221,10 @@ class BaseCompositor(Node):
             # evaluate nodes serially
             self._multi_threaded = False
             for src in sources:
-                yield src.eval(coordinates)
+                yield src.eval(coordinates, _selector=_selector)
 
-    @node_eval
     @common_doc(COMMON_COMPOSITOR_DOC)
-    def eval(self, coordinates, output=None, selector=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -234,7 +233,7 @@ class BaseCompositor(Node):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        selector: callable(coordinates, request_coordinates)
+        _selector: callable(coordinates, request_coordinates)
             {eval_selector}
 
         Returns
@@ -255,7 +254,7 @@ class BaseCompositor(Node):
             coordinates = coordinates.drop(extra)
 
         self._evaluated_coordinates = coordinates
-        outputs = self.iteroutputs(coordinates)
+        outputs = self.iteroutputs(coordinates, _selector)
         output = self.composite(coordinates, outputs, output)
         return output
 

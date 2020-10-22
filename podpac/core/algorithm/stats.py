@@ -21,7 +21,7 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import UnaryAlgorithm, Algorithm
 from podpac.core.utils import common_doc, NodeTrait
-from podpac.core.node import COMMON_NODE_DOC, node_eval
+from podpac.core.node import COMMON_NODE_DOC
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
@@ -135,7 +135,7 @@ class Reduce(UnaryAlgorithm):
         a = x.data.reshape(-1, *x.shape[n:])
         return a
 
-    def iteroutputs(self, coordinates):
+    def iteroutputs(self, coordinates, _selector):
         """Generator for the chunks of the output
 
         Yields
@@ -145,11 +145,10 @@ class Reduce(UnaryAlgorithm):
         """
         chunk_shape = self._get_chunk_shape(coordinates)
         for chunk in coordinates.iterchunks(chunk_shape):
-            yield self.source.eval(chunk)
+            yield self.source.eval(chunk, _selector=_selector)
 
     @common_doc(COMMON_DOC)
-    @node_eval
-    def eval(self, coordinates, output=None, selector=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -158,7 +157,7 @@ class Reduce(UnaryAlgorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        selector: callable(coordinates, request_coordinates)
+        _selector: callable(coordinates, request_coordinates)
             {eval_selector}
 
         Returns
@@ -179,13 +178,13 @@ class Reduce(UnaryAlgorithm):
 
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
             try:
-                result = self.reduce_chunked(self.iteroutputs(coordinates), output)
+                result = self.reduce_chunked(self.iteroutputs(coordinates, _selector), output)
             except NotImplementedError:
                 warnings.warn("No reduce_chunked method defined, using one-step reduce")
-                source_output = self.source.eval(coordinates)
+                source_output = self.source.eval(coordinates, _selector=_selector)
                 result = self.reduce(source_output)
         else:
-            source_output = self.source.eval(coordinates)
+            source_output = self.source.eval(coordinates, _selector=_selector)
             result = self.reduce(source_output)
 
         if output.shape == ():
@@ -276,7 +275,7 @@ class ReduceOrthogonal(Reduce):
 
         return [d[dim] for dim in coords.dims]
 
-    def iteroutputs(self, coordinates):
+    def iteroutputs(self, coordinates, selector):
         """Generator for the chunks of the output
 
         Yields
@@ -287,7 +286,7 @@ class ReduceOrthogonal(Reduce):
 
         chunk_shape = self._get_chunk_shape(coordinates)
         for chunk, slices in coordinates.iterchunks(chunk_shape, return_slices=True):
-            yield self.source.eval(chunk), slices
+            yield self.source.eval(chunk, _selector=selector), slices
 
     def reduce_chunked(self, xs, output):
         """
@@ -866,8 +865,7 @@ class GroupReduce(UnaryAlgorithm):
         return self.source
 
     @common_doc(COMMON_DOC)
-    @node_eval
-    def eval(self, coordinates, output=None, selector=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -963,8 +961,7 @@ class ResampleReduce(UnaryAlgorithm):
         return self.source
 
     @common_doc(COMMON_DOC)
-    @node_eval
-    def eval(self, coordinates, output=None, selector=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -973,7 +970,7 @@ class ResampleReduce(UnaryAlgorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        selector: callable(coordinates, request_coordinates)
+        _selector: callable(coordinates, request_coordinates)
             {eval_selector}
 
         Returns
@@ -986,7 +983,7 @@ class ResampleReduce(UnaryAlgorithm):
             If source it not time-depended (required by this node).
         """
 
-        source_output = self.source.eval(coordinates)
+        source_output = self.source.eval(coordinates, _selector=_selector)
 
         # group
         grouped = source_output.resample(time=self.resample)
