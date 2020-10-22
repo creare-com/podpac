@@ -163,7 +163,7 @@ class DataSource(Node):
     # privates
     _coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
 
-    _original_requested_coordinates = tl.Instance(Coordinates, allow_none=True)
+    _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _requested_source_coordinates = tl.Instance(Coordinates)
     _requested_source_coordinates_index = tl.Tuple()
     _requested_source_data = tl.Instance(UnitsDataArray)
@@ -266,8 +266,7 @@ class DataSource(Node):
             udata_array = udata_array.sel(output=self.output)
 
         # fill nan_vals in data array
-        for nan_val in self.nan_vals:
-            udata_array.data[udata_array.data == nan_val] = np.nan
+        udata_array.data[np.isin(udata_array.data, self.nan_vals)] = np.nan
 
         return udata_array
 
@@ -307,6 +306,7 @@ class DataSource(Node):
         ValueError
             Cannot evaluate these coordinates
         """
+
         log.debug("Evaluating {} data source".format(self.__class__.__name__))
 
         if self.coordinate_index_type not in ["slice", "numpy"]:
@@ -318,7 +318,7 @@ class DataSource(Node):
 
         # store requested coordinates for debugging
         if settings["DEBUG"]:
-            self._original_requested_coordinates = coordinates
+            self._requested_coordinates = coordinates
 
         # check for missing dimensions
         for c in self.coordinates.values():
@@ -391,12 +391,11 @@ class DataSource(Node):
             self._requested_source_coordinates, self._requested_source_coordinates_index
         )
 
-        # if not provided, create output using the evaluated coordinates, or
-        # if provided, set the order of coordinates to match the output dims
+        data = self._requested_source_data.part_transpose(self._evaluated_coordinates.dims)
         if output is None:
-            output = self._requested_source_data.part_transpose(self._evaluated_coordinates.dims)
+            output = data
         else:
-            output.data[:] = self._requested_source_data.part_transpose(self._evaluated_coordinates.dims).data
+            output.data[:] = data.data
 
         # get indexed boundary
         self._requested_source_boundary = self._get_boundary(self._requested_source_coordinates_index)
