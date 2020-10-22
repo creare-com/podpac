@@ -27,9 +27,6 @@ lxml = lazy_module("lxml")  # used by bs4 so want to check if it's available
 owslib_wcs = lazy_module("owslib.wcs")
 rasterio = lazy_module("rasterio")
 
-DEFAULT_VERSION = "1.0.0"  # TODO 1.0 deprecated?
-DEFAULT_CRS = "EPSG:4326"
-
 
 class WCS2Error(NodeException):
     pass
@@ -38,25 +35,17 @@ class WCS2Error(NodeException):
 class WCS(Node):
     source = tl.Unicode().tag(attr=True)
     layer = tl.Unicode().tag(attr=True)
-    version = tl.Unicode(default_value=DEFAULT_VERSION).tag(attr=True)
+    version = tl.Unicode(default_value="1.0.0.").tag(attr=True)  # TODO 1.0.0 deprecated?
     # interpolation = tl.Unicode().tag(attr=True) # TODO
 
     # max_size = tl.Long(default_value=None, allow_none=True) # TODO
     format = tl.Unicode(default_value="geotiff")
-    crs = tl.Unicode(default_value=DEFAULT_CRS)
+    crs = tl.Unicode(default_value="EPSG:4326")
 
     _repr_keys = ["source", "layer"]
 
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _evaluated_coordinates = tl.Instance(Coordinates)
-
-    # @tl.validate('format')
-    # def _validate_format(self, d):
-    #     metadata = self.client.contents[self.layer]
-    #     supported_formats = [f.lower() for f in metadata.supportedFormats]
-    #     if d['value'].lower() not in supported_formats:
-    #         raise ValueError("TODO...")
-    #     return d['value']
 
     @cached_property
     def client(self):
@@ -154,7 +143,7 @@ class WCS(Node):
             mf.write(content)
             dataset = mf.open(driver="GTiff")
 
-        data = dataset.read(1)
+        data = dataset.read(1).astype(float)
         data[np.isin(data, dataset.nodatavals)] = np.nan
 
         # -------------------------------------------------------------------------------------------------------------
@@ -174,7 +163,7 @@ class WCS(Node):
 
         return output
 
-
-def layers(source, version=DEFAULT_VERSION):
-    client = owslib_wcs.WebCoverageService(self.source, version=version)
-    return list(client.contents)
+    @staticmethod
+    def get_layers(source):
+        client = owslib_wcs.WebCoverageService(source)
+        return list(client.contents)
