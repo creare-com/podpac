@@ -429,3 +429,142 @@ class TestInterpolateScipyPoint(object):
         assert np.all(output.lat.values == coords_dst.coords["lat"])
         assert output.values[0, 0] == source[0]
         assert output.values[-1, -1] == source[3]
+
+
+class TestSelectors(object):
+    lat_coarse = np.linspace(0, 1, 3)
+    lat_fine = np.linspace(-0.1, 1.15, 8)
+    lon_coarse = lat_coarse + 1
+    lon_fine = lat_fine + 1
+    time_coarse = lat_coarse + 2
+    time_fine = lat_fine + 2
+    alt_coarse = lat_coarse + 3
+    alt_fine = lat_fine + 3
+
+    nn_request_fine_from_coarse = [0, 1, 2]
+    nn_request_coarse_from_fine = [1, 3, 6]
+    lin_request_fine_from_coarse = [0, 1, 2]
+    lin_request_coarse_from_fine = [0, 1, 3, 4, 6, 7]
+
+    coords = {}
+
+    def make_coord_combos(self):
+        # Make 1-D ones
+        for r in ["fine", "coarse"]:
+            for d in ["lat", "lon", "time", "alt"]:
+                k = d + "_" + r
+                self.coords[k] = Coordinates([getattr(self, k)], [d])
+                # stack pairs 2D
+                for d2 in ["lat", "lon", "time", "alt"]:
+                    if d == d2:
+                        continue
+                    k2 = "_".join([d2, r])
+                    k2f = "_".join([d, d2, r])
+                    self.coords[k2f] = Coordinates([[getattr(self, k), getattr(self, k2)]], [[d, d2]])
+                    # stack pairs 3D
+                    for d3 in ["lat", "lon", "time", "alt"]:
+                        if d3 == d or d3 == d2:
+                            continue
+                        k3 = "_".join([d3, r])
+                        k3f = "_".join([d, d2, d3, r])
+                        self.coords[k3f] = Coordinates(
+                            [[getattr(self, k), getattr(self, k2), getattr(self, k3)]], [[d, d2, d3]]
+                        )
+                        # stack pairs 4D
+                        for d4 in ["lat", "lon", "time", "alt"]:
+                            if d4 == d or d4 == d2 or d4 == d3:
+                                continue
+                            k4 = "_".join([d4, r])
+                            k4f = "_".join([d, d2, d3, d4, r])
+                            self.coords[k4f] = Coordinates(
+                                [[getattr(self, k), getattr(self, k2), getattr(self, k3), getattr(self, k4)]],
+                                [[d, d2, d3, d4]],
+                            )
+
+    def test_nn_selector(self):
+        interp = InterpolationManager("nearest")
+        for request in self.coords:
+            for source in self.coords:
+                if "fine" in request and "fine" in source:
+                    continue
+                if "coarse" in request and "coarse" in source:
+                    continue
+                if "coarse" in request and "fine" in source:
+                    truth = self.nn_request_coarse_from_fine
+                if "fine" in request and "coarse" in source:
+                    truth = self.nn_request_fine_from_coarse
+
+                c, ci = interp.select_coordinates(source, None, request)
+                np.testing.assert_array_equal(
+                    ci,
+                    truth,
+                    err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
+                        source, request, ci, truth
+                    ),
+                )
+
+    def test_nn_selector(self):
+        interp = InterpolationManager("nearest")
+        for request in self.coords:
+            for source in self.coords:
+                if "fine" in request and "fine" in source:
+                    continue
+                if "coarse" in request and "coarse" in source:
+                    continue
+                if "coarse" in request and "fine" in source:
+                    truth = self.nn_request_coarse_from_fine
+                if "fine" in request and "coarse" in source:
+                    truth = self.nn_request_fine_from_coarse
+
+                c, ci = interp.select_coordinates(source, None, request)
+                np.testing.assert_array_equal(
+                    ci,
+                    truth,
+                    err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
+                        source, request, ci, truth
+                    ),
+                )
+
+    def test_bilinear_selector(self):
+        interp = InterpolationManager("bilinear")
+        for request in self.coords:
+            for source in self.coords:
+                if "fine" in request and "fine" in source:
+                    continue
+                if "coarse" in request and "coarse" in source:
+                    continue
+                if "coarse" in request and "fine" in source:
+                    truth = self.lin_request_coarse_from_fine
+                if "fine" in request and "coarse" in source:
+                    truth = self.lin_request_fine_from_coarse
+
+                c, ci = interp.select_coordinates(source, None, request)
+                np.testing.assert_array_equal(
+                    ci,
+                    truth,
+                    err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
+                        source, request, ci, truth
+                    ),
+                )
+
+    def test_linear_selector(self):
+        interp = InterpolationManager("linear")
+        for request in self.coords:
+            for source in self.coords:
+                if "fine" in request and "fine" in source:
+                    continue
+                if "coarse" in request and "coarse" in source:
+                    continue
+                if "coarse" in request and "fine" in source:
+                    truth = self.lin_request_coarse_from_fine
+                if "fine" in request and "coarse" in source:
+                    truth = self.lin_request_fine_from_coarse
+
+                c, ci = interp.select_coordinates(source, None, request)
+                np.testing.assert_array_equal(
+                    ci,
+                    truth,
+                    err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
+                        source, request, ci, truth
+                    ),
+                )
