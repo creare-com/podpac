@@ -227,7 +227,7 @@ class EGI(DataSource):
             raise e
 
         # run normal eval once self.data is prepared
-        return super(EGI, self).eval(coordinates, output=output, _selector=_selector)
+        return super(EGI, self)._eval(coordinates, output=output, _selector=_selector)
 
     ##########
     # Data I/O
