@@ -9,6 +9,7 @@ Test interpolation methods
 import pytest
 import traitlets as tl
 import numpy as np
+from numpy.testing import assert_array_equal
 
 import podpac
 from podpac.core.units import UnitsDataArray
@@ -76,3 +77,56 @@ class TestInterpolation(object):
         o = node.eval(self.coords2)
 
         np.testing.assert_array_equal(o.data, np.concatenate([self.s1.source, self.s2.source], axis=0))
+
+
+class TestInterpolationBehavior(object):
+    def test_linear_1D_issue411and413(self):
+        data = [0, 1, 2]
+        raw_coords = data.copy()
+        raw_e_coords = [0, 0.5, 1, 0.6, 2]
+        for dim in ["lat", "lon", "alt", "time"]:
+            ec = Coordinates([raw_e_coords], [dim])
+
+            arrb = ArrayBase(source=data, coordinates=Coordinates([raw_coords], [dim]))
+            node = Interpolate(source=arrb, interpolation="linear")
+            o = node.eval(ec)
+
+            assert np.all(o.data == raw_e_coords)
+
+    def test_stacked_coords_with_partial_dims_issue123(self):
+        node = Array(
+            source=[0, 1, 2],
+            coordinates=Coordinates(
+                [[[0, 2, 1], [10, 12, 11], ["2018-01-01", "2018-01-02", "2018-01-03"]]], dims=["lat_lon_time"]
+            ),
+            interpolation="nearest",
+        )
+
+        # unstacked or and stacked requests without time
+        o1 = node.eval(Coordinates([[0.5, 1.5], [10.5, 11.5]], dims=["lat", "lon"]))
+        o2 = node.eval(Coordinates([[[0.5, 1.5], [10.5, 11.5]]], dims=["lat_lon"]))
+
+        assert_array_equal(o1.data, [[0, 2], [2, 1]])
+        assert_array_equal(o2.data, [0, 1])
+
+        # request without lat or lon
+        o3 = node.eval(Coordinates(["2018-01-01"], dims=["time"]))
+        assert o3.data[0] == 0
+
+    def test_ignored_interpolation_params_issue340(self):
+        node = Array(
+            source=[0, 1, 2],
+            coordinates=Coordinates([[0, 2, 1]], dims=["time"]),
+            interpolation={"method": "nearest", "params": {"fake_param": 1.1}},
+        )
+        with pytest.warns(UserWarning, match="interpolation parameter 'fake_param' is ignored"):
+            node.eval(Coordinates([[0.5, 1.5]], ["time"]))
+
+    def test_silent_nearest_neighbor_interp_bug_issue412(self):
+        node = podpac.data.Array(
+            source=[0, 1, 2],
+            coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),
+            interpolation=[{"method": "bilinear", "dims": ["lat"]}],
+        )
+        o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
+        assert_array_equal(o.data, np.linspace(0, 2, 9))

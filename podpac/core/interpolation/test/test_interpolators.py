@@ -76,6 +76,35 @@ class TestNearest(object):
         # assert len(coords['lon']) == len(reqcoords['lon'])
         # assert np.all(coords['lat'].coordinates == np.array([0, 2, 4]))
 
+    def test_nearest_select_issue226(self):
+        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
+        srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
+
+        interp = InterpolationManager("nearest")
+
+        srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
+        coords, cidx = interp.select_coordinates(srccoords, srccoords_index, reqcoords)
+
+        assert len(coords) == len(srccoords) == len(cidx)
+        assert len(coords["lat"]) == len(reqcoords["lat"])
+        assert len(coords["lon"]) == len(reqcoords["lon"])
+        assert np.all(coords["lat"].coordinates == np.array([0, 2, 4]))
+
+        # test when selection is applied serially
+        # this is equivalent to above
+        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
+        srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
+
+        interp = InterpolationManager([{"method": "nearest", "dims": ["lat"]}, {"method": "nearest", "dims": ["lon"]}])
+
+        srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
+        coords, cidx = interp.select_coordinates(srccoords, srccoords_index, reqcoords)
+
+        assert len(coords) == len(srccoords) == len(cidx)
+        assert len(coords["lat"]) == len(reqcoords["lat"])
+        assert len(coords["lon"]) == len(reqcoords["lon"])
+        assert np.all(coords["lat"].coordinates == np.array([0, 2, 4]))
+
     def test_interpolation(self):
 
         for interpolation in ["nearest", "nearest_preview"]:

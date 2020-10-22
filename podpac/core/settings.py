@@ -30,7 +30,7 @@ DEFAULT_SETTINGS = {
     "N_THREADS": 8,
     "CHUNK_SIZE": None,  # Size of chunks for parallel processing or large arrays that do not fit in memory
     "ENABLE_UNITS": True,
-    "DEFAULT_CRS": "EPSG:4326",
+    "DEFAULT_CRS": "+proj=longlat +datum=WGS84 +no_defs +vunits=m",  # EPSG:4326 with vertical units as meters
     "PODPAC_VERSION": version.semver(),
     "UNSAFE_EVAL_HASH": uuid.uuid4().hex,  # unique id for running unsafe evaluations
     # cache
