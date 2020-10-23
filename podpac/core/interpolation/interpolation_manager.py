@@ -111,8 +111,6 @@ class InterpolationManager(object):
         self.config = OrderedDict()
 
         # if definition is None, set to default
-        # TODO: do we want to always have a default for interpolation?
-        # Or should there be an option to turn off interpolation?
         if self.definition is None:
             self.definition = INTERPOLATION_DEFAULT
 
@@ -486,10 +484,10 @@ class InterpolationManager(object):
                 )
             return output_data
 
-        # drop already-selected output variable
-        if "output" in output_data.coords:
-            source_data = source_data.drop("output")
-            output_data = output_data.drop("output")
+        ## drop already-selected output variable
+        # if "output" in output_data.coords:
+        # source_data = source_data.drop("output")
+        # output_data = output_data.drop("output")
 
         # TODO does this allow undesired extrapolation?
         # short circuit if the source data and requested coordinates are of shape == 1
@@ -500,7 +498,9 @@ class InterpolationManager(object):
         # short circuit if source_coordinates contains eval_coordinates
         if eval_coordinates.issubset(source_coordinates):
             try:
-                output_data.data[:] = source_data.sel(output_data.coords, method="nearest").transpose(*output_data.dims)
+                output_data.data[:] = source_data.interp(output_data.coords, method="nearest").transpose(
+                    *output_data.dims
+                )
             except NotImplementedError:
                 output_data.data[:] = source_data.sel(output_data.coords).transpose(*output_data.dims)
             return output_data
