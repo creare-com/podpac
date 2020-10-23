@@ -76,3 +76,12 @@ class Selector(tl.HasTraits):
         ckdtree_source = cKDTree(source.coordinates[:, None])
         _, inds = ckdtree_source.query(crds.coordinates[:, None], k=1)
         return np.sort(np.unique(inds))
+
+    def select_stacked(self, source, request):
+        udims = [ud for ud in source.udims if ud in request.udims]
+        src_coords = np.stack([source[ud] for ud in udims], axis=1)
+        req_coords_diag = np.stack([request[ud] for ud in udims], axis=1)
+        ckdtree_source = cKDTree(src_coords)
+        _, inds = ckdtree_source.query(crds.coordinates[:, None], k=1)
+        if inds.size == source.size:
+            return
