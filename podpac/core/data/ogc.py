@@ -80,6 +80,18 @@ class WCSBase(DataSource):
         return Coordinates(coords, crs=self.crs)
 
     def _eval(self, coordinates, output=None, _selector=None):
+        # TODO finish reorganizing this
+
+        # for a uniform stacked, unstacked to use the requested coordinates (the WCS server will interpolate)
+        if "lat_lon" in coordinates.dims and coordinates["lat"].is_uniform and coordinates["lon"].is_uniform:
+
+            def selector(rsc, rsci, coordinates):
+                unstacked = coordinates.unstack()
+                return unstacked, tuple(slice(None) for dim in unstacked)
+
+            output = super()._eval(coordinates, output=None, _selector=selector)
+            return self.create_output_array(coordinates, data=output.data.diagonal())
+
         def selector(rsc, rsci, coordinates):
             # for a uniform grid, use the requested coordinates (the WCS server will interpolate)
             if (
@@ -90,7 +102,7 @@ class WCSBase(DataSource):
             ):
                 return coordinates, tuple(slice(None) for dim in coordinates)
 
-            # otherwise, use the selector or pass through the requested coordinates
+            # otherwise, use the selector or pass through the necessary source coordinates
             elif _selector:
                 return _selector(rsc, rsci, coordinates)
             else:

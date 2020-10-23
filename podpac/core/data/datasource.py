@@ -163,11 +163,13 @@ class DataSource(Node):
     # privates
     _coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
 
-    _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
-    _requested_source_coordinates = tl.Instance(Coordinates)
-    _requested_source_coordinates_index = tl.Tuple()
-    _requested_source_data = tl.Instance(UnitsDataArray)
-    _evaluated_coordinates = tl.Instance(Coordinates)
+    if settings["DEBUG"]:
+        _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
+        _requested_source_coordinates = tl.Instance(Coordinates)
+        _requested_source_coordinates_index = tl.Tuple()
+        _requested_source_boundary = tl.Dict()
+        _requested_source_data = tl.Instance(UnitsDataArray)
+        _evaluated_coordinates = tl.Instance(Coordinates)
 
     @tl.validate("boundary")
     def _validate_boundary(self, d):
@@ -338,73 +340,80 @@ class DataSource(Node):
         ]
         coordinates = coordinates.drop(extra)
 
-        # store input coordinates to evaluated coordinates
-        self._evaluated_coordinates = deepcopy(coordinates)
+        requested_crs = coordinates.crs
+        requested_dims_order = coordinates.dims
 
         # transform coordinates into native crs if different
         if self.coordinates.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(self.coordinates.crs)
 
-        # intersect the coordinates with requested coordinates to get coordinates within requested coordinates bounds
+        # get source coordinates that are within the requested coordinates bounds
         (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
 
-        self._requested_source_coordinates = rsc
-        self._requested_source_coordinates_index = rsci
-
         # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
-        if self._requested_source_coordinates.size == 0:
+        if rsc.size == 0:
             if output is None:
-                output = self.create_output_array(self._evaluated_coordinates)
+                output = self.create_output_array(coordinates)
                 if "output" in output.dims and self.output is not None:
                     output = output.sel(output=self.output)
             else:
                 output[:] = np.nan
+
+            if settings["DEBUG"]:
+                self._evaluated_coordinates = coordinates
+                self._requested_source_coordinates = rsc
+                self._requested_source_coordinates_index = rsci
+                self._requested_source_boundary = None
+                self._requested_source_data = None
+                self._output = output
+
             return output
 
         # Use the selector
         if _selector is not None:
             (rsc, rsci) = _selector(rsc, rsci, coordinates)
-            self._requested_source_coordinates = rsc
-            self._requested_source_coordinates_index = rsci
 
         # Check the coordinate_index_type
         if self.coordinate_index_type == "slice":  # Most restrictive
             new_rsci = []
-            for rsci in self._requested_source_coordinates_index:
-                if isinstance(rsci, slice):
-                    new_rsci.append(rsci)
+            for index in rsci:
+                if isinstance(index, slice):
+                    new_rsci.append(index)
                     continue
 
-                if len(rsci) > 1:
-                    mx, mn = np.max(rsci), np.min(rsci)
-                    df = np.diff(rsci)
+                if len(index) > 1:
+                    mx, mn = np.max(index), np.min(index)
+                    df = np.diff(index)
                     if np.all(df == df[0]):
                         step = df[0]
                     else:
                         step = 1
                     new_rsci.append(slice(mn, mx + 1, step))
                 else:
-                    new_rsci.append(slice(np.max(rsci), np.max(rsci) + 1))
+                    new_rsci.append(slice(np.max(index), np.max(index) + 1))
 
-            self._requested_source_coordinates_index = tuple(new_rsci)
+            rsci = tuple(new_rsci)
 
         # get data from data source
-        self._requested_source_data = self._get_data(
-            self._requested_source_coordinates, self._requested_source_coordinates_index
-        )
+        rsd = self._get_data(rsc, rsci)
 
-        data = self._requested_source_data.part_transpose(self._evaluated_coordinates.dims)
+        data = rsd.part_transpose(self._evaluated_coordinates.dims)
         if output is None:
             output = data
         else:
             output.data[:] = data.data
 
         # get indexed boundary
-        self._requested_source_boundary = self._get_boundary(self._requested_source_coordinates_index)
-        output.attrs["boundary_data"] = self._requested_source_boundary
+        rsb = self._get_boundary(rsci)
+        output.attrs["boundary_data"] = rsb
 
         # save output to private for debugging
         if settings["DEBUG"]:
+            self._evaluated_coordinates = coordinates
+            self._requested_source_coordinates = rsc
+            self._requested_source_coordinates_index = rsci
+            self._requested_source_boundary = rsb
+            self._requested_source_data = rsd
             self._output = output
 
         return output
