@@ -344,7 +344,7 @@ class DataSource(Node):
         if self.coordinates.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(self.coordinates.crs)
 
-        # intersect the coordinates with source coordinates to get coordinates within source coordinates bounds
+        # get source coordinates that are within the requested coordinates bounds
         (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
 
         # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
