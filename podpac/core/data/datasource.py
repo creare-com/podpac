@@ -340,6 +340,9 @@ class DataSource(Node):
         ]
         coordinates = coordinates.drop(extra)
 
+        requested_crs = coordinates.crs
+        requested_dims_order = coordinates.dims
+
         # transform coordinates into native crs if different
         if self.coordinates.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(self.coordinates.crs)
@@ -357,7 +360,7 @@ class DataSource(Node):
                 output[:] = np.nan
 
             if settings["DEBUG"]:
-                self._evaluated_coordinates = deepcopy(coordinates)
+                self._evaluated_coordinates = coordinates
                 self._requested_source_coordinates = rsc
                 self._requested_source_coordinates_index = rsci
                 self._requested_source_boundary = None
@@ -397,9 +400,9 @@ class DataSource(Node):
         # if not provided, create output using the evaluated coordinates, or
         # if provided, set the order of coordinates to match the output dims
         if output is None:
-            output = rsd.part_transpose(coordinates.dims)
+            output = rsd.part_transpose(requested_dims_order)
         else:
-            output.data[:] = rsd.part_transpose(coordinates.dims).data
+            output.data[:] = rsd.part_transpose(requested_dims_order).data
 
         # get indexed boundary
         rsb = self._get_boundary(rsci)
@@ -407,7 +410,7 @@ class DataSource(Node):
 
         # save output to private for debugging
         if settings["DEBUG"]:
-            self._evaluated_coordinates = deepcopy(coordinates)
+            self._evaluated_coordinates = coordinates
             self._requested_source_coordinates = rsc
             self._requested_source_coordinates_index = rsci
             self._requested_source_boundary = rsb
