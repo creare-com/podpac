@@ -14,10 +14,11 @@ import traitlets as tl
 
 from podpac.core.settings import settings
 from podpac.core.utils import common_doc, cached_property
+from podpac.core.data.datasource import DataSource
+from podpac.core.interpolation.interpolation import InterpolationMixin
 from podpac.core.node import Node, NodeException
 from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import StackedCoordinates, Coordinates1d, UniformCoordinates1d, ArrayCoordinates1d
-
 
 # Optional dependencies
 from lazy_import import lazy_module, lazy_class
@@ -28,15 +29,20 @@ owslib_wcs = lazy_module("owslib.wcs")
 rasterio = lazy_module("rasterio")
 
 
-class WCS2Error(NodeException):
+# TODO time coordinates (need to find a WCS source for this)
+# TODO crs
+# TODO tests
+# TODO max_size (or is this something a particular composited data source should handle?)
+
+
+class WCSError(NodeException):
     pass
 
 
-class WCS(Node):
+class WCSBase(DataSource):
     source = tl.Unicode().tag(attr=True)
     layer = tl.Unicode().tag(attr=True)
-    version = tl.Unicode(default_value="1.0.0.").tag(attr=True)  # TODO 1.0.0 deprecated?
-    # interpolation = tl.Unicode().tag(attr=True) # TODO
+    version = tl.Unicode(default_value="1.0.0").tag(attr=True)  # TODO 1.0.0 deprecated?
 
     # max_size = tl.Long(default_value=None, allow_none=True) # TODO
     format = tl.Unicode(default_value="geotiff")
@@ -51,11 +57,10 @@ class WCS(Node):
     def client(self):
         return owslib_wcs.WebCoverageService(self.source, version=self.version)
 
-    @cached_property
-    def coordinates(self):
-        # TODO select correct boundingbox by crs?
-
+    def get_coordinates(self):
         metadata = self.client.contents[self.layer]
+
+        # TODO select correct boundingbox by crs
 
         # coordinates
         w, s, e, n = metadata.boundingBoxWGS84
@@ -69,49 +74,35 @@ class WCS(Node):
         coords.append(UniformCoordinates1d(w, e, size=xsize, name="lon"))
 
         if metadata.timepositions or metadata.timelimits:
-            import pdb
-
-            pdb.set_trace()  # breakpoint 8546c30e //
+            # TODO
+            raise NotImplemented("TODO")
 
         return Coordinates(coords, crs=self.crs)
 
     def _eval(self, coordinates, output=None, _selector=None):
+        def selector(rsc, rsci, coordinates):
+            # for a uniform grid, use the requested coordinates (the WCS server will interpolate)
+            if (
+                "lat" in coordinates.dims
+                and "lon" in coordinates.dims
+                and coordinates["lat"].is_uniform
+                and coordinates["lon"].is_uniform
+            ):
+                return coordinates, tuple(slice(None) for dim in coordinates)
+
+            # otherwise, use the selector or pass through the requested coordinates
+            elif _selector:
+                return _selector(rsc, rsci, coordinates)
+            else:
+                return rsc, rsci
+
+        return super()._eval(coordinates, output=None, _selector=selector)
+
+    def _get_data(self, coordinates, coordinates_index):
         """{get_data}
 
         """
 
-        # store requested coordinates for debugging
-        if settings["DEBUG"]:
-            self._requested_coordinates = coordinates
-
-        # check for missing dimensions
-        for dim in self.coordinates:
-            if dim not in coordinates.udims:
-                raise ValueError("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
-
-        # remove extra dimensions
-        extra = [
-            c.name
-            for c in coordinates.values()
-            if (isinstance(c, Coordinates1d) and c.name not in self.coordinates.udims)
-            or (isinstance(c, StackedCoordinates) and all(dim not in self.coordinates.udims for dim in c.dims))
-        ]
-        coordinates = coordinates.drop(extra)
-
-        # store input coordinates to evaluated coordinates
-        self._evaluated_coordinates = deepcopy(coordinates)
-
-        # transform coordinates into native crs if different
-        if self.coordinates.crs.lower() != coordinates.crs.lower():
-            coordinates = coordinates.transform(self.coordinates.crs)
-
-        # -------------------------------------------------------------------------------------------------------------
-        # the following section deviates from the Datasource node
-        # (no coordinates intersection or selection)
-        # -------------------------------------------------------------------------------------------------------------
-
-        # TODO stacked coordinates
-        # TODO time
         coordinates = coordinates.transpose("lat", "lon")
 
         w = coordinates["lon"].start - coordinates["lon"].step / 2.0
@@ -121,6 +112,10 @@ class WCS(Node):
         width = coordinates["lon"].size
         height = coordinates["lat"].size
 
+        kwargs = {}
+        if isinstance(self.interpolation, str):
+            kwargs["interpolation"] = self.interpolation
+
         response = self.client.getCoverage(
             identifier=self.layer,
             bbox=(w, n, e, s),
@@ -129,6 +124,7 @@ class WCS(Node):
             crs=self.crs,
             format=self.format,
             version=self.version,
+            **kwargs
         )
         content = response.read()
 
@@ -136,7 +132,7 @@ class WCS(Node):
         xml = bs4.BeautifulSoup(content, "lxml")
         error = xml.find("serviceexception")
         if error:
-            raise WCS2Error(error.text)
+            raise WCSError(error.text)
 
         # get data using rasterio
         with rasterio.MemoryFile() as mf:
@@ -144,26 +140,13 @@ class WCS(Node):
             dataset = mf.open(driver="GTiff")
 
         data = dataset.read(1).astype(float)
-        data[np.isin(data, dataset.nodatavals)] = np.nan
-
-        # -------------------------------------------------------------------------------------------------------------
-        # the above section deviates from the Datasource node
-        # -------------------------------------------------------------------------------------------------------------
-
-        data = self.create_output_array(coordinates, data=data)
-        data = data.part_transpose(self._evaluated_coordinates.dims)
-        if output is None:
-            output = data
-        else:
-            output.data[:] = data.data
-
-        # save output to private for debugging
-        if settings["DEBUG"]:
-            self._output = output
-
-        return output
+        return self.create_output_array(coordinates, data=data)
 
     @staticmethod
     def get_layers(source):
         client = owslib_wcs.WebCoverageService(source)
         return list(client.contents)
+
+
+class WCS(InterpolationMixin, WCSBase):
+    pass

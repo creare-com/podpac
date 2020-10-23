@@ -364,6 +364,8 @@ class DataSource(Node):
         # Use the selector
         if _selector is not None:
             (rsc, rsci) = _selector(rsc, rsci, coordinates)
+            self._requested_source_coordinates = rsc
+            self._requested_source_coordinates_index = rsci
 
         # Check the coordinate_index_type
         if self.coordinate_index_type == "slice":  # Most restrictive
