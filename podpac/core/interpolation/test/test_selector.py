@@ -73,7 +73,7 @@ class TestSelector(object):
                                 [[d, d2, d3, d4]],
                             )
 
-    def test_nn_selector(self):
+    def test_nn_nonmonotonic_selector(self):
         selector = Selector("nearest")
         for request in ["lat_coarse", "lat_fine"]:
             for source in ["lat_random_fine", "lat_random_coarse"]:
@@ -90,17 +90,70 @@ class TestSelector(object):
                 req_coords = Coordinates([getattr(self, request)], ["lat"])
                 c, ci = selector.select(src_coords, req_coords)
                 np.testing.assert_array_equal(
-                    set(ci),
-                    truth,
+                    ci,
+                    (np.array(list(truth)),),
+                    err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
+                        source, request, ci, list(truth)
+                    ),
+                )
+
+    def test_linear_selector(self):
+        selector = Selector("linear")
+        for request in self.coords:
+            for source in self.coords:
+                dims = [d for d in self.coords[source].udims if d in self.coords[request].udims]
+                if len(dims) == 0:
+                    continue  # Invalid combination
+                if "fine" in request and "fine" in source:
+                    continue
+                if "coarse" in request and "coarse" in source:
+                    continue
+                if "coarse" in request and "fine" in source:
+                    truth = self.lin_request_coarse_from_fine
+                if "fine" in request and "coarse" in source:
+                    truth = self.lin_request_fine_from_coarse
+
+                c, ci = selector.select(self.coords[source], self.coords[request])
+                np.testing.assert_array_equal(
+                    ci,
+                    (np.array(truth),),
                     err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
                         source, request, ci, truth
                     ),
                 )
 
-    def test_nn_nonmonotonic_selector(self):
+    def test_bilinear_selector(self):
+        selector = Selector("bilinear")
+        for request in self.coords:
+            for source in self.coords:
+                dims = [d for d in self.coords[source].udims if d in self.coords[request].udims]
+                if len(dims) == 0:
+                    continue  # Invalid combination
+                if "fine" in request and "fine" in source:
+                    continue
+                if "coarse" in request and "coarse" in source:
+                    continue
+                if "coarse" in request and "fine" in source:
+                    truth = self.lin_request_coarse_from_fine
+                if "fine" in request and "coarse" in source:
+                    truth = self.lin_request_fine_from_coarse
+
+                c, ci = selector.select(self.coords[source], self.coords[request])
+                np.testing.assert_array_equal(
+                    ci,
+                    (np.array(truth),),
+                    err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
+                        source, request, ci, truth
+                    ),
+                )
+
+    def test_nn_selector(self):
         selector = Selector("nearest")
         for request in self.coords:
             for source in self.coords:
+                dims = [d for d in self.coords[source].udims if d in self.coords[request].udims]
+                if len(dims) == 0:
+                    continue  # Invalid combination
                 if "fine" in request and "fine" in source:
                     continue
                 if "coarse" in request and "coarse" in source:
@@ -113,51 +166,7 @@ class TestSelector(object):
                 c, ci = selector.select(self.coords[source], self.coords[request])
                 np.testing.assert_array_equal(
                     ci,
-                    truth,
-                    err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
-                        source, request, ci, truth
-                    ),
-                )
-
-    def test_bilinear_selector(self):
-        selector = Selector("bilinear")
-        for request in self.coords:
-            for source in self.coords:
-                if "fine" in request and "fine" in source:
-                    continue
-                if "coarse" in request and "coarse" in source:
-                    continue
-                if "coarse" in request and "fine" in source:
-                    truth = self.lin_request_coarse_from_fine
-                if "fine" in request and "coarse" in source:
-                    truth = self.lin_request_fine_from_coarse
-
-                c, ci = selector.select(self.coords[source], self.coords[request])
-                np.testing.assert_array_equal(
-                    ci,
-                    truth,
-                    err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
-                        source, request, ci, truth
-                    ),
-                )
-
-    def test_linear_selector(self):
-        selector = Selector("linear")
-        for request in self.coords:
-            for source in self.coords:
-                if "fine" in request and "fine" in source:
-                    continue
-                if "coarse" in request and "coarse" in source:
-                    continue
-                if "coarse" in request and "fine" in source:
-                    truth = self.lin_request_coarse_from_fine
-                if "fine" in request and "coarse" in source:
-                    truth = self.lin_request_fine_from_coarse
-
-                c, ci = selector.select(self.coords[source], self.coords[request])
-                np.testing.assert_array_equal(
-                    ci,
-                    truth,
+                    (np.array(truth),),
                     err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
                         source, request, ci, truth
                     ),
@@ -170,26 +179,12 @@ class TestSelector(object):
         selector = Selector("nearest")
 
         c, ci = selector.select(fine, coarse)
-        assert np.testing.assert_array_equal(
-            ci, np.ix_(self.nn_request_coarse_from_fine, self.nn_request_coarse_from_fine)
-        )
+        for cci, trth in zip(ci, np.ix_(self.nn_request_coarse_from_fine, self.nn_request_coarse_from_fine)):
+            np.testing.assert_array_equal(cci, trth)
 
         c, ci = selector.select(coarse, fine)
-        assert np.testing.assert_array_equal(
-            ci, np.ix_(self.nn_request_fine_from_coarse, self.nn_request_fine_from_coarse)
-        )
-
-    def test_uniform2uniform(self):
-        fine = Coordinates([self.lat_fine, self.lon_fine], ["lat", "lon"])
-        coarse = Coordinates([self.lat_coarse, self.lon_coarse], ["lat", "lon"])
-
-        selector = Selector("nearest")
-
-        c, ci = selector.select(fine, coarse)
-        np.testing.assert_array_equal(ci, np.ix_(self.nn_request_coarse_from_fine, self.nn_request_coarse_from_fine))
-
-        c, ci = selector.select(coarse, fine)
-        np.testing.assert_array_equal(ci, np.ix_(self.nn_request_fine_from_coarse, self.nn_request_fine_from_coarse))
+        for cci, trth in zip(ci, np.ix_(self.nn_request_fine_from_coarse, self.nn_request_fine_from_coarse)):
+            np.testing.assert_array_equal(cci, trth)
 
     def test_point2uniform(self):
         u_fine = Coordinates([self.lat_fine, self.lon_fine], ["lat", "lon"])
@@ -207,7 +202,12 @@ class TestSelector(object):
         np.testing.assert_array_equal(ci, (self.nn_request_fine_from_coarse, self.nn_request_fine_from_coarse))
 
         c, ci = selector.select(p_fine, u_coarse)
-        np.testing.assert_array_equal(ci, self.nn_request_coarse_from_fine)
+        np.testing.assert_array_equal(ci, (self.nn_request_coarse_from_fine,))
 
         c, ci = selector.select(p_coarse, u_fine)
-        np.testing.assert_array_equal(ci, self.nn_request_fine_from_coarse)
+        np.testing.assert_array_equal(ci, (self.nn_request_fine_from_coarse,))
+
+        # Respect bounds
+        selector.respect_bounds = True
+        c, ci = selector.select(u_fine, p_coarse)
+        np.testing.assert_array_equal(ci, (self.nn_request_coarse_from_fine, self.nn_request_coarse_from_fine))

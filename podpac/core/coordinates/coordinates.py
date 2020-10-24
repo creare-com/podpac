@@ -1463,6 +1463,13 @@ class Coordinates(tl.HasTraits):
 
         return all(c.issubset(other) for c in self.values())
 
+    def is_stacked(self, dim):
+        if dim not in self.udims:
+            raise ValueError("Dimension {} is not in self.dims={}".format(dim, self.dims))
+        elif dim not in self.dims:
+            return True
+        return False
+
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods
     # ------------------------------------------------------------------------------------------------------------------

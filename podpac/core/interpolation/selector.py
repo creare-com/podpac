@@ -5,7 +5,7 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
-from podpac.core.coordinates.coordinates import merge_dims
+from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 METHOD = {"nearest": [0], "bilinear": [-1, 1], "linear": [-1, 1], "cubic": [-2, -1, 1, 2]}
@@ -14,6 +14,7 @@ METHOD = {"nearest": [0], "bilinear": [-1, 1], "linear": [-1, 1], "cubic": [-2, 
 class Selector(tl.HasTraits):
 
     method = tl.Tuple()
+    respect_bounds = tl.Bool(False)
 
     def __init__(self, method=None):
         """
@@ -29,31 +30,53 @@ class Selector(tl.HasTraits):
 
     def select(self, source_coords, request_coords):
         coords = []
-        coords_ids = []
+        coords_inds = []
         for coord1d in source_coords._coords.values():
             c, ci = self.select1d(coord1d, request_coords)
             coords.append(c)
             coords_inds.append(ci)
-        coords = merge_dims(coords)
+        coords = Coordinates(coords)
         coords_inds = self.merge_indices(coords_inds, source_coords.dims, request_coords.dims)
+        return coords, coords_inds
 
     def select1d(self, source, request):
         if isinstance(source, StackedCoordinates):
-            return self.select_stacked(source, request)
+            ci = self.select_stacked(source, request)
         elif source.is_uniform:
-            return self.select_uniform(source, request)
-        elif source.is_monotonic:
-            return self.select_monotonic(source, request)
+            ci = self.select_uniform(source, request)
         else:
-            _logger.info("Coordinates are not subselected for source {} with request {}".format(source, request))
-            return source, slice(0, None)
+            ci = self.select_nonuniform(source, request)
+        # else:
+        # _logger.info("Coordinates are not subselected for source {} with request {}".format(source, request))
+        # return source, slice(0, None)
+        return source[ci], ci
 
     def merge_indices(self, indices, source_dims, request_dims):
-        return tuple(indices)
+        ind = []
+        for j, d in enumerate(source_dims):
+            sd = d.split("_")
+            for ssd in sd:
+                found = False
+                for i, rd in enumerate(request_dims):
+                    if ssd in rd:
+                        ind.append(i)
+                        found = True
+                        # Get unique sorted indices UNLESS:
+                        #     the request IS stacked the source IS NOT stacked
+                        # if not (("_" in rd) and ("_" not in d)):
+                        indices[j] = np.sort(np.unique(indices[j]))
+                        break
+                if found:
+                    break
+
+        reshape = [[1 for i in range(max(ind) + 1)] for j in range(len(source_dims))]
+        for i, r in zip(ind, reshape):
+            r[i] = -1
+        return tuple([np.array(ind).reshape(*reshp) for ind, reshp in zip(indices, reshape)])
 
     def select_uniform(self, source, request):
         crds = request[source.name]
-        if crds.is_uniform and crds.step < source.step:
+        if crds.is_uniform and crds.step < source.step and not request.is_stacked(source.name):
             return np.arange(source.size)
 
         index = (crds.coordinates - source.start) / source.step
@@ -69,19 +92,46 @@ class Selector(tl.HasTraits):
             inds.append(base + sign * (sign * m - 1))
 
         inds = np.stack(inds, axis=1).ravel().astype(int)
-        return inds[(inds >= 0) & (inds <= stop_ind)]
+        inds = inds[(inds >= 0) & (inds <= stop_ind)]
+        return inds
 
-    def select_monotonic(self, source, request):
+    def select_nonuniform(self, source, request):
         crds = request[source.name]
         ckdtree_source = cKDTree(source.coordinates[:, None])
-        _, inds = ckdtree_source.query(crds.coordinates[:, None], k=1)
-        return np.sort(np.unique(inds))
+        _, inds = ckdtree_source.query(crds.coordinates[:, None], k=len(self.method))
+        return inds.ravel()
 
     def select_stacked(self, source, request):
         udims = [ud for ud in source.udims if ud in request.udims]
-        src_coords = np.stack([source[ud] for ud in udims], axis=1)
-        req_coords_diag = np.stack([request[ud] for ud in udims], axis=1)
+        src_coords = np.stack([source[ud].coordinates for ud in udims], axis=1)
+        req_coords_diag = np.stack([request[ud].coordinates for ud in udims], axis=1)
         ckdtree_source = cKDTree(src_coords)
-        _, inds = ckdtree_source.query(crds.coordinates[:, None], k=1)
-        if inds.size == source.size:
-            return
+        _, inds = ckdtree_source.query(req_coords_diag, k=len(self.method))
+        inds = inds.ravel()
+
+        if np.unique(inds).size == source.size:
+            return inds
+
+        if len(udims) == 1:
+            return inds
+
+        # if the udims are all stacked in the same stack as part of the request coordinates, then we're done.
+        # Otherwise we have to evaluate each unstacked set of dimensions independently
+        indep_evals = [ud for ud in udims if not request.is_stacked(ud)]
+        # two udims could be stacked, but in different dim groups, e.g. source (lat, lon), request (lat, time), (lon, alt)
+        stacked = {d for d in request.dims for ud in udims if ud in d and request.is_stacked(ud)}
+
+        if (len(indep_evals) + len(stacked)) <= 1:
+            return inds
+
+        stacked_ud = [d for s in stacked for d in s.split("_") if d in udims]
+
+        c_evals = indep_evals + stacked_ud
+        # Since the request are for independent dimensions (we know that already) the order doesn't matter
+        inds = [set(self.select1d(source[ce], request)[1]) for ce in c_evals]
+
+        if self.respect_bounds:
+            inds = np.array(list(set.intersection(*inds)), int)
+        else:
+            inds = np.sort(np.array(list(set.union(*inds)), int))
+        return inds
