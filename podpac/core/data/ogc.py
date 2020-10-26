@@ -33,6 +33,7 @@ rasterio = lazy_module("rasterio")
 # TODO crs
 # TODO tests
 # TODO max_size (or is this something a particular composited data source should handle?)
+# TODO resolution? (override the coordinates shape)
 
 
 class WCSError(NodeException):
@@ -80,35 +81,63 @@ class WCSBase(DataSource):
         return Coordinates(coords, crs=self.crs)
 
     def _eval(self, coordinates, output=None, _selector=None):
-        # TODO finish reorganizing this
+        """Evaluates this node using the supplied coordinates.
 
-        # for a uniform stacked, unstacked to use the requested coordinates (the WCS server will interpolate)
+        This method intercepts the DataSource._eval method in order to use the requested coordinates directly when
+        they are a uniform grid.
+
+        Parameters
+        ----------
+        coordinates : :class:`podpac.Coordinates`
+            {requested_coordinates}
+
+            An exception is raised if the requested coordinates are missing dimensions in the DataSource.
+            Extra dimensions in the requested coordinates are dropped.
+        output : :class:`podpac.UnitsDataArray`, optional
+            {eval_output}
+        _selector: callable(coordinates, request_coordinates)
+            {eval_selector}
+
+        Returns
+        -------
+        {eval_return}
+
+        Raises
+        ------
+        ValueError
+            Cannot evaluate these coordinates
+        """
+
+        # for a uniform grid, use the requested coordinates (the WCS server will interpolate)
+        if (
+            "lat" in coordinates.dims
+            and "lon" in coordinates.dims
+            and coordinates["lat"].is_uniform
+            and coordinates["lon"].is_uniform
+        ):
+
+            def selector(rsc, rsci, coordinates):
+                return coordinates, tuple(slice(None) for dim in coordinates)
+
+            return super()._eval(coordinates, output=output, _selector=selector)
+
+        # for uniform stacked, unstack to use the requested coordinates (the WCS server will interpolate)
         if "lat_lon" in coordinates.dims and coordinates["lat"].is_uniform and coordinates["lon"].is_uniform:
 
             def selector(rsc, rsci, coordinates):
                 unstacked = coordinates.unstack()
                 return unstacked, tuple(slice(None) for dim in unstacked)
 
-            output = super()._eval(coordinates, output=None, _selector=selector)
-            return self.create_output_array(coordinates, data=output.data.diagonal())
-
-        def selector(rsc, rsci, coordinates):
-            # for a uniform grid, use the requested coordinates (the WCS server will interpolate)
-            if (
-                "lat" in coordinates.dims
-                and "lon" in coordinates.dims
-                and coordinates["lat"].is_uniform
-                and coordinates["lon"].is_uniform
-            ):
-                return coordinates, tuple(slice(None) for dim in coordinates)
-
-            # otherwise, use the selector or pass through the necessary source coordinates
-            elif _selector:
-                return _selector(rsc, rsci, coordinates)
+            udata = super()._eval(coordinates, output=None, _selector=selector)
+            data = udata.data.diagonal()  # get just the stacked data
+            if output is None:
+                output = self.create_output_array(coordinates, data=data)
             else:
-                return rsc, rsci
+                output.data[:] = data
+            return output
 
-        return super()._eval(coordinates, output=None, _selector=selector)
+        # otherwise, pass-through (podpac will select and interpolate)
+        return super()._eval(coordinates, output=output, _selector=_selector)
 
     def _get_data(self, coordinates, coordinates_index):
         """{get_data}

@@ -397,7 +397,7 @@ class DataSource(Node):
         # get data from data source
         rsd = self._get_data(rsc, rsci)
 
-        data = rsd.part_transpose(self._evaluated_coordinates.dims)
+        data = rsd.part_transpose(requested_dims_order)
         if output is None:
             output = data
         else:
