@@ -29,11 +29,9 @@ owslib_wcs = lazy_module("owslib.wcs")
 rasterio = lazy_module("rasterio")
 
 
-# TODO time coordinates (need to find a WCS source for this)
 # TODO crs
 # TODO tests
 # TODO max_size (or is this something a particular composited data source should handle?)
-# TODO resolution? (override the coordinates shape)
 
 
 class WCSError(NodeException):
@@ -43,7 +41,7 @@ class WCSError(NodeException):
 class WCSBase(DataSource):
     source = tl.Unicode().tag(attr=True)
     layer = tl.Unicode().tag(attr=True)
-    version = tl.Unicode(default_value="1.0.0").tag(attr=True)  # TODO 1.0.0 deprecated?
+    version = tl.Unicode(default_value="1.0.0").tag(attr=True)
 
     # max_size = tl.Long(default_value=None, allow_none=True) # TODO
     format = tl.Unicode(default_value="geotiff")
@@ -74,9 +72,11 @@ class WCSBase(DataSource):
         coords.append(UniformCoordinates1d(s, n, size=ysize, name="lat"))
         coords.append(UniformCoordinates1d(w, e, size=xsize, name="lon"))
 
-        if metadata.timepositions or metadata.timelimits:
-            # TODO
-            raise NotImplemented("TODO")
+        if metadata.timepositions:
+            coords.append(ArrayCoordinates1d(metadata.timepositions, name="time"))
+
+        if metadata.timelimits:
+            raise NotImplementedError("TODO")
 
         return Coordinates(coords, crs=self.crs)
 
@@ -144,8 +144,6 @@ class WCSBase(DataSource):
 
         """
 
-        coordinates = coordinates.transpose("lat", "lon")
-
         w = coordinates["lon"].start - coordinates["lon"].step / 2.0
         e = coordinates["lon"].stop + coordinates["lon"].step / 2.0
         s = coordinates["lat"].start - coordinates["lat"].step / 2.0
@@ -154,6 +152,10 @@ class WCSBase(DataSource):
         height = coordinates["lat"].size
 
         kwargs = {}
+
+        if "time" in coordinates:
+            kwargs["time"] = coordinates["time"].coordinates.astype(str).tolist()
+
         if isinstance(self.interpolation, str):
             kwargs["interpolation"] = self.interpolation
 
@@ -180,7 +182,20 @@ class WCSBase(DataSource):
             mf.write(content)
             dataset = mf.open(driver="GTiff")
 
+        if coordinates["time"].size > 1:
+            # this should be easy to do, I'm just not sure how the data comes back.
+            # is each time in a different band?
+            raise NotImplementedError("TODO")
+
         data = dataset.read(1).astype(float)
+
+        # align the data and the coordinates
+        if "time" in coordinates:
+            coordinates = coordinates.transpose("time", "lat", "lon")
+            data = np.array([data])
+        else:
+            coordinates = coordinates.transpose("lat", "lon")
+
         return self.create_output_array(coordinates, data=data)
 
     @staticmethod
