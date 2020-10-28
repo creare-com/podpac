@@ -94,3 +94,52 @@ class TestWCS(object):
         output = node.eval(c)
         assert output.shape == (100,)
         assert output.data.sum() == 14350.0
+
+
+@pytest.mark.integration
+class TestWCSIntegration(object):
+    source = "https://maps.isric.org/mapserv?map=/map/sand.map"
+
+    def setup_class(cls):
+        cls.node1 = WCSBase(source=cls.source, layer="sand_0-5cm_mean", format="geotiff_byte")
+
+        cls.node2 = WCS(source=cls.source, layer="sand_0-5cm_mean", format="geotiff_byte")
+
+    def test_coordinates(self):
+        self.node1.coordinates
+
+    def test_eval_grid(self):
+        c = COORDS
+        self.node1.eval(c)
+        self.node2.eval(c)
+
+    def test_eval_point(self):
+        c = COORDS[50, 50]
+        self.node1.eval(c)
+        self.node2.eval(c)
+
+    def test_eval_nonuniform(self):
+        c = COORDS[[0, 1, 3], [20, 10, 11]]
+        self.node1.eval(c)
+        self.node2.eval(c)
+
+    def test_eval_uniform_stacked(self):
+        c = podpac.Coordinates([[COORDS["lat"][::4], COORDS["lon"][::4]]], dims=["lat_lon"])
+        self.node1.eval(c)
+        self.node2.eval(c)
+
+    def test_eval_chunked(self):
+        node = WCSBase(source=self.source, layer="sand_0-5cm_mean", format="geotiff_byte", max_size=4000)
+        node.eval(COORDS)
+
+    def test_get_layers(self):
+        # most basic
+        layers = WCSBase.get_layers(self.source)
+        assert isinstance(layers, list)
+
+        # also works with nodes that have a builtin source
+        class WCSWithSource(WCSBase):
+            source = self.source
+
+        layers = WCSWithSource.get_layers()
+        assert isinstance(layers, list)
