@@ -4,6 +4,7 @@ OGC-compliant datasources over HTTP
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import logging
 from operator import mul
 from functools import reduce
 
@@ -23,6 +24,9 @@ bs4 = lazy_module("bs4")
 lxml = lazy_module("lxml")  # used by bs4 so want to check if it's available
 owslib_wcs = lazy_module("owslib.wcs")
 rasterio = lazy_module("rasterio")
+
+
+logger = logging.getLogger(__name__)
 
 
 class WCSError(NodeException):
@@ -217,6 +221,16 @@ class WCSBase(DataSource):
         if isinstance(self.interpolation, str):
             kwargs["interpolation"] = self.interpolation
 
+        logger.info(
+            "WCS GetCoverage (source=%s, layer=%s, bbox=%s, shape=%s)"
+            % (self.source, self.layer, (w, n, e, s), (width, height))
+        )
+
+        print(
+            "WCS GetCoverage (source=%s, layer=%s, bbox=%s, shape=%s)"
+            % (self.source, self.layer, (w, n, e, s), (width, height))
+        )
+
         response = self.client.getCoverage(
             identifier=self.layer,
             bbox=(w, n, e, s),
@@ -248,8 +262,10 @@ class WCSBase(DataSource):
         data = dataset.read(1).astype(float)
         return data
 
-    @staticmethod
-    def get_layers(source):
+    @classmethod
+    def get_layers(cls, source=None):
+        if source is None:
+            source = cls.source
         client = owslib_wcs.WebCoverageService(source)
         return list(client.contents)
 
