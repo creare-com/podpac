@@ -4,21 +4,17 @@ OGC-compliant datasources over HTTP
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import os
-import re
-from copy import deepcopy
-from io import BytesIO
+from operator import mul
+from functools import reduce
 
-import numpy as np
 import traitlets as tl
 
-from podpac.core.settings import settings
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import DataSource
 from podpac.core.interpolation.interpolation import InterpolationMixin
-from podpac.core.node import Node, NodeException
+from podpac.core.node import NodeException
 from podpac.core.coordinates import Coordinates
-from podpac.core.coordinates import StackedCoordinates, Coordinates1d, UniformCoordinates1d, ArrayCoordinates1d
+from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d
 
 # Optional dependencies
 from lazy_import import lazy_module, lazy_class
@@ -29,23 +25,40 @@ owslib_wcs = lazy_module("owslib.wcs")
 rasterio = lazy_module("rasterio")
 
 
-# TODO crs
-# TODO tests
-# TODO max_size (or is this something a particular composited data source should handle?)
-
-
 class WCSError(NodeException):
     pass
 
 
 class WCSBase(DataSource):
+    """
+    Access data from a WCS source.
+
+    Attributes
+    ----------
+    source : str
+        WCS server url
+    layer : str
+        layer name (required)
+    version : str
+        WCS version, passed through to all requests (default '1.0.0')
+    format : str
+        Data format, passed through to the GetCoverage requests (default 'geotiff')
+    crs : str
+        coordinate reference system, passed through to the GetCoverage requests (default 'EPSG:4326')
+    interpolation : str
+        Interpolation, passed through to the GetCoverage requests. 
+    max_size : int
+        maximum request size, optional.
+        If provided, the coordinates will be tiled into multiple requests.
+    """
+
     source = tl.Unicode().tag(attr=True)
     layer = tl.Unicode().tag(attr=True)
     version = tl.Unicode(default_value="1.0.0").tag(attr=True)
 
-    # max_size = tl.Long(default_value=None, allow_none=True) # TODO
     format = tl.Unicode(default_value="geotiff")
     crs = tl.Unicode(default_value="EPSG:4326")
+    max_size = tl.Long(default_value=None, allow_none=True)
 
     _repr_keys = ["source", "layer"]
 
@@ -57,6 +70,10 @@ class WCSBase(DataSource):
         return owslib_wcs.WebCoverageService(self.source, version=self.version)
 
     def get_coordinates(self):
+        """
+        Get the full WCS grid.
+        """
+
         metadata = self.client.contents[self.layer]
 
         # TODO select correct boundingbox by crs
@@ -144,10 +161,51 @@ class WCSBase(DataSource):
 
         """
 
-        w = coordinates["lon"].start - coordinates["lon"].step / 2.0
-        e = coordinates["lon"].stop + coordinates["lon"].step / 2.0
-        s = coordinates["lat"].start - coordinates["lat"].step / 2.0
-        n = coordinates["lat"].stop + coordinates["lat"].step / 2.0
+        # transpose the coordinates to match the response data
+        if "time" in coordinates:
+            coordinates = coordinates.transpose("time", "lat", "lon")
+        else:
+            coordinates = coordinates.transpose("lat", "lon")
+
+        # determine the chunk size (if applicable)
+        if self.max_size is not None:
+            shape = []
+            s = 1
+            for n in coordinates.shape:
+                r = self.max_size // s
+                if r == 0:
+                    shape.append(1)
+                elif r < n:
+                    shape.append(r)
+                else:
+                    shape.append(n)
+                s *= n
+            shape = tuple(shape)
+        else:
+            shape = coordinates.shape
+
+        # request each chunk and composite the data
+        output = self.create_output_array(coordinates)
+        for chunk, slc in coordinates.iterchunks(shape, return_slices=True):
+            output[slc] = self._get_chunk(chunk)
+
+        return output
+
+    def _get_chunk(self, coordinates):
+        if coordinates["lon"].size == 1:
+            w = coordinates["lon"].coordinates[0]
+            e = coordinates["lon"].coordinates[0]
+        else:
+            w = coordinates["lon"].start - coordinates["lon"].step / 2.0
+            e = coordinates["lon"].stop + coordinates["lon"].step / 2.0
+
+        if coordinates["lat"].size == 1:
+            s = coordinates["lat"].coordinates[0]
+            n = coordinates["lat"].coordinates[0]
+        else:
+            s = coordinates["lat"].start - coordinates["lat"].step / 2.0
+            n = coordinates["lat"].stop + coordinates["lat"].step / 2.0
+
         width = coordinates["lon"].size
         height = coordinates["lat"].size
 
@@ -182,21 +240,13 @@ class WCSBase(DataSource):
             mf.write(content)
             dataset = mf.open(driver="GTiff")
 
-        if coordinates["time"].size > 1:
+        if "time" in coordinates and coordinates["time"].size > 1:
             # this should be easy to do, I'm just not sure how the data comes back.
             # is each time in a different band?
             raise NotImplementedError("TODO")
 
         data = dataset.read(1).astype(float)
-
-        # align the data and the coordinates
-        if "time" in coordinates:
-            coordinates = coordinates.transpose("time", "lat", "lon")
-            data = np.array([data])
-        else:
-            coordinates = coordinates.transpose("lat", "lon")
-
-        return self.create_output_array(coordinates, data=data)
+        return data
 
     @staticmethod
     def get_layers(source):
