@@ -131,10 +131,9 @@ class WCSBase(DataSource):
 
         # for a uniform grid, use the requested coordinates (the WCS server will interpolate)
         if (
-            "lat" in coordinates.dims
-            and "lon" in coordinates.dims
-            and coordinates["lat"].is_uniform
-            and coordinates["lon"].is_uniform
+            ("lat" in coordinates.dims and "lon" in coordinates.dims)
+            and (coordinates["lat"].is_uniform or coordinates["lat"].size == 1)
+            and (coordinates["lon"].is_uniform or coordinates["lon"].size == 1)
         ):
 
             def selector(rsc, rsci, coordinates):
