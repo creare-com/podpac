@@ -226,11 +226,6 @@ class WCSBase(DataSource):
             % (self.source, self.layer, (w, n, e, s), (width, height))
         )
 
-        print(
-            "WCS GetCoverage (source=%s, layer=%s, bbox=%s, shape=%s)"
-            % (self.source, self.layer, (w, n, e, s), (width, height))
-        )
-
         response = self.client.getCoverage(
             identifier=self.layer,
             bbox=(w, n, e, s),
