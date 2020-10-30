@@ -13,8 +13,8 @@ class TestSelector(object):
     lat_random_coarse = [0.64, -0.25, 0.83]
     lon_coarse = lat_coarse + 1
     lon_fine = lat_fine + 1
-    time_coarse = lat_coarse + 2
-    time_fine = lat_fine + 2
+    time_coarse = clinspace("2020-01-01T12", "2020-01-02T12", 3)
+    time_fine = clinspace("2020-01-01T09:36", "2020-01-02T15:35", 8)
     alt_coarse = lat_coarse + 3
     alt_fine = lat_fine + 3
 

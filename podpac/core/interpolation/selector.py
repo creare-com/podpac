@@ -11,6 +11,26 @@ from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 METHOD = {"nearest": [0], "bilinear": [-1, 1], "linear": [-1, 1], "cubic": [-2, -1, 1, 2]}
 
 
+def _higher_precision_time_stack(coords0, coords1, dims):
+    crds0 = []
+    crds1 = []
+    for d in dims:
+        dtype0 = coords0[d].coordinates[0].dtype
+        dtype1 = coords1[d].coordinates[0].dtype
+        if not np.issubdtype(dtype0, np.datetime64) or not np.issubdtype(dtype1, np.datetime64):
+            crds0.append(coords0[d].coordinates)
+            crds1.append(coords1[d].coordinates)
+            continue
+        if dtype0 > dtype1:  # greater means higher precision (smaller unit)
+            dtype = dtype0
+        else:
+            dtype = dtype1
+        crds0.append(coords0[d].coordinates.astype(dtype).astype(float))
+        crds1.append(coords1[d].coordinates.astype(dtype).astype(float))
+
+    return np.stack(crds0, axis=1), np.stack(crds1, axis=1)
+
+
 class Selector(tl.HasTraits):
 
     method = tl.Tuple()
@@ -103,8 +123,7 @@ class Selector(tl.HasTraits):
 
     def select_stacked(self, source, request):
         udims = [ud for ud in source.udims if ud in request.udims]
-        src_coords = np.stack([source[ud].coordinates for ud in udims], axis=1)
-        req_coords_diag = np.stack([request[ud].coordinates for ud in udims], axis=1)
+        src_coords, req_coords_diag = _higher_precision_time_stack(source, request, udims)
         ckdtree_source = cKDTree(src_coords)
         _, inds = ckdtree_source.query(req_coords_diag, k=len(self.method))
         inds = inds.ravel()
