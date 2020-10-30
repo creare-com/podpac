@@ -11,6 +11,8 @@ COORDS = podpac.Coordinates(
 
 
 class MockClient(object):
+    """Mocked WCS client that handles three getCoverage cases that are needed by the tests below."""
+
     def getCoverage(self, **kwargs):
         if kwargs["width"] == 100 and kwargs["height"] == 100:
             return BytesIO(
@@ -27,6 +29,8 @@ class MockClient(object):
 
 
 class MockWCSBase(WCSBase):
+    """ Test node that uses the MockClient above. """
+
     @property
     def client(self):
         return MockClient()
@@ -36,6 +40,8 @@ class MockWCSBase(WCSBase):
 
 
 class MockWCS(InterpolationMixin, MockWCSBase):
+    """ Test node that uses the MockClient above, and injects podpac interpolation. """
+
     pass
 
 
@@ -95,6 +101,45 @@ class TestWCS(object):
         assert output.shape == (100,)
         assert output.data.sum() == 14350.0
 
+    def test_eval_extra_unstacked_dim(self):
+        c = podpac.Coordinates(["2020-01-01", COORDS["lat"], COORDS["lon"]], dims=["time", "lat", "lon"])
+
+        node = MockWCSBase()
+        output = node.eval(c)
+        assert output.shape == (100, 100)
+        assert output.data.sum() == 1256581.0
+
+    def test_eval_extra_stacked_dim(self):
+        c = podpac.Coordinates([[COORDS["lat"][50], COORDS["lon"][50], 10]], dims=["lat_lon_alt"])
+
+        node = MockWCSBase(source="mock", layer="mock", max_size=1000)
+        output = node.eval(c)
+        assert output.shape == (1,)
+        assert output.data.sum() == 0.0
+
+    def test_eval_missing_dim(self):
+        c = podpac.Coordinates([COORDS["lat"]])
+
+        node = MockWCSBase()
+        with pytest.raises(ValueError, match="Cannot evaluate these coordinates"):
+            output = node.eval(c)
+
+    def test_eval_transpose(self):
+        c = COORDS.transpose("lon", "lat")
+        node = MockWCSBase(source="mock", layer="mock")
+        output = node.eval(c)
+        assert output.dims == ("lon", "lat")
+        assert output.shape == (100, 100)
+        assert output.data.sum() == 1256581.0
+
+    def test_eval_other_crs(self):
+        c = COORDS.transform("EPSG:3395")
+
+        node = MockWCSBase()
+        output = node.eval(c)
+        assert output.shape == (100, 100)
+        assert output.data.sum() == 1256581.0
+
 
 @pytest.mark.integration
 class TestWCSIntegration(object):
@@ -131,6 +176,11 @@ class TestWCSIntegration(object):
     def test_eval_chunked(self):
         node = WCSBase(source=self.source, layer="sand_0-5cm_mean", format="geotiff_byte", max_size=4000)
         node.eval(COORDS)
+
+    def test_eval_other_crs(self):
+        c = COORDS.transform("EPSG:3395")
+        self.node1.eval(c)
+        self.node2.eval(c)
 
     def test_get_layers(self):
         # most basic

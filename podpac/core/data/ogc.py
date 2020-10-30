@@ -129,6 +129,10 @@ class WCSBase(DataSource):
             Cannot evaluate these coordinates
         """
 
+        # the datasource does do this, but we need to do it here to correctly select the correct case
+        if self.coordinates.crs.lower() != coordinates.crs.lower():
+            coordinates = coordinates.transform(self.coordinates.crs)
+
         # for a uniform grid, use the requested coordinates (the WCS server will interpolate)
         if (
             ("lat" in coordinates.dims and "lon" in coordinates.dims)
@@ -142,10 +146,16 @@ class WCSBase(DataSource):
             return super()._eval(coordinates, output=output, _selector=selector)
 
         # for uniform stacked, unstack to use the requested coordinates (the WCS server will interpolate)
-        if "lat_lon" in coordinates.dims and coordinates["lat"].is_uniform and coordinates["lon"].is_uniform:
+        if (
+            ("lat" in coordinates.udims and coordinates.is_stacked("lat"))
+            and ("lon" in coordinates.udims and coordinates.is_stacked("lon"))
+            and (coordinates["lat"].is_uniform or coordinates["lat"].size == 1)
+            and (coordinates["lon"].is_uniform or coordinates["lon"].size == 1)
+        ):
 
             def selector(rsc, rsci, coordinates):
                 unstacked = coordinates.unstack()
+                unstacked = unstacked.drop("alt", ignore_missing=True)  # if lat_lon_alt
                 return unstacked, tuple(slice(None) for dim in unstacked)
 
             udata = super()._eval(coordinates, output=None, _selector=selector)
