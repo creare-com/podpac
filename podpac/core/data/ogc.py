@@ -60,7 +60,7 @@ class WCSBase(DataSource):
     layer = tl.Unicode().tag(attr=True)
     version = tl.Unicode(default_value="1.0.0").tag(attr=True)
 
-    format = tl.Unicode(default_value="geotiff")
+    format = tl.CaselessStrEnum(["geotiff", "geotiff_byte"], default_value="geotiff")
     crs = tl.Unicode(default_value="EPSG:4326")
     max_size = tl.Long(default_value=None, allow_none=True)
 
