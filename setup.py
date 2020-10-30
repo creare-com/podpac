@@ -40,6 +40,7 @@ extras_require = {
         "pydap>=3.2",
         "rasterio>=1.0",
         "zarr>=2.3",
+        "owslib",
         # "intake>=0.5"  Not supported in Python 3.5
     ],
     "aws": ["awscli>=1.16", "boto3>=1.9.200", "s3fs>=0.4"],
@@ -51,11 +52,6 @@ extras_require = {
         "ipympl",
         "nodejs",
         #'cartopy'
-    ],
-    "esri": [
-        # 'arcpy',
-        "certifi>=2018.1.18",
-        "urllib3>=1.22",
     ],
     "stac": [
         "sat-search>=0.2",
