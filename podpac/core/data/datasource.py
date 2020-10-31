@@ -347,8 +347,12 @@ class DataSource(Node):
         if self.coordinates.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(self.coordinates.crs)
 
-        # get source coordinates that are within the requested coordinates bounds
-        (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
+        # Use the selector
+        if _selector is not None:
+            (rsc, rsci) = _selector(self.coordinates, coordinates)
+        else:
+            # get source coordinates that are within the requested coordinates bounds
+            (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
 
         # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
         if rsc.size == 0:
@@ -368,10 +372,6 @@ class DataSource(Node):
                 self._output = output
 
             return output
-
-        # Use the selector
-        if _selector is not None:
-            (rsc, rsci) = _selector(rsc, rsci, coordinates)
 
         # Check the coordinate_index_type
         if self.coordinate_index_type == "slice":  # Most restrictive

@@ -14,11 +14,12 @@ import logging
 import numpy as np
 import traitlets as tl
 import six
+from podpac.core.utils import common_doc
+from podpac.core.interpolation.selector import Selector
 
 # Set up logging
 _log = logging.getLogger(__name__)
 
-from podpac.core.utils import common_doc
 
 COMMON_INTERPOLATOR_DOCS = {
     "interpolator_attributes": """
@@ -331,15 +332,19 @@ class Interpolator(tl.HasTraits):
         """
         {interpolator_can_select}
         """
+        if not (self.method in Selector.supported_methods):
+            return tuple()
 
-        return tuple()
+        udims_subset = self._filter_udims_supported(udims)
+        return udims_subset
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def select_coordinates(self, udims, source_coordinates, source_coordinates_index, eval_coordinates):
+    def select_coordinates(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_select}
         """
-        raise NotImplementedError
+        selector = Selector(method=self.method)
+        return selector.select(source_coordinates, eval_coordinates)
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):

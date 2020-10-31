@@ -196,10 +196,12 @@ class TestSelector(object):
         selector = Selector("nearest")
 
         c, ci = selector.select(u_fine, p_coarse)
-        np.testing.assert_array_equal(ci, (self.nn_request_coarse_from_fine, self.nn_request_coarse_from_fine))
+        for cci, trth in zip(ci, np.ix_(self.nn_request_coarse_from_fine, self.nn_request_coarse_from_fine)):
+            np.testing.assert_array_equal(cci, trth)
 
         c, ci = selector.select(u_coarse, p_fine)
-        np.testing.assert_array_equal(ci, (self.nn_request_fine_from_coarse, self.nn_request_fine_from_coarse))
+        for cci, trth in zip(ci, np.ix_(self.nn_request_fine_from_coarse, self.nn_request_fine_from_coarse)):
+            np.testing.assert_array_equal(cci, trth)
 
         c, ci = selector.select(p_fine, u_coarse)
         np.testing.assert_array_equal(ci, (self.nn_request_coarse_from_fine,))
@@ -210,4 +212,5 @@ class TestSelector(object):
         # Respect bounds
         selector.respect_bounds = True
         c, ci = selector.select(u_fine, p_coarse)
-        np.testing.assert_array_equal(ci, (self.nn_request_coarse_from_fine, self.nn_request_coarse_from_fine))
+        for cci, trth in zip(ci, np.ix_(self.nn_request_coarse_from_fine, self.nn_request_coarse_from_fine)):
+            np.testing.assert_array_equal(cci, trth)

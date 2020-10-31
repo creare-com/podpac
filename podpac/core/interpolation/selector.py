@@ -32,6 +32,7 @@ def _higher_precision_time_stack(coords0, coords1, dims):
 
 
 class Selector(tl.HasTraits):
+    supported_methods = ["nearest", "linear", "bilinear"]
 
     method = tl.Tuple()
     respect_bounds = tl.Bool(False)
@@ -69,30 +70,17 @@ class Selector(tl.HasTraits):
         # else:
         # _logger.info("Coordinates are not subselected for source {} with request {}".format(source, request))
         # return source, slice(0, None)
+        ci = np.sort(np.unique(ci))
         return source[ci], ci
 
     def merge_indices(self, indices, source_dims, request_dims):
-        ind = []
-        for j, d in enumerate(source_dims):
-            sd = d.split("_")
-            for ssd in sd:
-                found = False
-                for i, rd in enumerate(request_dims):
-                    if ssd in rd:
-                        ind.append(i)
-                        found = True
-                        # Get unique sorted indices UNLESS:
-                        #     the request IS stacked the source IS NOT stacked
-                        # if not (("_" in rd) and ("_" not in d)):
-                        indices[j] = np.sort(np.unique(indices[j]))
-                        break
-                if found:
-                    break
-
-        reshape = [[1 for i in range(max(ind) + 1)] for j in range(len(source_dims))]
-        for i, r in zip(ind, reshape):
-            r[i] = -1
-        return tuple([np.array(ind).reshape(*reshp) for ind, reshp in zip(indices, reshape)])
+        # For numpy to broadcast correctly, we have to reshape each of the indices
+        reshape = np.ones(len(indices), int)
+        for i in range(len(indices)):
+            reshape[:] = 1
+            reshape[i] = -1
+            indices[i] = indices[i].reshape(*reshape)
+        return tuple(indices)
 
     def select_uniform(self, source, request):
         crds = request[source.name]

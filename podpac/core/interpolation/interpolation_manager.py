@@ -400,7 +400,7 @@ class InterpolationManager(object):
         # TODO: adjust by interpolation cost
         return interpolator_queue
 
-    def select_coordinates(self, source_coordinates, source_coordinates_index, eval_coordinates):
+    def select_coordinates(self, source_coordinates, eval_coordinates):
         """
         Select a subset or coordinates if interpolator can downselect.
 
@@ -412,9 +412,6 @@ class InterpolationManager(object):
         ----------
         source_coordinates : :class:`podpac.Coordinates`
             Intersected source coordinates
-        source_coordinates_index : list
-            Index of intersected source coordinates. See :class:`podpac.data.DataSource` for
-            more information about valid values for the source_coordinates_index
         eval_coordinates : :class:`podpac.Coordinates`
             Requested coordinates to evaluate
 
@@ -428,21 +425,20 @@ class InterpolationManager(object):
         # TODO: short circuit if source_coordinates contains eval_coordinates
         # short circuit if source and eval coordinates are the same
         if source_coordinates == eval_coordinates:
-            return source_coordinates, tuple(source_coordinates_index)
+            return source_coordinates, tuple([slice(0, None)] * len(source_coordinates.shape))
 
         interpolator_queue = self._select_interpolator_queue(source_coordinates, eval_coordinates, "can_select")
 
         self._last_select_queue = interpolator_queue
 
         selected_coords = deepcopy(source_coordinates)
-        selected_coords_idx = deepcopy(source_coordinates_index)
-
+        selected_coords_idx = [slice(0, None)] * len(source_coordinates.dims)
         for udims in interpolator_queue:
             interpolator = interpolator_queue[udims]
 
             # run interpolation. mutates selected coordinates and selected coordinates index
             selected_coords, selected_coords_idx = interpolator.select_coordinates(
-                udims, selected_coords, selected_coords_idx, eval_coordinates
+                udims, selected_coords, eval_coordinates
             )
 
         return selected_coords, tuple(selected_coords_idx)

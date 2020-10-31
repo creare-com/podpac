@@ -36,8 +36,7 @@ class TestNearest(object):
 
         interp = InterpolationManager("nearest_preview")
 
-        srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
-        coords, cidx = interp.select_coordinates(srccoords, srccoords_index, reqcoords)
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
 
         assert len(coords) == len(srccoords) == len(cidx)
         assert len(coords["lat"]) == len(reqcoords["lat"])
@@ -53,8 +52,7 @@ class TestNearest(object):
             [{"method": "nearest_preview", "dims": ["lat"]}, {"method": "nearest_preview", "dims": ["lon"]}]
         )
 
-        srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
-        coords, cidx = interp.select_coordinates(srccoords, srccoords_index, reqcoords)
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
 
         assert len(coords) == len(srccoords) == len(cidx)
         assert len(coords["lat"]) == len(reqcoords["lat"])
@@ -82,8 +80,7 @@ class TestNearest(object):
 
         interp = InterpolationManager("nearest")
 
-        srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
-        coords, cidx = interp.select_coordinates(srccoords, srccoords_index, reqcoords)
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
 
         assert len(coords) == len(srccoords) == len(cidx)
         assert len(coords["lat"]) == len(reqcoords["lat"])
@@ -97,8 +94,7 @@ class TestNearest(object):
 
         interp = InterpolationManager([{"method": "nearest", "dims": ["lat"]}, {"method": "nearest", "dims": ["lon"]}])
 
-        srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
-        coords, cidx = interp.select_coordinates(srccoords, srccoords_index, reqcoords)
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
 
         assert len(coords) == len(srccoords) == len(cidx)
         assert len(coords["lat"]) == len(reqcoords["lat"])

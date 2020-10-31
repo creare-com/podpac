@@ -136,30 +136,34 @@ class NearestPreview(NearestNeighbor):
         """
         udims_subset = self._filter_udims_supported(udims)
 
-        # confirm that udims are in both source and eval coordinates
+        # confirm that udims are in source and eval coordinates
         # TODO: handle stacked coordinates
-        if self._dim_in(udims_subset, source_coordinates, eval_coordinates):
+        if self._dim_in(udims_subset, source_coordinates):
             return udims_subset
         else:
             return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def select_coordinates(self, udims, source_coordinates, source_coordinates_index, eval_coordinates):
+    def select_coordinates(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_select}
         """
         new_coords = []
         new_coords_idx = []
 
+        source_coords, source_coords_index = source_coordinates.intersect(
+            eval_coordinates, outer=True, return_indices=True
+        )
+
         # iterate over the source coordinate dims in case they are stacked
-        for src_dim, idx in zip(source_coordinates, source_coordinates_index):
+        for src_dim, idx in zip(source_coords, source_coords_index):
 
             # TODO: handle stacked coordinates
-            if isinstance(source_coordinates[src_dim], StackedCoordinates):
+            if isinstance(source_coords[src_dim], StackedCoordinates):
                 raise InterpolatorException("NearestPreview select does not yet support stacked dimensions")
 
             if src_dim in eval_coordinates.dims:
-                src_coords = source_coordinates[src_dim]
+                src_coords = source_coords[src_dim]
                 dst_coords = eval_coordinates[src_dim]
 
                 if isinstance(dst_coords, UniformCoordinates1d):
@@ -193,7 +197,7 @@ class NearestPreview(NearestNeighbor):
                 else:
                     idx = slice(idx[0], idx[-1], int(ndelta))
             else:
-                c = source_coordinates[src_dim]
+                c = source_coords[src_dim]
 
             new_coords.append(c)
             new_coords_idx.append(idx)
@@ -228,6 +232,8 @@ class Rasterio(Interpolator):
         "q3",
     ]
     method = tl.Unicode(default_value="nearest")
+
+    dims_supported = ["lat", "lon"]
 
     # TODO: implement these parameters for the method 'nearest'
     spatial_tolerance = tl.Float(default_value=np.inf)
