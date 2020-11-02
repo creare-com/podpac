@@ -7,12 +7,13 @@ h5py = lazy_module("h5py")
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin
+from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 @common_doc(COMMON_DATA_DOC)
-class H5PY(FileKeysMixin, BaseFileSource):
+class H5PYBase(FileKeysMixin, BaseFileSource):
     """Create a DataSource node using h5py.
-    
+
     Attributes
     ----------
     source : str
@@ -54,7 +55,7 @@ class H5PY(FileKeysMixin, BaseFileSource):
 
     def close_dataset(self):
         """Closes the file. """
-        super(H5PY, self).close_dataset()
+        super(H5PYBase, self).close_dataset()
         self.dataset.close()
 
     # -------------------------------------------------------------------------
@@ -86,8 +87,7 @@ class H5PY(FileKeysMixin, BaseFileSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
         data = self.create_output_array(coordinates)
         if not isinstance(self.data_key, list):
             data[:] = self.dataset[self.data_key][coordinates_index]
@@ -101,8 +101,7 @@ class H5PY(FileKeysMixin, BaseFileSource):
     # -------------------------------------------------------------------------
 
     def dataset_attrs(self, key="/"):
-        """Dataset or group key for which attributes will be summarized.
-        """
+        """Dataset or group key for which attributes will be summarized."""
         return dict(self.dataset[key].attrs)
 
     @staticmethod
@@ -117,3 +116,7 @@ class H5PY(FileKeysMixin, BaseFileSource):
             return keys
         keys = sorted(list(set(keys)))
         return keys
+
+
+class H5PY(InterpolationMixin, H5PYBase):
+    pass

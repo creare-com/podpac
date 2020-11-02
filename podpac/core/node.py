@@ -37,6 +37,9 @@ COMMON_NODE_DOC = {
     "eval_output": """Default is None. Optional input array used to store the output data. When supplied, the node will not
             allocate its own memory for the output array. This array needs to have the correct dimensions,
             coordinates, and coordinate reference system.""",
+    "eval_selector": """The selector function is an optimization that enables nodes to only select data needed by an interpolator. 
+            It returns a new Coordinates object, and an index object that indexes into the `coordinates` parameter 
+            If not provided, the Coordinates.intersect() method will be used instead.""",
     "eval_return": """
         :class:`podpac.UnitsDataArray`
             Unit-aware xarray DataArray containing the results of the node evaluation.
@@ -93,10 +96,10 @@ class Node(tl.HasTraits):
     Attributes
     ----------
     cache_output: bool
-        Should the node's output be cached? If not provided or None, uses default based on settings 
-        (CACHE_NODE_OUTPUT_DEFAULT for general Nodes, and CACHE_DATASOURCE_OUTPUT_DEFAULT  for DataSource nodes). 
-        If True, outputs will be cached and retrieved from cache. If False, outputs will not be cached OR retrieved from cache (even if 
-        they exist in cache). 
+        Should the node's output be cached? If not provided or None, uses default based on settings
+        (CACHE_NODE_OUTPUT_DEFAULT for general Nodes, and CACHE_DATASOURCE_OUTPUT_DEFAULT  for DataSource nodes).
+        If True, outputs will be cached and retrieved from cache. If False, outputs will not be cached OR retrieved from cache (even if
+        they exist in cache).
     force_eval: bool
         Default is False. Should the node's cached output be updated from the source data? If True it ignores the cache
         when computing outputs but puts results into the cache (thereby updating the cache)
@@ -222,8 +225,7 @@ class Node(tl.HasTraits):
         return kwargs
 
     def init(self):
-        """Overwrite this method if a node needs to do any additional initialization after the standard initialization.
-        """
+        """Overwrite this method if a node needs to do any additional initialization after the standard initialization."""
         pass
 
     @property
@@ -249,7 +251,7 @@ class Node(tl.HasTraits):
         return "<%s(%s) attrs: %s>" % (self.__class__.__name__, self._repr_info, ", ".join(self.attrs))
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, **kwargs):
         """
         Evaluate the node at the given coordinates.
 
@@ -257,14 +259,62 @@ class Node(tl.HasTraits):
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
-        output : podpac.UnitsDataArray, optional
-            {eval_output}
+        **kwargs: **dict
+            Additional key-word arguments passed down the node pipelines, used internally
 
         Returns
         -------
         output : {eval_return}
         """
+        output = kwargs.get("output", None)
+        # check crs compatibility
+        if (output is not None) and ("crs" in output.attrs) and (output.attrs["crs"] != coordinates.crs):
+            raise ValueError(
+                "Output coordinate reference system ({}) does not match".format(output.crs)
+                + "request Coordinates coordinate reference system ({})".format(coordinates.crs)
+            )
 
+        if settings["DEBUG"]:
+            self._requested_coordinates = coordinates
+        key = "output"
+        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
+
+        if not self.force_eval and self.cache_output and self.has_cache(key, cache_coordinates):
+            data = self.get_cache(key, cache_coordinates)
+            if output is not None:
+                order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
+                output.transpose(*order)[:] = data
+            self._from_cache = True
+        else:
+            data = self._eval(coordinates, **kwargs)
+            if self.cache_output:
+                self.put_cache(data, key, cache_coordinates)
+            self._from_cache = False
+
+        # extract single output, if necessary
+        # subclasses should extract single outputs themselves if possible, but this provides a backup
+        if "output" in data.dims and self.output is not None:
+            data = data.sel(output=self.output)
+
+        # transpose data to match the dims order of the requested coordinates
+        order = [dim for dim in coordinates.idims if dim in data.dims]
+        if "output" in data.dims:
+            order.append("output")
+        data = data.part_transpose(order)
+
+        if settings["DEBUG"]:
+            self._output = data
+
+        # Add style information
+        data.attrs["layer_style"] = self.style
+
+        # Add crs if it is missing
+        if "crs" not in data.attrs:
+            data.attrs["crs"] = coordinates.crs
+
+        return data
+
+    def _eval(self, coordinates, output=None, _selector=None):
         raise NotImplementedError
 
     def eval_group(self, group):
@@ -297,7 +347,7 @@ class Node(tl.HasTraits):
         raise NotImplementedError
 
     @common_doc(COMMON_DOC)
-    def create_output_array(self, coords, data=np.nan, **kwargs):
+    def create_output_array(self, coords, data=np.nan, attrs=None, **kwargs):
         """
         Initialize an output data array
 
@@ -315,15 +365,20 @@ class Node(tl.HasTraits):
         {arr_return}
         """
 
-        attrs = {}
-        attrs["layer_style"] = self.style
-        attrs["crs"] = coords.crs
-        if self.units is not None:
+        if attrs is None:
+            attrs = {}
+
+        if "layer_style" not in attrs:
+            attrs["layer_style"] = self.style
+        if "crs" not in attrs:
+            attrs["crs"] = coords.crs
+        if "units" not in attrs and self.units is not None:
             attrs["units"] = ureg.Unit(self.units)
-        try:
-            attrs["geotransform"] = coords.geotransform
-        except (TypeError, AttributeError):
-            pass
+        if "geotransform" not in attrs:
+            try:
+                attrs["geotransform"] = coords.geotransform
+            except (TypeError, AttributeError):
+                pass
 
         return UnitsDataArray.create(coords, data=data, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs)
 
@@ -569,7 +624,7 @@ class Node(tl.HasTraits):
 
         return self.cache_ctrl.get(self, key, coordinates=coordinates)
 
-    def put_cache(self, data, key, coordinates=None, overwrite=True):
+    def put_cache(self, data, key, coordinates=None, expires=None, overwrite=True):
         """
         Cache data for this node.
 
@@ -581,6 +636,8 @@ class Node(tl.HasTraits):
             Unique key for the data, e.g. 'output'
         coordinates : podpac.Coordinates, optional
             Coordinates that the cached data depends on. Omit for coordinate-independent data.
+        expires : float, datetime, timedelta
+            Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
         overwrite : bool, optional
             Overwrite existing data, default True.
 
@@ -602,7 +659,7 @@ class Node(tl.HasTraits):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
         with thread_manager.cache_lock:
-            self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
+            self.cache_ctrl.put(self, data, key, coordinates=coordinates, expires=expires, update=overwrite)
 
     def has_cache(self, key, coordinates=None):
         """
@@ -811,7 +868,7 @@ class Node(tl.HasTraits):
         Notes
         -------
         The request can specify the PODPAC node by four different mechanism:
-        
+
         * Direct node name: PODPAC will look for an appropriate node in podpac.datalib
         * JSON definition passed using the 'PARAMS' query string: Need to specify the special LAYER/COVERAGE value of
           "%PARAMS%"
@@ -950,63 +1007,3 @@ class DiskCacheMixin(tl.HasTraits):
 # --------------------------------------------------------#
 #  Decorators
 # --------------------------------------------------------#
-
-
-def node_eval(fn):
-    """
-    Decorator for Node eval methods that handles caching and a user provided output argument.
-
-    fn : function
-        Node eval method to wrap
-
-    Returns
-    -------
-    wrapper : function
-        Wrapped node eval method
-    """
-
-    cache_key = "output"
-
-    @functools.wraps(fn)
-    def wrapper(self, coordinates, output=None):
-        if settings["DEBUG"]:
-            self._requested_coordinates = coordinates
-        key = cache_key
-        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
-
-        if not self.force_eval and self.cache_output and self.has_cache(key, cache_coordinates):
-            data = self.get_cache(key, cache_coordinates)
-            if output is not None:
-                order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
-                output.transpose(*order)[:] = data
-            self._from_cache = True
-        else:
-            data = fn(self, coordinates, output=output)
-            if self.cache_output:
-                self.put_cache(data, key, cache_coordinates)
-            self._from_cache = False
-
-        # extract single output, if necessary
-        # subclasses should extract single outputs themselves if possible, but this provides a backup
-        if "output" in data.dims and self.output is not None:
-            data = data.sel(output=self.output)
-
-        # transpose data to match the dims order of the requested coordinates
-        order = [dim for dim in coordinates.idims if dim in data.dims]
-        if "output" in data.dims:
-            order.append("output")
-        data = data.transpose(*order, transpose_coords=False)
-
-        if settings["DEBUG"]:
-            self._output = data
-
-        # Add style information
-        data.attrs["layer_style"] = self.style
-
-        # Add crs if it is missing
-        if "crs" not in data.attrs:
-            data.attrs["crs"] = coordinates.crs
-
-        return data
-
-    return wrapper

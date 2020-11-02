@@ -347,6 +347,17 @@ class TestStackedCoordinatesIndexing(object):
 
         assert len(c) == 3
 
+    def test_in(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3])
+        lon = ArrayCoordinates1d([10, 20, 30, 40])
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"])
+        c = StackedCoordinates([lat, lon, time])
+
+        assert (0, 10, "2018-01-01") in c
+        assert (1, 10, "2018-01-01") not in c
+        assert ("2018-01-01", 10, 0) not in c
+        assert 0 not in c
+
 
 class TestStackedCoordinatesSelection(object):
     def test_select_single(self):

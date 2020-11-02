@@ -97,6 +97,24 @@ class TestLoadFile(object):
             assert node2._dataset_caching_node.has_cache("dataset")
             node2.dataset
 
+    def test_dataset_expires(self):
+        path = os.path.join(os.path.dirname(__file__), "assets/points-single.csv")
+
+        with podpac.settings:
+            # not expired
+            podpac.settings["DEFAULT_CACHE"] = ["ram"]
+            node = MockLoadFile(source="file:///%s" % path, cache_dataset=True, dataset_expires="1,D")
+            node.cache_ctrl.clear()
+            node.dataset
+            assert node._dataset_caching_node.has_cache("dataset")
+
+            # expired
+            podpac.settings["DEFAULT_CACHE"] = ["ram"]
+            node = MockLoadFile(source="file:///%s" % path, cache_dataset=True, dataset_expires="-1,D")
+            node.cache_ctrl.clear()
+            node.dataset
+            assert not node._dataset_caching_node.has_cache("dataset")
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 # FileKeysMixin

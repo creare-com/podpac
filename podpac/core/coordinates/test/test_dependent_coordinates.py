@@ -376,6 +376,14 @@ class TestDependentCoordinatesIndexing(object):
         assert a == c["lat"]
         assert b == c["lon"]
 
+    def test_in(self):
+        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
+
+        assert (LAT[0, 0], LON[0, 0]) in c
+        assert (LAT[0, 0], LON[0, 1]) not in c
+        assert (LON[0, 0], LAT[0, 0]) not in c
+        assert LAT[0, 0] not in c
+
 
 class TestDependentCoordinatesSelection(object):
     def test_select_single(self):

@@ -1,11 +1,5 @@
 """
 Signal Summary
-
-NOTE: another option for the convolution kernel input would be to accept an
-    xarray and add and transpose dimensions as necessary.
-
-NOTE: At the moment this module is quite brittle... it makes assumptions about
-    the input node (i.e. alt coordinates would likely break this)
 """
 
 import podpac
@@ -22,7 +16,7 @@ from podpac.core.coordinates import add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import UnaryAlgorithm
 from podpac.core.utils import common_doc, ArrayTrait, NodeTrait
-from podpac.core.node import COMMON_NODE_DOC, node_eval
+from podpac.core.node import COMMON_NODE_DOC
 
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
@@ -58,23 +52,24 @@ class Convolution(UnaryAlgorithm):
     """Compute a general convolution over a source node.
 
     This node automatically resizes the requested coordinates to avoid edge effects.
-    
+
     Attributes
     ----------
     source : podpac.Node
-        Source node on which convolution will be performed. 
+        Source node on which convolution will be performed.
     kernel : np.ndarray, optional
-        The convolution kernel. This kernel must have the same number of dimensions as the source data outputs
+        The convolution kernel. This kernel must include the dimensions of source node outputs. The dimensions for this
+        array are labelled by `kernel_dims`. Any dimensions not in the soucr nodes outputs will be summed over.
     kernel_dims : list, optional
-        A list of the dimensions for the kernel axes. The dimensions in this list must match the 
+        A list of the dimensions for the kernel axes. The dimensions in this list must match the
         coordinates in the source, or contain additional dimensions, and the order does not need to match.
-        Any extra dimensions are summed out. 
+        Any extra dimensions are summed out.
     kernel_type : str, optional
         If kernel is not defined, kernel_type will create a kernel based on the inputs, and it will have the
         same number of axes as kernel_ndim.
         The format for the created  kernels is '<kernel_type>, <kernel_size>, <kernel_params>'.
         Any kernel defined in `scipy.signal` as well as `mean` can be used. For example:
-        kernel_type = 'mean, 8' or kernel_type = 'gaussian,16,8' are both valid. 
+        kernel_type = 'mean, 8' or kernel_type = 'gaussian,16,8' are both valid.
         Note: These kernels are automatically normalized such that kernel.sum() == 1
     """
 
@@ -105,17 +100,18 @@ class Convolution(UnaryAlgorithm):
         return super(Convolution, self)._first_init(**kwargs)
 
     @common_doc(COMMON_DOC)
-    @node_eval
-    def eval(self, coordinates, output=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
-        
+
         Parameters
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        
+        _selector: callable(coordinates, request_coordinates)
+            {eval_selector}
+
         Returns
         -------
         {eval_return}
@@ -165,7 +161,7 @@ class Convolution(UnaryAlgorithm):
             self._expanded_coordinates = expanded_coordinates
 
         # evaluate source using expanded coordinates, convolve, and then slice out original coordinates
-        source = self.source.eval(expanded_coordinates)
+        source = self.source.eval(expanded_coordinates, _selector=_selector)
 
         # Check dimensions
         if any([d not in kernel_dims for d in source.dims if d != "output"]):
@@ -229,6 +225,5 @@ class Convolution(UnaryAlgorithm):
         return k / k.sum()
 
     def _get_full_kernel(self, coordinates):
-        """{full_kernel}
-        """
+        """{full_kernel}"""
         return self.kernel

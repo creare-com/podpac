@@ -30,7 +30,7 @@ class UniformCoordinates1d(Coordinates1d):
     ``datetime64`` and timedelta strings such as ``'1,D'`` to ``timedelta64``.
 
     UniformCoordinates1d can also be created by specifying the size instead of the step.
-    
+
     Parameters
     ----------
     start : float or datetime64
@@ -205,9 +205,6 @@ class UniformCoordinates1d(Coordinates1d):
     # Standard methods, array-like
     # -----------------------------------------------------------------------------------------------------------------
 
-    def __len__(self):
-        return self.size
-
     def __getitem__(self, index):
         # fallback for non-slices
         if not isinstance(index, slice):
@@ -240,6 +237,25 @@ class UniformCoordinates1d(Coordinates1d):
             return ArrayCoordinates1d([], **self.properties)
 
         return UniformCoordinates1d(start, stop, step, **self.properties)
+
+    def __contains__(self, item):
+        # overrides the Coordinates1d.__contains__ method with optimizations for uniform coordinates.
+
+        try:
+            item = make_coord_value(item)
+        except:
+            return False
+
+        if type(item) != self.dtype:
+            return False
+
+        if item < self.bounds[0] or item > self.bounds[1]:
+            return False
+
+        if self.dtype == np.datetime64:
+            return timedelta_divisible(item - self.start, self.step)
+        else:
+            return (item - self.start) % self.step == 0
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -288,7 +304,7 @@ class UniformCoordinates1d(Coordinates1d):
 
     @property
     def dtype(self):
-        """ :type: Coordinates dtype.
+        """:type: Coordinates dtype.
 
         ``float`` for numerical coordinates and numpy ``datetime64`` for datetime coordinates.
         """
@@ -353,7 +369,7 @@ class UniformCoordinates1d(Coordinates1d):
         return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
 
     def simplify(self):
-        """ Get the simplified/optimized representation of these coordinates.
+        """Get the simplified/optimized representation of these coordinates.
 
         Returns
         -------
@@ -364,7 +380,7 @@ class UniformCoordinates1d(Coordinates1d):
         return self
 
     def issubset(self, other):
-        """ Report whether other coordinates contains these coordinates.
+        """Report whether other coordinates contains these coordinates.
 
         Arguments
         ---------
@@ -406,7 +422,7 @@ class UniformCoordinates1d(Coordinates1d):
             return False
 
         # check start and step
-        if self.start not in other.coordinates:
+        if self.start not in other:
             return False
 
         if self.size == 1:

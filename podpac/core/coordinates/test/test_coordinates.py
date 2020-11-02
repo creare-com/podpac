@@ -443,6 +443,23 @@ class TestCoordinateCreation(object):
         with pytest.raises(ValueError):
             Coordinates([alt], crs="EPSG:2193")
 
+    def test_CRS(self):
+        lat = ArrayCoordinates1d([0, 1, 2], "lat")
+        lon = ArrayCoordinates1d([0, 1, 2], "lon")
+        c = Coordinates([lat, lon])
+        assert isinstance(c.CRS, pyproj.CRS)
+
+    def test_alt_units(self):
+        lat = ArrayCoordinates1d([0, 1, 2], "lat")
+        lon = ArrayCoordinates1d([0, 1, 2], "lon")
+        alt = ArrayCoordinates1d([0, 1, 2], name="alt")
+
+        c = Coordinates([lat, lon])
+        assert c.alt_units is None
+
+        c = Coordinates([alt], crs="+proj=merc +vunits=us-ft")
+        assert c.alt_units == "us-ft"
+
 
 class TestCoordinatesSerialization(object):
     def test_definition(self):
@@ -1296,6 +1313,15 @@ class TestCoordinatesMethods(object):
         assert c2.dims == c.dims
         assert c2["lat"] == c["lat"][1:4]
         assert c2["lon"] == c["lon"][2:5]
+
+        # Confusing time intersection
+        ct = Coordinates([["2012-05-19T12:00:00", "2012-05-19T13:00:00", "2012-05-20T14:00:00"]], ["time"])
+        cti = Coordinates([["2012-05-18", "2012-05-19"]], ["time"])
+        ct2 = ct.intersect(cti, outer=True)
+        assert ct2.size == 3
+
+        ct2 = ct.intersect(cti, outer=False)
+        assert ct2.size == 0  # Is this behavior desired?
 
     def test_intersect_dims(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name="lat")

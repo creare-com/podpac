@@ -13,7 +13,7 @@ import traitlets as tl
 from collections import OrderedDict
 
 from podpac.core.utils import ArrayTrait
-from podpac.core.coordinates.utils import make_coord_array
+from podpac.core.coordinates.utils import make_coord_array, higher_precision_time_bounds
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 
 
@@ -32,7 +32,7 @@ class ArrayCoordinates1d(Coordinates1d):
         Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
     coordinates : array, read-only
         Full array of coordinate values.
-    
+
     See Also
     --------
     :class:`Coordinates1d`, :class:`UniformCoordinates1d`
@@ -181,7 +181,7 @@ class ArrayCoordinates1d(Coordinates1d):
         return ArrayCoordinates1d(self.coordinates, **self.properties)
 
     def simplify(self):
-        """ Get the simplified/optimized representation of these coordinates.
+        """Get the simplified/optimized representation of these coordinates.
 
         Returns
         -------
@@ -231,9 +231,6 @@ class ArrayCoordinates1d(Coordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods, array-like
     # ------------------------------------------------------------------------------------------------------------------
-
-    def __len__(self):
-        return self.size
 
     def __getitem__(self, index):
         return ArrayCoordinates1d(self.coordinates[index], **self.properties)
@@ -328,6 +325,9 @@ class ArrayCoordinates1d(Coordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
 
     def _select(self, bounds, return_indices, outer):
+        if self.dtype == np.datetime64:
+            _, bounds = higher_precision_time_bounds(self.bounds, bounds, outer)
+
         if not outer:
             gt = self.coordinates >= bounds[0]
             lt = self.coordinates <= bounds[1]

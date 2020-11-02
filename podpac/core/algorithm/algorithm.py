@@ -14,7 +14,7 @@ import traitlets as tl
 # Internal dependencies
 from podpac.core.coordinates import Coordinates, union
 from podpac.core.units import UnitsDataArray
-from podpac.core.node import Node, NodeException, node_eval, COMMON_NODE_DOC
+from podpac.core.node import Node, NodeException, COMMON_NODE_DOC
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.settings import settings
 from podpac.core.managers.multi_threading import thread_manager
@@ -52,10 +52,10 @@ class BaseAlgorithm(Node):
 
 class Algorithm(BaseAlgorithm):
     """Base class for computation nodes with a custom algorithm.
-    
+
     Notes
     ------
-    Developers of new Algorithm nodes need to implement the `algorithm` method. 
+    Developers of new Algorithm nodes need to implement the `algorithm` method.
     """
 
     def algorithm(self, inputs):
@@ -64,7 +64,7 @@ class Algorithm(BaseAlgorithm):
         ----------
         inputs : dict
             Evaluated outputs of the input nodes. The keys are the attribute names.
-        
+
         Raises
         ------
         NotImplementedError
@@ -73,17 +73,18 @@ class Algorithm(BaseAlgorithm):
         raise NotImplementedError
 
     @common_doc(COMMON_DOC)
-    @node_eval
-    def eval(self, coordinates, output=None):
-        """Evalutes this nodes using the supplied coordinates. 
-        
+    def _eval(self, coordinates, output=None, _selector=None):
+        """Evalutes this nodes using the supplied coordinates.
+
         Parameters
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        
+        _selector: callable(coordinates, request_coordinates)
+            {eval_selector}
+
         Returns
         -------
         {eval_return}
@@ -103,7 +104,7 @@ class Algorithm(BaseAlgorithm):
         if settings["MULTITHREADING"] and n_threads > 1:
             # Create a function for each thread to execute asynchronously
             def f(node):
-                return node.eval(coordinates)
+                return node.eval(coordinates, _selector=_selector)
 
             # Create pool of size n_threads, note, this may be created from a sub-thread (i.e. not the main thread)
             pool = thread_manager.get_thread_pool(processes=n_threads)
@@ -124,7 +125,7 @@ class Algorithm(BaseAlgorithm):
         else:
             # Evaluate nodes in serial
             for key, node in self.inputs.items():
-                inputs[key] = node.eval(coordinates)
+                inputs[key] = node.eval(coordinates, output=output, _selector=_selector)
             self._multi_threaded = False
 
         # accumulate output coordinates

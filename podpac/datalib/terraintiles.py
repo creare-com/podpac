@@ -59,12 +59,12 @@ _logger = logging.getLogger(__name__)
 
 class TerrainTilesSource(Rasterio):
     """DataSource to handle individual TerrainTiles raster files
-    
+
     Parameters
     ----------
     source : str
         Path to the sourcefile on S3
-    
+
     Attributes
     ----------
     dataset : :class:`rasterio.io.DatasetReader`
@@ -160,7 +160,7 @@ class TerrainTiles(S3Mixin, OrderedCompositor):
         us-east-1
 
     Documentation: https://mapzen.com/documentation/terrain-tiles/
-    
+
     Parameters
     ----------
     zoom : int
@@ -231,7 +231,7 @@ class TerrainTiles(S3Mixin, OrderedCompositor):
 ############
 def get_tile_urls(tile_format, zoom, coordinates=None):
     """Get tile urls for a specific zoom level and geospatial coordinates
-    
+
     Parameters
     ----------
     tile_format : str
@@ -240,7 +240,7 @@ def get_tile_urls(tile_format, zoom, coordinates=None):
         zoom level
     coordinates : :class:`podpac.Coordinates`, optional
         only return tiles within coordinates
-    
+
     Returns
     -------
     list of str
@@ -261,22 +261,22 @@ def get_tile_urls(tile_format, zoom, coordinates=None):
 
 def _get_tile_tuples(zoom, coordinates=None):
     """Query for tiles within podpac coordinates
-    
+
     This method allows you to get the available tiles in a given spatial area.
     This will work for all :attr:`TILE_FORMAT` types
-    
+
     Parameters
     ----------
     coordinates : :class:`podpac.coordinates.Coordinates`
         Find available tiles within coordinates
     zoom : int, optional
         zoom level
-    
+
     Raises
     ------
     TypeError
         Description
-    
+
     Returns
     -------
     list of tuple
@@ -321,9 +321,9 @@ def _get_tile_tuples(zoom, coordinates=None):
 
 def _tile_url(tile_format, x, y, zoom):
     """Build S3 URL prefix
-    
+
     The S3 bucket is organized {tile_format}/{z}/{x}/{y}.tif
-    
+
     Parameters
     ----------
     tile_format : str
@@ -334,12 +334,12 @@ def _tile_url(tile_format, x, y, zoom):
         x tilespace coordinate
     y : int
         x tilespace coordinate
-    
+
     Returns
     -------
     str
         Bucket prefix
-    
+
     Raises
     ------
     TypeError
@@ -355,7 +355,7 @@ def _get_tiles_grid(lat_bounds, lon_bounds, zoom):
     """
     Convert geographic bounds into a list of tile coordinates at given zoom.
     Adapted from https://github.com/tilezen/joerd
-    
+
     Parameters
     ----------
     lat_bounds : :class:`np.array` of float
@@ -364,7 +364,7 @@ def _get_tiles_grid(lat_bounds, lon_bounds, zoom):
         [min, max] bounds from lon (x) coordinates
     zoom : int
         zoom level
-    
+
     Returns
     -------
     list of tuple
@@ -389,7 +389,7 @@ def _get_tiles_grid(lat_bounds, lon_bounds, zoom):
 
 def _get_tiles_point(lat, lon, zoom):
     """Get tiles at a single point and zoom level
-    
+
     Parameters
     ----------
     lat : float
@@ -398,7 +398,7 @@ def _get_tiles_point(lat, lon, zoom):
         longitude
     zoom : int
         zoom level
-    
+
     Returns
     -------
     tuple
@@ -420,7 +420,7 @@ def _mercator(lat, lon):
         latitude
     lon : float
         longitude
-    
+
     Returns
     -------
     tuple
@@ -437,7 +437,7 @@ def _mercator(lat, lon):
 
 def _mercator_to_tilespace(xm, ym, zoom):
     """Convert mercator to tilespace coordinates
-    
+
     Parameters
     ----------
     x : float
@@ -446,7 +446,7 @@ def _mercator_to_tilespace(xm, ym, zoom):
         mercator y coordinate
     zoom : int
         zoom level
-    
+
     Returns
     -------
     tuple

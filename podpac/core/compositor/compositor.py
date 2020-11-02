@@ -15,7 +15,7 @@ from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.coordinates.utils import Dimension
 from podpac.core.utils import common_doc, NodeTrait
-from podpac.core.node import COMMON_NODE_DOC, node_eval, Node
+from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.interpolation.interpolation import InterpolationTrait
 from podpac.core.managers.multi_threading import thread_manager
@@ -26,7 +26,7 @@ COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
 @common_doc(COMMON_COMPOSITOR_DOC)
 class BaseCompositor(Node):
     """A base class for compositor nodes.
-    
+
     Attributes
     ----------
     sources : list
@@ -35,7 +35,7 @@ class BaseCompositor(Node):
         Coordinates that make each source unique. Must the same size as ``sources`` and single-dimensional. Optional.
     interpolation : str, dict, optional
         {interpolation}
-    
+
     Notes
     -----
     Developers of compositor subclasses nodes need to implement the `composite` method.
@@ -118,12 +118,12 @@ class BaseCompositor(Node):
 
     def select_sources(self, coordinates):
         """Select and prepare sources based on requested coordinates.
-        
+
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
             Coordinates to evaluate at compositor sources
-        
+
         Returns
         -------
         sources : :class:`np.ndarray`
@@ -159,7 +159,7 @@ class BaseCompositor(Node):
 
     def composite(self, coordinates, data_arrays, result=None):
         """Implements the rules for compositing multiple sources together. Must be implemented by child classes.
-        
+
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
@@ -171,19 +171,19 @@ class BaseCompositor(Node):
 
         Returns
         -------
-        {eval_return} 
+        {eval_return}
         """
 
         raise NotImplementedError()
 
-    def iteroutputs(self, coordinates):
+    def iteroutputs(self, coordinates, _selector=None):
         """Summary
-        
+
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
             Coordinates to evaluate at compositor sources
-        
+
         Yields
         ------
         :class:`podpac.core.units.UnitsDataArray`
@@ -211,7 +211,7 @@ class BaseCompositor(Node):
             # evaluate nodes in parallel using thread pool
             self._multi_threaded = True
             pool = thread_manager.get_thread_pool(processes=n_threads)
-            outputs = pool.map(lambda src: src.eval(coordinates), sources)
+            outputs = pool.map(lambda src: src.eval(coordinates, _selector=_selector), sources)
             pool.close()
             thread_manager.release_n_threads(n_threads)
             for output in outputs:
@@ -221,12 +221,11 @@ class BaseCompositor(Node):
             # evaluate nodes serially
             self._multi_threaded = False
             for src in sources:
-                yield src.eval(coordinates)
+                yield src.eval(coordinates, _selector=_selector)
 
-    @node_eval
     @common_doc(COMMON_COMPOSITOR_DOC)
-    def eval(self, coordinates, output=None):
-        """Evaluates this nodes using the supplied coordinates. 
+    def _eval(self, coordinates, output=None, _selector=None):
+        """Evaluates this nodes using the supplied coordinates.
 
         Parameters
         ----------
@@ -234,7 +233,9 @@ class BaseCompositor(Node):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-            
+        _selector: callable(coordinates, request_coordinates)
+            {eval_selector}
+
         Returns
         -------
         {eval_return}
@@ -253,7 +254,7 @@ class BaseCompositor(Node):
             coordinates = coordinates.drop(extra)
 
         self._evaluated_coordinates = coordinates
-        outputs = self.iteroutputs(coordinates)
+        outputs = self.iteroutputs(coordinates, _selector)
         output = self.composite(coordinates, outputs, output)
         return output
 

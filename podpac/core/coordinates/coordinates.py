@@ -25,6 +25,7 @@ import logging
 import podpac
 from podpac.core.settings import settings
 from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param
+from podpac.core.coordinates.utils import has_alt_units
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
@@ -155,7 +156,7 @@ class Coordinates(tl.HasTraits):
                 CRS = pyproj.CRS(crs)
 
                 # make sure CRS defines vertical units
-                if "alt" in self.udims and not CRS.is_vertical:
+                if "alt" in self.udims and not has_alt_units(CRS):
                     raise ValueError("Altitude dimension is defined, but CRS does not contain vertical unit")
 
             crs = self.set_trait("crs", crs)
@@ -445,9 +446,7 @@ class Coordinates(tl.HasTraits):
 
     @classmethod
     def from_geotransform(cls, geotransform, shape, crs=None):
-        """ Creates Coordinates from GDAL Geotransform. 
-        
-        """
+        """Creates Coordinates from GDAL Geotransform."""
         tol = 1e-15  # tolerance for deciding when a number is zero
         # Handle the case of rotated coordinates
         try:
@@ -772,17 +771,24 @@ class Coordinates(tl.HasTraits):
     def CRS(self):
         return pyproj.CRS(self.crs)
 
-    # TODO: add a convenience property for displaying altitude units for the CRS
-    # @property
-    # def alt_units(self):
-    #     CRS = self.CRS
+    @property
+    def alt_units(self):
+        CRS = self.CRS
 
-    #     if CRS.is_vertical:
-    #         alt_units = <unsure how to get this from CRS>
-    #     else:
-    #         raise ValueError("CRS does not contain vertical component")
+        if not has_alt_units(CRS):
+            return None
 
-    #     return alt_units
+        # try to get vunits
+        d = CRS.to_dict()
+        if "vunits" in d:
+            return d["vunits"]
+
+        # get from axis info (is this is ever useful)
+        # for axis in self.CRS.axis_info:
+        #     if axis.direction == 'up':
+        #         return axis.unit_name # may need to be converted, e.g. "centimetre" > "cm"
+
+        raise RuntimeError("Could not get alt_units from crs '%s'" % self.crs)
 
     @property
     def properties(self):
@@ -1117,7 +1123,7 @@ class Coordinates(tl.HasTraits):
         outer : bool, optional
             If True, do *outer* selections. Default False.
         return_indices : bool, optional
-            If True, return slice or indices for the selections in addition to coordinates. Default False.
+            If True, return slice or indices for the selection in addition to coordinates. Default False.
 
         Returns
         -------
@@ -1128,6 +1134,7 @@ class Coordinates(tl.HasTraits):
         """
 
         selections = [c.select(bounds, outer=outer, return_indices=return_indices) for c in self._coords.values()]
+
         return self._make_selected_coordinates(selections, return_indices)
 
     def _make_selected_coordinates(self, selections, return_indices):
@@ -1340,7 +1347,7 @@ class Coordinates(tl.HasTraits):
             return deepcopy(self)
 
         # make sure the CRS defines vertical units
-        if "alt" in self.udims and not to_crs.is_vertical:
+        if "alt" in self.udims and not has_alt_units(to_crs):
             raise ValueError("Altitude dimension is defined, but CRS to transform does not contain vertical unit")
 
         if "lat" in self.udims and "lon" not in self.udims:
@@ -1435,7 +1442,7 @@ class Coordinates(tl.HasTraits):
         return t_lat, t_lon
 
     def issubset(self, other):
-        """ Report whether other Coordinates contains these coordinates.
+        """Report whether other Coordinates contains these coordinates.
 
         Note that the dimension order and stacking is ignored.
 
@@ -1454,6 +1461,13 @@ class Coordinates(tl.HasTraits):
             return False
 
         return all(c.issubset(other) for c in self.values())
+
+    def is_stacked(self, dim):
+        if dim not in self.udims:
+            raise ValueError("Dimension {} is not in self.dims={}".format(dim, self.dims))
+        elif dim not in self.dims:
+            return True
+        return False
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods

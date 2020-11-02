@@ -53,7 +53,7 @@ def clinspace(start, stop, size, name=None):
         Number of coordinates.
     name : str, optional
         Dimension name.
-    
+
     Returns
     -------
     :class:`UniformCoordinates1d`

@@ -127,8 +127,7 @@ class IntakeCatalog(podpac.data.DataSource):
         return dims
 
     def get_coordinates(self):
-        """Get coordinates from catalog definition or input dims
-        """
+        """Get coordinates from catalog definition or input dims"""
 
         # look for dims in catalog
         if self.dims is None:

@@ -46,8 +46,7 @@ _logger = logging.getLogger(__name__)
 
 
 class UnitsDataArray(xr.DataArray):
-    """Like xarray.DataArray, but transfers units
-    """
+    """Like xarray.DataArray, but transfers units"""
 
     __slots__ = ()
 
@@ -106,7 +105,7 @@ class UnitsDataArray(xr.DataArray):
         -------
         UnitsDataArray
             The array converted to the desired unit
-            
+
         Raises
         --------
         DimensionalityError
@@ -147,7 +146,7 @@ class UnitsDataArray(xr.DataArray):
     def to_format(self, format, *args, **kwargs):
         """
         Helper function for converting Node outputs to alternative formats.
-        
+
         Parameters
         -----------
         format: str
@@ -156,17 +155,17 @@ class UnitsDataArray(xr.DataArray):
             Extra arguments for a particular output function
         **kwargs: **dict
             Extra keyword arguments for a particular output function
-            
+
         Returns
         --------
         io.BytesIO()
             In-memory version of the file or Python object. Note, depending on the input arguments, the file may instead
             be saved to disk.
-            
+
         Notes
         ------
-        This is a helper function for accessing existing to_* methods provided by the base xarray.DataArray object, with 
-        a few additional formats supported: 
+        This is a helper function for accessing existing to_* methods provided by the base xarray.DataArray object, with
+        a few additional formats supported:
             * json
             * png, jpg, jpeg
             * tiff (GEOtiff)
@@ -220,19 +219,19 @@ class UnitsDataArray(xr.DataArray):
         Parameters
         ----------
         format : str, optional
-            Default is 'png'. Type of image. 
+            Default is 'png'. Type of image.
         vmin : number, optional
             Minimum value of colormap
         vmax : vmax, optional
             Maximum value of colormap
         return_base64: bool, optional
             Default is False. Normally this returns an io.BytesIO, but if True, will return a base64 encoded string.
-            
+
 
         Returns
         -------
         BytesIO/str
-            Binary or Base64 encoded image. 
+            Binary or Base64 encoded image.
         """
         return to_image(self, format, vmin, vmax, return_base64)
 
@@ -283,7 +282,7 @@ class UnitsDataArray(xr.DataArray):
 
     def part_transpose(self, new_dims):
         """Partially transpose the UnitsDataArray based on the input dimensions. The remaining
-        dimensions will have their original order, and will be included at the end of the 
+        dimensions will have their original order, and will be included at the end of the
         transpose.
 
         Parameters
@@ -302,9 +301,9 @@ class UnitsDataArray(xr.DataArray):
         return self.transpose(*shared_dims + self_only_dims)
 
     def set(self, value, mask):
-        """ This function sets the values of the dataarray equal to 'value' where ever mask is True. 
+        """This function sets the values of the dataarray equal to 'value' where ever mask is True.
         This operation happens in-place.
-        
+
         Set the UnitsDataArray data to have a particular value, possibly using a mask
         in general, want to handle cases where value is a single value, an array,
         or a UnitsDataArray, and likewise for mask to be None, ndarray, or UnitsDataArray
@@ -318,7 +317,7 @@ class UnitsDataArray(xr.DataArray):
             A constant number that will replace the masked values.
         mask : UnitsDataArray
             A UnitsDataArray representing a boolean index.
-            
+
         Notes
         ------
         This function modifies the UnitsDataArray inplace
@@ -356,7 +355,7 @@ class UnitsDataArray(xr.DataArray):
         See http://xarray.pydata.org/en/stable/generated/xarray.open_dataarray.html#xarray.open_dataarray.
 
         The DataArray passed back from :func:`xarray.open_datarray` is used to create a units data array using :func:`creare_dataarray`.
-        
+
         Returns
         -------
         :class:`podpac.UnitsDataArray`
@@ -373,7 +372,7 @@ class UnitsDataArray(xr.DataArray):
     @classmethod
     def create(cls, c, data=np.nan, outputs=None, dtype=float, **kwargs):
         """Shortcut to create :class:`podpac.UnitsDataArray`
-        
+
         Parameters
         ----------
         c : :class:`podpac.Coordinates`
@@ -384,7 +383,7 @@ class UnitsDataArray(xr.DataArray):
             Data type. Defaults to float.
         **kwargs
             keyword arguments to pass to :class:`podpac.UnitsDataArray` constructor
-        
+
         Returns
         -------
         :class:`podpac.UnitsDataArray`
@@ -502,19 +501,19 @@ def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
     data : array-like
         data to output, usually a UnitsDataArray
     format : str, optional
-        Default is 'png'. Type of image. 
+        Default is 'png'. Type of image.
     vmin : number, optional
         Minimum value of colormap
     vmax : vmax, optional
         Maximum value of colormap
     return_base64: bool, optional
         Default is False. Normally this returns an io.BytesIO, but if True, will return a base64 encoded string.
-        
+
 
     Returns
     -------
     BytesIO/str
-        Binary or Base64 encoded image. 
+        Binary or Base64 encoded image.
     """
 
     import matplotlib
@@ -580,30 +579,30 @@ def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
 
 
 def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
-    """ Export a UnitsDataArray to a Geotiff
-    
+    """Export a UnitsDataArray to a Geotiff
+
     Params
     -------
     fp:  str, file object or pathlib.Path object
         A filename or URL, a file object opened in binary ('rb') mode, or a Path object.
     data: UnitsDataArray, xr.DataArray, np.ndarray
-        The data to be saved. If there is more than 1 band, this should be the last dimension of the array. 
+        The data to be saved. If there is more than 1 band, this should be the last dimension of the array.
         If given a np.ndarray, ensure that the 'lat' dimension is aligned with the rows of the data, with an appropriate
-        geotransform. 
+        geotransform.
     geotransform: tuple, optional
         The geotransform that describes the input data. If not given, will look for data.attrs['geotransform']
     crs: str, optional
         The coordinate reference system for the data
     kwargs: **dict
         Additional key-word arguments that overwrite defaults used in the `rasterio.open` function. This function
-        populates the following defaults: 
+        populates the following defaults:
                 drive="GTiff"
                 height=data.shape[0]
                 width=data.shape[1]
                 count=data.shape[2]
                 dtype=data.dtype
                 mode="w"
-                
+
     """
 
     # This only works for data that essentially has lat/lon only

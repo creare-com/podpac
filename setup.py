@@ -28,14 +28,9 @@ install_requires = [
 ]
 
 if sys.version_info.major == 2:
-    install_requires += [
-        "future>=0.16",
-        "pyproj>=2.2"
-    ]
+    install_requires += ["future>=0.16", "pyproj>=2.2"]
 else:
-    install_requires += [
-        "pyproj>=2.4"
-    ]
+    install_requires += ["pyproj>=2.4"]
 
 extras_require = {
     "datatype": [
@@ -45,16 +40,11 @@ extras_require = {
         "pydap>=3.2",
         "rasterio>=1.0",
         "zarr>=2.3",
-        #"intake>=0.5"  Not supported in Python 3.5
+        "owslib",
+        # "intake>=0.5"  Not supported in Python 3.5
     ],
-    "aws": [
-        "awscli>=1.16",
-        "boto3>=1.9.200",
-        "s3fs>=0.4"
-    ],
-    "algorithms": [
-        "numexpr>=2.6"
-    ],
+    "aws": ["awscli>=1.16", "boto3>=1.9.200", "s3fs>=0.4"],
+    "algorithms": ["numexpr>=2.6"],
     "notebook": [
         "jupyterlab",
         "ipyleaflet",
@@ -62,11 +52,6 @@ extras_require = {
         "ipympl",
         "nodejs",
         #'cartopy'
-    ],
-    "esri": [
-        # 'arcpy',
-        "certifi>=2018.1.18",
-        "urllib3>=1.22",
     ],
     "stac": [
         "sat-search>=0.2",
@@ -81,29 +66,20 @@ extras_require = {
         "coveralls>=1.3",
         "six>=1.0",
         "attrs>=17.4.0",
-        "pre_commit>=1"
+        "pre_commit>=1",
     ],
 }
 
 if sys.version_info.major == 2:
-    extras_require["dev"] += [
-        "pytest>=3.3.2"
-    ]
+    extras_require["dev"] += ["pytest>=3.3.2"]
 else:
-    extras_require["dev"] += [
-        "sphinx>=2.3, <3.0",
-        "sphinx-rtd-theme>=0.4",
-        "sphinx-autobuild>=0.7",
-        "pytest>=5.0"
-    ]
+    extras_require["dev"] += ["sphinx>=2.3, <3.0", "sphinx-rtd-theme>=0.4", "sphinx-autobuild>=0.7", "pytest>=5.0"]
 
-if sys.version >= '3.6':
+if sys.version >= "3.6":
     extras_require["dev"] += [
         "black",
     ]
-    extras_require["intake"] = [
-    	"intake>=0.5.1"
-    ]
+    extras_require["intake"] = ["intake>=0.5.1"]
 
 # set long description to readme
 with open("README.MD") as f:
@@ -124,8 +100,9 @@ class PostDevelopCommand(develop):
             subprocess.check_call(["pre-commit", "install"])
         except subprocess.CalledProcessError as e:
             print("Failed to install pre-commit hook")
-            
+
         develop.run(self)
+
 
 setup(
     # ext_modules=None,

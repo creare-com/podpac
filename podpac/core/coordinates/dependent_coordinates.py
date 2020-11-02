@@ -228,6 +228,14 @@ class DependentCoordinates(BaseCoordinates):
             else:
                 return DependentCoordinates(coordinates, **self.properties)
 
+    def __contains__(self, item):
+        try:
+            item = tuple(make_coord_value(value) for value in item)
+        except:
+            return False
+
+        return item in list(zip(*[c.flatten() for c in self.coordinates]))
+
     def _properties_at(self, index=None, dim=None):
         if index is None:
             index = self.dims.index(dim)
@@ -469,7 +477,7 @@ class DependentCoordinates(BaseCoordinates):
         in_place : boolean, optional
             If True, transpose the dimensions in-place.
             Otherwise (default), return a new, transposed Coordinates object.
-        
+
         Returns
         -------
         transposed : :class:`DependentCoordinates`
@@ -496,7 +504,7 @@ class DependentCoordinates(BaseCoordinates):
             return DependentCoordinates(coordinates, **properties)
 
     def issubset(self, other):
-        """ Report whether other coordinates contains these coordinates.
+        """Report whether other coordinates contains these coordinates.
 
         Arguments
         ---------
