@@ -32,7 +32,7 @@ def _higher_precision_time_stack(coords0, coords1, dims):
 
 
 class Selector(tl.HasTraits):
-    supported_methods = ["nearest", "linear", "bilinear"]
+    supported_methods = ["nearest", "linear", "bilinear", "cubic"]
 
     method = tl.Tuple()
     respect_bounds = tl.Bool(False)

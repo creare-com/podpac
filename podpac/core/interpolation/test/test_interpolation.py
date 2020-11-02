@@ -113,14 +113,21 @@ class TestInterpolationBehavior(object):
         o3 = node.eval(Coordinates(["2018-01-01"], dims=["time"]))
         assert o3.data[0] == 0
 
-    def test_ignored_interpolation_params_issue340(self):
+    def test_ignored_interpolation_params_issue340(self, caplog):
         node = Array(
             source=[0, 1, 2],
             coordinates=Coordinates([[0, 2, 1]], dims=["time"]),
-            interpolation={"method": "nearest", "params": {"fake_param": 1.1}},
+            interpolation={
+                "method": "nearest",
+                "params": {
+                    "fake_param": 1.1,
+                    "spatial_tolerance": 1,
+                },
+            },
         )
-        with pytest.warns(UserWarning, match="interpolation parameter 'fake_param' is ignored"):
-            node.eval(Coordinates([[0.5, 1.5]], ["time"]))
+        node.eval(Coordinates([[0.5, 1.5]], ["time"]))
+        assert "interpolation parameter 'fake_param' was ignored" in caplog.text
+        assert "interpolation parameter 'spatial_tolerance' was ignored" not in caplog.text
 
     def test_silent_nearest_neighbor_interp_bug_issue412(self):
         node = podpac.data.Array(

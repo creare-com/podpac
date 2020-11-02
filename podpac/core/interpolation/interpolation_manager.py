@@ -1,11 +1,12 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
+import logging
+import warnings
 from copy import deepcopy
 from collections import OrderedDict
 from six import string_types
-import logging
+
 
 import traitlets as tl
-import numpy as np
 
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims
@@ -104,11 +105,13 @@ class InterpolationManager(object):
     config = OrderedDict()  # container for interpolation methods for each dimension
     _last_interpolator_queue = None  # container for the last run interpolator queue - useful for debugging
     _last_select_queue = None  # container for the last run select queue - useful for debugging
+    _interpolation_params = None
 
     def __init__(self, definition=INTERPOLATION_DEFAULT):
 
         self.definition = deepcopy(definition)
         self.config = OrderedDict()
+        self._interpolation_params = {}
 
         # if definition is None, set to default
         if self.definition is None:
@@ -145,17 +148,17 @@ class InterpolationManager(object):
                             + "multiple times in interpolation definition {}".format(interp_definition)
                         )
                 # add all udims to definition
-                self._set_interpolation_method(udims, method)
+                self.config = self._set_interpolation_method(udims, method)
 
             # set default if its not been specified in the dict
             if ("default",) not in self.config:
 
                 default_method = self._parse_interpolation_method(INTERPOLATION_DEFAULT)
-                self._set_interpolation_method(("default",), default_method)
+                self.config = self._set_interpolation_method(("default",), default_method)
 
         elif isinstance(definition, string_types):
             method = self._parse_interpolation_method(definition)
-            self._set_interpolation_method(("default",), method)
+            self.config = self._set_interpolation_method(("default",), method)
 
         else:
             raise TypeError(
@@ -323,8 +326,12 @@ class InterpolationManager(object):
 
         definition["interpolators"] = interpolators
 
+        # Record parameters to make sure they are being captured
+        self._interpolation_params.update({k: False for k in params})
+
         # set to interpolation configuration for dims
         self.config[udims] = definition
+        return self.config
 
     def _select_interpolator_queue(self, source_coordinates, eval_coordinates, select_method, strict=False):
         """Create interpolator queue based on interpolation configuration and requested/native source_coordinates
@@ -508,10 +515,18 @@ class InterpolationManager(object):
         # for debugging purposes, save the last defined interpolator queue
         self._last_interpolator_queue = interpolator_queue
 
+        # reset interpolation parameters
+        for k in self._interpolation_params:
+            self._interpolation_params[k] = False
+
         # iterate through each dim tuple in the queue
         dtype = output_data.dtype
         for udims, interpolator in interpolator_queue.items():
             # TODO move the above short-circuits into this loop
+
+            # Check if parameters are being used
+            for k in self._interpolation_params:
+                self._interpolation_params[k] = hasattr(interpolator, k) or self._interpolation_params[k]
 
             # interp_coordinates are essentially intermediate eval_coordinates
             interp_dims = [dim for dim, c in source_coordinates.items() if set(c.dims).issubset(udims)]
@@ -527,6 +542,12 @@ class InterpolationManager(object):
             source_coordinates = interp_coordinates
 
         output_data.data = interp_data.transpose(*output_data.dims)
+
+        # Throw warnings for unused parameters
+        for k in self._interpolation_params:
+            if self._interpolation_params[k]:
+                continue
+            _logger.warning("The interpolation parameter '{}' was ignored during interpolation.".format(k))
 
         return output_data
 
