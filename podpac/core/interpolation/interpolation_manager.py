@@ -11,7 +11,9 @@ import traitlets as tl
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims
 from podpac.core.interpolation.interpolator import Interpolator
-from podpac.core.interpolation.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyPoint, ScipyGrid
+from podpac.core.interpolation.nearest_neighbor import NearestNeighbor, NearestPreview
+from podpac.core.interpolation.rasterio import Rasterio
+from podpac.core.interpolation.scipy import ScipyPoint, ScipyGrid
 
 _logger = logging.getLogger(__name__)
 

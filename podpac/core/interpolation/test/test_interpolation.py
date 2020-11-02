@@ -84,6 +84,7 @@ class TestInterpolationBehavior(object):
         data = [0, 1, 2]
         raw_coords = data.copy()
         raw_e_coords = [0, 0.5, 1, 0.6, 2]
+
         for dim in ["lat", "lon", "alt", "time"]:
             ec = Coordinates([raw_e_coords], [dim])
 
@@ -92,6 +93,17 @@ class TestInterpolationBehavior(object):
             o = node.eval(ec)
 
             assert np.all(o.data == raw_e_coords)
+
+        # Do time interpolation explicitly
+        raw_coords = ["2020-11-01", "2020-11-03", "2020-11-05"]
+        raw_et_coords = ["2020-11-01", "2020-11-02", "2020-11-03", "2020-11-04", "2020-11-05"]
+        ec = Coordinates([raw_et_coords], ["time"])
+
+        arrb = ArrayBase(source=data, coordinates=Coordinates([raw_coords], ["time"]))
+        node = Interpolate(source=arrb, interpolation="linear")
+        o = node.eval(ec)
+
+        assert np.all(o.data == raw_e_coords)
 
     def test_stacked_coords_with_partial_dims_issue123(self):
         node = Array(

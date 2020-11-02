@@ -15,7 +15,9 @@ from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.data.rasterio_source import rasterio
 from podpac.core.data.datasource import DataSource
 from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationException
-from podpac.core.interpolation.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyGrid, ScipyPoint
+from podpac.core.interpolation.nearest_neighbor import NearestNeighbor, NearestPreview
+from podpac.core.interpolation.rasterio import Rasterio
+from podpac.core.interpolation.scipy import ScipyGrid, ScipyPoint
 from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
