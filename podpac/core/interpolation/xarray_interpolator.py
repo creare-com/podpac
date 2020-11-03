@@ -27,7 +27,18 @@ class XarrayInterpolator(Interpolator):
     """
 
     dims_supported = ["lat", "lon", "alt", "time"]
-    methods_supported = ["nearest", "linear", "quadratic", "cubic", "zero", "slinear", "next", "previous", "splinef2d"]
+    methods_supported = [
+        "nearest",
+        "linear",
+        "bilinear",
+        "quadratic",
+        "cubic",
+        "zero",
+        "slinear",
+        "next",
+        "previous",
+        "splinef2d",
+    ]
 
     # defined at instantiation
     method = tl.Unicode(default_value="nearest")

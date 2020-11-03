@@ -163,9 +163,15 @@ class InterpolationManager(object):
 
             # set default if its not been specified in the dict
             if ("default",) not in self.config:
+                existing_dims = set(v for k in self.config.keys() for v in k)  # Default is NOT allowed to adjust these
+                name = ("default",)
+                if len(existing_dims) > 0:
+                    valid_dims = set(VALID_DIMENSION_NAMES)
+                    default_dims = valid_dims - existing_dims
+                    name = tuple(default_dims)
 
                 default_method = self._parse_interpolation_method(INTERPOLATION_DEFAULT)
-                self.config = self._set_interpolation_method(("default",), default_method)
+                self.config = self._set_interpolation_method(name, default_method)
 
         elif isinstance(definition, string_types):
             method = self._parse_interpolation_method(definition)
@@ -178,8 +184,9 @@ class InterpolationManager(object):
             )
 
         # make sure ('default',) is always the last entry in config dictionary
-        default = self.config.pop(("default",))
-        self.config[("default",)] = default
+        if ("default",) in self.config:
+            default = self.config.pop(("default",))
+            self.config[("default",)] = default
 
     def __repr__(self):
         rep = str(self.__class__.__name__)
@@ -393,7 +400,10 @@ class InterpolationManager(object):
                     break
 
                 # see which dims the interpolator can handle
-                can_handle = getattr(interpolator, select_method)(udims, source_coordinates, eval_coordinates)
+                if self.config[key]["method"] not in interpolator.methods_supported:
+                    can_handle = tuple()
+                else:
+                    can_handle = getattr(interpolator, select_method)(udims, source_coordinates, eval_coordinates)
 
                 # if interpolator can handle all udims
                 if not set(udims) - set(can_handle):
