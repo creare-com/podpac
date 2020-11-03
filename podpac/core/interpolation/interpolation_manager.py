@@ -10,10 +10,12 @@ import traitlets as tl
 
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims
+from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 from podpac.core.interpolation.interpolator import Interpolator
-from podpac.core.interpolation.nearest_neighbor import NearestNeighbor, NearestPreview
-from podpac.core.interpolation.rasterio import Rasterio
-from podpac.core.interpolation.scipy import ScipyPoint, ScipyGrid
+from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
+from podpac.core.interpolation.rasterio_interpolator import Rasterio
+from podpac.core.interpolation.scipy_interpolator import ScipyPoint, ScipyGrid
+from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
 
 _logger = logging.getLogger(__name__)
 
@@ -21,7 +23,7 @@ _logger = logging.getLogger(__name__)
 INTERPOLATION_DEFAULT = "nearest"
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
 
-INTERPOLATORS = [NearestNeighbor, NearestPreview, Rasterio, ScipyPoint, ScipyGrid]
+INTERPOLATORS = [NearestNeighbor, XarrayInterpolator, NearestPreview, Rasterio, ScipyPoint, ScipyGrid]
 """list : list of available interpolator classes"""
 
 INTERPOLATORS_DICT = {}
@@ -30,7 +32,9 @@ INTERPOLATORS_DICT = {}
 INTERPOLATION_METHODS = [
     "nearest_preview",
     "nearest",
+    "linear",
     "bilinear",
+    "quadratic",
     "cubic",
     "cubic_spline",
     "lanczos",
@@ -42,9 +46,14 @@ INTERPOLATION_METHODS = [
     "med",
     "q1",
     "q3",
+    "slinear",  # Spline linear
+    "splinef2d",
     "spline_2",
     "spline_3",
     "spline_4",
+    "zero",
+    "next",
+    "previous",
 ]
 
 INTERPOLATION_METHODS_DICT = {}

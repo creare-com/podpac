@@ -83,7 +83,7 @@ class TestInterpolationBehavior(object):
     def test_linear_1D_issue411and413(self):
         data = [0, 1, 2]
         raw_coords = data.copy()
-        raw_e_coords = [0, 0.5, 1, 0.6, 2]
+        raw_e_coords = [0, 0.5, 1, 1.5, 2]
 
         for dim in ["lat", "lon", "alt", "time"]:
             ec = Coordinates([raw_e_coords], [dim])
@@ -92,7 +92,7 @@ class TestInterpolationBehavior(object):
             node = Interpolate(source=arrb, interpolation="linear")
             o = node.eval(ec)
 
-            assert np.all(o.data == raw_e_coords)
+            np.testing.assert_array_equal(o.data, raw_e_coords, err_msg="dim {} failed to interpolate".format(dim))
 
         # Do time interpolation explicitly
         raw_coords = ["2020-11-01", "2020-11-03", "2020-11-05"]
@@ -103,7 +103,9 @@ class TestInterpolationBehavior(object):
         node = Interpolate(source=arrb, interpolation="linear")
         o = node.eval(ec)
 
-        assert np.all(o.data == raw_e_coords)
+        np.testing.assert_array_equal(
+            o.data, raw_e_coords, err_msg="dim time failed to interpolate with datetime64 coords"
+        )
 
     def test_stacked_coords_with_partial_dims_issue123(self):
         node = Array(

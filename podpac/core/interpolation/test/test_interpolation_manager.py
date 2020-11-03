@@ -22,7 +22,7 @@ from podpac.core.interpolation.interpolation_manager import (
     INTERPOLATION_METHODS_DICT,
 )
 from podpac.core.interpolation.interpolator import Interpolator, InterpolatorException
-from podpac.core.interpolation.interpolators import NearestNeighbor, NearestPreview
+from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
 
 
 class TestInterpolation(object):
