@@ -266,9 +266,10 @@ class Node(tl.HasTraits):
         -------
         output : {eval_return}
         """
+
         output = kwargs.get("output", None)
         # check crs compatibility
-        if (output is not None) and ("crs" in output.attrs) and (output.attrs["crs"] != coordinates.crs):
+        if output is not None and "crs" in output.attrs and output.attrs["crs"] != coordinates.crs:
             raise ValueError(
                 "Output coordinate reference system ({}) does not match".format(output.crs)
                 + "request Coordinates coordinate reference system ({})".format(coordinates.crs)

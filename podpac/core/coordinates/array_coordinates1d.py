@@ -72,7 +72,6 @@ class ArrayCoordinates1d(Coordinates1d):
             self._is_monotonic = True
 
         elif self.coordinates.ndim > 1:
-            # TODO ND
             self._is_monotonic = None
             self._is_descending = None
             self._is_uniform = None
@@ -126,7 +125,7 @@ class ArrayCoordinates1d(Coordinates1d):
             1d coordinates
         """
 
-        return cls(x.data, name=x.name, **kwargs)
+        return cls(x.data, name=x.name, **kwargs).simplify()
 
     @classmethod
     def from_definition(cls, d):
@@ -179,6 +178,36 @@ class ArrayCoordinates1d(Coordinates1d):
         """
 
         return ArrayCoordinates1d(self.coordinates, **self.properties)
+
+    def unique(self, return_index=False):
+        """
+        Remove duplicate coordinate values from each dimension.
+
+        Arguments
+        ---------
+        return_index : bool, optional
+            If True, return index for the unique coordinates in addition to the coordinates. Default False.
+        
+        Returns
+        -------
+        unique : :class:`ArrayCoordinates1d`
+            New ArrayCoordinates1d object with unique, sorted coordinate values.
+        unique_index : list of indices
+            index
+        """
+
+        # shortcut, monotonic coordinates are already unique
+        if self.is_monotonic:
+            if return_index:
+                return self.flatten(), np.arange(self.size).tolist()
+            else:
+                return self.flatten()
+
+        a, I = np.unique(self.coordinates, return_index=True)
+        if return_index:
+            return self.flatten()[I], I
+        else:
+            return self.flatten()[I]
 
     def simplify(self):
         """Get the simplified/optimized representation of these coordinates.
@@ -307,8 +336,12 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def argbounds(self):
+        if self.size == 0:
+            raise RuntimeError("Cannot get argbounds for empty coordinates")
+
         if not self.is_monotonic:
-            return np.argmin(self.coordinates), np.argmax(self.coordinates)
+            argbounds = np.argmin(self.coordinates), np.argmax(self.coordinates)
+            return np.unravel_index(argbounds[0], self.shape), np.unravel_index(argbounds[1], self.shape)
         elif not self.is_descending:
             return 0, -1
         else:
@@ -324,14 +357,14 @@ class ArrayCoordinates1d(Coordinates1d):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def _select(self, bounds, return_indices, outer):
+    def _select(self, bounds, return_index, outer):
         if self.dtype == np.datetime64:
             _, bounds = higher_precision_time_bounds(self.bounds, bounds, outer)
 
         if not outer:
             gt = self.coordinates >= bounds[0]
             lt = self.coordinates <= bounds[1]
-            I = np.where(gt & lt)[0]
+            b = gt & lt
 
         elif self.is_monotonic:
             gt = np.where(self.coordinates >= bounds[0])[0]
@@ -346,7 +379,7 @@ class ArrayCoordinates1d(Coordinates1d):
                 lt[-1] += 1
             start = max(0, gt[0])
             stop = min(self.size - 1, lt[-1])
-            I = slice(start, stop + 1)
+            b = slice(start, stop + 1)
 
         else:
             try:
@@ -364,9 +397,9 @@ class ArrayCoordinates1d(Coordinates1d):
                 else:
                     lt = self.coordinates <= np.inf
 
-            I = np.where(gt & lt)[0]
+            b = gt & lt
 
-        if return_indices:
-            return self[I], I
+        if return_index:
+            return self[b], b
         else:
-            return self[I]
+            return self[b]

@@ -37,24 +37,9 @@ class Coordinates1d(BaseCoordinates):
     """
 
     name = Dimension(allow_none=True)
-    idims = TupleTrait(trait=tl.Unicode())
     _properties = tl.Set()
 
-    @tl.validate("idims")
-    def _validate_idims(self, d):
-        val = d["value"]
-        if len(val) != self.ndim:
-            raise ValueError("idims and coordinates size mismatch, %d != %d" % (len(val), self.ndims))
-        return val
-
-    @tl.default("idims")
-    def _default_idims(self):
-        if self.ndim == 1:
-            return (self.name,)
-        else:
-            return tuple("ijkl")[: self.ndim]
-
-    @tl.observe("name", "idims")
+    @tl.observe("name")
     def _set_property(self, d):
         if d["name"] is not None:
             self._properties.add(d["name"])
@@ -93,14 +78,14 @@ class Coordinates1d(BaseCoordinates):
                 return False
 
         # shortcuts (not strictly necessary)
-        for name in ["size", "is_monotonic", "is_descending", "is_uniform"]:
+        for name in ["shape", "is_monotonic", "is_descending", "is_uniform"]:
             if getattr(self, name) != getattr(other, name):
                 return False
 
         return True
 
     def __len__(self):
-        return self.size
+        return self.shape[0]
 
     def __contains__(self, item):
         try:
@@ -124,12 +109,11 @@ class Coordinates1d(BaseCoordinates):
         return (self.name,)
 
     @property
-    def udims(self):
-        return self.dims
-
-    @property
     def xcoords(self):
         """:dict: xarray coords"""
+
+        if self.name is None:
+            raise ValueError("Cannot get xcoords for unnamed Coordinates1d")
 
         return {self.name: (self.idims, self.coordinates)}
 
@@ -283,21 +267,21 @@ class Coordinates1d(BaseCoordinates):
 
         return lo, hi
 
-    def _select_empty(self, return_indices):
+    def _select_empty(self, return_index):
         I = []
-        if return_indices:
+        if return_index:
             return self[I], I
         else:
             return self[I]
 
-    def _select_full(self, return_indices):
+    def _select_full(self, return_index):
         I = slice(None)
-        if return_indices:
+        if return_index:
             return self[I], I
         else:
             return self[I]
 
-    def select(self, bounds, return_indices=False, outer=False):
+    def select(self, bounds, return_index=False, outer=False):
         """
         Get the coordinate values that are within the given bounds.
 
@@ -329,25 +313,25 @@ class Coordinates1d(BaseCoordinates):
             coordinates will be selected if available, otherwise the full coordinates will be returned.
         outer : bool, optional
             If True, do an *outer* selection. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selection in addition to coordinates. Default False.
+        return_index : bool, optional
+            If True, return index for the selection in addition to coordinates. Default False.
 
         Returns
         -------
         selection : :class:`Coordinates1d`
             Coordinates1d object with coordinates within the bounds.
-        I : slice or list
-            index or slice for the selected coordinates (only if return_indices=True)
+        I : slice, boolean array
+            index or slice for the selected coordinates (only if return_index=True)
         """
 
         # empty case
         if self.dtype is None:
-            return self._select_empty(return_indices)
+            return self._select_empty(return_index)
 
         if isinstance(bounds, dict):
             bounds = bounds.get(self.name)
             if bounds is None:
-                return self._select_full(return_indices)
+                return self._select_full(return_index)
 
         bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
 
@@ -369,16 +353,16 @@ class Coordinates1d(BaseCoordinates):
 
         # full
         if my_bounds[0] >= bounds[0] and my_bounds[1] <= bounds[1]:
-            return self._select_full(return_indices)
+            return self._select_full(return_index)
 
         # none
         if my_bounds[0] > bounds[1] or my_bounds[1] < bounds[0]:
-            return self._select_empty(return_indices)
+            return self._select_empty(return_index)
 
         # partial, implemented in child classes
-        return self._select(bounds, return_indices, outer)
+        return self._select(bounds, return_index, outer)
 
-    def _select(self, bounds, return_indices, outer):
+    def _select(self, bounds, return_index, outer):
         raise NotImplementedError
 
     def _transform(self, transformer):
@@ -389,7 +373,7 @@ class Coordinates1d(BaseCoordinates):
         # transform "alt" coordinates
         from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
-        _, _, tcoordinates = transformer.transform(np.zeros(self.size), np.zeros(self.size), self.coordinates)
+        _, _, tcoordinates = transformer.transform(np.zeros(self.shape), np.zeros(self.shape), self.coordinates)
         return ArrayCoordinates1d(tcoordinates, **self.properties)
 
     def issubset(self, other):

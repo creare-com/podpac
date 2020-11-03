@@ -140,10 +140,10 @@ class BaseCompositor(Node):
             sources = self.sources
         else:
             try:
-                _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
+                _, I = self.source_coordinates.intersect(coordinates, outer=True, return_index=True)
             except:
                 # Likely non-monotonic coordinates
-                _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
+                _, I = self.source_coordinates.intersect(coordinates, outer=False, return_index=True)
             i = I[0]
             sources = np.array(self.sources)[i].tolist()
 

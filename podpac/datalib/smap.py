@@ -1046,7 +1046,7 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
 
                     # Make sure the coordinates are unique
                     # (we actually know SMAP-Sentinel is NOT unique, so we can't do this)
-                    # crdsunique, inds = crdsfull.unique(return_indices=True)
+                    # crdsunique, inds = crdsfull.unique(return_index=True)
                     # sources.filenames = np.array(sources.filenames)[inds[0]].tolist()
                     # sources.dates = np.array(sources.dates)[inds[0]].tolist()
 
@@ -1059,7 +1059,7 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
                 _logger.warning("Failed to update cached filenames: ", str(e))
 
             if bounds:  # Restrict results to user-specified bounds
-                crds, I = crds.intersect(bounds, outer=True, return_indices=True)
+                crds, I = crds.intersect(bounds, outer=True, return_index=True)
                 sources = sources.intersect(I[0])
 
         except NodeException:  # Not in cache or forced update

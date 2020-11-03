@@ -45,16 +45,11 @@ class MockWCS(InterpolationMixin, MockWCSBase):
     pass
 
 
-class TestWCS(object):
+class TestWCSBase(object):
     def test_eval_grid(self):
         c = COORDS
 
         node = MockWCSBase(source="mock", layer="mock")
-        output = node.eval(c)
-        assert output.shape == (100, 100)
-        assert output.data.sum() == 1256581.0
-
-        node = MockWCS(source="mock", layer="mock")
         output = node.eval(c)
         assert output.shape == (100, 100)
         assert output.data.sum() == 1256581.0
@@ -83,20 +78,10 @@ class TestWCS(object):
         assert output.shape == (100, 100)
         assert output.data.sum() == 1256581.0
 
-        node = MockWCS(source="mock", layer="mock")
-        output = node.eval(c)
-        assert output.shape == (3, 2)
-        assert output.data.sum() == 510.0
-
     def test_eval_uniform_stacked(self):
         c = podpac.Coordinates([[COORDS["lat"], COORDS["lon"]]], dims=["lat_lon"])
 
         node = MockWCSBase(source="mock", layer="mock")
-        output = node.eval(c)
-        assert output.shape == (100,)
-        assert output.data.sum() == 14350.0
-
-        node = MockWCS(source="mock", layer="mock")
         output = node.eval(c)
         assert output.shape == (100,)
         assert output.data.sum() == 14350.0
@@ -139,6 +124,32 @@ class TestWCS(object):
         output = node.eval(c)
         assert output.shape == (100, 100)
         assert output.data.sum() == 1256581.0
+
+
+class TestWCS(object):
+    def test_eval_grid(self):
+        c = COORDS
+
+        node = MockWCS(source="mock", layer="mock")
+        output = node.eval(c)
+        assert output.shape == (100, 100)
+        assert output.data.sum() == 1256581.0
+
+    def test_eval_nonuniform(self):
+        c = COORDS[[0, 10, 99], [0, 99]]
+
+        node = MockWCS(source="mock", layer="mock")
+        output = node.eval(c)
+        assert output.shape == (3, 2)
+        assert output.data.sum() == 510.0
+
+    def test_eval_uniform_stacked(self):
+        c = podpac.Coordinates([[COORDS["lat"], COORDS["lon"]]], dims=["lat_lon"])
+
+        node = MockWCS(source="mock", layer="mock")
+        output = node.eval(c)
+        assert output.shape == (100,)
+        assert output.data.sum() == 14350.0
 
 
 @pytest.mark.integration

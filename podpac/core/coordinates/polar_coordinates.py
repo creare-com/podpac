@@ -12,10 +12,20 @@ from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
-from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
+from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 
-class PolarCoordinates(DependentCoordinates):
+class PolarCoordinates(StackedCoordinates):
+    """
+    Parameterized spatial coordinates defined by a center, radius coordinates, and theta coordinates.
+
+    Attributes
+    ----------
+    center
+    radius
+    theta
+    """
+
     center = ArrayTrait(shape=(2,), dtype=float, read_only=True)
     radius = tl.Instance(Coordinates1d, read_only=True)
     theta = tl.Instance(Coordinates1d, read_only=True)

@@ -9,14 +9,14 @@ import lazy_import
 rasterio = lazy_import.lazy_module("rasterio")
 
 from podpac.core.utils import ArrayTrait
-from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
+from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 
-class RotatedCoordinates(DependentCoordinates):
+class RotatedCoordinates(StackedCoordinates):
     """
     A grid of rotated latitude and longitude coordinates.
 
-    RotatedCoordinates are dependent spatial coordinates defined by a shape, rotation angle, upper left corner, and
+    RotatedCoordinates are parameterized spatial coordinates defined by a shape, rotation angle, upper left corner, and
     step size. The lower right corner can be specified instead of the step. RotatedCoordinates can also be converted
     to/from GDAL geotransform.
 
@@ -290,7 +290,7 @@ class RotatedCoordinates(DependentCoordinates):
         warnings.warning("RotatedCoordinates area_bounds are not yet correctly implemented.")
         return super(RotatedCoordinates, self).get_area_bounds(boundary)
 
-    def select(self, bounds, outer=False, return_indices=False):
+    def select(self, bounds, outer=False, return_index=False):
         """
         Get the coordinate values that are within the given bounds in all dimensions.
 
@@ -302,19 +302,19 @@ class RotatedCoordinates(DependentCoordinates):
             dictionary of dim -> (low, high) selection bounds
         outer : bool, optional
             If True, do *outer* selections. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selections in addition to coordinates. Default False.
+        return_index : bool, optional
+            If True, return index for the selections in addition to coordinates. Default False.
 
         Returns
         -------
         selection : :class:`RotatedCoordinates`, :class:`DependentCoordinates`, :class:`StackedCoordinates`
             rotated, dependent, or stacked coordinates consisting of the selection in all dimensions.
-        I : slice or list
-            Slice or index for the selected coordinates, only if ``return_indices`` is True.
+        selection_index : list
+            index for the selected coordinates, only if ``return_index`` is True.
         """
 
         # TODO return RotatedCoordinates when possible
-        return super(RotatedCoordinates, self).select(bounds, outer=outer, return_indices=return_indices)
+        return super(RotatedCoordinates, self).select(bounds, outer=outer, return_index=return_index)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Debug

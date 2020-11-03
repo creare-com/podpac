@@ -54,7 +54,7 @@ class TestCoordinates1d(object):
             pass
 
         try:
-            c.select([0, 1], outer=True, return_indices=True)
+            c.select([0, 1], outer=True, return_index=True)
         except NotImplementedError:
             pass
 
@@ -67,6 +67,16 @@ class TestCoordinates1d(object):
 
         try:
             c.simplify()
+        except NotImplementedError:
+            pass
+
+        try:
+            c.flatten()
+        except NotImplementedError:
+            pass
+
+        try:
+            c.reshape((10, 10))
         except NotImplementedError:
             pass
 

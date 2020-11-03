@@ -368,6 +368,28 @@ class UniformCoordinates1d(Coordinates1d):
         kwargs = self.properties
         return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
 
+    def unique(self, return_index=False):
+        """
+        Return the coordinates (uniform coordinates are already unique).
+
+        Arguments
+        ---------
+        return_index : bool, optional
+            If True, return index for the unique coordinates in addition to the coordinates. Default False.
+        
+        Returns
+        -------
+        unique : :class:`ArrayCoordinates1d`
+            New ArrayCoordinates1d object with unique, sorted coordinate values.
+        unique_index : list of indices
+            index
+        """
+
+        if return_index:
+            return self.copy(), np.arange(self.size).tolist()
+        else:
+            return self.copy()
+
     def simplify(self):
         """Get the simplified/optimized representation of these coordinates.
 
@@ -377,7 +399,22 @@ class UniformCoordinates1d(Coordinates1d):
             These coordinates (the coordinates are already simplified).
         """
 
-        return self
+        return self.copy()
+
+    def flatten(self):
+        """
+        Return a copy of the uniform coordinates, for consistency.
+        
+        Returns
+        -------
+        :class:`UniformCoordinates1d`
+            Flattened coordinates.
+        """
+
+        return self.copy()
+
+    def reshape(self, newshape):
+        return ArrayCoordinates1d(self.coordinates, **self.properties).reshape(newshape)
 
     def issubset(self, other):
         """Report whether other coordinates contains these coordinates.
@@ -433,7 +470,7 @@ class UniformCoordinates1d(Coordinates1d):
         else:
             return self.step % other.step == 0
 
-    def _select(self, bounds, return_indices, outer):
+    def _select(self, bounds, return_index, outer):
         # TODO is there an easier way to do this with the new outer flag?
         my_bounds = self.bounds
 
@@ -460,13 +497,13 @@ class UniformCoordinates1d(Coordinates1d):
 
         # empty case
         if imin >= imax:
-            return self._select_empty(return_indices)
+            return self._select_empty(return_index)
 
         if self.is_descending:
             imax, imin = self.size - imin, self.size - imax
 
         I = slice(imin, imax)
-        if return_indices:
+        if return_index:
             return self[I], I
         else:
             return self[I]

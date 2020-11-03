@@ -36,7 +36,7 @@ class TestNearest(object):
 
         interp = InterpolationManager("nearest_preview")
 
-        srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
+        srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_index=True)
         coords, cidx = interp.select_coordinates(srccoords, srccoords_index, reqcoords)
 
         assert len(coords) == len(srccoords) == len(cidx)
@@ -53,7 +53,7 @@ class TestNearest(object):
             [{"method": "nearest_preview", "dims": ["lat"]}, {"method": "nearest_preview", "dims": ["lon"]}]
         )
 
-        srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
+        srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_index=True)
         coords, cidx = interp.select_coordinates(srccoords, srccoords_index, reqcoords)
 
         assert len(coords) == len(srccoords) == len(cidx)
@@ -68,7 +68,7 @@ class TestNearest(object):
 
         # interp = InterpolationManager('nearest_preview')
 
-        # srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
+        # srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_index=True)
         # coords, cidx = interp.select_coordinates(reqcoords, srccoords, srccoords_index)
 
         # assert len(coords) == len(srcoords) == len(cidx)
@@ -339,8 +339,8 @@ class TestInterpolateScipyGrid(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
-        assert np.all(output.lon.values == coords_dst["lon"].coordinates)
+        np.testing.assert_array_equal(output.lat.values, coords_dst["lat"].coordinates)
+        np.testing.assert_array_equal(output.lon.values, coords_dst["lon"].coordinates)
 
     def test_interpolate_irregular_arbitrary_swap(self):
         """should handle descending"""
@@ -355,8 +355,8 @@ class TestInterpolateScipyGrid(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
-        assert np.all(output.lon.values == coords_dst["lon"].coordinates)
+        np.testing.assert_array_equal(output.lat.values, coords_dst["lat"].coordinates)
+        np.testing.assert_array_equal(output.lon.values, coords_dst["lon"].coordinates)
 
     def test_interpolate_irregular_lat_lon(self):
         """ irregular interpolation """
@@ -371,7 +371,9 @@ class TestInterpolateScipyGrid(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat_lon.values == coords_dst["lat_lon"].coordinates)
+        assert "lat_lon" in output.dims
+        np.testing.assert_array_equal(output["lat"].values, coords_dst["lat"].coordinates)
+        np.testing.assert_array_equal(output["lon"].values, coords_dst["lon"].coordinates)
         assert output.values[0] == source[0, 0]
         assert output.values[1] == source[1, 1]
         assert output.values[-1] == source[-1, -1]
@@ -390,13 +392,15 @@ class TestInterpolateScipyPoint(object):
 
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat_lon.values == coords_dst["lat_lon"].coordinates)
+        assert "lat_lon" in output.dims
+        np.testing.assert_array_equal(output.lat.values, coords_dst["lat"].coordinates)
+        np.testing.assert_array_equal(output.lon.values, coords_dst["lon"].coordinates)
         assert output.values[0] == source[0]
         assert output.values[-1] == source[3]
 
         coords_dst = Coordinates([[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]], dims=["lat", "lon"])
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        np.testing.assert_array_equal(output.lat.values, coords_dst["lat"].coordinates)
         assert output.values[0, 0] == source[0]
         assert output.values[-1, -1] == source[3]
