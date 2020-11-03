@@ -524,8 +524,6 @@ class Coordinates(tl.HasTraits):
                 c = UniformCoordinates1d.from_definition(e)
             elif "name" in e and "values" in e:
                 c = ArrayCoordinates1d.from_definition(e)
-            elif "dims" in e and "values" in e:
-                c = DependentCoordinates.from_definition(e)
             elif "dims" in e and "shape" in e and "theta" in e and "origin" in e and ("step" in e or "corner" in e):
                 c = RotatedCoordinates.from_definition(e)
             else:
@@ -1444,12 +1442,12 @@ class Coordinates(tl.HasTraits):
         for c in self._coords.values():
             if isinstance(c, Coordinates1d):
                 rep += "\n\t%s: %s" % (c.name, c)
+            elif isinstance(c, RotatedCoordinates):
+                for dim in c.dims:
+                    rep += "\n\t%s[%s]: Rotated(TODO)" % (c.name, dim)
             elif isinstance(c, StackedCoordinates):
                 for dim in c.dims:
                     rep += "\n\t%s[%s]: %s" % (c.name, dim, c[dim])
-            elif isinstance(c, DependentCoordinates):
-                for dim in c.dims:
-                    rep += "\n\t%s[%s]: %s" % (c.name, dim, c._rep(dim))
         return rep
 
 

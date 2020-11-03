@@ -178,11 +178,10 @@ class TestCoordinateCreation(object):
         assert c.ndim == 2
         assert c.size == 12
 
-    @pytest.mark.xfail(reason="TODO rotated coordinates")
     def test_rotated(self):
         latlon = RotatedCoordinates((3, 4), np.pi / 4, [10, 20], [1.0, 2.0], dims=["lat", "lon"])
         c = Coordinates([latlon])
-        assert c.dims == ("lat,lon",)
+        assert c.dims == ("lat_lon",)
         assert c.udims == ("lat", "lon")
         assert len(set(c.idims)) == 2  # doesn't really matter what they are called
         assert c.shape == (3, 4)
@@ -227,17 +226,16 @@ class TestCoordinateCreation(object):
         assert c.size == 72
         repr(c)
 
-    @pytest.mark.xfail(reason="TODO rotadet coordinates")
     def test_mixed_rotated(sesf):
         latlon = RotatedCoordinates((3, 4), np.pi / 4, [10, 20], [1.0, 2.0], dims=["lat", "lon"])
         dates = [["2018-01-01", "2018-01-02", "2018-01-03"], ["2019-01-01", "2019-01-02", "2019-01-03"]]
-        c = Coordinates([latlon, dates], dims=["lat,lon", "time"])
-        assert c.dims == ("lat,lon", "time")
+        c = Coordinates([latlon, dates], dims=["lat_lon", "time"])
+        assert c.dims == ("lat_lon", "time")
         assert c.udims == ("lat", "lon", "time")
-        assert len(set(c.idims)) == 3  # doesn't really matter what they are called
-        assert c.shape == (3, 4, 2)
-        assert c.ndim == 3
-        assert c.size == 24
+        assert len(set(c.idims)) == 4  # doesn't really matter what they are called
+        assert c.shape == (3, 4, 2, 3)
+        assert c.ndim == 4
+        assert c.size == 72
         repr(c)
 
     def test_invalid_dims(self):
@@ -507,7 +505,6 @@ class TestCoordinatesSerialization(object):
         c2 = Coordinates.from_definition(d)
         assert c2 == c
 
-    @pytest.mark.skip("TODO rotated coordinates")
     def test_definition_rotated(self):
         latlon = RotatedCoordinates((3, 4), np.pi / 4, [10, 20], [1.0, 2.0], dims=["lat", "lon"])
         c = Coordinates([latlon])
@@ -1513,7 +1510,7 @@ class TestCoordinatesMethods(object):
 
         # unstacked issubset of dependent: sometimes it is a subset, not yet implemented
         # lat, lon = np.meshgrid(lat1, lon1)
-        # d = Coordinates([[lat, lon]], dims=['lat,lon'])
+        # d = Coordinates([[lat, lon]], dims=['lat_lon'])
         # assert u1.issubset(d)
         # assert u2.issubset(d)
         # assert u3.issubset(d)
