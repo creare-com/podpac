@@ -328,7 +328,7 @@ class DataSource(Node):
                 if c.name not in coordinates.udims:
                     raise ValueError("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
             elif isinstance(c, StackedCoordinates):
-                if any(s.name not in coordinates.udims for s in c):
+                if all(s.name not in coordinates.udims for s in c):
                     raise ValueError("Cannot evaluate these coordinates, missing at least one dim in '%s'" % c.name)
 
         # remove extra dimensions

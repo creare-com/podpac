@@ -60,8 +60,8 @@ class XarrayInterpolator(Interpolator):
         udims_subset = self._filter_udims_supported(udims)
 
         # confirm that udims are in both source and eval coordinates
-        if self._dim_in(udims_subset, source_coordinates):
-            for d in source_coordinates.dims:  # Cannot handle stacked dimensions
+        if self._dim_in(udims_subset, source_coordinates, unstacked=True):
+            for d in source_coordinates.udims:  # Cannot handle stacked dimensions
                 if source_coordinates.is_stacked(d):
                     return tuple()
             return udims_subset
