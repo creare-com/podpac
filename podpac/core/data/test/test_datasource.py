@@ -340,8 +340,8 @@ class TestDataSource(object):
 
         # test data and coordinates
         np.testing.assert_array_equal(out.data, node.data)
-        assert round(out.coords["lat"].values[0, 0]) == -8889021.0
-        assert round(out.coords["lon"].values[0, 0]) == 1928929.0
+        assert round(out.coords["lat"].values[0, 0]) == -7106355
+        assert round(out.coords["lon"].values[0, 0]) == 3435822
 
         # stacked coords
         node = MockDataSourceStacked()
@@ -349,8 +349,8 @@ class TestDataSource(object):
         coords = node.coordinates.transform("EPSG:2193")
         out = node.eval(coords)
         np.testing.assert_array_equal(out.data, node.data)
-        assert round(out.coords["lat"].values[0]) == -8889021.0
-        assert round(out.coords["lon"].values[0]) == 1928929.0
+        assert round(out.coords["lat"].values[0]) == -7106355
+        assert round(out.coords["lon"].values[0]) == 3435822
 
     def test_evaluate_selector(self):
         def selector(rsc, rsci, coordinates):

@@ -332,6 +332,9 @@ class DataSource(Node):
         ]
         coordinates = coordinates.drop(extra)
 
+        # save before transforming
+        requested_coordinates = coordinates
+
         # transform coordinates into native crs if different
         if self.coordinates.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(self.coordinates.crs)
@@ -387,9 +390,11 @@ class DataSource(Node):
         # get data from data source
         rsd = self._get_data(rsc, rsci)
 
-        # data = rsd.part_transpose(requested_dims_order) # may not be necessary
+        # data = rsd.part_transpose(requested_dims_order) # this does not appear to be necessary anymore
         data = rsd
         if output is None:
+            if requested_coordinates.crs.lower() != coordinates.crs.lower():
+                data = self.create_output_array(requested_coordinates, data=data.data)
             output = data
         else:
             output.data[:] = data.data
