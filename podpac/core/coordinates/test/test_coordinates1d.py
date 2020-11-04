@@ -20,7 +20,7 @@ class TestCoordinates1d(object):
             "stop",
             "step",
             "dims",
-            "idims",
+            "xdims",
             "udims",
             "shape",
             "size",

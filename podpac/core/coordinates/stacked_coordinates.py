@@ -333,7 +333,7 @@ class StackedCoordinates(BaseCoordinates):
             xcoords = {self.name: coords}
         else:
             # fall-back for shaped coordinates
-            xcoords = {c.name: (self.idims, c.coordinates) for c in self._coords}
+            xcoords = {c.name: (self.xdims, c.coordinates) for c in self._coords}
         return xcoords
 
     @property

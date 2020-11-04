@@ -675,14 +675,13 @@ class Coordinates(tl.HasTraits):
         return tuple(c.name for c in self._coords.values())
 
     @property
-    def idims(self):
-        """:tuple: Tuple of indexing dimension names.
+    def xdims(self):
+        """:tuple: Tuple of indexing dimension names used to make xarray DataArray.
 
-        Unless there are dependent coordinates, this will match the ``dims``. For dependent coordinates, indexing
-        dimensions `'i'`, `'j'`, etc are used by default.
+        Unless there are shaped (ndim>1) coordinates, this will match the ``dims``.
         """
 
-        return tuple(dim for c in self._coords.values() for dim in c.idims)
+        return tuple(dim for c in self._coords.values() for dim in c.xdims)
 
     @property
     def udims(self):

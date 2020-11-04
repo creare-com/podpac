@@ -8,7 +8,7 @@ class TestBaseCoordinates(object):
         attrs = [
             "name",
             "dims",
-            "idims",
+            "xdims",
             "udims",
             "coordinates",
             "xcoords",

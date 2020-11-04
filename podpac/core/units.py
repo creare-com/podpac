@@ -415,7 +415,7 @@ class UnitsDataArray(xr.DataArray):
 
         # coords and dims
         coords = c.xcoords
-        dims = c.idims
+        dims = c.xdims
 
         if outputs is not None:
             dims = dims + ("output",)

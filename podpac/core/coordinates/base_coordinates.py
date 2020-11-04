@@ -26,8 +26,8 @@ class BaseCoordinates(tl.HasTraits):
         return self.dims
 
     @property
-    def idims(self):
-        """:tuple: Tuple of indexing dimensions."""
+    def xdims(self):
+        """:tuple: Tuple of indexing dimensions used to create xarray DataArray."""
 
         if self.ndim == 1:
             return (self.name,)

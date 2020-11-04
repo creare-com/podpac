@@ -29,7 +29,7 @@ class PolarCoordinates(StackedCoordinates):
     center = ArrayTrait(shape=(2,), dtype=float, read_only=True)
     radius = tl.Instance(Coordinates1d, read_only=True)
     theta = tl.Instance(Coordinates1d, read_only=True)
-    ndims = 2
+    dims = tl.Tuple(tl.Unicode(), tl.Unicode(), read_only=True)
 
     def __init__(self, center, radius, theta=None, theta_size=None, dims=None):
 
@@ -56,9 +56,12 @@ class PolarCoordinates(StackedCoordinates):
 
     @tl.validate("dims")
     def _validate_dims(self, d):
-        val = super(PolarCoordinates, self)._validate_dims(d)
-        if val != ("lat", "lon"):
-            raise ValueError("PolarCoordinates dims must be ('lat', 'lon'), not '%s'" % (val,))
+        val = d["value"]
+        for dim in val:
+            if dim not in ["lat", "lon"]:
+                raise ValueError("PolarCoordinates dims must be 'lat' or 'lon', not '%s'" % dim)
+        if val[0] == val[1]:
+            raise ValueError("Duplicate dimension '%s'" % val[0])
         return val
 
     @tl.validate("radius")
@@ -67,6 +70,12 @@ class PolarCoordinates(StackedCoordinates):
         if np.any(val.coordinates <= 0):
             raise ValueError("PolarCoordinates radius must all be positive")
         return val
+
+    def _set_name(self, value):
+        self._set_dims(value.split("_"))
+
+    def _set_dims(self, dims):
+        self.set_trait("dims", dims)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate Constructors
@@ -131,11 +140,6 @@ class PolarCoordinates(StackedCoordinates):
         if self.theta != other.theta:
             return False
 
-        # defined coordinate properties should match
-        for name in self._properties.union(other._properties):
-            if getattr(self, name) != getattr(other, name):
-                return False
-
         return True
 
     def __getitem__(self, index):
@@ -143,20 +147,29 @@ class PolarCoordinates(StackedCoordinates):
             index = index, slice(None)
 
         if isinstance(index, tuple) and isinstance(index[0], slice) and isinstance(index[1], slice):
-            return PolarCoordinates(self.center, self.radius[index[0]], self.theta[index[1]], **self.properties)
+            return PolarCoordinates(self.center, self.radius[index[0]], self.theta[index[1]], dims=self.dims)
         else:
-            return super(PolarCoordinates, self).__getitem__(index)
+            # convert to raw StackedCoordinates (which creates the _coords attribute that the indexing requires)
+            return StackedCoordinates(self.coordinates, dims=self.dims).__getitem__(index)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
 
     @property
+    def _coords(self):
+        raise RuntimeError("PolarCoordinates do not have a _coords attribute.")
+
+    @property
+    def ndim(self):
+        return 2
+
+    @property
     def shape(self):
         return self.radius.size, self.theta.size
 
     @property
-    def idims(self):
+    def xdims(self):
         return ("r", "t")
 
     @property
@@ -167,25 +180,24 @@ class PolarCoordinates(StackedCoordinates):
         return lat.T, lon.T
 
     @property
-    def properties(self):
-        """:dict: Dictionary of the coordinate properties. """
-        return {key: getattr(self, key) for key in self._properties}
-
-    def _get_definition(self, full=True):
+    def definition(self):
         d = OrderedDict()
         d["dims"] = self.dims
         d["center"] = self.center
         d["radius"] = self.radius.definition
         d["theta"] = self.theta.definition
-        d.update(self._full_properties if full else self.properties)
         return d
+
+    @property
+    def full_definition(self):
+        return self.definition
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
     def copy(self):
-        return PolarCoordinates(self.center, self.radius, self.theta, **self.properties)
+        return PolarCoordinates(self.center, self.radius, self.theta, dims=self.dims)
 
     # TODO return PolarCoordinates when possible
     # def select(self, other, outer=False):

@@ -203,6 +203,7 @@ class RotatedCoordinates(StackedCoordinates):
             return RotatedCoordinates(shape, self.theta, origin, step, dims=self.dims)
 
         else:
+            # convert to raw StackedCoordinates (which creates the _coords attribute that the indexing requires)
             return StackedCoordinates(self.coordinates, dims=self.dims).__getitem__(index)
 
     # ------------------------------------------------------------------------------------------------------------------

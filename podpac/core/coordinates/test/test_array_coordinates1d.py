@@ -504,19 +504,19 @@ class TestArrayCoordinatesProperties(object):
         with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
             c.udims
 
-    def test_idims(self):
+    def test_xdims(self):
         c = ArrayCoordinates1d([], name="lat")
-        assert isinstance(c.idims, tuple)
-        assert c.idims == ("lat",)
+        assert isinstance(c.xdims, tuple)
+        assert c.xdims == ("lat",)
 
         c = ArrayCoordinates1d([0, 1, 2], name="lat")
-        assert isinstance(c.idims, tuple)
-        assert c.idims == ("lat",)
+        assert isinstance(c.xdims, tuple)
+        assert c.xdims == ("lat",)
 
-    def test_idims_shaped(self):
+    def test_xdims_shaped(self):
         c = ArrayCoordinates1d([[0, 1, 2], [10, 11, 12]], name="lat")
-        assert isinstance(c.idims, tuple)
-        assert len(set(c.idims)) == 2
+        assert isinstance(c.xdims, tuple)
+        assert len(set(c.xdims)) == 2
 
     def test_properties(self):
         c = ArrayCoordinates1d([])
@@ -529,12 +529,12 @@ class TestArrayCoordinatesProperties(object):
 
     def test_xcoords(self):
         c = ArrayCoordinates1d([1, 2], name="lat")
-        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.xcoords)
+        x = xr.DataArray(np.empty(c.shape), dims=c.xdims, coords=c.xcoords)
         np.testing.assert_array_equal(x["lat"].data, c.coordinates)
 
     def test_xcoords_shaped(self):
         c = ArrayCoordinates1d([[0, 1, 2], [10, 11, 12]], name="lat")
-        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.xcoords)
+        x = xr.DataArray(np.empty(c.shape), dims=c.xdims, coords=c.xcoords)
         np.testing.assert_array_equal(x["lat"].data, c.coordinates)
 
     def test_xcoords_unnamed(self):

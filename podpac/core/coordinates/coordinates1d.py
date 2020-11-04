@@ -116,7 +116,7 @@ class Coordinates1d(BaseCoordinates):
         if self.name is None:
             raise ValueError("Cannot get xcoords for unnamed Coordinates1d")
 
-        return {self.name: (self.idims, self.coordinates)}
+        return {self.name: (self.xdims, self.coordinates)}
 
     @property
     def dtype(self):

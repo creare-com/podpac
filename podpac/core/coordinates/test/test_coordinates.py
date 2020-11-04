@@ -24,7 +24,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([])
         assert c.dims == tuple()
         assert c.udims == tuple()
-        assert c.idims == tuple()
+        assert c.xdims == tuple()
         assert c.shape == tuple()
         assert c.ndim == 0
         assert c.size == 0
@@ -36,7 +36,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([date], dims=["time"])
         assert c.dims == ("time",)
         assert c.udims == ("time",)
-        assert c.idims == ("time",)
+        assert c.xdims == ("time",)
         assert c.shape == (1,)
         assert c.ndim == 1
         assert c.size == 1
@@ -47,7 +47,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([dates], dims=["time"])
         assert c.dims == ("time",)
         assert c.udims == ("time",)
-        assert c.idims == ("time",)
+        assert c.xdims == ("time",)
         assert c.shape == (2,)
         assert c.ndim == 1
         assert c.size == 2
@@ -55,14 +55,14 @@ class TestCoordinateCreation(object):
         c = Coordinates([np.array(dates).astype(np.datetime64)], dims=["time"])
         assert c.dims == ("time",)
         assert c.udims == ("time",)
-        assert c.idims == ("time",)
+        assert c.xdims == ("time",)
         assert c.shape == (2,)
         assert c.ndim == 1
 
         c = Coordinates([xr.DataArray(dates).astype(np.datetime64)], dims=["time"])
         assert c.dims == ("time",)
         assert c.udims == ("time",)
-        assert c.idims == ("time",)
+        assert c.xdims == ("time",)
         assert c.shape == (2,)
         assert c.ndim == 1
         assert c.size == 2
@@ -71,7 +71,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([xr.DataArray(dates, name="time").astype(np.datetime64)])
         assert c.dims == ("time",)
         assert c.udims == ("time",)
-        assert c.idims == ("time",)
+        assert c.xdims == ("time",)
         assert c.shape == (2,)
         assert c.ndim == 1
         assert c.size == 2
@@ -79,7 +79,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([xr.DataArray(dates, name="a").astype(np.datetime64)], dims=["time"])
         assert c.dims == ("time",)
         assert c.udims == ("time",)
-        assert c.idims == ("time",)
+        assert c.xdims == ("time",)
         assert c.shape == (2,)
         assert c.ndim == 1
         assert c.size == 2
@@ -89,7 +89,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([0, 10], dims=["lat", "lon"])
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
-        assert c.idims == ("lat", "lon")
+        assert c.xdims == ("lat", "lon")
         assert c.shape == (1, 1)
         assert c.ndim == 2
         assert c.size == 1
@@ -101,7 +101,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([lat, lon], dims=["lat", "lon"])
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
-        assert c.idims == ("lat", "lon")
+        assert c.xdims == ("lat", "lon")
         assert c.shape == (3, 4)
         assert c.ndim == 2
         assert c.size == 12
@@ -110,7 +110,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([xr.DataArray(lat, name="lat"), xr.DataArray(lon, name="lon")])
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
-        assert c.idims == ("lat", "lon")
+        assert c.xdims == ("lat", "lon")
         assert c.shape == (3, 4)
         assert c.ndim == 2
         assert c.size == 12
@@ -119,7 +119,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([xr.DataArray(lat, name="a"), xr.DataArray(lon, name="b")], dims=["lat", "lon"])
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
-        assert c.idims == ("lat", "lon")
+        assert c.xdims == ("lat", "lon")
         assert c.shape == (3, 4)
         assert c.ndim == 2
         assert c.size == 12
@@ -129,7 +129,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([[0, 10]], dims=["lat_lon"])
         assert c.dims == ("lat_lon",)
         assert c.udims == ("lat", "lon")
-        assert c.idims == ("lat_lon",)
+        assert c.xdims == ("lat_lon",)
         assert c.shape == (1,)
         assert c.ndim == 1
         assert c.size == 1
@@ -140,7 +140,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([[lat, lon]], dims=["lat_lon"])
         assert c.dims == ("lat_lon",)
         assert c.udims == ("lat", "lon")
-        assert c.idims == ("lat_lon",)
+        assert c.xdims == ("lat_lon",)
         assert c.shape == (3,)
         assert c.ndim == 1
         assert c.size == 3
@@ -149,7 +149,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([[lat, lon]], dims=[["lat", "lon"]])
         assert c.dims == ("lat_lon",)
         assert c.udims == ("lat", "lon")
-        assert c.idims == ("lat_lon",)
+        assert c.xdims == ("lat_lon",)
         assert c.shape == (3,)
         assert c.ndim == 1
         assert c.size == 3
@@ -162,7 +162,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([latlon])
         assert c.dims == ("lat_lon",)
         assert c.udims == ("lat", "lon")
-        assert len(set(c.idims)) == 2  # doesn't really matter what they are called
+        assert len(set(c.xdims)) == 2  # doesn't really matter what they are called
         assert c.shape == (3, 4)
         assert c.ndim == 2
         assert c.size == 12
@@ -173,7 +173,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([[lat, lon]], dims=["lat_lon"])
         assert c.dims == ("lat_lon",)
         assert c.udims == ("lat", "lon")
-        assert len(set(c.idims)) == 2  # doesn't really matter what they are called
+        assert len(set(c.xdims)) == 2  # doesn't really matter what they are called
         assert c.shape == (3, 4)
         assert c.ndim == 2
         assert c.size == 12
@@ -183,7 +183,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([latlon])
         assert c.dims == ("lat_lon",)
         assert c.udims == ("lat", "lon")
-        assert len(set(c.idims)) == 2  # doesn't really matter what they are called
+        assert len(set(c.xdims)) == 2  # doesn't really matter what they are called
         assert c.shape == (3, 4)
         assert c.ndim == 2
         assert c.size == 12
@@ -197,7 +197,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([[lat, lon], dates], dims=["lat_lon", "time"])
         assert c.dims == ("lat_lon", "time")
         assert c.udims == ("lat", "lon", "time")
-        assert c.idims == ("lat_lon", "time")
+        assert c.xdims == ("lat_lon", "time")
         assert c.shape == (3, 2)
         assert c.ndim == 2
         assert c.size == 6
@@ -207,7 +207,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([[lat, lon], dates], dims=[["lat", "lon"], "time"])
         assert c.dims == ("lat_lon", "time")
         assert c.udims == ("lat", "lon", "time")
-        assert c.idims == ("lat_lon", "time")
+        assert c.xdims == ("lat_lon", "time")
         assert c.shape == (3, 2)
         assert c.ndim == 2
         assert c.size == 6
@@ -220,7 +220,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([[lat, lon], dates], dims=["lat_lon", "time"])
         assert c.dims == ("lat_lon", "time")
         assert c.udims == ("lat", "lon", "time")
-        assert len(set(c.idims)) == 4  # doesn't really matter what they are called
+        assert len(set(c.xdims)) == 4  # doesn't really matter what they are called
         assert c.shape == (3, 4, 2, 3)
         assert c.ndim == 4
         assert c.size == 72
@@ -232,7 +232,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([latlon, dates], dims=["lat_lon", "time"])
         assert c.dims == ("lat_lon", "time")
         assert c.udims == ("lat", "lon", "time")
-        assert len(set(c.idims)) == 4  # doesn't really matter what they are called
+        assert len(set(c.xdims)) == 4  # doesn't really matter what they are called
         assert c.shape == (3, 4, 2, 3)
         assert c.ndim == 4
         assert c.size == 72
@@ -384,7 +384,7 @@ class TestCoordinateCreation(object):
         )
 
         # from xarray
-        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.idims)
+        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims)
         c2 = Coordinates.from_xarray(x.coords)
         assert c2 == c
 
@@ -399,7 +399,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([[lat, lon], dates], dims=["lat_lon", "time"])
 
         # from xarray
-        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.idims)
+        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims)
         c2 = Coordinates.from_xarray(x.coords)
         assert c2 == c
 
@@ -410,7 +410,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([lat, lon], dims=["lat", "lon"])
 
         # from xarray
-        dims = c.idims + ("output",)
+        dims = c.xdims + ("output",)
         coords = {"output": ["a", "b"], **c.xcoords}
         shape = c.shape + (2,)
 
@@ -621,7 +621,7 @@ class TestCoordinatesProperties(object):
             ]
         )
 
-        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.xcoords)
+        x = xr.DataArray(np.empty(c.shape), dims=c.xdims, coords=c.xcoords)
 
         assert x.dims == ("lat", "lon", "time")
         np.testing.assert_equal(x["lat"], np.array(lat, dtype=float))
@@ -640,7 +640,7 @@ class TestCoordinatesProperties(object):
             ]
         )
 
-        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.xcoords)
+        x = xr.DataArray(np.empty(c.shape), dims=c.xdims, coords=c.xcoords)
 
         assert x.dims == ("lat_lon", "time")
         np.testing.assert_equal(x["lat"], np.array(lat, dtype=float))
@@ -654,7 +654,7 @@ class TestCoordinatesProperties(object):
 
         c = Coordinates([StackedCoordinates([lat, lon], dims=["lat", "lon"]), ArrayCoordinates1d(dates, name="time")])
 
-        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.xcoords)
+        x = xr.DataArray(np.empty(c.shape), dims=c.xdims, coords=c.xcoords)
 
         assert len(x.dims) == 3
         np.testing.assert_equal(x["lat"], np.array(lat, dtype=float))

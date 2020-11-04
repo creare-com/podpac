@@ -27,7 +27,7 @@ class TestRotatedCoordinatesCreation(object):
         assert_allclose(c.corner, [7.171573, 25.656854])
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
-        assert len(set(c.idims)) == 2
+        assert len(set(c.xdims)) == 2
         assert c.name == "lat_lon"
         repr(c)
 
@@ -40,7 +40,7 @@ class TestRotatedCoordinatesCreation(object):
         assert_allclose(c.corner, [12.828427, 14.343146])
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
-        assert len(set(c.idims)) == 2
+        assert len(set(c.xdims)) == 2
         assert c.name == "lat_lon"
         repr(c)
 
@@ -49,7 +49,7 @@ class TestRotatedCoordinatesCreation(object):
         c = RotatedCoordinates(shape=(3, 4), theta=np.pi / 4, origin=[10, 20], step=[1.0, 2.0], dims=["lon", "lat"])
         assert c.dims == ("lon", "lat")
         assert c.udims == ("lon", "lat")
-        assert len(set(c.idims)) == 2
+        assert len(set(c.xdims)) == 2
         assert c.name == "lon_lat"
 
         # alt
@@ -65,7 +65,7 @@ class TestRotatedCoordinatesCreation(object):
         assert_allclose(c.corner, [15.0, 17.0])
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
-        assert len(set(c.idims)) == 2
+        assert len(set(c.xdims)) == 2
         assert c.name == "lat_lon"
         repr(c)
 

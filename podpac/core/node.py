@@ -298,7 +298,7 @@ class Node(tl.HasTraits):
             data = data.sel(output=self.output)
 
         # transpose data to match the dims order of the requested coordinates
-        order = [dim for dim in coordinates.idims if dim in data.dims]
+        order = [dim for dim in coordinates.xdims if dim in data.dims]
         if "output" in data.dims:
             order.append("output")
         data = data.part_transpose(order)
