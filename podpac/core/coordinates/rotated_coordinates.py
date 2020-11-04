@@ -47,7 +47,6 @@ class RotatedCoordinates(StackedCoordinates):
     origin = ArrayTrait(shape=(2,), dtype=float, read_only=True)
     step = ArrayTrait(shape=(2,), dtype=float, read_only=True)
     dims = tl.Tuple(tl.Unicode(), tl.Unicode(), read_only=True)
-    ndim = 2
 
     def __init__(self, shape=None, theta=None, origin=None, step=None, corner=None, dims=None):
         """
@@ -213,6 +212,10 @@ class RotatedCoordinates(StackedCoordinates):
     @property
     def _coords(self):
         raise RuntimeError("RotatedCoordinates do not have a _coords attribute.")
+
+    @property
+    def ndim(self):
+        return 2
 
     @property
     def deg(self):

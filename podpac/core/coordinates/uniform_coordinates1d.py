@@ -119,7 +119,7 @@ class UniformCoordinates1d(Coordinates1d):
         super(UniformCoordinates1d, self).__init__(name=name)
 
     def __eq__(self, other):
-        if not super(UniformCoordinates1d, self).__eq__(other):
+        if not self._eq_base(other):
             return False
 
         if isinstance(other, UniformCoordinates1d):
@@ -271,11 +271,11 @@ class UniformCoordinates1d(Coordinates1d):
 
     @property
     def ndim(self):
-        return 1  # TODO ND
+        return 1
 
     @property
     def shape(self):
-        return (self.size,)  # TODO ND
+        return (self.size,)
 
     @property
     def size(self):

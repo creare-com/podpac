@@ -97,7 +97,7 @@ class ArrayCoordinates1d(Coordinates1d):
         super(ArrayCoordinates1d, self).__init__(name=name, **kwargs)
 
     def __eq__(self, other):
-        if not super(ArrayCoordinates1d, self).__eq__(other):
+        if not self._eq_base(other):
             return False
 
         if not np.array_equal(self.coordinates, other.coordinates):

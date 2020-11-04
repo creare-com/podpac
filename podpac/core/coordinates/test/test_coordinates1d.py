@@ -63,8 +63,6 @@ class TestCoordinates1d(object):
         except NotImplementedError:
             pass
 
-        assert c != None
-
         try:
             c.simplify()
         except NotImplementedError:

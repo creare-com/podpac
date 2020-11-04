@@ -68,7 +68,8 @@ class Coordinates1d(BaseCoordinates):
 
         return "%s: %s" % (name, desc)
 
-    def __eq__(self, other):
+    def _eq_base(self, other):
+        """ used by child __eq__ methods for common checks """
         if not isinstance(other, Coordinates1d):
             return False
 
@@ -422,50 +423,3 @@ class Coordinates1d(BaseCoordinates):
                 other_coordinates = other_coordinates.astype(my_coordinates.dtype)
 
         return set(my_coordinates).issubset(other_coordinates)
-
-    # def issubset(self, other):
-    #     """ Report whether other coordinates contains these coordinates.
-
-    #     Arguments
-    #     ---------
-    #     other : Coordinates, Coordinates1d
-    #         Other coordinates to check
-
-    #     Returns
-    #     -------
-    #     issubset : bool
-    #         True if these coordinates are a subset of the other coordinates.
-    #     """
-
-    #     from podpac.core.coordinates import Coordinates
-
-    #     if isinstance(other, Coordinates):
-    #         if self.name not in other.dims:
-    #             return False
-    #         other = other[self.name]
-
-    #     # short-cuts that don't require checking coordinates
-    #     if self.size == 0:
-    #         return True
-
-    #     if other.size == 0:
-    #         return False
-
-    #     if self.dtype != other.dtype:
-    #         return False
-
-    #     if self.bounds[0] < other.bounds[0] or self.bounds[1] > other.bounds[1]:
-    #         return False
-
-    #     # check actual coordinates using built-in set method issubset
-    #     # for datetimes, convert to the higher resolution
-    #     my_coordinates = self.coordinates.ravel()
-    #     other_coordinates = other.coordinates.ravel()
-
-    #     if self.dtype == np.datetime64:
-    #         if my_coordinates[0].dtype < other_coordinates[0].dtype:
-    #             my_coordinates = my_coordinates.astype(other_coordinates.dtype)
-    #         elif other_coordinates[0].dtype < my_coordinates[0].dtype:
-    #             other_coordinates = other_coordinates.astype(my_coordinates.dtype)
-
-    #     return set(my_coordinates).issubset(other_coordinates)
