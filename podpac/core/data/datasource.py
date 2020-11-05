@@ -386,12 +386,12 @@ class DataSource(Node):
                     new_rsci.append(slice(index[0].item(), index[0].item() + 1))
 
             rsci = tuple(new_rsci)
-            rsc = coordinates[rsci]
+            rsc = self.coordinates[rsci].simplify()
 
         # get data from data source
         rsd = self._get_data(rsc, rsci)
 
-        # data = rsd.part_transpose(requested_dims_order) # this does not appear to be necessary anymore
+        # data = rsd.part_transpose(requested_coordinates.dims) # this does not appear to be necessary anymore
         data = rsd
         if output is None:
             if requested_coordinates.crs.lower() != coordinates.crs.lower():

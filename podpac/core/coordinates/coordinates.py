@@ -1402,6 +1402,18 @@ class Coordinates(tl.HasTraits):
 
         return Coordinates(ts, crs=crs, validate_crs=False)
 
+    def simplify(self):
+        """ Simplify coordinates in each dimension.
+
+        Returns
+        -------
+        simplified : Coordinates
+            Simplified coordinates.
+        """
+
+        cs = [c.simplify() for c in self._coords.values()]
+        return Coordinates(cs, **self.properties)
+
     def issubset(self, other):
         """Report whether other Coordinates contains these coordinates.
 
