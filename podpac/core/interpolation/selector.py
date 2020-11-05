@@ -107,6 +107,7 @@ class Selector(tl.HasTraits):
         crds = request[source.name]
         ckdtree_source = cKDTree(source.coordinates[:, None])
         _, inds = ckdtree_source.query(crds.coordinates[:, None], k=len(self.method))
+        inds = inds[inds < source.coordinates.size]
         return inds.ravel()
 
     def select_stacked(self, source, request):

@@ -4,12 +4,11 @@ import warnings
 from copy import deepcopy
 from collections import OrderedDict
 from six import string_types
-
-
+import numpy as np
 import traitlets as tl
 
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import merge_dims
+from podpac.core.coordinates import merge_dims, Coordinates
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 from podpac.core.interpolation.interpolator import Interpolator
 from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
@@ -459,17 +458,31 @@ class InterpolationManager(object):
 
         self._last_select_queue = interpolator_queue
 
-        selected_coords = deepcopy(source_coordinates)
-        selected_coords_idx = [slice(0, None)] * len(source_coordinates.dims)
+        # For heterogeneous selections, we need to select and then recontruct each set of dimensions
+        selected_coords = {}
+        selected_coords_idx = {k: np.arange(source_coordinates[k].size) for k in source_coordinates.dims}
         for udims in interpolator_queue:
             interpolator = interpolator_queue[udims]
-
+            extra_dims = [d for d in source_coordinates.dims if d not in udims]
+            sc = source_coordinates.drop(extra_dims)
             # run interpolation. mutates selected coordinates and selected coordinates index
-            selected_coords, selected_coords_idx = interpolator.select_coordinates(
-                udims, selected_coords, eval_coordinates
-            )
+            sel_coords, sel_coords_idx = interpolator.select_coordinates(udims, sc, eval_coordinates)
+            # Save individual 1-D coordinates for later reconstruction
+            for i, k in enumerate(sel_coords.dims):
+                selected_coords[k] = sel_coords[k]
+                selected_coords_idx[k] = sel_coords_idx[i]
 
-        return selected_coords, tuple(selected_coords_idx)
+        # Reconstruct dimensions
+        for d in source_coordinates.dims:
+            if d not in selected_coords:  # Some coordinates may not have a selector when heterogeneous
+                selected_coords[d] = source_coordinates[d]
+            # np.ix_ call doesn't work with slices, and fancy numpy indexing does not work well with mixed slice/index
+            if isinstance(selected_coords_idx[d], slice):
+                selected_coords_idx[d] = np.arange(selected_coords[d].size)
+
+        selected_coords = Coordinates([selected_coords[k] for k in source_coordinates.dims], source_coordinates.dims)
+        selected_coords_idx2 = np.ix_(*[selected_coords_idx[k].ravel() for k in source_coordinates.dims])
+        return selected_coords, tuple(selected_coords_idx2)
 
     def interpolate(self, source_coordinates, source_data, eval_coordinates, output_data):
         """Interpolate data from requested coordinates to source coordinates

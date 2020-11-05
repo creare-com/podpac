@@ -78,7 +78,7 @@ class XarrayInterpolator(Interpolator):
         coords = {}
         used_dims = set()
 
-        for d in source_coordinates.udims:
+        for d in udims:
             if not source_coordinates.is_stacked(d) and eval_coordinates.is_stacked(d):
                 new_dim = [dd for dd in eval_coordinates.dims if d in dd][0]
                 coords[d] = xr.DataArray(

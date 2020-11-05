@@ -67,8 +67,8 @@ class TestInterpolation(object):
         print(interp.config)
         assert isinstance(interp.config[("lat", "lon")], dict)
         assert interp.config[("lat", "lon")]["method"] == "nearest"
-        assert isinstance(interp.config[("default",)]["interpolators"][0], Interpolator)
-        assert interp.config[("default",)]["params"] == {}
+        assert isinstance(interp.config[list(interp.config.keys())[-1]]["interpolators"][0], Interpolator)
+        assert interp.config[list(interp.config.keys())[-1]]["params"] == {}
 
         # handle dict methods
 
@@ -145,11 +145,11 @@ class TestInterpolation(object):
 
         # set default equal to empty tuple
         interp = InterpolationManager([{"method": "bilinear", "dims": ["lat"]}])
-        assert interp.config[("default",)]["method"] == INTERPOLATION_DEFAULT
+        assert interp.config[list(interp.config.keys())[-1]]["method"] == INTERPOLATION_DEFAULT
 
         # use default with override if not all dimensions are supplied
         interp = InterpolationManager([{"method": "bilinear", "dims": ["lat"]}, "nearest"])
-        assert interp.config[("default",)]["method"] == "nearest"
+        assert interp.config[list(interp.config.keys())[-1]]["method"] == "nearest"
 
         # make sure default is always the last key in the ordered config dict
         interp = InterpolationManager(["nearest", {"method": "bilinear", "dims": ["lat"]}])
@@ -234,18 +234,12 @@ class TestInterpolation(object):
         # should throw an error if strict is set and not all dimensions can be handled
         with pytest.raises(InterpolationException):
             interp_copy = deepcopy(interp)
-            del interp_copy.config[("default",)]
             interpolator_queue = interp_copy._select_interpolator_queue(srccoords, reqcoords, "can_select", strict=True)
 
         # default = Nearest, which can handle all dims for can_interpolate
         interpolator_queue = interp._select_interpolator_queue(srccoords, reqcoords, "can_interpolate")
         assert isinstance(interpolator_queue, OrderedDict)
         assert isinstance(interpolator_queue[("lat", "lon")], LatLon)
-
-        if ("alt", "time") in interpolator_queue:
-            assert isinstance(interpolator_queue[("alt", "time")], NearestNeighbor)
-        else:
-            assert isinstance(interpolator_queue[("time", "alt")], NearestNeighbor)
 
     def test_select_coordinates(self):
 
@@ -288,15 +282,19 @@ class TestInterpolation(object):
             ]
         )
 
-        coords, cidx = interp.select_coordinates(srccoords, [], reqcoords)
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
 
         assert len(coords) == len(srccoords)
         assert len(coords["lat"]) == len(srccoords["lat"])
-        assert cidx == ()
+        assert cidx == tuple([slice(0, None)] * 4)
 
     def test_interpolate(self):
         class TestInterp(Interpolator):
             dims_supported = ["lat", "lon"]
+            methods_supported = ["myinterp"]
+
+            def can_interpolate(self, udims, src, req):
+                return udims
 
             def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
                 output_data = source_data
