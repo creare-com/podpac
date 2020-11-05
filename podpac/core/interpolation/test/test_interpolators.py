@@ -57,11 +57,6 @@ class TestNearest(object):
 
         coords, cidx = interp.select_coordinates(srccoords, reqcoords)
 
-        assert len(coords) == len(srccoords) == len(cidx)
-        assert len(coords["lat"]) == len(reqcoords["lat"])
-        assert len(coords["lon"]) == len(reqcoords["lon"])
-        assert np.all(coords["lat"].coordinates == np.array([0, 2, 4]))
-
         # test when coordinates are stacked and unstacked
         # TODO: how to handle stacked/unstacked coordinate asynchrony?
         # reqcoords = Coordinates([[-.5, 1.5, 3.5], [.5, 2.5, 4.5]], dims=['lat', 'lon'])
@@ -69,7 +64,7 @@ class TestNearest(object):
 
         # interp = InterpolationManager('nearest_preview')
 
-        # srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
+        # srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_index=True)
         # coords, cidx = interp.select_coordinates(reqcoords, srccoords, srccoords_index)
 
         # assert len(coords) == len(srcoords) == len(cidx)
@@ -117,7 +112,7 @@ class TestNearest(object):
             output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
-            assert np.all(output.lat.values == coords_dst.coords["lat"])
+            assert np.all(output.lat.values == coords_dst["lat"].coordinates)
             assert output.values[0] == source[0] and output.values[1] == source[0] and output.values[2] == source[1]
 
             # unstacked N-D
@@ -129,7 +124,7 @@ class TestNearest(object):
             output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
-            assert np.all(output.lat.values == coords_dst.coords["lat"])
+            assert np.all(output.lat.values == coords_dst["lat"].coordinates)
             assert output.values[0, 0] == source[1, 1]
 
             # stacked
@@ -191,7 +186,7 @@ class TestNearest(object):
         print(output)
         print(source)
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         assert output.values[0] == source[0] and np.isnan(output.values[1]) and output.values[2] == source[1]
 
     def test_time_tolerance(self):
@@ -214,7 +209,7 @@ class TestNearest(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         assert (
             output.values[0, 0] == source[0, 0]
             and output.values[0, 1] == source[0, 2]
@@ -246,7 +241,7 @@ class TestInterpolateRasterio(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         assert output.data[0, 3] == 3.0
         assert output.data[0, 4] == 4.0
 
@@ -255,7 +250,7 @@ class TestInterpolateRasterio(object):
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         assert output.data[0, 3] == 9.0
         assert output.data[0, 4] == 9.0
 
@@ -268,7 +263,7 @@ class TestInterpolateRasterio(object):
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         np.testing.assert_allclose(
             output, [[1.4, 2.4, 3.4, 4.4, 5.0], [6.4, 7.4, 8.4, 9.4, 10.0], [10.4, 11.4, 12.4, 13.4, 14.0]]
         )
@@ -286,8 +281,8 @@ class TestInterpolateRasterio(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
-        assert np.all(output.lon.values == coords_dst.coords["lon"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        assert np.all(output.lon.values == coords_dst["lon"].coordinates)
 
 
 class TestInterpolateScipyGrid(object):
@@ -308,7 +303,7 @@ class TestInterpolateScipyGrid(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         print(output)
         assert output.data[0, 0] == 0.0
         assert output.data[0, 3] == 3.0
@@ -320,7 +315,7 @@ class TestInterpolateScipyGrid(object):
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         assert int(output.data[0, 0]) == 2
         assert int(output.data[2, 4]) == 16
 
@@ -329,7 +324,7 @@ class TestInterpolateScipyGrid(object):
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         assert int(output.data[0, 0]) == 2
         assert int(output.data[3, 3]) == 20
         assert np.isnan(output.data[4, 4])  # TODO: how to handle outside bounds
@@ -348,9 +343,9 @@ class TestInterpolateScipyGrid(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
-        assert np.all(output.lon.values == coords_dst.coords["lon"])
-        assert np.all(output.time.values == coords_dst.coords["time"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        assert np.all(output.lon.values == coords_dst["lon"].coordinates)
+        assert np.all(output.time.values == coords_dst["time"].coordinates)
 
         # assert output.data[0, 0] == source[]
 
@@ -367,8 +362,8 @@ class TestInterpolateScipyGrid(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
-        assert np.all(output.lon.values == coords_dst.coords["lon"])
+        np.testing.assert_array_equal(output.lat.values, coords_dst["lat"].coordinates)
+        np.testing.assert_array_equal(output.lon.values, coords_dst["lon"].coordinates)
 
     def test_interpolate_irregular_arbitrary_swap(self):
         """should handle descending"""
@@ -383,8 +378,8 @@ class TestInterpolateScipyGrid(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
-        assert np.all(output.lon.values == coords_dst.coords["lon"])
+        np.testing.assert_array_equal(output.lat.values, coords_dst["lat"].coordinates)
+        np.testing.assert_array_equal(output.lon.values, coords_dst["lon"].coordinates)
 
     def test_interpolate_irregular_lat_lon(self):
         """ irregular interpolation """
@@ -399,7 +394,9 @@ class TestInterpolateScipyGrid(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat_lon.values == coords_dst.coords["lat_lon"])
+        assert "lat_lon" in output.dims
+        np.testing.assert_array_equal(output["lat"].values, coords_dst["lat"].coordinates)
+        np.testing.assert_array_equal(output["lon"].values, coords_dst["lon"].coordinates)
         assert output.values[0] == source[0, 0]
         assert output.values[1] == source[1, 1]
         assert output.values[-1] == source[-1, -1]
@@ -418,14 +415,16 @@ class TestInterpolateScipyPoint(object):
 
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat_lon.values == coords_dst.coords["lat_lon"])
+        assert "lat_lon" in output.dims
+        np.testing.assert_array_equal(output.lat.values, coords_dst["lat"].coordinates)
+        np.testing.assert_array_equal(output.lon.values, coords_dst["lon"].coordinates)
         assert output.values[0] == source[0]
         assert output.values[-1] == source[3]
 
         coords_dst = Coordinates([[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]], dims=["lat", "lon"])
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        np.testing.assert_array_equal(output.lat.values, coords_dst["lat"].coordinates)
         assert output.values[0, 0] == source[0]
         assert output.values[-1, -1] == source[3]
 

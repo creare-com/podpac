@@ -24,6 +24,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == 10
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0, 50])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 6
         assert c.dtype == float
         assert c.is_monotonic == True
@@ -38,6 +40,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == -10
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0, 50])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 6
         assert c.dtype == float
         assert c.is_monotonic == True
@@ -53,6 +57,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == 10
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0, 40])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 5
         assert c.dtype == float
         assert c.is_monotonic == True
@@ -67,6 +73,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == -10
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [10, 50])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.dtype == float
         assert c.size == a.size
         assert c.is_monotonic == True
@@ -82,6 +90,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == np.timedelta64(1, "D")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[0, -1]])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == a.size
         assert c.dtype == np.datetime64
         assert c.is_monotonic == True
@@ -96,6 +106,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == np.timedelta64(-1, "D")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[-1, 0]])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == a.size
         assert c.dtype == np.datetime64
         assert c.is_monotonic == True
@@ -111,6 +123,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == np.timedelta64(2, "D")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[0, -1]])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == a.size
         assert c.dtype == np.datetime64
         assert c.is_monotonic == True
@@ -125,6 +139,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == np.timedelta64(-2, "D")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[-1, 0]])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == a.size
         assert c.dtype == np.datetime64
         assert c.is_monotonic == True
@@ -140,6 +156,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == np.timedelta64(1, "M")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[0, -1]])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == a.size
         assert c.dtype == np.datetime64
         assert c.is_monotonic == True
@@ -154,6 +172,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == np.timedelta64(-1, "M")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[-1, 0]])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == a.size
         assert c.dtype == np.datetime64
         assert c.is_monotonic == True
@@ -169,6 +189,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == np.timedelta64(1, "Y")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[0, -1]])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == a.size
         assert c.dtype == np.datetime64
         assert c.is_monotonic == True
@@ -183,6 +205,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == np.timedelta64(-1, "Y")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[-1, 0]])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == a.size
         assert c.dtype == np.datetime64
         assert c.is_monotonic == True
@@ -197,6 +221,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == np.timedelta64(1, "Y")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[0, -1]])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == a.size
         assert c.dtype == np.datetime64
         assert c.is_monotonic == True
@@ -210,6 +236,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == np.timedelta64(1, "Y")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[0, -1]])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == a.size
         assert c.dtype == np.datetime64
         assert c.is_monotonic == True
@@ -224,6 +252,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == np.timedelta64(-1, "Y")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[-1, 0]])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == a.size
         assert c.dtype == np.datetime64
         assert c.is_monotonic == True
@@ -237,6 +267,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == np.timedelta64(-1, "Y")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[-1, 0]])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == a.size
         assert c.dtype == np.datetime64
         assert c.is_monotonic == True
@@ -251,6 +283,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == 10 / 19.0
         assert_equal(c.coordinates, np.linspace(0, 10, 20))
         assert_equal(c.bounds, [0, 10])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 20
         assert c.dtype == float
         assert c.is_monotonic == True
@@ -264,6 +298,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == -10 / 19.0
         assert_equal(c.coordinates, np.linspace(10, 0, 20))
         assert_equal(c.bounds, [0, 10])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 20
         assert c.dtype == float
         assert c.is_monotonic == True
@@ -276,6 +312,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.start == np.datetime64("2018-01-01")
         assert c.stop == np.datetime64("2018-01-10")
         assert_equal(c.bounds, [np.datetime64("2018-01-01"), np.datetime64("2018-01-10")])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 10
         assert c.dtype == np.datetime64
         assert c.is_descending == False
@@ -285,6 +323,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.start == np.datetime64("2018-01-10")
         assert c.stop == np.datetime64("2018-01-01")
         assert_equal(c.bounds, [np.datetime64("2018-01-01"), np.datetime64("2018-01-10")])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 10
         assert c.dtype == np.datetime64
         assert c.is_descending == True
@@ -294,6 +334,8 @@ class TestUniformCoordinatesCreation(object):
         assert c.start == np.datetime64("2018-01-01")
         assert c.stop == np.datetime64("2018-01-10")
         assert_equal(c.bounds, [np.datetime64("2018-01-01"), np.datetime64("2018-01-10")])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 21
         assert c.dtype == np.datetime64
         assert c.is_descending == False
@@ -820,7 +862,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 70.0
         assert s.step == 10.0
 
-        s, I = c.select([0, 100], return_indices=True)
+        s, I = c.select([0, 100], return_index=True)
         assert s.start == 20.0
         assert s.stop == 70.0
         assert s.step == 10.0
@@ -834,7 +876,7 @@ class TestUniformCoordinatesSelection(object):
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([100, 200], return_indices=True)
+        s, I = c.select([100, 200], return_index=True)
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
         assert c[I] == s
@@ -844,7 +886,7 @@ class TestUniformCoordinatesSelection(object):
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([0, 5], return_indices=True)
+        s, I = c.select([0, 5], return_index=True)
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
         assert c[I] == s
@@ -858,7 +900,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 50.0
         assert s.step == 10.0
 
-        s, I = c.select([35.0, 55.0], return_indices=True)
+        s, I = c.select([35.0, 55.0], return_index=True)
         assert s.start == 40.0
         assert s.stop == 50.0
         assert s.step == 10.0
@@ -870,7 +912,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 60.0
         assert s.step == 10.0
 
-        s, I = c.select([30.0, 60.0], return_indices=True)
+        s, I = c.select([30.0, 60.0], return_index=True)
         assert s.start == 30.0
         assert s.stop == 60.0
         assert s.step == 10.0
@@ -882,7 +924,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 70.0
         assert s.step == 10.0
 
-        s, I = c.select([45, 100], return_indices=True)
+        s, I = c.select([45, 100], return_index=True)
         assert s.start == 50.0
         assert s.stop == 70.0
         assert s.step == 10.0
@@ -894,7 +936,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 50.0
         assert s.step == 10.0
 
-        s, I = c.select([5, 55], return_indices=True)
+        s, I = c.select([5, 55], return_index=True)
         assert s.start == 20.0
         assert s.stop == 50.0
         assert s.step == 10.0
@@ -905,7 +947,7 @@ class TestUniformCoordinatesSelection(object):
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([52, 55], return_indices=True)
+        s, I = c.select([52, 55], return_index=True)
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
@@ -915,7 +957,7 @@ class TestUniformCoordinatesSelection(object):
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([70, 30], return_indices=True)
+        s, I = c.select([70, 30], return_index=True)
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
@@ -929,7 +971,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 40.0
         assert s.step == -10.0
 
-        s, I = c.select([35.0, 55.0], return_indices=True)
+        s, I = c.select([35.0, 55.0], return_index=True)
         assert s.start == 50.0
         assert s.stop == 40.0
         assert s.step == -10.0
@@ -941,7 +983,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 30.0
         assert s.step == -10.0
 
-        s, I = c.select([30.0, 60.0], return_indices=True)
+        s, I = c.select([30.0, 60.0], return_index=True)
         assert s.start == 60.0
         assert s.stop == 30.0
         assert s.step == -10.0
@@ -953,7 +995,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 50.0
         assert s.step == -10.0
 
-        s, I = c.select([45, 100], return_indices=True)
+        s, I = c.select([45, 100], return_index=True)
         assert s.start == 70.0
         assert s.stop == 50.0
         assert s.step == -10.0
@@ -965,7 +1007,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 20.0
         assert s.step == -10.0
 
-        s, I = c.select([5, 55], return_indices=True)
+        s, I = c.select([5, 55], return_index=True)
         assert s.start == 50.0
         assert s.stop == 20.0
         assert s.step == -10.0
@@ -976,7 +1018,7 @@ class TestUniformCoordinatesSelection(object):
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([52, 55], return_indices=True)
+        s, I = c.select([52, 55], return_index=True)
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
@@ -986,7 +1028,7 @@ class TestUniformCoordinatesSelection(object):
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([70, 30], return_indices=True)
+        s, I = c.select([70, 30], return_index=True)
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
@@ -1000,7 +1042,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 60.0
         assert s.step == 10.0
 
-        s, I = c.select([35.0, 55.0], outer=True, return_indices=True)
+        s, I = c.select([35.0, 55.0], outer=True, return_index=True)
         assert s.start == 30.0
         assert s.stop == 60.0
         assert s.step == 10.0
@@ -1012,7 +1054,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 60.0
         assert s.step == 10.0
 
-        s, I = c.select([30.0, 60.0], outer=True, return_indices=True)
+        s, I = c.select([30.0, 60.0], outer=True, return_index=True)
         assert s.start == 30.0
         assert s.stop == 60.0
         assert s.step == 10.0
@@ -1024,7 +1066,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 70.0
         assert s.step == 10.0
 
-        s, I = c.select([45, 100], outer=True, return_indices=True)
+        s, I = c.select([45, 100], outer=True, return_index=True)
         assert s.start == 40.0
         assert s.stop == 70.0
         assert s.step == 10.0
@@ -1036,7 +1078,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 60.0
         assert s.step == 10.0
 
-        s, I = c.select([5, 55], outer=True, return_indices=True)
+        s, I = c.select([5, 55], outer=True, return_index=True)
         assert s.start == 20.0
         assert s.stop == 60.0
         assert s.step == 10.0
@@ -1048,7 +1090,7 @@ class TestUniformCoordinatesSelection(object):
         assert s.stop == 60.0
         assert s.step == 10.0
 
-        s, I = c.select([52, 55], outer=True, return_indices=True)
+        s, I = c.select([52, 55], outer=True, return_index=True)
         assert s.start == 50.0
         assert s.stop == 60.0
         assert s.step == 10.0
@@ -1059,7 +1101,7 @@ class TestUniformCoordinatesSelection(object):
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([70, 30], outer=True, return_indices=True)
+        s, I = c.select([70, 30], outer=True, return_index=True)
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
@@ -1076,25 +1118,44 @@ class TestUniformCoordinatesSelection(object):
 
 
 class TestUniformCoordinatesMethods(object):
+    def test_unique(self):
+        c = UniformCoordinates1d(1, 5, step=1)
+        c2 = c.unique()
+        assert c2 == c and c2 is not c
+
+        c2, I = c.unique(return_index=True)
+        assert c2 == c and c2 is not c
+        assert c2 == c[I]
+
     def test_simplify(self):
         c = UniformCoordinates1d(1, 5, step=1)
         c2 = c.simplify()
-        assert c2 == c
+        assert c2 == c and c2 is not c
 
         # reversed, step -2
         c = UniformCoordinates1d(4, 0, step=-2)
         c2 = c.simplify()
-        assert c2 == c
+        assert c2 == c and c2 is not c
 
         # time, convert to UniformCoordinates
         c = UniformCoordinates1d("2020-01-01", "2020-01-05", step="1,D")
         c2 = c.simplify()
-        assert c2 == c
+        assert c2 == c and c2 is not c
 
         # time, reverse -2,h
         c = UniformCoordinates1d("2020-01-01T12:00", "2020-01-01T08:00", step="-3,h")
         c2 = c.simplify()
-        assert c2 == c
+        assert c2 == c and c2 is not c
+
+    def test_flatten(self):
+        c = UniformCoordinates1d(1, 5, step=1)
+        c2 = c.flatten()
+        assert c2 == c and c2 is not c
+
+    def test_reshape(self):
+        c = UniformCoordinates1d(1, 6, step=1, name="lat")
+        c2 = c.reshape((2, 3))
+        assert c2 == ArrayCoordinates1d(c.coordinates.reshape((2, 3)), name="lat")
 
     def test_issubset(self):
         c1 = UniformCoordinates1d(2, 1, step=-1)

@@ -319,8 +319,21 @@ class Interpolator(tl.HasTraits):
             # short circuit if source_coordinates contains eval_coordinates
             if eval_coordinates.issubset(source_coordinates):
                 # select/transpose, and copy
-                output_coords = output_data.coords
-                output_data[:] = source_data.sel(output_coords)
+                d = {}
+                for k, c in source_coordinates.items():
+                    if isinstance(c, Coordinates1d):
+                        d[k] = output_data[k].data
+                    elif isinstance(c, StackedCoordinates):
+                        bs = [np.isin(c[dim].coordinates, eval_coordinates[dim].coordinates) for dim in c.dims]
+                        b = np.logical_and.reduce(bs)
+                        d[k] = source_data[k].data[b]
+
+                if all(isinstance(c, Coordinates1d) for c in source_coordinates.values()):
+                    method = "nearest"
+                else:
+                    method = None
+
+                output_data[:] = source_data.sel(output_data.coords, method=method)
                 return output_data
 
             return func(udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs)

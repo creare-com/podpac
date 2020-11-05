@@ -251,9 +251,6 @@ def make_coord_array(values):
 
     a = np.atleast_1d(values)
 
-    if a.ndim != 1:
-        raise ValueError("Invalid coordinate values (ndim=%d, must be ndim=1)" % a.ndim)
-
     if a.dtype == float or np.issubdtype(a.dtype, np.datetime64):
         pass
 
@@ -261,7 +258,9 @@ def make_coord_array(values):
         a = a.astype(float)
 
     else:
-        a = np.array([make_coord_value(e) for e in np.atleast_1d(np.array(values, dtype=object))])
+        a = np.array([make_coord_value(e) for e in np.atleast_1d(np.array(values, dtype=object)).flatten()]).reshape(
+            a.shape
+        )
 
         if not np.issubdtype(a.dtype, np.datetime64):
             raise ValueError("Invalid coordinate values (must be all numbers or all datetimes)")

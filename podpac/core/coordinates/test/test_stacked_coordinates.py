@@ -16,7 +16,7 @@ from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 
 class TestStackedCoordinatesCreation(object):
-    def test_init_Coordinates1d(self):
+    def test_init_explicit(self):
         lat = ArrayCoordinates1d([0, 1, 2], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30], name="lon")
         time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03"], name="time")
@@ -43,48 +43,93 @@ class TestStackedCoordinatesCreation(object):
 
         repr(c)
 
-    def test_coercion_with_dims(self):
-        c = StackedCoordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lon"])
+    def test_init_explicit_shaped(self):
+        lat = ArrayCoordinates1d([[0, 1, 2], [10, 11, 12]], name="lat")
+        lon = ArrayCoordinates1d([[10, 20, 30], [11, 21, 31]], name="lon")
+        c = StackedCoordinates([lat, lon])
         assert c.dims == ("lat", "lon")
-        assert_equal(c["lat"].coordinates, [0, 1, 2])
-        assert_equal(c["lon"].coordinates, [10, 20, 30])
+        assert c.udims == ("lat", "lon")
+        assert c.name == "lat_lon"
+        repr(c)
+
+    def test_coercion_with_dims(self):
+        lat = [0, 1, 2]
+        lon = [10, 20, 30]
+        c = StackedCoordinates([lat, lon], dims=["lat", "lon"])
+        assert c.dims == ("lat", "lon")
+        assert_equal(c["lat"].coordinates, lat)
+        assert_equal(c["lon"].coordinates, lon)
 
     def test_coercion_with_name(self):
-        c = StackedCoordinates([[0, 1, 2], [10, 20, 30]], name="lat_lon")
+        lat = [0, 1, 2]
+        lon = [10, 20, 30]
+        c = StackedCoordinates([lat, lon], name="lat_lon")
         assert c.dims == ("lat", "lon")
-        assert_equal(c["lat"].coordinates, [0, 1, 2])
-        assert_equal(c["lon"].coordinates, [10, 20, 30])
+        assert_equal(c["lat"].coordinates, lat)
+        assert_equal(c["lon"].coordinates, lon)
+
+    def test_coercion_shaped_with_dims(self):
+        lat = [[0, 1, 2], [10, 11, 12]]
+        lon = [[10, 20, 30], [11, 21, 31]]
+        c = StackedCoordinates([lat, lon], dims=["lat", "lon"])
+        assert c.dims == ("lat", "lon")
+        assert_equal(c["lat"].coordinates, lat)
+        assert_equal(c["lon"].coordinates, lon)
+
+    def test_coercion_shaped_with_name(self):
+        lat = [[0, 1, 2], [10, 11, 12]]
+        lon = [[10, 20, 30], [11, 21, 31]]
+        c = StackedCoordinates([lat, lon], name="lat_lon")
+        assert c.dims == ("lat", "lon")
+        assert_equal(c["lat"].coordinates, lat)
+        assert_equal(c["lon"].coordinates, lon)
+
+    def test_invalid_coords_type(self):
+        with pytest.raises(TypeError, match="Unrecognized coords type"):
+            StackedCoordinates({})
+
+    def test_invalid_init_dims_and_name(self):
+        with pytest.raises(TypeError):
+            StackedCoordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lon"], name="lat_lon")
+
+    def test_duplicate_dims(self):
+        with pytest.raises(ValueError, match="Duplicate dimension"):
+            StackedCoordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lat"])
+
+        with pytest.raises(ValueError, match="Duplicate dimension"):
+            StackedCoordinates([[0, 1, 2], [10, 20, 30]], name="lat_lat")
 
     def test_invalid_coords(self):
         lat = ArrayCoordinates1d([0, 1, 2], name="lat")
         lon = ArrayCoordinates1d([0, 1, 2, 3], name="lon")
         c = ArrayCoordinates1d([0, 1, 2])
 
-        with pytest.raises(TypeError, match="Unrecognized coords type"):
-            StackedCoordinates({})
-
         with pytest.raises(ValueError, match="Stacked coords must have at least 2 coords"):
             StackedCoordinates([lat])
 
-        with pytest.raises(ValueError, match="Size mismatch in stacked coords"):
+        with pytest.raises(ValueError, match="Shape mismatch in stacked coords"):
             StackedCoordinates([lat, lon])
 
         with pytest.raises(ValueError, match="Duplicate dimension"):
             StackedCoordinates([lat, lat])
 
-        # but duplicate None name is okay
+        # (but duplicate None name is okay)
         StackedCoordinates([c, c])
 
-        # dims and name
-        with pytest.raises(TypeError):
-            StackedCoordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lon"], name="lat_lon")
+    def test_invalid_coords_shaped(self):
+        # same size, different shape
+        lat = ArrayCoordinates1d(np.arange(12).reshape((3, 4)), name="lat")
+        lon = ArrayCoordinates1d(np.arange(12).reshape((4, 3)), name="lon")
+
+        with pytest.raises(ValueError, match="Shape mismatch in stacked coords"):
+            StackedCoordinates([lat, lon])
 
     def test_from_xarray(self):
         lat = ArrayCoordinates1d([0, 1, 2], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30], name="lon")
         time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03"], name="time")
         c = StackedCoordinates([lat, lon, time])
-        x = xr.DataArray(np.empty(c.shape), coords=c.coords, dims=c.idims)
+        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims)
 
         c2 = StackedCoordinates.from_xarray(x.coords)
         assert c2.dims == ("lat", "lon", "time")
@@ -136,6 +181,18 @@ class TestStackedCoordinatesEq(object):
         assert c1 != c3
         assert c1 != c4
 
+    def test_eq_shaped(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c1 = StackedCoordinates([lat, lon])
+        c2 = StackedCoordinates([lat, lon])
+        c3 = StackedCoordinates([lat[::-1], lon])
+        c4 = StackedCoordinates([lat, lon[::-1]])
+
+        assert c1 == c2
+        assert c1 != c3
+        assert c1 != c4
+
 
 class TestStackedCoordinatesSerialization(object):
     def test_definition(self):
@@ -153,6 +210,33 @@ class TestStackedCoordinatesSerialization(object):
     def test_invalid_definition(self):
         with pytest.raises(ValueError, match="Could not parse coordinates definition with keys"):
             StackedCoordinates.from_definition([{"apple": 10}, {}])
+
+    def test_definition_shaped(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = StackedCoordinates([lat, lon], dims=["lat", "lon"])
+
+        d = c.definition
+        assert isinstance(d, list)
+        assert len(d) == 2
+
+        # serializable
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder)
+
+        # from definition
+        c2 = StackedCoordinates.from_definition(d)
+        assert c2 == c
+
+    def test_full_definition_shaped(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = StackedCoordinates([lat, lon])
+        d = c.full_definition
+        assert isinstance(d, list)
+        assert len(d) == 2
+
+        # serializable
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder)
 
 
 class TestStackedCoordinatesProperties(object):
@@ -230,44 +314,107 @@ class TestStackedCoordinatesProperties(object):
 
         assert c.shape == (4,)
 
+    def test_size_shaped(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = StackedCoordinates([lat, lon])
+        assert c.size == 12
+
+    def test_shape_shaped(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = StackedCoordinates([lat, lon])
+        assert c.shape == (3, 4)
+
     def test_coordinates(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30, 40], name="lon")
         time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time")
         c = StackedCoordinates([lat, lon, time])
 
-        assert isinstance(c.coordinates, pd.MultiIndex)
-        assert c.coordinates.size == 4
-        assert c.coordinates.names == ["lat", "lon", "time"]
-        assert c.coordinates[0] == (0.0, 10, np.datetime64("2018-01-01"))
-        assert c.coordinates[1] == (1.0, 20, np.datetime64("2018-01-02"))
-        assert c.coordinates[2] == (2.0, 30, np.datetime64("2018-01-03"))
-        assert c.coordinates[3] == (3.0, 40, np.datetime64("2018-01-04"))
+        assert_equal(c.coordinates, np.array([lat.coordinates, lon.coordinates, time.coordinates]).T)
+        assert c.coordinates.dtype == object
 
-    def test_coords(self):
+        # single dtype
+        lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")
+        lon = ArrayCoordinates1d([10, 20, 30, 40], name="lon")
+        c = StackedCoordinates([lat, lon])
+
+        assert_equal(c.coordinates, np.array([lat.coordinates, lon.coordinates]).T)
+        assert c.coordinates.dtype == float
+
+    def test_coordinates_shaped(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = StackedCoordinates([lat, lon])
+        assert_equal(c.coordinates, np.array([lat.T, lon.T]).T)
+
+    def test_xdims(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")
+        lon = ArrayCoordinates1d([10, 20, 30, 40], name="lon")
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time")
+        c = StackedCoordinates([lat, lon, time])
+        assert c.xdims == ("lat_lon_time",)
+
+    def test_xdims_shaped(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = StackedCoordinates([lat, lon], dims=["lat", "lon"])
+        assert len(set(c.xdims)) == 2
+
+    def test_xcoords(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30, 40], name="lon")
         time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time")
         c = StackedCoordinates([lat, lon, time])
 
-        assert isinstance(c.coords, dict)
-        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.coords)
+        assert isinstance(c.xcoords, dict)
+        x = xr.DataArray(np.empty(c.shape), dims=c.xdims, coords=c.xcoords)
         assert x.dims == ("lat_lon_time",)
         assert_equal(x.coords["lat"], c["lat"].coordinates)
         assert_equal(x.coords["lon"], c["lon"].coordinates)
         assert_equal(x.coords["time"], c["time"].coordinates)
 
+        # unnamed
         lat = ArrayCoordinates1d([0, 1, 2, 3])
         lon = ArrayCoordinates1d([10, 20, 30, 40])
         time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"])
         c = StackedCoordinates([lat, lon, time])
-        with pytest.raises(ValueError, match="Cannot get coords"):
-            c.coords
+        with pytest.raises(ValueError, match="Cannot get xcoords"):
+            c.xcoords
+
+    def test_xcoords_shaped(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = StackedCoordinates([lat, lon], dims=["lat", "lon"])
+
+        assert isinstance(c.xcoords, dict)
+        x = xr.DataArray(np.empty(c.shape), dims=c.xdims, coords=c.xcoords)
+        assert_equal(x.coords["lat"], c["lat"].coordinates)
+        assert_equal(x.coords["lon"], c["lon"].coordinates)
+
+        c = StackedCoordinates([lat, lon])
+        with pytest.raises(ValueError, match="Cannot get xcoords"):
+            c.xcoords
 
     def test_bounds(self):
         lat = [0, 1, 2]
         lon = [10, 20, 30]
 
+        c = StackedCoordinates([lat, lon], dims=["lat", "lon"])
+        bounds = c.bounds
+        assert isinstance(bounds, dict)
+        assert set(bounds.keys()) == set(c.udims)
+        assert_equal(bounds["lat"], c["lat"].bounds)
+        assert_equal(bounds["lon"], c["lon"].bounds)
+
+        c = StackedCoordinates([lat, lon])
+        with pytest.raises(ValueError, match="Cannot get bounds"):
+            c.bounds
+
+    def test_bounds_shaped(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
         c = StackedCoordinates([lat, lon], dims=["lat", "lon"])
         bounds = c.bounds
         assert isinstance(bounds, dict)
@@ -330,6 +477,46 @@ class TestStackedCoordinatesIndexing(object):
         assert cI.dims == c.dims
         assert_equal(cI["lat"].coordinates, c["lat"].coordinates[1:3])
 
+    def test_get_index_shaped(self):
+        lat = np.linspace(0, 1, 60).reshape((5, 4, 3))
+        lon = np.linspace(1, 2, 60).reshape((5, 4, 3))
+        c = StackedCoordinates([lat, lon], dims=["lat", "lon"])
+
+        I = [3, 1, 2]
+        J = slice(1, 3)
+        K = 1
+        B = lat > 0.5
+
+        # full
+        c2 = c[I, J, K]
+        assert isinstance(c2, StackedCoordinates)
+        assert c2.shape == (3, 2)
+        assert c2.dims == c.dims
+        assert c2["lat"] == c["lat"][I, J, K]
+        assert c2["lon"] == c["lon"][I, J, K]
+        assert_equal(c2["lat"].coordinates, lat[I, J, K])
+        assert_equal(c2["lon"].coordinates, lon[I, J, K])
+
+        # partial/implicit
+        c2 = c[I, J]
+        assert isinstance(c2, StackedCoordinates)
+        assert c2.shape == (3, 2, 3)
+        assert c2.dims == c.dims
+        assert c2["lat"] == c["lat"][I, J]
+        assert c2["lon"] == c["lon"][I, J]
+        assert_equal(c2["lat"].coordinates, lat[I, J])
+        assert_equal(c2["lon"].coordinates, lon[I, J])
+
+        # boolean
+        c2 = c[B]
+        assert isinstance(c2, StackedCoordinates)
+        assert c2.shape == (30,)
+        assert c2.dims == c.dims
+        assert c2["lat"] == c["lat"][B]
+        assert c2["lon"] == c["lon"][B]
+        assert_equal(c2["lat"].coordinates, lat[B])
+        assert_equal(c2["lon"].coordinates, lon[B])
+
     def test_iter(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3])
         lon = ArrayCoordinates1d([10, 20, 30, 40])
@@ -356,7 +543,18 @@ class TestStackedCoordinatesIndexing(object):
         assert (0, 10, "2018-01-01") in c
         assert (1, 10, "2018-01-01") not in c
         assert ("2018-01-01", 10, 0) not in c
-        assert 0 not in c
+        assert (0,) not in c
+        assert "test" not in c
+
+    def test_in_shaped(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = StackedCoordinates([lat, lon], dims=["lat", "lon"])
+
+        assert (lat[0, 0], lon[0, 0]) in c
+        assert (lat[0, 0], lon[0, 1]) not in c
+        assert (lon[0, 0], lat[0, 0]) not in c
+        assert lat[0, 0] not in c
 
 
 class TestStackedCoordinatesSelection(object):
@@ -370,7 +568,7 @@ class TestStackedCoordinatesSelection(object):
         s = c.select({"lat": [0.5, 2.5]})
         assert s == c[1:3]
 
-        s, I = c.select({"lat": [0.5, 2.5]}, return_indices=True)
+        s, I = c.select({"lat": [0.5, 2.5]}, return_index=True)
         assert s == c[I]
         assert s == c[1:3]
 
@@ -378,7 +576,7 @@ class TestStackedCoordinatesSelection(object):
         s = c.select({"lon": [5, 25]})
         assert s == c[0:2]
 
-        s, I = c.select({"lon": [5, 25]}, return_indices=True)
+        s, I = c.select({"lon": [5, 25]}, return_index=True)
         assert s == c[I]
         assert s == c[0:2]
 
@@ -386,7 +584,7 @@ class TestStackedCoordinatesSelection(object):
         s = c.select({"lat": [0.5, 2.5]}, outer=True)
         assert s == c[0:4]
 
-        s, I = c.select({"lat": [0.5, 2.5]}, outer=True, return_indices=True)
+        s, I = c.select({"lat": [0.5, 2.5]}, outer=True, return_index=True)
         assert s == c[I]
         assert s == c[0:4]
 
@@ -394,7 +592,7 @@ class TestStackedCoordinatesSelection(object):
         s = c.select({"alt": [0, 10]})
         assert s == c
 
-        s, I = c.select({"alt": [0, 10]}, return_indices=True)
+        s, I = c.select({"alt": [0, 10]}, return_index=True)
         assert s == c[I]
         assert s == c
 
@@ -411,12 +609,80 @@ class TestStackedCoordinatesSelection(object):
         assert slon == c[2:5]
         assert s == c[2:4]
 
-        s, I = c.select({"lat": [0.5, 3.5], "lon": [25, 55]}, return_indices=True)
+        s, I = c.select({"lat": [0.5, 3.5], "lon": [25, 55]}, return_index=True)
         assert s == c[2:4]
         assert s == c[I]
 
+    def test_select_single_shaped(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = StackedCoordinates([lat, lon], dims=["lat", "lon"])
 
-class TestDependentCoordinatesTranspose(object):
+        # single dimension
+        bounds = {"lat": [0.25, 0.55]}
+        E0, E1 = [0, 1, 1, 1], [3, 0, 1, 2]  # expected
+
+        s = c.select(bounds)
+        assert isinstance(s, StackedCoordinates)
+        assert s == c[E0, E1]
+
+        s, I = c.select(bounds, return_index=True)
+        assert isinstance(s, StackedCoordinates)
+        assert s == c[I]
+        assert s == c[E0, E1]
+
+        # a different single dimension
+        bounds = {"lon": [12.5, 17.5]}
+        E0, E1 = [0, 1, 1, 1, 1, 2], [3, 0, 1, 2, 3, 0]
+
+        s = c.select(bounds)
+        assert isinstance(s, StackedCoordinates)
+        assert s == c[E0, E1]
+
+        s, I = c.select(bounds, return_index=True)
+        assert isinstance(s, StackedCoordinates)
+        assert s == c[I]
+        assert s == c[E0, E1]
+
+        # outer
+        bounds = {"lat": [0.25, 0.75]}
+        E0, E1 = [0, 0, 1, 1, 1, 1, 2, 2], [2, 3, 0, 1, 2, 3, 0, 1]
+
+        s = c.select(bounds, outer=True)
+        assert isinstance(s, StackedCoordinates)
+        assert s == c[E0, E1]
+
+        s, I = c.select(bounds, outer=True, return_index=True)
+        assert isinstance(s, StackedCoordinates)
+        assert s == c[I]
+        assert s == c[E0, E1]
+
+        # no matching dimension
+        bounds = {"alt": [0, 10]}
+        s = c.select(bounds)
+        assert s == c
+
+        s, I = c.select(bounds, return_index=True)
+        assert s == c[I]
+        assert s == c
+
+    def test_select_multiple_shaped(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = StackedCoordinates([lat, lon], dims=["lat", "lon"])
+
+        # this should be the AND of both intersections
+        bounds = {"lat": [0.25, 0.95], "lon": [10.5, 17.5]}
+        E0, E1 = [0, 1, 1, 1, 1, 2], [3, 0, 1, 2, 3, 0]
+        s = c.select(bounds)
+        assert s == c[E0, E1]
+
+        s, I = c.select(bounds, return_index=True)
+        assert s == c[I]
+        assert s == c[E0, E1]
+
+
+class TestDependentCoordinatesMethods(object):
     def test_transpose(self):
         lat = ArrayCoordinates1d([0, 1, 2], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30], name="lon")
@@ -459,6 +725,51 @@ class TestDependentCoordinatesTranspose(object):
         assert t["lat"] == lat
         assert t["lon"] == lon
         assert t["time"] == time
+
+    def test_unique(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 1, 0, 5], name="lat")
+        lon = ArrayCoordinates1d([10, 20, 20, 20, 10, 60], name="lon")
+        c = StackedCoordinates([lat, lon])
+
+        c2 = c.unique()
+        assert_equal(c2["lat"].coordinates, [0, 1, 2, 5])
+        assert_equal(c2["lon"].coordinates, [10, 20, 20, 60])
+
+        c2, I = c.unique(return_index=True)
+        assert_equal(c2["lat"].coordinates, [0, 1, 2, 5])
+        assert_equal(c2["lon"].coordinates, [10, 20, 20, 60])
+        assert c[I] == c2
+
+    def test_unque_shaped(self):
+        lat = ArrayCoordinates1d([[0, 1, 2], [1, 0, 5]], name="lat")
+        lon = ArrayCoordinates1d([[10, 20, 20], [20, 10, 60]], name="lon")
+        c = StackedCoordinates([lat, lon])
+
+        # flattens
+        c2 = c.unique()
+        assert_equal(c2["lat"].coordinates, [0, 1, 2, 5])
+        assert_equal(c2["lon"].coordinates, [10, 20, 20, 60])
+
+        c2, I = c.unique(return_index=True)
+        assert_equal(c2["lat"].coordinates, [0, 1, 2, 5])
+        assert_equal(c2["lon"].coordinates, [10, 20, 20, 60])
+        assert c.flatten()[I] == c2
+
+    def test_get_area_bounds(self):
+        lat = ArrayCoordinates1d([0, 1, 2], name="lat")
+        lon = ArrayCoordinates1d([10, 20, 30], name="lon")
+        c = StackedCoordinates([lat, lon])
+        d = c.get_area_bounds({"lat": 0.5, "lon": 1})
+        # this is just a pass through
+        assert d["lat"] == lat.get_area_bounds(0.5)
+        assert d["lon"] == lon.get_area_bounds(1)
+
+        # has to be named
+        lat = ArrayCoordinates1d([0, 1, 2])
+        lon = ArrayCoordinates1d([10, 20, 30])
+        c = StackedCoordinates([lat, lon])
+        with pytest.raises(ValueError, match="Cannot get area_bounds"):
+            c.get_area_bounds({"lat": 0.5, "lon": 1})
 
     def test_issubset(self):
         lat = np.arange(4)
@@ -504,8 +815,8 @@ class TestDependentCoordinatesTranspose(object):
         assert sc_t.issubset(cs)
         assert not sc_time.issubset(cs)
 
-        # coordinates with dependent lat,lon
-        cd = podpac.Coordinates([[lat.reshape((2, 2)), lon.reshape((2, 2))]], dims=["lat,lon"])
+        # coordinates with shaped stacked lat_lon
+        cd = podpac.Coordinates([[lat.reshape((2, 2)), lon.reshape((2, 2))]], dims=["lat_lon"])
         assert sc.issubset(cd)
         assert sc[:2].issubset(cd)
         assert sc[::-1].issubset(cd)
@@ -554,3 +865,119 @@ class TestDependentCoordinatesTranspose(object):
 
         with pytest.raises(TypeError, match="StackedCoordinates issubset expected Coordinates or StackedCoordinates"):
             sc.issubset([])
+
+    def test_issubset_shaped(self):
+        lat = np.arange(12).reshape(3, 4)
+        lon = 10 * np.arange(12).reshape(3, 4)
+        time = 100 * np.arange(12).reshape(3, 4)
+
+        dc = StackedCoordinates([lat, lon], dims=["lat", "lon"])
+        dc_2 = StackedCoordinates([lat + 100, lon], dims=["lat", "lon"])  # different coordinates
+        dc_3 = StackedCoordinates([lat[::-1], lon], dims=["lat", "lon"])  # same coordinates, but paired differently
+        dc_t = dc.transpose("lon", "lat")
+        dc_shape = StackedCoordinates([lat.reshape(6, 2), lon.reshape(6, 2)], dims=["lat", "lon"])
+        dc_time = StackedCoordinates([lat, lon, time], dims=["lat", "lon", "time"])
+
+        assert dc.issubset(dc)
+        assert dc[:2, :2].issubset(dc)
+        assert not dc.issubset(dc[:2, :2])
+        assert not dc_2.issubset(dc)
+        assert not dc_3.issubset(dc)
+
+        assert dc_t.issubset(dc)
+        assert dc_shape.issubset(dc)
+
+        # extra/missing dimension
+        assert not dc_time.issubset(dc)
+        assert not dc.issubset(dc_time)
+
+    def test_issubset_coordinates_shaped(self):
+        ulat = np.arange(12)
+        ulon = 10 * np.arange(12)
+        utime = 100 * np.arange(12)
+
+        lat = ulat.reshape(3, 4)
+        lon = ulon.reshape(3, 4)
+        time = utime.reshape(3, 4)
+
+        dc = StackedCoordinates([lat, lon], dims=["lat", "lon"])
+        dc_2 = StackedCoordinates([lat + 100, lon], dims=["lat", "lon"])  # different coordinates
+        dc_3 = StackedCoordinates([lat[::-1], lon], dims=["lat", "lon"])  # same coordinates, but paired differently
+        dc_t = dc.transpose("lon", "lat")
+        dc_shape = StackedCoordinates([lat.reshape(6, 2), lon.reshape(6, 2)], dims=["lat", "lon"])
+        dc_time = StackedCoordinates([lat, lon, time], dims=["lat", "lon", "time"])
+
+        # coordinates with stacked lat_lon
+        cs = podpac.Coordinates([[ulat, ulon]], dims=["lat_lon"])
+        assert dc.issubset(cs)
+        assert dc[:2, :3].issubset(cs)
+        assert dc[::-1].issubset(cs)
+        assert not dc_2.issubset(cs)
+        assert not dc_3.issubset(cs)
+        assert dc_t.issubset(cs)
+        assert dc_shape.issubset(cs)
+        assert not dc_time.issubset(cs)
+
+        # coordinates with dependent lat,lon
+        cd = podpac.Coordinates([[lat, lon]], dims=["lat_lon"])
+        assert dc.issubset(cd)
+        assert dc[:2, :3].issubset(cd)
+        assert dc[::-1].issubset(cd)
+        assert not dc_2.issubset(cd)
+        assert not dc_3.issubset(cd)
+        assert dc_t.issubset(cd)
+        assert dc_shape.issubset(cd)
+        assert not dc_time.issubset(cd)
+
+        # coordinates with unstacked lat, lon
+        cu = podpac.Coordinates([ulat, ulon[::-1]], dims=["lat", "lon"])
+        assert dc.issubset(cu)
+        assert dc[:2, :3].issubset(cu)
+        assert dc[::-1].issubset(cu)
+        assert not dc_2.issubset(cu)
+        assert dc_3.issubset(cu)  # this is an important case!
+        assert dc_t.issubset(cu)
+        assert dc_shape.issubset(cu)
+        assert not dc_time.issubset(cu)
+
+        # coordinates with unstacked lat, lon, time
+        cu_time = podpac.Coordinates([ulat, ulon, utime], dims=["lat", "lon", "time"])
+        assert dc.issubset(cu_time)
+        assert dc[:2, :3].issubset(cu_time)
+        assert dc[::-1].issubset(cu_time)
+        assert not dc_2.issubset(cu_time)
+        assert dc_3.issubset(cu_time)
+        assert dc_t.issubset(cu_time)
+        assert dc_shape.issubset(cu_time)
+        assert dc_time.issubset(cu_time)
+
+        assert not dc.issubset(cu_time[:2, :, :])
+
+        # mixed coordinates
+        cmixed = podpac.Coordinates([[ulat, ulon], utime], dims=["lat_lon", "time"])
+        assert dc.issubset(cmixed)
+        assert dc[:2, :3].issubset(cmixed)
+        assert dc[::-1].issubset(cmixed)
+        assert not dc_2.issubset(cmixed)
+        assert not dc_3.issubset(cmixed)
+        assert dc_t.issubset(cmixed)
+        assert dc_shape.issubset(cmixed)
+        assert dc_time.issubset(cmixed)  # this is the most general case
+
+        assert not dc.issubset(cmixed[:2, :])
+        assert not dc_time.issubset(cmixed[:, :1])
+
+    def test_flatten(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = StackedCoordinates([lat, lon])
+
+        assert c.flatten() == StackedCoordinates([lat.flatten(), lon.flatten()])
+
+    def test_reshape(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = StackedCoordinates([lat, lon])
+
+        assert c.reshape((4, 3)) == StackedCoordinates([lat.reshape((4, 3)), lon.reshape((4, 3))])
+        assert c.flatten().reshape((3, 4)) == c

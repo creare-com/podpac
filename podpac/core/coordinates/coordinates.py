@@ -28,11 +28,9 @@ from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get
 from podpac.core.coordinates.utils import has_alt_units
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
-from podpac.core.coordinates.dependent_coordinates import ArrayCoordinatesNd
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
-from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
 from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
 from podpac.core.coordinates.cfunctions import clinspace
 
@@ -137,8 +135,6 @@ class Coordinates(tl.HasTraits):
                 c = coords[i]
             elif "_" in dim:
                 c = StackedCoordinates(coords[i])
-            elif "," in dim:
-                c = DependentCoordinates(coords[i])
             else:
                 c = ArrayCoordinates1d(coords[i])
 
@@ -331,19 +327,26 @@ class Coordinates(tl.HasTraits):
         if not isinstance(xcoord, xarray.core.coordinates.DataArrayCoordinates):
             raise TypeError("Coordinates.from_xarray expects xarray DataArrayCoordinates, not '%s'" % type(xcoord))
 
-        coords = []
+        d = OrderedDict()
         for dim in xcoord.dims:
+            if dim in d:
+                continue
             if dim == "output":
                 continue
-            if isinstance(xcoord.indexes[dim], (pd.DatetimeIndex, pd.Float64Index, pd.Int64Index)):
-                c = ArrayCoordinates1d.from_xarray(xcoord[dim])
-            elif isinstance(xcoord.indexes[dim], pd.MultiIndex):
-                c = StackedCoordinates.from_xarray(xcoord[dim])
-            else:
-                raise NotImplementedError
-            coords.append(c)
 
-        return cls(coords, crs=crs)
+            if "-" in dim:
+                dim, _ = dim.split("-")
+
+            if dim in xcoord.indexes and isinstance(xcoord.indexes[dim], pd.MultiIndex):
+                # 1d stacked
+                d[dim] = StackedCoordinates.from_xarray(xcoord[dim])
+            elif "_" in dim:
+                # nd stacked
+                d[dim] = StackedCoordinates([xcoord[k] for k in dim.split("_")], name=dim)
+            else:
+                # unstacked
+                d[dim] = ArrayCoordinates1d.from_xarray(xcoord[dim])
+        return cls(list(d.values()), crs=crs)
 
     @classmethod
     def from_json(cls, s):
@@ -521,8 +524,6 @@ class Coordinates(tl.HasTraits):
                 c = UniformCoordinates1d.from_definition(e)
             elif "name" in e and "values" in e:
                 c = ArrayCoordinates1d.from_definition(e)
-            elif "dims" in e and "values" in e:
-                c = DependentCoordinates.from_definition(e)
             elif "dims" in e and "shape" in e and "theta" in e and "origin" in e and ("step" in e or "corner" in e):
                 c = RotatedCoordinates.from_definition(e)
             else:
@@ -567,7 +568,7 @@ class Coordinates(tl.HasTraits):
 
             # extracts individual coords from stacked and dependent coordinates
             for c in self._coords.values():
-                if isinstance(c, (StackedCoordinates, DependentCoordinates)) and dim in c.dims:
+                if isinstance(c, StackedCoordinates) and dim in c.dims:
                     return c[dim]
 
             raise KeyError("Dimension '%s' not found in Coordinates %s" % (dim, self.dims))
@@ -578,20 +579,15 @@ class Coordinates(tl.HasTraits):
                 index = (index,)
             index = index + tuple(slice(None) for i in range(self.ndim - len(index)))
 
-            # bundle dependent coordinates indices
+            # bundle shaped coordinates indices
             indices = []
             i = 0
             for c in self._coords.values():
-                if isinstance(c, DependentCoordinates):
-                    indices.append(tuple(index[i : i + len(c.dims)]))
-                    i += len(c.dims)
-                else:
-                    indices.append(index[i])
-                    i += 1
+                indices.append(tuple(index[i : i + c.ndim]))
+                i += c.ndim
 
-            return Coordinates(
-                [c[I] for c, I in zip(self._coords.values(), indices)], validate_crs=False, **self.properties
-            )
+            cs = [c[I] for c, I in zip(self._coords.values(), indices)]
+            return Coordinates(cs, validate_crs=False, **self.properties)
 
     def __setitem__(self, dim, c):
 
@@ -602,8 +598,6 @@ class Coordinates(tl.HasTraits):
             c = c[dim]
         elif "_" in dim:
             c = StackedCoordinates(c)
-        elif "," in dim:
-            c = DependentCoordinates(c)
         else:
             c = ArrayCoordinates1d(c)
 
@@ -681,14 +675,13 @@ class Coordinates(tl.HasTraits):
         return tuple(c.name for c in self._coords.values())
 
     @property
-    def idims(self):
-        """:tuple: Tuple of indexing dimension names.
+    def xdims(self):
+        """:tuple: Tuple of indexing dimension names used to make xarray DataArray.
 
-        Unless there are dependent coordinates, this will match the ``dims``. For dependent coordinates, indexing
-        dimensions `'i'`, `'j'`, etc are used by default.
+        Unless there are shaped (ndim>1) coordinates, this will match the ``dims``.
         """
 
-        return tuple(dim for c in self._coords.values() for dim in c.idims)
+        return tuple(dim for c in self._coords.values() for dim in c.xdims)
 
     @property
     def udims(self):
@@ -758,15 +751,15 @@ class Coordinates(tl.HasTraits):
         return {dim: self[dim].bounds for dim in self.udims}
 
     @property
-    def coords(self):
+    def xcoords(self):
         """
-        :xarray.core.coordinates.DataArrayCoordinates: xarray coords, a dictionary-like container of coordinate arrays.
+        :dict: xarray coords
         """
 
-        coords = OrderedDict()
+        xcoords = OrderedDict()
         for c in self._coords.values():
-            coords.update(c.coords)
-        return coords
+            xcoords.update(c.xcoords)
+        return xcoords
 
     @property
     def CRS(self):
@@ -1019,7 +1012,7 @@ class Coordinates(tl.HasTraits):
 
         return Coordinates(cs, validate_crs=False, **self.properties)
 
-    def intersect(self, other, dims=None, outer=False, return_indices=False):
+    def intersect(self, other, dims=None, outer=False, return_index=False):
         """
         Get the coordinate values that are within the bounds of a given coordinates object.
 
@@ -1066,15 +1059,15 @@ class Coordinates(tl.HasTraits):
             Restrict intersection to the given dimensions. Default is all available dimensions.
         outer : bool, optional
             If True, do an *outer* intersection. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selection in addition to coordinates. Default False.
+        return_index : bool, optional
+            If True, return index for the selection in addition to coordinates. Default False.
 
         Returns
         -------
         intersection : :class:`Coordinates`
             Coordinates object consisting of the intersection in each dimension.
-        idx : list
-            List of indices for each dimension that produces the intersection, only if ``return_indices`` is True.
+        selection_index : list
+            List of indices for each dimension that produces the intersection, only if ``return_index`` is True.
         """
 
         if not isinstance(other, Coordinates):
@@ -1087,9 +1080,9 @@ class Coordinates(tl.HasTraits):
         if dims is not None:
             bounds = {dim: bounds[dim] for dim in dims}  # if dim in bounds}
 
-        return self.select(bounds, outer=outer, return_indices=return_indices)
+        return self.select(bounds, outer=outer, return_index=return_index)
 
-    def select(self, bounds, return_indices=False, outer=False):
+    def select(self, bounds, return_index=False, outer=False):
         """
         Get the coordinate values that are within the given bounds for each dimension.
 
@@ -1123,53 +1116,59 @@ class Coordinates(tl.HasTraits):
             Selection bounds for the desired coordinates.
         outer : bool, optional
             If True, do *outer* selections. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selection in addition to coordinates. Default False.
+        return_index : bool, optional
+            If True, return index for the selections in addition to coordinates. Default False.
 
         Returns
         -------
         selection : :class:`Coordinates`
             Coordinates object with coordinates within the given bounds.
-        I : list of indices (slices/lists)
-            index or slice for the selected coordinates in each dimension (only if return_indices=True)
+        selection_index : list
+            index for the selected coordinates in each dimension (only if return_index=True)
         """
 
-        selections = [c.select(bounds, outer=outer, return_indices=return_indices) for c in self._coords.values()]
+        selections = [c.select(bounds, outer=outer, return_index=return_index) for c in self._coords.values()]
+        return self._make_selected_coordinates(selections, return_index)
 
-        return self._make_selected_coordinates(selections, return_indices)
-
-    def _make_selected_coordinates(self, selections, return_indices):
-        if return_indices:
+    def _make_selected_coordinates(self, selections, return_index):
+        if return_index:
             coords = Coordinates([c for c, I in selections], validate_crs=False, **self.properties)
-            # unbundle DepedentCoordinates indices
-            I = [I if isinstance(c, DependentCoordinates) else [I] for c, I in selections]
+            # unbundle shaped indices
+            I = [I if c.ndim > 1 else [I] for c, I in selections]
             I = [e for l in I for e in l]
             return coords, tuple(I)
         else:
             return Coordinates(selections, validate_crs=False, **self.properties)
 
-    def unique(self, return_indices=False):
+    def unique(self, return_index=False):
         """
         Remove duplicate coordinate values from each dimension.
 
         Arguments
         ---------
-        return_indices : bool, optional
-            If True, return indices for the unique coordinates in addition to the coordinates. Default False.
+        return_index : bool, optional
+            If True, return index for the unique coordinates in addition to the coordinates. Default False.
         Returns
         -------
-        coords : :class:`podpac.Coordinates`
+        unique : :class:`podpac.Coordinates`
             New Coordinates object with unique, sorted coordinate values in each dimension.
-        I : list of indices
-            index for the unique coordinates in each dimension (only if return_indices=True)
+        unique_index : list of indices
+            index for the unique coordinates in each dimension (only if return_index=True)
         """
 
-        I = tuple(np.unique(c.coordinates, return_index=True)[1] for c in self.values())
+        if self.ndim == 0:
+            if return_index:
+                return self[:], tuple()
+            else:
+                return self[:]
 
-        if return_indices:
-            return self[I], I
+        cs, I = zip(*[c.unique(return_index=True) for c in self.values()])
+        unique = Coordinates(cs, validate_crs=False, **self.properties)
+
+        if return_index:
+            return unique, I
         else:
-            return self[I]
+            return unique
 
     def unstack(self):
         """
@@ -1251,10 +1250,6 @@ class Coordinates(tl.HasTraits):
         for dim in dims:
             if dim in self._coords:
                 coords.append(self._coords[dim])
-            elif "," in dim and dim.split(",")[0] in self.udims:
-                target_dims = dim.split(",")
-                source_dim = [_dim for _dim in self.dims if target_dims[0] in _dim][0]
-                coords.append(self._coords[source_dim].transpose(*target_dims, in_place=in_place))
             elif "_" in dim and dim.split("_")[0] in self.udims:
                 target_dims = dim.split("_")
                 source_dim = [_dim for _dim in self.dims if target_dims[0] in _dim][0]
@@ -1366,13 +1361,16 @@ class Coordinates(tl.HasTraits):
         cs = [c for c in self.values()]
 
         if "lat" in self.dims and "lon" in self.dims:
-            # try to do a simplified transform (resulting in unstacked lat-lon coordinates)
-            tc = self._simplified_transform(crs, transformer)
-            if tc:
-                cs[self.dims.index("lat")] = tc[0]
-                cs[self.dims.index("lon")] = tc[1]
+            lat_sample = np.linspace(self["lat"].bounds[0], self["lat"].bounds[1], 5)
+            lon_sample = np.linspace(self["lon"].bounds[0], self["lon"].bounds[1], 5)
+            sample = StackedCoordinates(np.meshgrid(lat_sample, lon_sample, indexing="ij"), dims=["lat", "lon"])
+            t = sample._transform(transformer)
 
-            # otherwise convert lat-lon to dependent coordinates
+            if not isinstance(t, StackedCoordinates):
+                cs[self.dims.index("lat")] = self["lat"].simplify()
+                cs[self.dims.index("lon")] = self["lon"].simplify()
+
+            # otherwise, replace lat and lon coordinates with a single stacked lat_lon:
             else:
                 ilat = self.dims.index("lat")
                 ilon = self.dims.index("lon")
@@ -1380,12 +1378,14 @@ class Coordinates(tl.HasTraits):
                     c1, c2 = self["lat"], self["lon"]
                 elif ilon == ilat - 1:
                     c1, c2 = self["lon"], self["lat"]
+                else:
+                    raise RuntimeError("lat and lon dimensions should be adjacent")
 
-                c = DependentCoordinates(
+                c = StackedCoordinates(
                     np.meshgrid(c1.coordinates, c2.coordinates, indexing="ij"), dims=[c1.name, c2.name]
                 )
 
-                # replace 'lat' and 'lon' entries with single 'lat,lon' entry
+                # replace 'lat' and 'lon' entries with single 'lat_lon' entry
                 i = min(ilat, ilon)
                 cs.pop(i)
                 cs.pop(i)
@@ -1401,46 +1401,6 @@ class Coordinates(tl.HasTraits):
                 ts.append(tc)
 
         return Coordinates(ts, crs=crs, validate_crs=False)
-
-    def _simplified_transform(self, crs, transformer):
-        """ Transform coordinates to simple Coordinates1d (instead of DependentCoordinates) if possible """
-
-        # check if we can simplify the coordinates by transforming a downsampled grid
-        sample = [np.linspace(self[dim].coordinates[0], self[dim].coordinates[-1], 5) for dim in ["lat", "lon"]]
-        temp_coords = DependentCoordinates(np.meshgrid(*sample, indexing="ij"), dims=["lat", "lon"])
-        t = temp_coords._transform(transformer)
-
-        # if we get DependentCoordinates from the transform, they are not independent
-        if isinstance(t, DependentCoordinates):
-            return
-
-        # Great, we CAN simplify the transformed coordinates.
-        # If they are uniform already, we just need to expand to the full size
-        # If the are non-uniform, we have to compute the full transformed array
-
-        # lat
-        if isinstance(t[0], UniformCoordinates1d):
-            t_lat = clinspace(t[0].coordinates[0], t[0].coordinates[-1], self["lat"].size, name="lat")
-        else:
-            # compute the non-uniform coordinates (and simplify to uniform if they are *now* uniform)
-            temp_coords = StackedCoordinates(
-                [self["lat"].coordinates, np.full_like(self["lat"].coordinates, self["lon"].coordinates.mean())],
-                name="lat_lon",
-            )
-            t_lat = temp_coords._transform(transformer)["lat"].simplify()
-
-        # lon
-        if isinstance(t[1], UniformCoordinates1d):
-            t_lon = clinspace(t[1].coordinates[0], t[1].coordinates[-1], self["lon"].size, name="lon")
-        else:
-            # compute the non-uniform coordinates (and simplify to uniform if they are *now* uniform)
-            temp_coords = StackedCoordinates(
-                [self["lon"].coordinates, np.full_like(self["lon"].coordinates, self["lat"].coordinates.mean())],
-                name="lon_lat",
-            )
-            t_lon = temp_coords._transform(transformer)["lon"].simplify()
-
-        return t_lat, t_lon
 
     def issubset(self, other):
         """Report whether other Coordinates contains these coordinates.
@@ -1481,12 +1441,12 @@ class Coordinates(tl.HasTraits):
         for c in self._coords.values():
             if isinstance(c, Coordinates1d):
                 rep += "\n\t%s: %s" % (c.name, c)
+            elif isinstance(c, RotatedCoordinates):
+                for dim in c.dims:
+                    rep += "\n\t%s[%s]: Rotated(TODO)" % (c.name, dim)
             elif isinstance(c, StackedCoordinates):
                 for dim in c.dims:
                     rep += "\n\t%s[%s]: %s" % (c.name, dim, c[dim])
-            elif isinstance(c, DependentCoordinates):
-                for dim in c.dims:
-                    rep += "\n\t%s[%s]: %s" % (c.name, dim, c._rep(dim))
         return rep
 
 
