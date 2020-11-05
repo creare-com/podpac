@@ -372,7 +372,7 @@ class DataSource(Node):
                 if isinstance(index, slice):
                     new_rsci.append(index)
                     continue
-                if index.dtype == bool:
+                if type(index[0]) == bool:
                     index = np.where(index)[0]
                 if len(index) > 1:
                     mx, mn = np.max(index), np.min(index)
@@ -383,7 +383,7 @@ class DataSource(Node):
                         step = 1
                     new_rsci.append(slice(mn, mx + 1, step))
                 else:
-                    new_rsci.append(slice(index[0], index[0] + 1))
+                    new_rsci.append(slice(index[0].item(), index[0].item() + 1))
 
             rsci = tuple(new_rsci)
             rsc = coordinates[rsci]

@@ -538,7 +538,7 @@ class InterpolationManager(object):
                 output_data.data[:] = source_data.interp(output_data.coords, method="nearest").transpose(
                     *output_data.dims
                 )
-            except NotImplementedError:
+            except (NotImplementedError, ValueError):
                 output_data.data[:] = source_data.sel(output_data.coords).transpose(*output_data.dims)
             return output_data
 

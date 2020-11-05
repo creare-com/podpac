@@ -50,7 +50,7 @@ class WCSBase(DataSource):
     crs : str
         coordinate reference system, passed through to the GetCoverage requests (default 'EPSG:4326')
     interpolation : str
-        Interpolation, passed through to the GetCoverage requests. 
+        Interpolation, passed through to the GetCoverage requests.
     max_size : int
         maximum request size, optional.
         If provided, the coordinates will be tiled into multiple requests.
@@ -141,7 +141,7 @@ class WCSBase(DataSource):
             and (coordinates["lon"].is_uniform or coordinates["lon"].size == 1)
         ):
 
-            def selector(rsc, rsci, coordinates):
+            def selector(rsc, coordinates):
                 return coordinates, tuple(slice(None) for dim in coordinates)
 
             return super()._eval(coordinates, output=output, _selector=selector)
@@ -171,9 +171,7 @@ class WCSBase(DataSource):
         return super()._eval(coordinates, output=output, _selector=_selector)
 
     def _get_data(self, coordinates, coordinates_index):
-        """{get_data}
-
-        """
+        """{get_data}"""
 
         # transpose the coordinates to match the response data
         if "time" in coordinates:

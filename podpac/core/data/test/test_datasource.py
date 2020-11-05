@@ -329,9 +329,6 @@ class TestDataSource(object):
         with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
             node.eval(Coordinates([1], dims=["time"]))
 
-        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
-            node.eval(Coordinates([1], dims=["lat"]))
-
     def test_evaluate_crs_transform(self):
         node = MockDataSource()
 
@@ -353,7 +350,7 @@ class TestDataSource(object):
         assert round(out.coords["lon"].values[0]) == 3435822
 
     def test_evaluate_selector(self):
-        def selector(rsc, rsci, coordinates):
+        def selector(rsc, coordinates):
             """ mock selector that just strides by 2 """
             new_rsci = tuple(slice(None, None, 2) for dim in rsc.dims)
             new_rsc = rsc[new_rsci]
@@ -372,7 +369,7 @@ class TestDataSource(object):
         output = node.eval(node.coordinates)
 
         # index to stepped slice case
-        def selector(rsc, rsci, coordinates):
+        def selector(rsc, coordinates):
             """ mock selector that just strides by 2 """
             new_rsci = ([0, 2, 4, 6], [0, 3, 6])
             new_rsc = rsc[new_rsci]
@@ -384,7 +381,7 @@ class TestDataSource(object):
         np.testing.assert_array_equal(output["lon"].data, node.coordinates["lon"][0:7:3].coordinates)
 
         # index to slice case generic
-        def selector(rsc, rsci, coordinates):
+        def selector(rsc, coordinates):
             """ mock selector that just strides by 2 """
             new_rsci = ([0, 2, 5], [0, 3, 4])
             new_rsc = rsc[new_rsci]
@@ -396,7 +393,7 @@ class TestDataSource(object):
         np.testing.assert_array_equal(output["lon"].data, node.coordinates["lon"][:5].coordinates)
 
         # single index to slice
-        def selector(rsc, rsci, coordinates):
+        def selector(rsc, coordinates):
             """ mock selector that just strides by 2 """
             new_rsci = ([2], [3])
             new_rsc = rsc[new_rsci]

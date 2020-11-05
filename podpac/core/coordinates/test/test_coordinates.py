@@ -476,7 +476,7 @@ class TestCoordinateCreation(object):
         lon = ArrayCoordinates1d([0, 1, 2], "lon")
         alt = ArrayCoordinates1d([0, 1, 2], name="alt")
 
-        c = Coordinates([lat, lon])
+        c = Coordinates([lat, lon], crs="proj=merc")
         assert c.alt_units is None
 
         c = Coordinates([alt], crs="+proj=merc +vunits=us-ft")
@@ -1800,7 +1800,9 @@ class TestCoordinatesGeoTransform(object):
 
 class TestCoordinatesMethodTransform(object):
     def test_transform(self):
-        c = Coordinates([[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"])
+        c = Coordinates(
+            [[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"], crs="EPSG:4326"
+        )
 
         # transform
         t = c.transform("EPSG:2193")
@@ -1823,7 +1825,9 @@ class TestCoordinatesMethodTransform(object):
         assert round(t["lat"].coordinates[0]) == 0.0
 
     def test_transform_stacked(self):
-        c = Coordinates([[[0, 1], [10, 20]], ["2018-01-01", "2018-01-02", "2018-01-03"]], dims=["lat_lon", "time"])
+        c = Coordinates(
+            [[[0, 1], [10, 20]], ["2018-01-01", "2018-01-02", "2018-01-03"]], dims=["lat_lon", "time"], crs="EPSG:4326"
+        )
 
         proj = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
         t = c.transform(proj)

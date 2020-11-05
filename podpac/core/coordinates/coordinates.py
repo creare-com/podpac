@@ -778,9 +778,9 @@ class Coordinates(tl.HasTraits):
             return d["vunits"]
 
         # get from axis info (is this is ever useful)
-        # for axis in self.CRS.axis_info:
-        #     if axis.direction == 'up':
-        #         return axis.unit_name # may need to be converted, e.g. "centimetre" > "cm"
+        for axis in self.CRS.axis_info:
+            if axis.direction == "up":
+                return axis.unit_name  # may need to be converted, e.g. "centimetre" > "cm"
 
         raise RuntimeError("Could not get alt_units from crs '%s'" % self.crs)
 
