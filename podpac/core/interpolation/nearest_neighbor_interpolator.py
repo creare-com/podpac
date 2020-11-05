@@ -140,7 +140,7 @@ class NearestPreview(NearestNeighbor):
         new_coords_idx = []
 
         source_coords, source_coords_index = source_coordinates.intersect(
-            eval_coordinates, outer=True, return_indices=True
+            eval_coordinates, outer=True, return_index=True
         )
 
         # iterate over the source coordinate dims in case they are stacked

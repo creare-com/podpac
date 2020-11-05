@@ -449,7 +449,7 @@ class TestXarrayInterpolator(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         assert output.values[0] == source[0] and output.values[1] == source[0] and output.values[2] == source[1]
 
         # unstacked N-D
@@ -461,7 +461,7 @@ class TestXarrayInterpolator(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         assert output.values[0, 0] == source[1, 1]
 
         # stacked
@@ -522,7 +522,7 @@ class TestXarrayInterpolator(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         # print(output)
         assert output.data[0, 0] == 0.0
         assert output.data[0, 3] == 3.0
@@ -536,7 +536,7 @@ class TestXarrayInterpolator(object):
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         assert int(output.data[0, 0]) == 2
         assert int(output.data[2, 3]) == 15
 
@@ -547,7 +547,7 @@ class TestXarrayInterpolator(object):
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         assert int(output.data[0, 0]) == 2
         assert int(output.data[3, 3]) == 20
         assert np.isnan(output.data[4, 4])
@@ -564,7 +564,7 @@ class TestXarrayInterpolator(object):
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         assert int(output.data[0, 0]) == 2
         assert int(output.data[4, 4]) == 26
         assert np.all(~np.isnan(output.data))
@@ -585,9 +585,9 @@ class TestXarrayInterpolator(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
-        assert np.all(output.lon.values == coords_dst.coords["lon"])
-        assert np.all(output.time.values == coords_dst.coords["time"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        assert np.all(output.lon.values == coords_dst["lon"].coordinates)
+        assert np.all(output.time.values == coords_dst["time"].coordinates)
 
         # assert output.data[0, 0] == source[]
 
@@ -606,8 +606,8 @@ class TestXarrayInterpolator(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
-        assert np.all(output.lon.values == coords_dst.coords["lon"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        assert np.all(output.lon.values == coords_dst["lon"].coordinates)
 
     def test_interpolate_irregular_arbitrary_swap(self):
         """should handle descending"""
@@ -624,8 +624,8 @@ class TestXarrayInterpolator(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat.values == coords_dst.coords["lat"])
-        assert np.all(output.lon.values == coords_dst.coords["lon"])
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        assert np.all(output.lon.values == coords_dst["lon"].coordinates)
 
     def test_interpolate_irregular_lat_lon(self):
         """ irregular interpolation """
@@ -642,7 +642,7 @@ class TestXarrayInterpolator(object):
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.lat_lon.values == coords_dst.coords["lat_lon"])
+        assert np.all(output.lat_lon.values == coords_dst.xcoords["lat_lon"])
         assert output.values[0] == source[0, 0]
         assert output.values[1] == source[1, 1]
         assert output.values[-1] == source[-1, -1]

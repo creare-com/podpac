@@ -82,14 +82,14 @@ class XarrayInterpolator(Interpolator):
             if not source_coordinates.is_stacked(d) and eval_coordinates.is_stacked(d):
                 new_dim = [dd for dd in eval_coordinates.dims if d in dd][0]
                 coords[d] = xr.DataArray(
-                    eval_coordinates[d].coordinates, dims=[new_dim], coords=[eval_coordinates[new_dim].coordinates]
+                    eval_coordinates[d].coordinates, dims=[new_dim], coords=[eval_coordinates.xcoords[new_dim]]
                 )
 
             elif source_coordinates.is_stacked(d) and not eval_coordinates.is_stacked(d):
                 raise InterpolatorException("Xarray interpolator cannot handle multi-index (source is points).")
             else:
                 # TODO: Check dependent coordinates
-                coords[d] = eval_coordinates.coords[d]
+                coords[d] = eval_coordinates[d].coordinates
 
         kwargs = self.kwargs.copy()
         kwargs.update({"fill_value": self.fill_value})
