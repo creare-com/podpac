@@ -154,7 +154,7 @@ class WCSBase(DataSource):
             and (coordinates["lon"].is_uniform or coordinates["lon"].size == 1)
         ):
 
-            def selector(rsc, rsci, coordinates):
+            def selector(rsc, coordinates):
                 unstacked = coordinates.unstack()
                 unstacked = unstacked.drop("alt", ignore_missing=True)  # if lat_lon_alt
                 return unstacked, tuple(slice(None) for dim in unstacked)
@@ -274,4 +274,4 @@ class WCSBase(DataSource):
 
 
 class WCS(InterpolationMixin, WCSBase):
-    pass
+    coordinate_index_type = tl.Unicode("slice", readonly=True)

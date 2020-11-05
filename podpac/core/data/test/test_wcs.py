@@ -39,10 +39,15 @@ class MockWCSBase(WCSBase):
         return COORDS
 
 
-class MockWCS(InterpolationMixin, MockWCSBase):
+class MockWCS(WCS):
     """ Test node that uses the MockClient above, and injects podpac interpolation. """
 
-    pass
+    @property
+    def client(self):
+        return MockClient()
+
+    def get_coordinates(self):
+        return COORDS
 
 
 class TestWCSBase(object):
