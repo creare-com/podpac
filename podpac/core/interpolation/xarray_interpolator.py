@@ -83,7 +83,12 @@ class XarrayInterpolator(Interpolator):
             if source_coordinates[d].size == 1:
                 # If the source only has a single coordinate, xarray will automatically throw an error asking for at least 2 coordinates
                 # So, we prevent this. Main problem is that this won't respect any tolerances.
-                nn_coords[d] = eval_coordinates[d].coordinates
+                new_dim = [dd for dd in eval_coordinates.dims if d in dd][0]
+                nn_coords[d] = xr.DataArray(
+                    eval_coordinates[d].coordinates,
+                    dims=[new_dim],
+                    coords=[eval_coordinates.xcoords[new_dim]],
+                )
                 continue
             if not source_coordinates.is_stacked(d) and eval_coordinates.is_stacked(d):
                 new_dim = [dd for dd in eval_coordinates.dims if d in dd][0]
@@ -111,7 +116,7 @@ class XarrayInterpolator(Interpolator):
         if self.method == "bilinear":
             self.method = "linear"
         if nn_coords:
-            source_data = source_data.reindex(method="nearest", **nn_coords)
+            source_data = source_data.sel(method="nearest", **nn_coords)
 
         output_data = source_data.interp(method=self.method, **coords)
 

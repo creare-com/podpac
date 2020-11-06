@@ -15,20 +15,22 @@ def _higher_precision_time_stack(coords0, coords1, dims):
     crds0 = []
     crds1 = []
     for d in dims:
-        dtype0 = coords0[d].coordinates[0].dtype
-        dtype1 = coords1[d].coordinates[0].dtype
-        if not np.issubdtype(dtype0, np.datetime64) or not np.issubdtype(dtype1, np.datetime64):
-            crds0.append(coords0[d].coordinates)
-            crds1.append(coords1[d].coordinates)
-            continue
-        if dtype0 > dtype1:  # greater means higher precision (smaller unit)
-            dtype = dtype0
-        else:
-            dtype = dtype1
-        crds0.append(coords0[d].coordinates.astype(dtype).astype(float))
-        crds1.append(coords1[d].coordinates.astype(dtype).astype(float))
-
+        c0, c1 = _higher_precision_time_coords1d(coords0[d], coords1[d])
+        crds0.append(c0)
+        crds1.append(c1)
     return np.stack(crds0, axis=1), np.stack(crds1, axis=1)
+
+
+def _higher_precision_time_coords1d(coords0, coords1):
+    dtype0 = coords0.coordinates[0].dtype
+    dtype1 = coords1.coordinates[0].dtype
+    if not np.issubdtype(dtype0, np.datetime64) or not np.issubdtype(dtype1, np.datetime64):
+        return coords0.coordinates, coords1.coordinates
+    if dtype0 > dtype1:  # greater means higher precision (smaller unit)
+        dtype = dtype0
+    else:
+        dtype = dtype1
+    return coords0.coordinates.astype(dtype).astype(float), coords1.coordinates.astype(dtype).astype(float)
 
 
 class Selector(tl.HasTraits):
@@ -104,9 +106,9 @@ class Selector(tl.HasTraits):
         return inds
 
     def select_nonuniform(self, source, request):
-        crds = request[source.name]
-        ckdtree_source = cKDTree(source.coordinates[:, None])
-        _, inds = ckdtree_source.query(crds.coordinates[:, None], k=len(self.method))
+        src, req = _higher_precision_time_coords1d(source, request[source.name])
+        ckdtree_source = cKDTree(src[:, None])
+        _, inds = ckdtree_source.query(req[:, None], k=len(self.method))
         inds = inds[inds < source.coordinates.size]
         return inds.ravel()
 
