@@ -187,7 +187,7 @@ class ArrayCoordinates1d(Coordinates1d):
         ---------
         return_index : bool, optional
             If True, return index for the unique coordinates in addition to the coordinates. Default False.
-        
+
         Returns
         -------
         unique : :class:`ArrayCoordinates1d`
@@ -228,7 +228,7 @@ class ArrayCoordinates1d(Coordinates1d):
     def flatten(self):
         """
         Get a copy of the coordinates with a flattened array (wraps numpy.flatten).
-        
+
         Returns
         -------
         :class:`ArrayCoordinates1d`
@@ -248,7 +248,7 @@ class ArrayCoordinates1d(Coordinates1d):
         ---------
         newshape: int, tuple
             The new shape.
-        
+
         Returns
         -------
         :class:`ArrayCoordinates1d`

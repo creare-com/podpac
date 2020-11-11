@@ -87,7 +87,7 @@ class NearestNeighbor(Interpolator):
                 index = self._get_nonuniform_index(d, source, request)
             data_index.append(index)
 
-        index = self._merge_index(data_index, source_coordinates, eval_coordinates)
+        index = tuple(data_index)
 
         output_data.data[:] = np.array(source_data)[index]
 
@@ -162,6 +162,7 @@ class NearestNeighbor(Interpolator):
         if tol and tol != np.inf:
             index[dist > tol] = -1
 
+        index = self._resize_stacked_index(index, dim, request)
         return index
 
     def _get_uniform_index(self, dim, source, request):
@@ -177,10 +178,11 @@ class NearestNeighbor(Interpolator):
         if tol and tol != np.inf:
             rindex[np.abs(index - rindex) * source.step > tol] = -1
 
-        return rindex
+        index = self._resize_unstacked_index(rindex, dim, request)
+        return index
 
-    def _get_nonuniform_index(self, d, source, request):
-        tol = self._get_tol(d)
+    def _get_nonuniform_index(self, dim, source, request):
+        tol = self._get_tol(dim)
 
         src, req = _higher_precision_time_coords1d(source, request)
         ckdtree_source = cKDTree(src[:, None])
@@ -192,29 +194,35 @@ class NearestNeighbor(Interpolator):
         if tol and tol != np.inf:
             index[dist > tol] = -1
 
+        index = self._resize_unstacked_index(index, dim, request)
         return index
 
-    def _merge_index(self, data_index, source, request):
-        reshape = request.shape
-        transpose = []
+    def _resize_unstacked_index(self, index, source_dim, request):
+        reshape = np.ones(len(request.dims), int)
+        i = [i for i in range(len(request.dims)) if source_dim in request.dims]
+        reshape[i] = -1
+        return index.reshape(*reshape)
 
-        def is_stacked(d):
-            return "_" in d
+    def _resize_stacked_index(self, index, source_dim, request):
+        reshape = np.ones(len(request.dims), int)
+        sizes = [request[d].size for d in request.dims]
 
-        inds = [[1 for i in range(len(request.dims))] for i in range(len(data_index))]
-        for i, dim in enumerate(source.dims):
-            if is_stacked(dim):
-                dims = dim.split("_")
-                for d in dims:
-                    j = [ii for ii in range(len(request.dims)) if d in request.dims[ii]][0]
-                    ## TODO test this -- I think the reshape will have to be tied to the dimensions of the destination and
-                    # it will be tied to the implementation of the selector... which I should do first.
+        dims = source_dim.split("_")
+        for i, dim in enumerate(dims):
+            reshape[:] = 1
 
-            else:
-                j = [ii for ii in range(len(request.dims)) if dim in request.dims[ii]][0]
-                inds[i][j] = -1
+            if "_" in request.dims[i]:
+                if all([d in request.dims[i] for d in dims]):  # Stacked to Stacked
+                    return index
 
-        index = tuple([di.reshape(*ind) for di, ind in zip(data_index, inds)])
+            # Examples: lat_lon_time_alt source --> lon, time_alt, lat destination
+            #           lat_lon source --> lat, time, lon destination
+            reshape[i] = sizes[i]
+            for j, rdim in enumerate(request.dims):
+                if any([d in request.dims[i] for d in dims]):
+                    reshape[j] = sizes[j]
+
+        index = index.reshape(*reshape)
         return index
 
 

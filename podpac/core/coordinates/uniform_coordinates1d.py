@@ -376,7 +376,7 @@ class UniformCoordinates1d(Coordinates1d):
         ---------
         return_index : bool, optional
             If True, return index for the unique coordinates in addition to the coordinates. Default False.
-        
+
         Returns
         -------
         unique : :class:`ArrayCoordinates1d`
@@ -404,7 +404,7 @@ class UniformCoordinates1d(Coordinates1d):
     def flatten(self):
         """
         Return a copy of the uniform coordinates, for consistency.
-        
+
         Returns
         -------
         :class:`UniformCoordinates1d`
