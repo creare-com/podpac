@@ -1403,7 +1403,7 @@ class Coordinates(tl.HasTraits):
         return Coordinates(ts, crs=crs, validate_crs=False)
 
     def simplify(self):
-        """ Simplify coordinates in each dimension.
+        """Simplify coordinates in each dimension.
 
         Returns
         -------

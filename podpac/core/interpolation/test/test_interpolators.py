@@ -127,8 +127,7 @@ class TestNearest(object):
             assert np.all(output.lat.values == coords_dst["lat"].coordinates)
             assert output.values[0, 0] == source[1, 1]
 
-            # stacked
-            # TODO: implement stacked handling
+            # source = stacked, dest = stacked
             source = np.random.rand(5)
             coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
             node = MockArrayDataSource(
@@ -137,11 +136,12 @@ class TestNearest(object):
                 interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
             )
             coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
+            output = node.eval(coords_dst)
 
-            with pytest.raises(InterpolationException):
-                output = node.eval(coords_dst)
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+            assert all(output.values == source[[0, 2, 4]])
 
-            # TODO: implement stacked handling
             # source = stacked, dest = unstacked
             source = np.random.rand(5)
             coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
@@ -152,8 +152,10 @@ class TestNearest(object):
             )
             coords_dst = Coordinates([np.linspace(1, 9, 3), np.linspace(1, 9, 3)], dims=["lat", "lon"])
 
-            with pytest.raises(InterpolationException):
-                output = node.eval(coords_dst)
+            output = node.eval(coords_dst)
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+            assert np.all(output.values == source[np.array([[0, 1, 2], [1, 2, 3], [2, 3, 4]])])
 
             # TODO: implement stacked handling
             # source = unstacked, dest = stacked
@@ -168,6 +170,8 @@ class TestNearest(object):
 
             with pytest.raises(InterpolationException):
                 output = node.eval(coords_dst)
+
+            # lat_lon_time_alt --> lon, alt_time, lat
 
     def test_spatial_tolerance(self):
 

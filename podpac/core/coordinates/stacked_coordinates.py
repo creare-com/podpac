@@ -372,7 +372,7 @@ class StackedCoordinates(BaseCoordinates):
         ---------
         return_index : bool, optional
             If True, return index for the unique coordinates in addition to the coordinates. Default False.
-        
+
         Returns
         -------
         unique : :class:`StackedCoordinates`
