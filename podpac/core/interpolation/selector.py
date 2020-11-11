@@ -56,6 +56,8 @@ class Selector(tl.HasTraits):
         coords_inds = []
         for coord1d in source_coords._coords.values():
             c, ci = self.select1d(coord1d, request_coords)
+            ci = np.sort(np.unique(ci))
+            c = c[ci]
             coords.append(c)
             coords_inds.append(ci)
         coords = Coordinates(coords)
@@ -72,8 +74,7 @@ class Selector(tl.HasTraits):
         # else:
         # _logger.info("Coordinates are not subselected for source {} with request {}".format(source, request))
         # return source, slice(0, None)
-        ci = np.sort(np.unique(ci))
-        return source[ci], ci
+        return source, ci
 
     def merge_indices(self, indices, source_dims, request_dims):
         # For numpy to broadcast correctly, we have to reshape each of the indices
@@ -117,6 +118,7 @@ class Selector(tl.HasTraits):
         src_coords, req_coords_diag = _higher_precision_time_stack(source, request, udims)
         ckdtree_source = cKDTree(src_coords)
         _, inds = ckdtree_source.query(req_coords_diag, k=len(self.method))
+        inds = inds[inds < source.coordinates.size]
         inds = inds.ravel()
 
         if np.unique(inds).size == source.size:

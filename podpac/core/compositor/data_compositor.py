@@ -7,6 +7,7 @@ import traitlets as tl
 from podpac.core.utils import common_doc
 from podpac.core.compositor.compositor import COMMON_COMPOSITOR_DOC, BaseCompositor
 from podpac.core.units import UnitsDataArray
+from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 @common_doc(COMMON_COMPOSITOR_DOC)
@@ -51,3 +52,7 @@ class DataCompositor(BaseCompositor):
             result.data[:] = res.transponse(*result.dims).data
             return result
         return res
+
+
+class InterpDataCompositor(InterpolationMixin, DataCompositor):
+    pass

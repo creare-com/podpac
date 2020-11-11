@@ -25,11 +25,13 @@ def interpolation_decorator():
 
 class InterpolationMixin(tl.HasTraits):
     interpolation = InterpolationTrait().tag(attr=True)
+    _interp_node = None
 
     def _eval(self, coordinates, output=None, _selector=None):
         node = Interpolate(interpolation=self.interpolation)
         node._set_interpolation()
         node._source_xr = super()._eval(coordinates, _selector=node._interpolation.select_coordinates)
+        self._interp_node = node
         return node.eval(coordinates, output=output)
 
 
@@ -234,6 +236,7 @@ class Interpolate(Node):
         # save output to private for debugging
         if settings["DEBUG"]:
             self._output = output
+            self._source_xr = source_out
 
         return output
 

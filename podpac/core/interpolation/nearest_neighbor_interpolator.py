@@ -7,6 +7,7 @@ from six import string_types
 
 import numpy as np
 import traitlets as tl
+from scipy.spatial import cKDTree
 
 # Optional dependencies
 
@@ -16,6 +17,7 @@ from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Int
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
 from podpac.core.utils import common_doc
 from podpac.core.coordinates.utils import get_timedelta
+from podpac.core.interpolation.selector import Selector, _higher_precision_time_coords1d, _higher_precision_time_stack
 
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)
@@ -32,6 +34,17 @@ class NearestNeighbor(Interpolator):
     method = tl.Unicode(default_value="nearest")
     spatial_tolerance = tl.Float(default_value=np.inf, allow_none=True)
     time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
+    alt_tolerance = tl.Float(default_value=np.inf, allow_none=True)
+
+    # spatial_scale only applies when the source is stacked with time or alt
+    spatial_scale = tl.Float(default_value=1, allow_none=True)
+    # time_scale only applies when the source is stacked with lat, lon, or alt
+    time_scale = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
+    # alt_scale only applies when the source is stacked with lat, lon, or time
+    alt_scale = tl.Float(default_value=1, allow_none=True)
+
+    respect_bounds = tl.Bool(True)
+    remove_nan = tl.Bool(True)
 
     def __repr__(self):
         rep = super(NearestNeighbor, self).__repr__()
@@ -45,65 +58,164 @@ class NearestNeighbor(Interpolator):
         """
         udims_subset = self._filter_udims_supported(udims)
 
-        # confirm that udims are in both source and eval coordinates
-        # TODO: handle stacked coordinates
-        if self._dim_in(udims_subset, source_coordinates, eval_coordinates):
-            return udims_subset
-        else:
-            return tuple()
+        return udims_subset
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
         """
-        indexers = []
+        # Note, some of the following code duplicates code in the Selector class.
+        # This duplication is for the sake of optimization
+        if self.remove_nan:
+            # Eliminate nans from the source data. Note, this could turn a uniform griddted dataset into a stacked one
+            source_data, source_coordinates = self._remove_nans(source_data, source_coordinates)
 
-        # select dimensions common to eval_coordinates and udims
-        # TODO: this is sort of convoluted implementation
-        for dim in eval_coordinates.dims:
+        def is_stacked(d):
+            return "_" in d
 
-            # TODO: handle stacked coordinates
-            if isinstance(eval_coordinates[dim], StackedCoordinates):
+        data_index = []
+        for d in source_coordinates.dims:
+            source = source_coordinates[d]
+            if is_stacked(d):
+                index = self._get_stacked_index(d, source, eval_coordinates)
+            elif source_coordinates[d].is_uniform:
+                request = eval_coordinates[d]
+                index = self._get_uniform_index(d, source, request)
+            else:  # non-uniform coordinates... probably an optimization here
+                request = eval_coordinates[d]
+                index = self._get_nonuniform_index(d, source, request)
+            data_index.append(index)
 
-                # udims within stacked dims that are in the input udims
-                udims_in_stack = list(set(udims) & set(eval_coordinates[dim].dims))
+        index = self._merge_index(data_index, source_coordinates, eval_coordinates)
 
-                # TODO: how do we choose a dimension to use from the stacked coordinates?
-                # For now, choose the first coordinate found in the udims definition
-                if udims_in_stack:
-                    raise InterpolatorException("Nearest interpolation does not yet support stacked dimensions")
-                    # dim = udims_in_stack[0]
-                else:
-                    continue
-
-            # TODO: handle if the source coordinates contain `dim` within a stacked coordinate
-            elif dim not in source_coordinates.dims:
-                raise InterpolatorException("Nearest interpolation does not yet support stacked dimensions")
-
-            elif dim not in udims:
-                continue
-
-            # set tolerance value based on dim type
-            tolerance = None
-            if dim == "time" and self.time_tolerance:
-                if isinstance(self.time_tolerance, string_types):
-                    self.time_tolerance = get_timedelta(self.time_tolerance)
-                tolerance = self.time_tolerance
-            elif dim != "time":
-                tolerance = self.spatial_tolerance
-
-            # reindex using xarray
-            indexer = {dim: eval_coordinates[dim].coordinates.copy()}
-            indexers += [dim]
-            source_data = source_data.reindex(method=str("nearest"), tolerance=tolerance, **indexer)
-
-        # at this point, output_data and eval_coordinates have the same dim order
-        # this transpose makes sure the source_data has the same dim order as the eval coordinates
-        eval_dims = eval_coordinates.dims
-        output_data.data = source_data.part_transpose(eval_dims)
+        output_data.data[:] = np.array(source_data)[index]
 
         return output_data
+
+    def _remove_nans(self, source_data, source_coordinates):
+        index = np.isnan(source_data)
+        if not np.any(index):
+            return source_data, source_coordinates
+
+        data = source_data.data[~index]
+        coords = np.meshgrid(*[c.coordinates for c in source_coordinates.values()], indexing="ij")
+        coords = [c[~index] for c in coords]
+
+        return data, Coordinates([coords], dims=[source_coordinates.udims])
+
+    def _get_tol(self, dim):
+        if dim in ["lat", "lon"]:
+            return self.spatial_tolerance
+        if dim == "alt":
+            return self.alt_tolerance
+        if dim == "time":
+            return self.time_tolerance
+        raise NotImplementedError()
+
+    def _get_scale(self, dim):
+        if dim in ["lat", "lon"]:
+            return self.spatial_scale
+        if dim == "alt":
+            return self.alt_scale
+        if dim == "time":
+            return self.time_scale
+        raise NotImplementedError()
+
+    def _get_stacked_index(self, dim, source, request):
+        # The udims are in the order of the request so that the meshgrid calls will be in the right order
+        udims = [ud for ud in request.udims if ud in source.udims]
+        tols = np.array([self._get_tol(d) for d in udims])[None, :]
+        scales = np.array([self._get_scale(d) for d in udims])[None, :]
+        tol = np.linalg.norm((tols * scales).squeeze())
+        src_coords, req_coords_diag = _higher_precision_time_stack(source, request, udims)
+        ckdtree_source = cKDTree(src_coords * scales)
+
+        # if the udims are all stacked in the same stack as part of the request coordinates, then we're done.
+        # Otherwise we have to evaluate each unstacked set of dimensions independently
+        indep_evals = [ud for ud in udims if not request.is_stacked(ud)]
+        # two udims could be stacked, but in different dim groups, e.g. source (lat, lon), request (lat, time), (lon, alt)
+        stacked = {d for d in request.dims for ud in udims if ud in d and request.is_stacked(ud)}
+
+        if (len(indep_evals) + len(stacked)) <= 1:  # output is stacked in the same way
+            req_coords = req_coords_diag
+        elif (len(stacked) == 0) | (len(indep_evals) == 0 and len(stacked) == len(udims)):
+            req_coords = np.stack([i.ravel() for i in np.meshgrid(*req_coords_diag.T, indexing="ij")], axis=1)
+        else:
+            # Rare cases? E.g. lat_lon_time_alt source to lon, time_alt, lat destination
+            c_evals = indep_evals + list(stacked)
+            sizes = [request[d].size for d in c_evals]
+            reshape = np.ones(len(c_evals), int)
+            coords = [None] * len(udims)
+            for i in range(len(udims)):
+                reshape[:] = 1
+                reshape[i] = -1
+                coords[i] = req_coords_diag[i].reshape(*reshape)
+                for j, d in c_evals:
+                    if udims[i] in d:
+                        continue
+                    coords[i] = coords[i].repeat(sizes[j], axis=j)
+            req_coords = np.stack([i.ravel() for i in np.meshgrid(*coords, indexing="ij")], axis=1)
+
+        dist, index = ckdtree_source.query(req_coords * np.array(scales)[None, :], k=1)
+
+        if tol and tol != np.inf:
+            index[dist > tol] = -1
+
+        return index
+
+    def _get_uniform_index(self, dim, source, request):
+        tol = self._get_tol(dim)
+
+        index = ((request.coordinates - source.start) / source.step).astype(int)
+        rindex = np.around(index).astype(int)
+        stop_ind = int(source.size)
+        if self.respect_bounds:
+            rindex[(rindex < 0) | (rindex >= stop_ind)] = -1
+        else:
+            rindex = np.clip(rindex, 0, stop_ind)
+        if tol and tol != np.inf:
+            rindex[np.abs(index - rindex) * source.step > tol] = -1
+
+        return rindex
+
+    def _get_nonuniform_index(self, d, source, request):
+        tol = self._get_tol(d)
+
+        src, req = _higher_precision_time_coords1d(source, request)
+        ckdtree_source = cKDTree(src[:, None])
+        dist, index = ckdtree_source.query(req[:, None], k=1)
+        index[index == source.coordinates.size] = -1
+
+        if self.respect_bounds:
+            index[(req > src.max()) | (req < src.min())] = -1
+        if tol and tol != np.inf:
+            index[dist > tol] = -1
+
+        return index
+
+    def _merge_index(self, data_index, source, request):
+        reshape = request.shape
+        transpose = []
+
+        def is_stacked(d):
+            return "_" in d
+
+        inds = [[1 for i in range(len(request.dims))] for i in range(len(data_index))]
+        for i, dim in enumerate(source.dims):
+            if is_stacked(dim):
+                dims = dim.split("_")
+                for d in dims:
+                    j = [ii for ii in range(len(request.dims)) if d in request.dims[ii]][0]
+                    ## TODO test this -- I think the reshape will have to be tied to the dimensions of the destination and
+                    # it will be tied to the implementation of the selector... which I should do first.
+
+            else:
+                j = [ii for ii in range(len(request.dims)) if dim in request.dims[ii]][0]
+                inds[i][j] = -1
+
+        index = tuple([di.reshape(*ind) for di, ind in zip(data_index, inds)])
+        return index
 
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)
