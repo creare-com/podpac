@@ -427,7 +427,7 @@ class InterpolationManager(object):
         # TODO: adjust by interpolation cost
         return interpolator_queue
 
-    def select_coordinates(self, source_coordinates, eval_coordinates):
+    def select_coordinates(self, source_coordinates, eval_coordinates, index_type="numpy"):
         """
         Select a subset or coordinates if interpolator can downselect.
 
@@ -466,7 +466,9 @@ class InterpolationManager(object):
             extra_dims = [d for d in source_coordinates.dims if d not in udims]
             sc = source_coordinates.drop(extra_dims)
             # run interpolation. mutates selected coordinates and selected coordinates index
-            sel_coords, sel_coords_idx = interpolator.select_coordinates(udims, sc, eval_coordinates)
+            sel_coords, sel_coords_idx = interpolator.select_coordinates(
+                udims, sc, eval_coordinates, index_type=index_type
+            )
             # Save individual 1-D coordinates for later reconstruction
             for i, k in enumerate(sel_coords.dims):
                 selected_coords[k] = sel_coords[k]

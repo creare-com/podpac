@@ -341,7 +341,7 @@ class DataSource(Node):
 
         # Use the selector
         if _selector is not None:
-            (rsc, rsci) = _selector(self.coordinates, coordinates)
+            (rsc, rsci) = _selector(self.coordinates, coordinates, index_type=self.coordinate_index_type)
         else:
             # get source coordinates that are within the requested coordinates bounds
             (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_index=True)
@@ -365,30 +365,6 @@ class DataSource(Node):
 
             return output
 
-        # Check the coordinate_index_type
-        if self.coordinate_index_type == "slice":  # Most restrictive
-            new_rsci = []
-            for index in rsci:
-                if isinstance(index, slice):
-                    new_rsci.append(index)
-                    continue
-                if type(index[0]) == bool:
-                    index = np.where(index)[0]
-                index = np.array(index).flatten()
-                if len(index) > 1:
-                    mx, mn = np.max(index), np.min(index)
-                    df = np.diff(index)
-                    if np.all(df == df[0]):
-                        step = df[0]
-                    else:
-                        step = 1
-                    new_rsci.append(slice(mn, mx + 1, step))
-                else:
-                    new_rsci.append(slice(index[0], index[0] + 1))
-
-            rsci = tuple(new_rsci)
-            rsc = self.coordinates[rsci].simplify()
-
         # get data from data source
         rsd = self._get_data(rsc, rsci)
 
@@ -402,8 +378,9 @@ class DataSource(Node):
             output.data[:] = data.data
 
         # get indexed boundary
-        rsb = self._get_boundary(rsci)
-        output.attrs["boundary_data"] = rsb
+        if rsci is not None:
+            rsb = self._get_boundary(rsci)
+            output.attrs["boundary_data"] = rsb
 
         # save output to private for debugging
         if settings["DEBUG"]:

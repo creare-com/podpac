@@ -352,12 +352,12 @@ class Interpolator(tl.HasTraits):
         return udims_subset
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def select_coordinates(self, udims, source_coordinates, eval_coordinates):
+    def select_coordinates(self, udims, source_coordinates, eval_coordinates, index_type="numpy"):
         """
         {interpolator_select}
         """
         selector = Selector(method=self.method)
-        return selector.select(source_coordinates, eval_coordinates)
+        return selector.select(source_coordinates, eval_coordinates, index_type=index_type)
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):

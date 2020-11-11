@@ -350,7 +350,7 @@ class TestDataSource(object):
         assert round(out.coords["lon"].values[0]) == 3435822
 
     def test_evaluate_selector(self):
-        def selector(rsc, coordinates):
+        def selector(rsc, coordinates, index_type=None):
             """ mock selector that just strides by 2 """
             new_rsci = tuple(slice(None, None, 2) for dim in rsc.dims)
             new_rsc = rsc[new_rsci]
@@ -361,48 +361,6 @@ class TestDataSource(object):
         assert output.shape == (6, 6)
         np.testing.assert_array_equal(output["lat"].data, node.coordinates["lat"][::2].coordinates)
         np.testing.assert_array_equal(output["lon"].data, node.coordinates["lon"][::2].coordinates)
-
-    def test_index_type_slice(self):
-        node = MockDataSource(coordinate_index_type="slice")
-
-        # already slices case
-        output = node.eval(node.coordinates)
-
-        # index to stepped slice case
-        def selector(rsc, coordinates):
-            """ mock selector that just strides by 2 """
-            new_rsci = ([0, 2, 4, 6], [0, 3, 6])
-            new_rsc = rsc[new_rsci]
-            return new_rsc, new_rsci
-
-        output = node.eval(node.coordinates, _selector=selector)
-        assert output.shape == (4, 3)
-        np.testing.assert_array_equal(output["lat"].data, node.coordinates["lat"][0:7:2].coordinates)
-        np.testing.assert_array_equal(output["lon"].data, node.coordinates["lon"][0:7:3].coordinates)
-
-        # index to slice case generic
-        def selector(rsc, coordinates):
-            """ mock selector that just strides by 2 """
-            new_rsci = ([0, 2, 5], [0, 3, 4])
-            new_rsc = rsc[new_rsci]
-            return new_rsc, new_rsci
-
-        output = node.eval(node.coordinates, _selector=selector)
-        assert output.shape == (6, 5)
-        np.testing.assert_array_equal(output["lat"].data, node.coordinates["lat"][:6].coordinates)
-        np.testing.assert_array_equal(output["lon"].data, node.coordinates["lon"][:5].coordinates)
-
-        # single index to slice
-        def selector(rsc, coordinates):
-            """ mock selector that just strides by 2 """
-            new_rsci = ([2], [3])
-            new_rsc = rsc[new_rsci]
-            return new_rsc, new_rsci
-
-        output = node.eval(node.coordinates, _selector=selector)
-        assert output.shape == (1, 1)
-        np.testing.assert_array_equal(output["lat"].data, node.coordinates["lat"][2].coordinates)
-        np.testing.assert_array_equal(output["lon"].data, node.coordinates["lon"][3].coordinates)
 
     def test_nan_vals(self):
         """ evaluate note with nan_vals """

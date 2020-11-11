@@ -583,7 +583,10 @@ class Coordinates(tl.HasTraits):
             indices = []
             i = 0
             for c in self._coords.values():
-                indices.append(tuple(index[i : i + c.ndim]))
+                if c.ndim == 1:
+                    indices.append(index[i])
+                else:
+                    indices.append(tuple(index[i : i + c.ndim]))
                 i += c.ndim
 
             cs = [c[I] for c, I in zip(self._coords.values(), indices)]

@@ -141,8 +141,8 @@ class WCSBase(DataSource):
             and (coordinates["lon"].is_uniform or coordinates["lon"].size == 1)
         ):
 
-            def selector(rsc, coordinates):
-                return coordinates, tuple(slice(None) for dim in coordinates)
+            def selector(rsc, coordinates, index_type=None):
+                return coordinates, None
 
             return super()._eval(coordinates, output=output, _selector=selector)
 
@@ -154,10 +154,10 @@ class WCSBase(DataSource):
             and (coordinates["lon"].is_uniform or coordinates["lon"].size == 1)
         ):
 
-            def selector(rsc, coordinates):
+            def selector(rsc, coordinates, index_type=None):
                 unstacked = coordinates.unstack()
                 unstacked = unstacked.drop("alt", ignore_missing=True)  # if lat_lon_alt
-                return unstacked, tuple(slice(None) for dim in unstacked)
+                return unstacked, None
 
             udata = super()._eval(coordinates, output=None, _selector=selector)
             data = udata.data.diagonal()  # get just the stacked data
@@ -198,7 +198,7 @@ class WCSBase(DataSource):
 
         # request each chunk and composite the data
         output = self.create_output_array(coordinates)
-        for chunk, slc in coordinates.iterchunks(shape, return_slices=True):
+        for i, (chunk, slc) in enumerate(coordinates.iterchunks(shape, return_slices=True)):
             output[slc] = self._get_chunk(chunk)
 
         return output

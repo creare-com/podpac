@@ -33,6 +33,21 @@ def _higher_precision_time_coords1d(coords0, coords1):
     return coords0.coordinates.astype(dtype).astype(float), coords1.coordinates.astype(dtype).astype(float)
 
 
+def _index2slice(index):
+    if index.size == 0:
+        return index
+    elif index.size == 1:
+        return slice(index[0], index[0] + 1)
+    else:
+        df = np.diff(index)
+        mn = np.min(index)
+        mx = np.max(index)
+        if np.all(df == df[0]):
+            return slice(mn, mx + 1, df[0])
+        else:
+            return slice(mn, mx + 1)
+
+
 class Selector(tl.HasTraits):
     supported_methods = ["nearest", "linear", "bilinear", "cubic"]
 
@@ -51,26 +66,29 @@ class Selector(tl.HasTraits):
         else:
             self.method = method
 
-    def select(self, source_coords, request_coords):
+    def select(self, source_coords, request_coords, index_type="numpy"):
         coords = []
         coords_inds = []
         for coord1d in source_coords._coords.values():
-            c, ci = self.select1d(coord1d, request_coords)
+            c, ci = self.select1d(coord1d, request_coords, index_type)
             ci = np.sort(np.unique(ci))
+            if index_type == "slice":
+                ci = _index2slice(ci)
             c = c[ci]
             coords.append(c)
             coords_inds.append(ci)
         coords = Coordinates(coords)
-        coords_inds = self.merge_indices(coords_inds, source_coords.dims, request_coords.dims)
+        if index_type == "numpy":
+            coords_inds = self.merge_indices(coords_inds, source_coords.dims, request_coords.dims)
         return coords, coords_inds
 
-    def select1d(self, source, request):
+    def select1d(self, source, request, index_type):
         if isinstance(source, StackedCoordinates):
-            ci = self.select_stacked(source, request)
+            ci = self.select_stacked(source, request, index_type)
         elif source.is_uniform:
-            ci = self.select_uniform(source, request)
+            ci = self.select_uniform(source, request, index_type)
         else:
-            ci = self.select_nonuniform(source, request)
+            ci = self.select_nonuniform(source, request, index_type)
         # else:
         # _logger.info("Coordinates are not subselected for source {} with request {}".format(source, request))
         # return source, slice(0, None)
@@ -85,7 +103,7 @@ class Selector(tl.HasTraits):
             indices[i] = indices[i].reshape(*reshape)
         return tuple(indices)
 
-    def select_uniform(self, source, request):
+    def select_uniform(self, source, request, index_type):
         crds = request[source.name]
         if crds.is_uniform and crds.step < source.step and not request.is_stacked(source.name):
             return np.arange(source.size)
@@ -106,14 +124,14 @@ class Selector(tl.HasTraits):
         inds = inds[(inds >= 0) & (inds <= stop_ind)]
         return inds
 
-    def select_nonuniform(self, source, request):
+    def select_nonuniform(self, source, request, index_type):
         src, req = _higher_precision_time_coords1d(source, request[source.name])
         ckdtree_source = cKDTree(src[:, None])
         _, inds = ckdtree_source.query(req[:, None], k=len(self.method))
         inds = inds[inds < source.coordinates.size]
         return inds.ravel()
 
-    def select_stacked(self, source, request):
+    def select_stacked(self, source, request, index_type):
         udims = [ud for ud in source.udims if ud in request.udims]
         src_coords, req_coords_diag = _higher_precision_time_stack(source, request, udims)
         ckdtree_source = cKDTree(src_coords)
@@ -140,7 +158,7 @@ class Selector(tl.HasTraits):
 
         c_evals = indep_evals + stacked_ud
         # Since the request are for independent dimensions (we know that already) the order doesn't matter
-        inds = [set(self.select1d(source[ce], request)[1]) for ce in c_evals]
+        inds = [set(self.select1d(source[ce], request, index_type)[1]) for ce in c_evals]
 
         if self.respect_bounds:
             inds = np.array(list(set.intersection(*inds)), int)

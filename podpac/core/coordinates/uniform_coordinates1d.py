@@ -123,12 +123,19 @@ class UniformCoordinates1d(Coordinates1d):
             return False
 
         if isinstance(other, UniformCoordinates1d):
-            if self.start != other.start or self.stop != other.stop or self.step != other.step:
+            if self.dtype == float:
+                if not np.allclose([self.start, self.stop, self.step], [other.start, other.stop, other.step]):
+                    return False
+            elif self.start != other.start or self.stop != other.stop or self.step != other.step:
                 return False
 
         if isinstance(other, ArrayCoordinates1d):
-            if not np.array_equal(self.coordinates, other.coordinates):
-                return False
+            if self.dtype == float:
+                if not np.allclose(self.coordinates, other.coordinates):
+                    return False
+            else:
+                if not np.array_equal(self.coordinates, other.coordinates):
+                    return False
 
         return True
 
@@ -208,7 +215,7 @@ class UniformCoordinates1d(Coordinates1d):
     def __getitem__(self, index):
         # fallback for non-slices
         if not isinstance(index, slice):
-            return ArrayCoordinates1d(self.coordinates[index], **self.properties)
+            return ArrayCoordinates1d(self.coordinates, **self.properties)[index]
 
         # start, stop, step
         if index.start is None:
@@ -235,7 +242,6 @@ class UniformCoordinates1d(Coordinates1d):
         # empty slice
         if start > stop and step > 0:
             return ArrayCoordinates1d([], **self.properties)
-
         return UniformCoordinates1d(start, stop, step, **self.properties)
 
     def __contains__(self, item):
@@ -300,7 +306,7 @@ class UniformCoordinates1d(Coordinates1d):
             range_ = self.stop - self.start
             step = self.step
 
-        return max(0, int(np.floor(range_ / step + 1e-12) + 1))
+        return max(0, int(np.floor(range_ / step + 1e-10) + 1))
 
     @property
     def dtype(self):

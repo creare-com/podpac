@@ -166,9 +166,9 @@ class TestWCSIntegration(object):
     source = "https://maps.isric.org/mapserv?map=/map/sand.map"
 
     def setup_class(cls):
-        cls.node1 = WCSBase(source=cls.source, layer="sand_0-5cm_mean", format="geotiff_byte")
+        cls.node1 = WCSBase(source=cls.source, layer="sand_0-5cm_mean", format="geotiff_byte", max_size=16384)
 
-        cls.node2 = WCS(source=cls.source, layer="sand_0-5cm_mean", format="geotiff_byte")
+        cls.node2 = WCS(source=cls.source, layer="sand_0-5cm_mean", format="geotiff_byte", max_size=16384)
 
     def test_coordinates(self):
         self.node1.coordinates
@@ -184,7 +184,7 @@ class TestWCSIntegration(object):
         self.node2.eval(c)
 
     def test_eval_nonuniform(self):
-        c = COORDS[[0, 1, 3], [20, 10, 11]]
+        c = podpac.Coordinates([[-131.3, -131.4, -131.6], [23.0, 23.1, 23.3]], dims=["lon", "lat"])
         self.node1.eval(c)
         self.node2.eval(c)
 
