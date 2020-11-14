@@ -157,7 +157,6 @@ class TestNearest(object):
             assert np.all(output.lat.values == coords_dst["lat"].coordinates)
             assert np.all(output.values == source[np.array([[0, 1, 2], [1, 2, 3], [2, 3, 4]])])
 
-            # TODO: implement stacked handling
             # source = unstacked, dest = stacked
             source = np.random.rand(5, 5)
             coords_src = Coordinates([np.linspace(0, 10, 5), np.linspace(0, 10, 5)], dims=["lat", "lon"])
@@ -168,10 +167,42 @@ class TestNearest(object):
             )
             coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
 
-            with pytest.raises(InterpolationException):
-                output = node.eval(coords_dst)
+            output = node.eval(coords_dst)
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+            assert np.all(output.values == source[[0, 2, 4], [0, 2, 4]])
+
+            # source = unstacked and non-uniform, dest = stacked
+            source = np.random.rand(5, 5)
+            coords_src = Coordinates([[0, 1.1, 1.2, 6.1, 10], [0, 1.1, 4, 7.1, 9.9]], dims=["lat", "lon"])
+            node = MockArrayDataSource(
+                data=source,
+                coordinates=coords_src,
+                interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
+            )
+            coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
+
+            output = node.eval(coords_dst)
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+            assert np.all(output.values == source[[1, 3, 4], [1, 2, 4]])
 
             # lat_lon_time_alt --> lon, alt_time, lat
+            source = np.random.rand(5)
+            coords_src = Coordinates([[[0, 1, 2, 3, 4]] * 4], dims=[["lat", "lon", "time", "alt"]])
+            node = MockArrayDataSource(
+                data=source,
+                coordinates=coords_src,
+                interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
+            )
+            coords_dst = Coordinates(
+                [[1, 2.4, 3.9], [[1, 2.4, 3.9], [1, 2.4, 3.9]], [1, 2.4, 3.9]], dims=["lon", "alt_time", "lat"]
+            )
+
+            output = node.eval(coords_dst)
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+            assert np.all(output.values[[0, 1, 2], [0, 1, 2], [0, 1, 2]] == source[[1, 2, 4]])
 
     def test_spatial_tolerance(self):
 

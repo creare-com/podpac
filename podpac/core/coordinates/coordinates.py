@@ -76,7 +76,7 @@ class Coordinates(tl.HasTraits):
 
     crs = tl.Unicode(read_only=True, allow_none=True)
 
-    _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates), default_value=OrderedDict())
+    _coords = OrderedDictTrait(value_trait=tl.Instance(BaseCoordinates), default_value=OrderedDict())
 
     def __init__(self, coords, dims=None, crs=None, validate_crs=True):
         """

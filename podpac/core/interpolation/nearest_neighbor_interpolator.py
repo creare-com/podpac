@@ -15,6 +15,7 @@ from scipy.spatial import cKDTree
 # podac imports
 from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
+from podpac.core.coordinates.utils import make_coord_delta, make_coord_value
 from podpac.core.utils import common_doc
 from podpac.core.coordinates.utils import get_timedelta
 from podpac.core.interpolation.selector import Selector, _higher_precision_time_coords1d, _higher_precision_time_stack
@@ -74,22 +75,43 @@ class NearestNeighbor(Interpolator):
         def is_stacked(d):
             return "_" in d
 
+        if hasattr(source_data, "attrs"):
+            bounds = source_data.attrs.get("bounds", {d: None for d in source_coordinates.dims})
+            if "time" in bounds and bounds["time"]:
+                bounds["time"] = [
+                    self._atime_to_float(b, source_coordinates["time"], eval_coordinates["time"])
+                    for b in bounds["time"]
+                ]
+
         data_index = []
         for d in source_coordinates.dims:
+            # Make sure we're supposed to do nearest neighbor interpolation for this UDIM, otherwise skip this dimension
+            if len([dd for dd in d.split("_") if dd in udims]) == 0:
+                index = self._resize_unstacked_index(np.arange(source_coordinates[d].size), d, eval_coordinates)
+                data_index.append(index)
+                continue
             source = source_coordinates[d]
             if is_stacked(d):
-                index = self._get_stacked_index(d, source, eval_coordinates)
+                bound = np.stack([bounds[dd] for dd in d.split("_")], axis=1)
+                index = self._get_stacked_index(d, source, eval_coordinates, bound)
+                index = self._resize_stacked_index(index, d, eval_coordinates)
             elif source_coordinates[d].is_uniform:
                 request = eval_coordinates[d]
-                index = self._get_uniform_index(d, source, request)
+                index = self._get_uniform_index(d, source, request, bounds[d])
+                index = self._resize_unstacked_index(index, d, eval_coordinates)
             else:  # non-uniform coordinates... probably an optimization here
                 request = eval_coordinates[d]
-                index = self._get_nonuniform_index(d, source, request)
+                index = self._get_nonuniform_index(d, source, request, bounds[d])
+                index = self._resize_unstacked_index(index, d, eval_coordinates)
+
             data_index.append(index)
 
         index = tuple(data_index)
 
         output_data.data[:] = np.array(source_data)[index]
+
+        bool_inds = sum([i == -1 for i in index]).astype(bool)
+        output_data.data[bool_inds] = np.nan
 
         return output_data
 
@@ -104,29 +126,56 @@ class NearestNeighbor(Interpolator):
 
         return data, Coordinates([coords], dims=[source_coordinates.udims])
 
-    def _get_tol(self, dim):
+    def _get_tol(self, dim, source, request):
         if dim in ["lat", "lon"]:
             return self.spatial_tolerance
         if dim == "alt":
             return self.alt_tolerance
         if dim == "time":
-            return self.time_tolerance
+            if self.time_tolerance == "":
+                return np.inf
+            return self._time_to_float(self.time_tolerance, source, request)
         raise NotImplementedError()
 
-    def _get_scale(self, dim):
+    def _get_scale(self, dim, source_1d, request_1d):
         if dim in ["lat", "lon"]:
             return self.spatial_scale
         if dim == "alt":
             return self.alt_scale
         if dim == "time":
-            return self.time_scale
+            if self.time_tolerance == "":
+                return 1.0
+            return self._time_to_float(self.time_scale, source_1d, request_1d)
         raise NotImplementedError()
 
-    def _get_stacked_index(self, dim, source, request):
+    def _time_to_float(self, time, time_source, time_request):
+        dtype0 = time_source.coordinates[0].dtype
+        dtype1 = time_request.coordinates[0].dtype
+        dtype = dtype0 if dtype0 > dtype1 else dtype1
+        time = make_coord_delta(time)
+        if isinstance(time, np.timedelta64):
+            time = time.astype(dtype).astype(float)
+        return time
+
+    def _atime_to_float(self, time, time_source, time_request):
+        dtype0 = time_source.coordinates[0].dtype
+        dtype1 = time_request.coordinates[0].dtype
+        dtype = dtype0 if dtype0 > dtype1 else dtype1
+        time = make_coord_value(time)
+        if isinstance(time, np.datetime64):
+            time = time.astype(dtype).astype(float)
+        return time
+
+    def _get_stacked_index(self, dim, source, request, bounds=None):
         # The udims are in the order of the request so that the meshgrid calls will be in the right order
         udims = [ud for ud in request.udims if ud in source.udims]
-        tols = np.array([self._get_tol(d) for d in udims])[None, :]
-        scales = np.array([self._get_scale(d) for d in udims])[None, :]
+        time_source = time_request = None
+        if "time" in udims:
+            time_source = source["time"]
+            time_request = request["time"]
+
+        tols = np.array([self._get_tol(d, time_source, time_request) for d in udims])[None, :]
+        scales = np.array([self._get_scale(d, time_source, time_request) for d in udims])[None, :]
         tol = np.linalg.norm((tols * scales).squeeze())
         src_coords, req_coords_diag = _higher_precision_time_stack(source, request, udims)
         ckdtree_source = cKDTree(src_coords * scales)
@@ -143,32 +192,36 @@ class NearestNeighbor(Interpolator):
             req_coords = np.stack([i.ravel() for i in np.meshgrid(*req_coords_diag.T, indexing="ij")], axis=1)
         else:
             # Rare cases? E.g. lat_lon_time_alt source to lon, time_alt, lat destination
-            c_evals = indep_evals + list(stacked)
-            sizes = [request[d].size for d in c_evals]
-            reshape = np.ones(len(c_evals), int)
+            sizes = [request[d].size for d in request.dims]
+            reshape = np.ones(len(request.dims), int)
             coords = [None] * len(udims)
             for i in range(len(udims)):
+                ii = [ii for ii in range(len(request.dims)) if udims[i] in request.dims[ii]][0]
                 reshape[:] = 1
-                reshape[i] = -1
-                coords[i] = req_coords_diag[i].reshape(*reshape)
-                for j, d in c_evals:
-                    if udims[i] in d:
+                reshape[ii] = -1
+                coords[i] = req_coords_diag[:, i].reshape(*reshape)
+                for j, d in enumerate(request.dims):
+                    if udims[i] in d:  # Then we don't need to repeat
                         continue
                     coords[i] = coords[i].repeat(sizes[j], axis=j)
-            req_coords = np.stack([i.ravel() for i in np.meshgrid(*coords, indexing="ij")], axis=1)
+            req_coords = np.stack([i.ravel() for i in coords], axis=1)
 
-        dist, index = ckdtree_source.query(req_coords * np.array(scales)[None, :], k=1)
+        dist, index = ckdtree_source.query(req_coords * np.array(scales), k=1)
+
+        if self.respect_bounds:
+            if bounds is None:
+                bounds = [src_coords.min(0), src_coords.max(0)]
+            index[np.any((req_coords > bounds[1])) | np.any((req_coords < bounds[0]))] = -1
 
         if tol and tol != np.inf:
             index[dist > tol] = -1
 
-        index = self._resize_stacked_index(index, dim, request)
         return index
 
-    def _get_uniform_index(self, dim, source, request):
-        tol = self._get_tol(dim)
+    def _get_uniform_index(self, dim, source, request, bounds=None):
+        tol = self._get_tol(dim, source, request)
 
-        index = ((request.coordinates - source.start) / source.step).astype(int)
+        index = (request.coordinates - source.start) / source.step
         rindex = np.around(index).astype(int)
         stop_ind = int(source.size)
         if self.respect_bounds:
@@ -176,13 +229,16 @@ class NearestNeighbor(Interpolator):
         else:
             rindex = np.clip(rindex, 0, stop_ind)
         if tol and tol != np.inf:
-            rindex[np.abs(index - rindex) * source.step > tol] = -1
+            if dim == "time":
+                step = self._time_to_float(source.step, source, request)
+            else:
+                step = source.step
+            rindex[np.abs(index - rindex) * step > tol] = -1
 
-        index = self._resize_unstacked_index(rindex, dim, request)
-        return index
+        return rindex
 
-    def _get_nonuniform_index(self, dim, source, request):
-        tol = self._get_tol(dim)
+    def _get_nonuniform_index(self, dim, source, request, bounds=None):
+        tol = self._get_tol(dim, source, request)
 
         src, req = _higher_precision_time_coords1d(source, request)
         ckdtree_source = cKDTree(src[:, None])
@@ -190,37 +246,28 @@ class NearestNeighbor(Interpolator):
         index[index == source.coordinates.size] = -1
 
         if self.respect_bounds:
-            index[(req > src.max()) | (req < src.min())] = -1
+            if bounds is None:
+                bounds = [src.min(), src.max()]
+            index[(req > bounds[1]) | (req < bounds[0])] = -1
         if tol and tol != np.inf:
             index[dist > tol] = -1
 
-        index = self._resize_unstacked_index(index, dim, request)
         return index
 
     def _resize_unstacked_index(self, index, source_dim, request):
         reshape = np.ones(len(request.dims), int)
-        i = [i for i in range(len(request.dims)) if source_dim in request.dims]
+        i = [i for i in range(len(request.dims)) if source_dim in request.dims[i]]
         reshape[i] = -1
         return index.reshape(*reshape)
 
     def _resize_stacked_index(self, index, source_dim, request):
-        reshape = np.ones(len(request.dims), int)
-        sizes = [request[d].size for d in request.dims]
+        reshape = request.shape
 
-        dims = source_dim.split("_")
-        for i, dim in enumerate(dims):
-            reshape[:] = 1
-
-            if "_" in request.dims[i]:
-                if all([d in request.dims[i] for d in dims]):  # Stacked to Stacked
-                    return index
-
-            # Examples: lat_lon_time_alt source --> lon, time_alt, lat destination
-            #           lat_lon source --> lat, time, lon destination
-            reshape[i] = sizes[i]
-            for j, rdim in enumerate(request.dims):
-                if any([d in request.dims[i] for d in dims]):
-                    reshape[j] = sizes[j]
+        for i, dim in enumerate(request.dims):
+            d = dim.split("_")
+            if any([dd in source_dim for dd in d]):
+                continue
+            reshape[i] = 1
 
         index = index.reshape(*reshape)
         return index

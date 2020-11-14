@@ -417,7 +417,7 @@ class InterpolationManager(object):
 
         # throw error if the source_dims don't encompass all the supported dims
         # this should happen rarely because of default
-        if len(source_dims) > len(handled_dims) and strict:
+        if len(source_dims - handled_dims) > 0 and strict:
             missing_dims = list(source_dims - handled_dims)
             raise InterpolationException(
                 "Dimensions {} ".format(missing_dims)
@@ -559,7 +559,9 @@ class InterpolationManager(object):
         dtype = output_data.dtype
         for udims, interpolator in interpolator_queue.items():
             # TODO move the above short-circuits into this loop
-
+            if all([ud not in source_coordinates.udims for ud in udims]):
+                # Skip this udim if it's not part of the source coordinates (can happen with default)
+                continue
             # Check if parameters are being used
             for k in self._interpolation_params:
                 self._interpolation_params[k] = hasattr(interpolator, k) or self._interpolation_params[k]
@@ -574,7 +576,7 @@ class InterpolationManager(object):
             )
 
             # prepare for the next iteration
-            source_data = interp_data
+            source_data = interp_data.transpose(*interp_coordinates.dims)
             source_coordinates = interp_coordinates
 
         output_data.data = interp_data.transpose(*output_data.dims)

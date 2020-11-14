@@ -274,4 +274,4 @@ class WCSBase(DataSource):
 
 
 class WCS(InterpolationMixin, WCSBase):
-    coordinate_index_type = tl.Unicode("slice", readonly=True)
+    coordinate_index_type = tl.Unicode("slice", read_only=True)

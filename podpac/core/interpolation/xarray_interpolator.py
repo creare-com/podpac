@@ -120,4 +120,4 @@ class XarrayInterpolator(Interpolator):
 
         output_data = source_data.interp(method=self.method, **coords)
 
-        return output_data
+        return output_data.transpose(*eval_coordinates.dims)

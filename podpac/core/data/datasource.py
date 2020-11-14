@@ -380,7 +380,10 @@ class DataSource(Node):
         # get indexed boundary
         if rsci is not None:
             rsb = self._get_boundary(rsci)
-            output.attrs["boundary_data"] = rsb
+        else:
+            rsb = self.boundary
+        output.attrs["boundary_data"] = rsb
+        output.attrs["bounds"] = self.coordinates.bounds
 
         # save output to private for debugging
         if settings["DEBUG"]:
