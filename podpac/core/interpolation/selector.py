@@ -14,11 +14,16 @@ METHOD = {"nearest": [0], "bilinear": [-1, 1], "linear": [-1, 1], "cubic": [-2, 
 def _higher_precision_time_stack(coords0, coords1, dims):
     crds0 = []
     crds1 = []
+    lens = []
     for d in dims:
         c0, c1 = _higher_precision_time_coords1d(coords0[d], coords1[d])
         crds0.append(c0)
         crds1.append(c1)
-    return np.stack(crds0, axis=1), np.stack(crds1, axis=1)
+        lens.append(len(c1))
+    if np.all(np.array(lens) == lens[0]):
+        crds1 = np.stack(crds1, axis=0)
+
+    return np.stack(crds0, axis=0), crds1
 
 
 def _higher_precision_time_coords1d(coords0, coords1):
@@ -133,25 +138,21 @@ class Selector(tl.HasTraits):
 
     def select_stacked(self, source, request, index_type):
         udims = [ud for ud in source.udims if ud in request.udims]
-        src_coords, req_coords_diag = _higher_precision_time_stack(source, request, udims)
-        ckdtree_source = cKDTree(src_coords)
-        _, inds = ckdtree_source.query(req_coords_diag, k=len(self.method))
-        inds = inds[inds < source.coordinates.size]
-        inds = inds.ravel()
 
-        if np.unique(inds).size == source.size:
-            return inds
-
-        if len(udims) == 1:
-            return inds
-
-        # if the udims are all stacked in the same stack as part of the request coordinates, then we're done.
+        # if the udims are all stacked in the same stack as part of the request coordinates, then we can take a shortcut.
         # Otherwise we have to evaluate each unstacked set of dimensions independently
         indep_evals = [ud for ud in udims if not request.is_stacked(ud)]
         # two udims could be stacked, but in different dim groups, e.g. source (lat, lon), request (lat, time), (lon, alt)
         stacked = {d for d in request.dims for ud in udims if ud in d and request.is_stacked(ud)}
 
+        inds = np.array([])
         if (len(indep_evals) + len(stacked)) <= 1:
+            src_coords, req_coords_diag = _higher_precision_time_stack(source, request, udims)
+            if isinstance(req_coords_diag, np.ndarray):  # The request is stacked, or square uniform coords
+                ckdtree_source = cKDTree(src_coords.T)
+                _, inds = ckdtree_source.query(req_coords_diag.T, k=len(self.method))
+            inds = inds[inds < source.coordinates.size]
+            inds = inds.ravel()
             return inds
 
         stacked_ud = [d for s in stacked for d in s.split("_") if d in udims]

@@ -6,6 +6,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 from six import string_types
 
 import numpy as np
+import xarray as xr
 import traitlets as tl
 from scipy.spatial import cKDTree
 
@@ -68,9 +69,6 @@ class NearestNeighbor(Interpolator):
         """
         # Note, some of the following code duplicates code in the Selector class.
         # This duplication is for the sake of optimization
-        if self.remove_nan:
-            # Eliminate nans from the source data. Note, this could turn a uniform griddted dataset into a stacked one
-            source_data, source_coordinates = self._remove_nans(source_data, source_coordinates)
 
         def is_stacked(d):
             return "_" in d
@@ -82,6 +80,12 @@ class NearestNeighbor(Interpolator):
                     self._atime_to_float(b, source_coordinates["time"], eval_coordinates["time"])
                     for b in bounds["time"]
                 ]
+        else:
+            bounds = {d: None for d in source_coordinates.dims}
+
+        if self.remove_nan:
+            # Eliminate nans from the source data. Note, this could turn a uniform griddted dataset into a stacked one
+            source_data, source_coordinates = self._remove_nans(source_data, source_coordinates)
 
         data_index = []
         for d in source_coordinates.dims:
@@ -116,7 +120,7 @@ class NearestNeighbor(Interpolator):
         return output_data
 
     def _remove_nans(self, source_data, source_coordinates):
-        index = np.isnan(source_data)
+        index = np.array(np.isnan(source_data), bool)
         if not np.any(index):
             return source_data, source_coordinates
 
@@ -178,7 +182,7 @@ class NearestNeighbor(Interpolator):
         scales = np.array([self._get_scale(d, time_source, time_request) for d in udims])[None, :]
         tol = np.linalg.norm((tols * scales).squeeze())
         src_coords, req_coords_diag = _higher_precision_time_stack(source, request, udims)
-        ckdtree_source = cKDTree(src_coords * scales)
+        ckdtree_source = cKDTree(src_coords.T * scales)
 
         # if the udims are all stacked in the same stack as part of the request coordinates, then we're done.
         # Otherwise we have to evaluate each unstacked set of dimensions independently
@@ -187,9 +191,9 @@ class NearestNeighbor(Interpolator):
         stacked = {d for d in request.dims for ud in udims if ud in d and request.is_stacked(ud)}
 
         if (len(indep_evals) + len(stacked)) <= 1:  # output is stacked in the same way
-            req_coords = req_coords_diag
+            req_coords = req_coords_diag.T
         elif (len(stacked) == 0) | (len(indep_evals) == 0 and len(stacked) == len(udims)):
-            req_coords = np.stack([i.ravel() for i in np.meshgrid(*req_coords_diag.T, indexing="ij")], axis=1)
+            req_coords = np.stack([i.ravel() for i in np.meshgrid(*req_coords_diag, indexing="ij")], axis=1)
         else:
             # Rare cases? E.g. lat_lon_time_alt source to lon, time_alt, lat destination
             sizes = [request[d].size for d in request.dims]
@@ -199,7 +203,7 @@ class NearestNeighbor(Interpolator):
                 ii = [ii for ii in range(len(request.dims)) if udims[i] in request.dims[ii]][0]
                 reshape[:] = 1
                 reshape[ii] = -1
-                coords[i] = req_coords_diag[:, i].reshape(*reshape)
+                coords[i] = req_coords_diag[i].reshape(*reshape)
                 for j, d in enumerate(request.dims):
                     if udims[i] in d:  # Then we don't need to repeat
                         continue
@@ -211,7 +215,7 @@ class NearestNeighbor(Interpolator):
         if self.respect_bounds:
             if bounds is None:
                 bounds = [src_coords.min(0), src_coords.max(0)]
-            index[np.any((req_coords > bounds[1])) | np.any((req_coords < bounds[0]))] = -1
+            index[np.any((req_coords > bounds[1]), axis=1) | np.any((req_coords < bounds[0]), axis=1)] = -1
 
         if tol and tol != np.inf:
             index[dist > tol] = -1

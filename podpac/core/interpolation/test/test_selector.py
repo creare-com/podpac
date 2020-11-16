@@ -214,3 +214,32 @@ class TestSelector(object):
         c, ci = selector.select(u_fine, p_coarse)
         for cci, trth in zip(ci, np.ix_(self.nn_request_coarse_from_fine, self.nn_request_coarse_from_fine)):
             np.testing.assert_array_equal(cci, trth)
+
+    def test_point2uniform_non_square(self):
+        u_fine = Coordinates([self.lat_fine, self.lon_fine[:-1]], ["lat", "lon"])
+        u_coarse = Coordinates([self.lat_coarse[:-1], self.lon_coarse], ["lat", "lon"])
+
+        p_fine = Coordinates([[self.lat_fine, self.lon_fine]], [["lat", "lon"]])
+        p_coarse = Coordinates([[self.lat_coarse, self.lon_coarse]], [["lat", "lon"]])
+
+        selector = Selector("nearest")
+
+        c, ci = selector.select(u_fine, p_coarse)
+        for cci, trth in zip(ci, np.ix_(self.nn_request_coarse_from_fine, self.nn_request_coarse_from_fine)):
+            np.testing.assert_array_equal(cci, trth)
+
+        c, ci = selector.select(u_coarse, p_fine)
+        for cci, trth in zip(ci, np.ix_(self.nn_request_fine_from_coarse[:-1], self.nn_request_fine_from_coarse)):
+            np.testing.assert_array_equal(cci, trth)
+
+        c, ci = selector.select(p_fine, u_coarse)
+        np.testing.assert_array_equal(ci, (self.nn_request_coarse_from_fine,))
+
+        c, ci = selector.select(p_coarse, u_fine)
+        np.testing.assert_array_equal(ci, (self.nn_request_fine_from_coarse,))
+
+        # Respect bounds
+        selector.respect_bounds = True
+        c, ci = selector.select(u_fine, p_coarse)
+        for cci, trth in zip(ci, np.ix_(self.nn_request_coarse_from_fine, self.nn_request_coarse_from_fine)):
+            np.testing.assert_array_equal(cci, trth)

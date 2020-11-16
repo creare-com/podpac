@@ -479,11 +479,14 @@ class InterpolationManager(object):
             if d not in selected_coords:  # Some coordinates may not have a selector when heterogeneous
                 selected_coords[d] = source_coordinates[d]
             # np.ix_ call doesn't work with slices, and fancy numpy indexing does not work well with mixed slice/index
-            if isinstance(selected_coords_idx[d], slice):
+            if isinstance(selected_coords_idx[d], slice) and index_type != "slice":
                 selected_coords_idx[d] = np.arange(selected_coords[d].size)
 
         selected_coords = Coordinates([selected_coords[k] for k in source_coordinates.dims], source_coordinates.dims)
-        selected_coords_idx2 = np.ix_(*[selected_coords_idx[k].ravel() for k in source_coordinates.dims])
+        if index_type != "slice":
+            selected_coords_idx2 = np.ix_(*[selected_coords_idx[k].ravel() for k in source_coordinates.dims])
+        else:
+            selected_coords_idx2 = tuple([selected_coords_idx[d] for d in source_coordinates.dims])
         return selected_coords, tuple(selected_coords_idx2)
 
     def interpolate(self, source_coordinates, source_data, eval_coordinates, output_data):
