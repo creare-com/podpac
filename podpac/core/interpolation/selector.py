@@ -146,23 +146,30 @@ class Selector(tl.HasTraits):
         stacked = {d for d in request.dims for ud in udims if ud in d and request.is_stacked(ud)}
 
         inds = np.array([])
+        # Parts of the below code is duplicated in NearestNeighborInterpolotor
+        src_coords, req_coords_diag = _higher_precision_time_stack(source, request, udims)
+        ckdtree_source = cKDTree(src_coords.T)
         if (len(indep_evals) + len(stacked)) <= 1:
-            src_coords, req_coords_diag = _higher_precision_time_stack(source, request, udims)
-            if isinstance(req_coords_diag, np.ndarray):  # The request is stacked, or square uniform coords
-                ckdtree_source = cKDTree(src_coords.T)
-                _, inds = ckdtree_source.query(req_coords_diag.T, k=len(self.method))
-            inds = inds[inds < source.coordinates.size]
-            inds = inds.ravel()
-            return inds
-
-        stacked_ud = [d for s in stacked for d in s.split("_") if d in udims]
-
-        c_evals = indep_evals + stacked_ud
-        # Since the request are for independent dimensions (we know that already) the order doesn't matter
-        inds = [set(self.select1d(source[ce], request, index_type)[1]) for ce in c_evals]
-
-        if self.respect_bounds:
-            inds = np.array(list(set.intersection(*inds)), int)
+            req_coords = req_coords_diag.T
+        elif (len(stacked) == 0) | (len(indep_evals) == 0 and len(stacked) == len(udims)):
+            req_coords = np.stack([i.ravel() for i in np.meshgrid(*req_coords_diag, indexing="ij")], axis=1)
         else:
-            inds = np.sort(np.array(list(set.union(*inds)), int))
+            # Rare cases? E.g. lat_lon_time_alt source to lon, time_alt, lat destination
+            sizes = [request[d].size for d in request.dims]
+            reshape = np.ones(len(request.dims), int)
+            coords = [None] * len(udims)
+            for i in range(len(udims)):
+                ii = [ii for ii in range(len(request.dims)) if udims[i] in request.dims[ii]][0]
+                reshape[:] = 1
+                reshape[ii] = -1
+                coords[i] = req_coords_diag[i].reshape(*reshape)
+                for j, d in enumerate(request.dims):
+                    if udims[i] in d:  # Then we don't need to repeat
+                        continue
+                    coords[i] = coords[i].repeat(sizes[j], axis=j)
+            req_coords = np.stack([i.ravel() for i in coords], axis=1)
+
+        _, inds = ckdtree_source.query(req_coords, k=len(self.method))
+        inds = inds[inds < source.coordinates.size]
+        inds = inds.ravel()
         return inds

@@ -27,6 +27,7 @@ class TestSelector(object):
     nn_request_coarse_from_random_fine = [1, 5, 7]
     nn_request_fine_from_random_coarse = [0, 1, 2]
     nn_request_coarse_from_random_coarse = [0, 1, 2]
+    nn_request_coarse_from_fine_grid = [1, 2, 3, 5, 6]
 
     coords = {}
 
@@ -204,7 +205,7 @@ class TestSelector(object):
             np.testing.assert_array_equal(cci, trth)
 
         c, ci = selector.select(p_fine, u_coarse)
-        np.testing.assert_array_equal(ci, (self.nn_request_coarse_from_fine,))
+        np.testing.assert_array_equal(ci, (self.nn_request_coarse_from_fine_grid,))
 
         c, ci = selector.select(p_coarse, u_fine)
         np.testing.assert_array_equal(ci, (self.nn_request_fine_from_coarse,))
@@ -233,7 +234,7 @@ class TestSelector(object):
             np.testing.assert_array_equal(cci, trth)
 
         c, ci = selector.select(p_fine, u_coarse)
-        np.testing.assert_array_equal(ci, (self.nn_request_coarse_from_fine,))
+        np.testing.assert_array_equal(ci, (self.nn_request_coarse_from_fine_grid[:-1],))
 
         c, ci = selector.select(p_coarse, u_fine)
         np.testing.assert_array_equal(ci, (self.nn_request_fine_from_coarse,))

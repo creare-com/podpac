@@ -254,6 +254,168 @@ class TestNearest(object):
             and output.values[2, 1] == source[1, 2]
         )
 
+    def test_stacked_source_unstacked_region_non_square(self):
+        # unstacked 1D
+        source = np.random.rand(5)
+        coords_src = Coordinates(
+            [[np.linspace(0, 10, 5), clinspace("2018-01-01", "2018-01-09", 5)]], dims=[["lat", "time"]]
+        )
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
+        )
+
+        coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9], clinspace("2018-01-01", "2018-01-09", 3)], dims=["lat", "time"])
+        output = node.eval(coords_dst)
+
+        assert isinstance(output, UnitsDataArray)
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        assert np.all(output.values == source[np.array([[0, 2, 4]] * 5)])
+
+    def test_time_space_scale_grid(self):
+        # Grid
+        source = np.random.rand(5, 3, 2)
+        source[2, 1, 0] = np.nan
+        coords_src = Coordinates(
+            [np.linspace(0, 10, 5), ["2018-01-01", "2018-01-02", "2018-01-03"], [0, 10]], dims=["lat", "time", "alt"]
+        )
+        coords_dst = Coordinates([5.1, "2018-01-02T11", 1], dims=["lat", "time", "alt"])
+
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={
+                "method": "nearest",
+                "interpolators": [NearestNeighbor],
+                "params": {
+                    "spatial_scale": 1,
+                    "time_scale": "1,D",
+                    "alt_scale": 10,
+                    "remove_nan": True,
+                    "use_selector": False,
+                },
+            },
+        )
+        output = node.eval(coords_dst)
+        assert output == source[2, 2, 0]
+
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={
+                "method": "nearest",
+                "interpolators": [NearestNeighbor],
+                "params": {
+                    "spatial_scale": 1,
+                    "time_scale": "1,s",
+                    "alt_scale": 10,
+                    "remove_nan": True,
+                    "use_selector": False,
+                },
+            },
+        )
+        output = node.eval(coords_dst)
+        assert output == source[2, 1, 1]
+
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={
+                "method": "nearest",
+                "interpolators": [NearestNeighbor],
+                "params": {
+                    "spatial_scale": 1,
+                    "time_scale": "1,s",
+                    "alt_scale": 1,
+                    "remove_nan": True,
+                    "use_selector": False,
+                },
+            },
+        )
+        output = node.eval(coords_dst)
+        assert output == source[3, 1, 0]
+
+    def test_remove_nan(self):
+        # Stacked
+        source = np.random.rand(5)
+        source[2] = np.nan
+        coords_src = Coordinates(
+            [[np.linspace(0, 10, 5), clinspace("2018-01-01", "2018-01-09", 5)]], dims=[["lat", "time"]]
+        )
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "nearest", "interpolators": [NearestNeighbor], "params": {"remove_nan": False}},
+        )
+        coords_dst = Coordinates([[5.1]], dims=["lat"])
+        output = node.eval(coords_dst)
+        assert np.isnan(output)
+
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={
+                "method": "nearest",
+                "interpolators": [NearestNeighbor],
+                "params": {"remove_nan": True, "use_selector": False},
+            },
+        )
+        output = node.eval(coords_dst)
+        assert (
+            output == source[3]
+        )  # This fails because the selector selects the nan value... can we turn off the selector?
+
+        # Grid
+        source = np.random.rand(5, 3)
+        source[2, 1] = np.nan
+        coords_src = Coordinates([np.linspace(0, 10, 5), [1, 2, 3]], dims=["lat", "time"])
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "nearest", "interpolators": [NearestNeighbor], "params": {"remove_nan": False}},
+        )
+        coords_dst = Coordinates([5.1, 2.01], dims=["lat", "time"])
+        output = node.eval(coords_dst)
+        assert np.isnan(output)
+
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={
+                "method": "nearest",
+                "interpolators": [NearestNeighbor],
+                "params": {"remove_nan": True, "use_selector": False},
+            },
+        )
+        output = node.eval(coords_dst)
+        assert output == source[2, 2]
+
+    def test_respect_bounds(self):
+        source = np.random.rand(5)
+        coords_src = Coordinates([[1, 2, 3, 4, 5]], ["alt"])
+        coords_dst = Coordinates([[-0.5, 1.1, 2.6]], ["alt"])
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={
+                "method": "nearest",
+                "interpolators": [NearestNeighbor],
+                "params": {"respect_bounds": False},
+            },
+        )
+        output = node.eval(coords_dst)
+        np.testing.assert_array_equal(output.data, source[[0, 0, 2]])
+
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "nearest", "interpolators": [NearestNeighbor], "params": {"respect_bounds": True}},
+        )
+        output = node.eval(coords_dst)
+        np.testing.assert_array_equal(output.data[1:], source[[0, 2]])
+        assert np.isnan(output.data[0])
+
 
 class TestInterpolateRasterio(object):
     """test interpolation functions"""

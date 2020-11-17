@@ -463,7 +463,7 @@ class InterpolationManager(object):
         selected_coords_idx = {k: np.arange(source_coordinates[k].size) for k in source_coordinates.dims}
         for udims in interpolator_queue:
             interpolator = interpolator_queue[udims]
-            extra_dims = [d for d in source_coordinates.dims if d not in udims]
+            extra_dims = [d for d in source_coordinates.udims if d not in udims]
             sc = source_coordinates.drop(extra_dims)
             # run interpolation. mutates selected coordinates and selected coordinates index
             sel_coords, sel_coords_idx = interpolator.select_coordinates(

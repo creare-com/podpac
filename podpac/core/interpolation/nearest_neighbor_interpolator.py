@@ -38,15 +38,16 @@ class NearestNeighbor(Interpolator):
     time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
     alt_tolerance = tl.Float(default_value=np.inf, allow_none=True)
 
-    # spatial_scale only applies when the source is stacked with time or alt
+    # spatial_scale only applies when the source is stacked with time or alt. The supplied value will be assigned a distance of "1'"
     spatial_scale = tl.Float(default_value=1, allow_none=True)
-    # time_scale only applies when the source is stacked with lat, lon, or alt
+    # time_scale only applies when the source is stacked with lat, lon, or alt. The supplied value will be assigned a distance of "1'"
     time_scale = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
-    # alt_scale only applies when the source is stacked with lat, lon, or time
+    # alt_scale only applies when the source is stacked with lat, lon, or time. The supplied value will be assigned a distance of "1'"
     alt_scale = tl.Float(default_value=1, allow_none=True)
 
     respect_bounds = tl.Bool(True)
-    remove_nan = tl.Bool(True)
+    remove_nan = tl.Bool(False)
+    use_selector = tl.Bool(True)
 
     def __repr__(self):
         rep = super(NearestNeighbor, self).__repr__()
@@ -62,6 +63,12 @@ class NearestNeighbor(Interpolator):
 
         return udims_subset
 
+    def can_select(self, udims, source_coordinates, eval_coordinates):
+        selector = super().can_select(udims, source_coordinates, eval_coordinates)
+        if self.use_selector:
+            return selector
+        return ()
+
     @common_doc(COMMON_INTERPOLATOR_DOCS)
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
@@ -76,10 +83,17 @@ class NearestNeighbor(Interpolator):
         if hasattr(source_data, "attrs"):
             bounds = source_data.attrs.get("bounds", {d: None for d in source_coordinates.dims})
             if "time" in bounds and bounds["time"]:
-                bounds["time"] = [
-                    self._atime_to_float(b, source_coordinates["time"], eval_coordinates["time"])
-                    for b in bounds["time"]
-                ]
+                if "time" in eval_coordinates.udims:
+                    bounds["time"] = [
+                        self._atime_to_float(b, source_coordinates["time"], eval_coordinates["time"])
+                        for b in bounds["time"]
+                    ]
+                else:
+                    bounds["time"] = [
+                        self._atime_to_float(b, source_coordinates["time"], source_coordinates["time"])
+                        for b in bounds["time"]
+                    ]
+
         else:
             bounds = {d: None for d in source_coordinates.dims}
 
@@ -125,8 +139,27 @@ class NearestNeighbor(Interpolator):
             return source_data, source_coordinates
 
         data = source_data.data[~index]
-        coords = np.meshgrid(*[c.coordinates for c in source_coordinates.values()], indexing="ij")
+        coords = np.meshgrid(
+            *[source_coordinates[d.split("_")[0]].coordinates for d in source_coordinates.dims], indexing="ij"
+        )
         coords = [c[~index] for c in coords]
+
+        dims = [d.split("_")[0] for d in source_coordinates.dims]
+        # Add back in any stacked coordinates
+        for i, d in enumerate(source_coordinates.dims):
+            dims = d.split("_")
+            if len(dims) == 1:
+                continue
+            reshape = np.ones(len(coords), int)
+            reshape[i] = -1
+            repeats = list(coords[0].shape)
+            repeats[i] = 1
+            for dd in dims[1:]:
+                crds = source_coordinates[dd].coordinates.reshape(*reshape)
+                for j, r in enumerate(repeats):
+                    crds = crds.repeat(r, axis=j)
+                coords.append(crds[~index])
+                dims.append(dd)
 
         return data, Coordinates([coords], dims=[source_coordinates.udims])
 
@@ -143,13 +176,13 @@ class NearestNeighbor(Interpolator):
 
     def _get_scale(self, dim, source_1d, request_1d):
         if dim in ["lat", "lon"]:
-            return self.spatial_scale
+            return 1 / self.spatial_scale
         if dim == "alt":
-            return self.alt_scale
+            return 1 / self.alt_scale
         if dim == "time":
-            if self.time_tolerance == "":
+            if self.time_scale == "":
                 return 1.0
-            return self._time_to_float(self.time_scale, source_1d, request_1d)
+            return 1 / self._time_to_float(self.time_scale, source_1d, request_1d)
         raise NotImplementedError()
 
     def _time_to_float(self, time, time_source, time_request):
@@ -158,8 +191,10 @@ class NearestNeighbor(Interpolator):
         dtype = dtype0 if dtype0 > dtype1 else dtype1
         time = make_coord_delta(time)
         if isinstance(time, np.timedelta64):
-            time = time.astype(dtype).astype(float)
-        return time
+            time1 = (time + np.datetime64("2000")).astype(dtype).astype(float) - (
+                np.datetime64("2000").astype(dtype).astype(float)
+            )
+        return time1
 
     def _atime_to_float(self, time, time_source, time_request):
         dtype0 = time_source.coordinates[0].dtype
@@ -173,6 +208,13 @@ class NearestNeighbor(Interpolator):
     def _get_stacked_index(self, dim, source, request, bounds=None):
         # The udims are in the order of the request so that the meshgrid calls will be in the right order
         udims = [ud for ud in request.udims if ud in source.udims]
+
+        # Subselect bounds if needed
+        if np.any([d not in udims for d in dim.split("_")]):
+            dims = dim.split("_")
+            cols = np.array([d in udims for d in dims], dtype=bool)
+            bounds = bounds[:, cols]
+
         time_source = time_request = None
         if "time" in udims:
             time_source = source["time"]
@@ -186,6 +228,7 @@ class NearestNeighbor(Interpolator):
 
         # if the udims are all stacked in the same stack as part of the request coordinates, then we're done.
         # Otherwise we have to evaluate each unstacked set of dimensions independently
+        # Note, part of this code is duplicated in the selector
         indep_evals = [ud for ud in udims if not request.is_stacked(ud)]
         # two udims could be stacked, but in different dim groups, e.g. source (lat, lon), request (lat, time), (lon, alt)
         stacked = {d for d in request.dims for ud in udims if ud in d and request.is_stacked(ud)}
@@ -210,7 +253,7 @@ class NearestNeighbor(Interpolator):
                     coords[i] = coords[i].repeat(sizes[j], axis=j)
             req_coords = np.stack([i.ravel() for i in coords], axis=1)
 
-        dist, index = ckdtree_source.query(req_coords * np.array(scales), k=1)
+        dist, index = ckdtree_source.query(req_coords * scales, k=1)
 
         if self.respect_bounds:
             if bounds is None:
