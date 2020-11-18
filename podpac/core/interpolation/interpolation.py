@@ -19,10 +19,6 @@ from podpac.core.interpolation.interpolation_manager import InterpolationManager
 _logger = logging.getLogger(__name__)
 
 
-def interpolation_decorator():
-    pass  ## TODO
-
-
 class InterpolationMixin(tl.HasTraits):
     interpolation = InterpolationTrait().tag(attr=True)
     _interp_node = None

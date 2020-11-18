@@ -50,11 +50,39 @@ COMMON_INTERPOLATOR_DOCS = {
             This attribute should be defined by the implementing :class:`Interpolator`.
             Used by private convience method :meth:`_filter_udims_supported`.
         spatial_tolerance : float
-            Maximum distance to the nearest coordinate in space.
+            Default is inf. Maximum distance to the nearest coordinate in space.
             Cooresponds to the unit of the space measurement.
         time_tolerance : float
-            Maximum distance to the nearest coordinate in time coordinates.
+            Default is inf. Maximum distance to the nearest coordinate in time coordinates.
             Accepts p.timedelta64() (i.e. np.timedelta64(1, 'D') for a 1-Day tolerance)
+        alt_tolerance : float
+            Default is inf. Maximum distance to the nearest coordinate in altitude coordinates. Corresponds to the unit
+            of the altitude as part of the requested coordinates
+        spatial_scale : float
+            Default is 1. This only applies when the source has stacked dimensions with different units.
+            The spatial_scale defines the factor that lat, lon coordinates will be scaled by (coordinates are divided by spatial_scale)
+            to output a valid distance for the combined set of dimensions.
+        time_scale : float
+            Default is 1. This only applies when the source has stacked dimensions with different units.
+            The time_scale defines the factor that time coordinates will be scaled by (coordinates are divided by time_scale)
+            to output a valid distance for the combined set of dimensions.
+        alt_scale : float
+            Default is 1. This only applies when the source has stacked dimensions with different units.
+            The alt_scale defines the factor that alt coordinates will be scaled by (coordinates are divided by alt_scale)
+            to output a valid distance for the combined set of dimensions.
+        respect_bounds : bool
+            Default is True. If True, any requested dimension OUTSIDE of the bounds will be interpolated as 'nan'. 
+            Otherwise, any point outside the bounds will have NN interpolation allowed. 
+        remove_nan: bool
+            Default is False. If True, nan's in the source dataset will NOT be interpolated. This can be used if a value for the function
+            is needed at every point of the request. It is not helpful when computing statistics, where nan values will be explicitly
+            ignored. In that case, if remove_nan is True, nan values will take on the values of neighbors, skewing the statistical result. 
+        use_selector: bool
+            Default is True. If True, a subset of the coordinates will be selected BEFORE the data of a dataset is retrieved. This 
+            reduces the number of data retrievals needed for large datasets. In cases where remove_nan = True, the selector may select
+            only nan points, in which case the interpolation fails to produce non-nan data. This usually happens when requesting a single
+            point from a dataset that contains nans. As such, in these cases set use_selector = False to get a non-nan value. 
+
         """,
     "interpolator_can_select": """
         Evaluate if interpolator can downselect the source coordinates from the requested coordinates

@@ -205,7 +205,6 @@ class TestNearest(object):
             assert np.all(output.values[[0, 1, 2], [0, 1, 2], [0, 1, 2]] == source[[1, 2, 4]])
 
     def test_spatial_tolerance(self):
-
         # unstacked 1D
         source = np.random.rand(5)
         coords_src = Coordinates([np.linspace(0, 10, 5)], dims=["lat"])
@@ -216,6 +215,24 @@ class TestNearest(object):
         )
 
         coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9]], dims=["lat"])
+        output = node.eval(coords_dst)
+
+        print(output)
+        print(source)
+        assert isinstance(output, UnitsDataArray)
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        assert output.values[0] == source[0] and np.isnan(output.values[1]) and output.values[2] == source[1]
+
+        # stacked 1D
+        source = np.random.rand(5)
+        coords_src = Coordinates([[np.linspace(0, 10, 5), np.linspace(0, 10, 5)]], dims=[["lat", "lon"]])
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "nearest", "params": {"spatial_tolerance": 1.1}},
+        )
+
+        coords_dst = Coordinates([[[1, 1.2, 1.5, 5, 9], [1, 1.2, 1.5, 5, 9]]], dims=[["lat", "lon"]])
         output = node.eval(coords_dst)
 
         print(output)
