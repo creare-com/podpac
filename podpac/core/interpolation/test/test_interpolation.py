@@ -109,7 +109,6 @@ class TestInterpolationBehavior(object):
             o.data, raw_e_coords, err_msg="dim time failed to interpolate with datetime64 coords"
         )
 
-    @pytest.mark.skip(reason="Need to update the NN interpolator to fix. ")
     def test_stacked_coords_with_partial_dims_issue123(self):
         node = Array(
             source=[0, 1, 2],
