@@ -367,15 +367,9 @@ class COSMOSStations(InterpDataCompositor):
 if __name__ == "__main__":
     bounds = {"lat": [40, 46], "lon": [-78, -68]}
     cs = COSMOSStations(
-        # cache_ctrl=[],
         cache_ctrl=["ram", "disk"],
-        # interpolation=[
-        #     {"method": "nearest", "params": {"use_selector": False, "remove_nan": False, "time_scale": "1,M"}, "dims": ["lat", "lon"]},
-        #     {"method": "nearest", "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M"}, "dims": ["time"]},
-        # ],
         interpolation={"method": "nearest", "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M"}},
     )
-    # cs = COSMOSStations()
 
     sd = cs.stations_data
     ci = cs.source_coordinates.select(bounds)

@@ -26,10 +26,7 @@ class InterpolationMixin(tl.HasTraits):
     def _eval(self, coordinates, output=None, _selector=None):
         node = Interpolate(interpolation=self.interpolation)
         node._set_interpolation()
-        if all([c.get("params").get("use_selector", True) for c in node._interpolation.config.values()]):
-            selector = node._interpolation.select_coordinates
-        else:
-            selector = None
+        selector = node._interpolation.select_coordinates
         node._source_xr = super()._eval(coordinates, _selector=selector)
         self._interp_node = node
         return node.eval(coordinates, output=output)
