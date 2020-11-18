@@ -22,7 +22,7 @@ _logger = logging.getLogger(__name__)
 INTERPOLATION_DEFAULT = "nearest"
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
 
-INTERPOLATORS = [NearestNeighbor, XarrayInterpolator, NearestPreview, Rasterio, ScipyPoint, ScipyGrid]
+INTERPOLATORS = [NearestNeighbor, XarrayInterpolator, Rasterio, ScipyPoint, ScipyGrid, NearestPreview]
 """list : list of available interpolator classes"""
 
 INTERPOLATORS_DICT = {}
@@ -560,6 +560,7 @@ class InterpolationManager(object):
 
         # iterate through each dim tuple in the queue
         dtype = output_data.dtype
+        attrs = source_data.attrs
         for udims, interpolator in interpolator_queue.items():
             # TODO move the above short-circuits into this loop
             if all([ud not in source_coordinates.udims for ud in udims]):
@@ -580,6 +581,7 @@ class InterpolationManager(object):
 
             # prepare for the next iteration
             source_data = interp_data.transpose(*interp_coordinates.dims)
+            source_data.attrs = attrs
             source_coordinates = interp_coordinates
 
         output_data.data = interp_data.transpose(*output_data.dims)

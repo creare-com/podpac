@@ -95,7 +95,7 @@ class NearestNeighbor(Interpolator):
                     ]
 
         else:
-            bounds = {d: None for d in source_coordinates.dims}
+            bounds = {d: None for d in source_coordinates.udims}
 
         if self.remove_nan:
             # Eliminate nans from the source data. Note, this could turn a uniform griddted dataset into a stacked one
@@ -142,9 +142,10 @@ class NearestNeighbor(Interpolator):
         coords = np.meshgrid(
             *[source_coordinates[d.split("_")[0]].coordinates for d in source_coordinates.dims], indexing="ij"
         )
+        repeat_shape = coords[0].shape
         coords = [c[~index] for c in coords]
 
-        dims = [d.split("_")[0] for d in source_coordinates.dims]
+        final_dims = [d.split("_")[0] for d in source_coordinates.dims]
         # Add back in any stacked coordinates
         for i, d in enumerate(source_coordinates.dims):
             dims = d.split("_")
@@ -152,16 +153,16 @@ class NearestNeighbor(Interpolator):
                 continue
             reshape = np.ones(len(coords), int)
             reshape[i] = -1
-            repeats = list(coords[0].shape)
+            repeats = list(repeat_shape)
             repeats[i] = 1
             for dd in dims[1:]:
                 crds = source_coordinates[dd].coordinates.reshape(*reshape)
                 for j, r in enumerate(repeats):
                     crds = crds.repeat(r, axis=j)
                 coords.append(crds[~index])
-                dims.append(dd)
+                final_dims.append(dd)
 
-        return data, Coordinates([coords], dims=[source_coordinates.udims])
+        return data, Coordinates([coords], dims=[final_dims])
 
     def _get_tol(self, dim, source, request):
         if dim in ["lat", "lon"]:
@@ -258,6 +259,8 @@ class NearestNeighbor(Interpolator):
         if self.respect_bounds:
             if bounds is None:
                 bounds = [src_coords.min(0), src_coords.max(0)]
+            # Fix order of bounds
+            bounds = bounds[:, [source.udims.index(dim) for dim in udims]]
             index[np.any((req_coords > bounds[1]), axis=1) | np.any((req_coords < bounds[0]), axis=1)] = -1
 
         if tol and tol != np.inf:
@@ -308,7 +311,7 @@ class NearestNeighbor(Interpolator):
         return index.reshape(*reshape)
 
     def _resize_stacked_index(self, index, source_dim, request):
-        reshape = request.shape
+        reshape = list(request.shape)
 
         for i, dim in enumerate(request.dims):
             d = dim.split("_")

@@ -349,7 +349,7 @@ class DataSource(Node):
         # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
         if rsc.size == 0:
             if output is None:
-                output = self.create_output_array(coordinates)
+                output = self.create_output_array(rsc)
                 if "output" in output.dims and self.output is not None:
                     output = output.sel(output=self.output)
             else:
@@ -372,7 +372,7 @@ class DataSource(Node):
         data = rsd
         if output is None:
             if requested_coordinates.crs.lower() != coordinates.crs.lower():
-                data = self.create_output_array(requested_coordinates, data=data.data)
+                data = self.create_output_array(rsc, data=data.data)
             output = data
         else:
             output.data[:] = data.data
