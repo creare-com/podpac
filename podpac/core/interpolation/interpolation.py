@@ -222,6 +222,9 @@ class Interpolate(Node):
                 self.set_trait("outputs", source_out.coords["output"].data.tolist())
             output = self.create_output_array(coordinates)
 
+        if source_out.size == 0:  # short cut
+            return output
+
         # interpolate data into output
         output = self._interpolation.interpolate(source_coords, source_out, coordinates, output)
 
