@@ -2,7 +2,7 @@
 Test podpac.core.data.datasource module
 """
 
-from collections import OrderedDict
+# from collections import OrderedDict
 
 import pytest
 
@@ -13,13 +13,10 @@ from xarray.core.coordinates import DataArrayCoordinates
 
 import podpac
 from podpac.core.units import UnitsDataArray
-from podpac.core.node import COMMON_NODE_DOC, NodeException
+from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.style import Style
-from podpac.core.coordinates import Coordinates, clinspace, crange
-from podpac.core.interpolation.interpolation_manager import InterpolationManager
-from podpac.core.interpolation.interpolator import Interpolator
+from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
-from podpac.core.interpolation.interpolation import InterpolationMixin, Interpolate
 
 
 class MockDataSource(DataSource):
@@ -330,26 +327,13 @@ class TestDataSource(object):
             node.eval(Coordinates([1], dims=["time"]))
 
     def test_evaluate_crs_transform(self):
-        node = Interpolate(source=MockDataSource())
+        node = MockDataSource()
 
-        coords = node.source.coordinates.transform("EPSG:2193")
+        coords = node.coordinates.transform("EPSG:2193")
         out = node.eval(coords)
 
-        # test data and coordinates
-        np.testing.assert_array_equal(out.data, node.source.data)
-        assert round(out.coords["lat"].values[0, 0]) == -7106355
-        assert round(out.coords["lon"].values[0, 0]) == 3435822
-
-        # stacked coords
-        node = Interpolate(
-            source=MockDataSourceStacked(), interpolation={"method": "nearest", "params": {"respect_bounds": False}}
-        )
-
-        coords = node.source.coordinates.transform("EPSG:2193")
-        out = node.eval(coords)
-        np.testing.assert_array_equal(out.data, node.source.data)
-        assert round(out.coords["lat"].values[0]) == -7106355
-        assert round(out.coords["lon"].values[0]) == 3435822
+        # test data
+        np.testing.assert_array_equal(out.data, node.data)
 
     def test_evaluate_selector(self):
         def selector(rsc, coordinates, index_type=None):

@@ -198,6 +198,8 @@ class Interpolator(tl.HasTraits):
     methods_supported = tl.List(tl.Unicode())
     dims_supported = tl.List(tl.Unicode())
     spatial_tolerance = tl.Float(allow_none=True, default_value=np.inf)
+    time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
+    alt_tolerance = tl.Float(default_value=np.inf, allow_none=True)
 
     # defined at instantiation
     method = tl.Unicode()

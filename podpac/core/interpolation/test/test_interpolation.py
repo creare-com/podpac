@@ -6,6 +6,8 @@ Test interpolation methods
 # pylint: disable=C0111,W0212,R0903
 
 
+import warnings
+
 import pytest
 import traitlets as tl
 import numpy as np
@@ -133,15 +135,12 @@ class TestInterpolationBehavior(object):
         node = Array(
             source=[0, 1, 2],
             coordinates=Coordinates([[0, 2, 1]], dims=["time"]),
-            interpolation={
-                "method": "nearest",
-                "params": {
-                    "fake_param": 1.1,
-                    "spatial_tolerance": 1,
-                },
-            },
+            interpolation={"method": "nearest", "params": {"fake_param": 1.1, "spatial_tolerance": 1}},
         )
-        node.eval(Coordinates([[0.5, 1.5]], ["time"]))
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            node.eval(Coordinates([[0.5, 1.5]], ["time"]))
         assert "interpolation parameter 'fake_param' was ignored" in caplog.text
         assert "interpolation parameter 'spatial_tolerance' was ignored" not in caplog.text
 
