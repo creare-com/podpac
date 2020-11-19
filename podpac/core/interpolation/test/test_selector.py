@@ -244,3 +244,32 @@ class TestSelector(object):
         c, ci = selector.select(u_fine, p_coarse)
         for cci, trth in zip(ci, np.ix_(self.nn_request_coarse_from_fine, self.nn_request_coarse_from_fine)):
             np.testing.assert_array_equal(cci, trth)
+
+    def test_slice_index(self):
+        selector = Selector("nearest")
+
+        src = Coordinates([[0, 1, 2, 3, 4, 5]], dims=["lat"])
+
+        # uniform
+        req = Coordinates([[2, 4]], dims=["lat"])
+        c, ci = selector.select(src, req, index_type="slice")
+        assert isinstance(ci[0], slice)
+        assert c == src[ci]
+
+        # non uniform
+        req = Coordinates([[1, 2, 4]], dims=["lat"])
+        c, ci = selector.select(src, req, index_type="slice")
+        assert isinstance(ci[0], slice)
+        assert c == src[ci]
+
+        # empty
+        req = Coordinates([[10]], dims=["lat"])
+        c, ci = selector.select(src, req, index_type="slice")
+        assert isinstance(ci[0], slice)
+        assert c == src[ci]
+
+        # singleton
+        req = Coordinates([[2]], dims=["lat"])
+        c, ci = selector.select(src, req, index_type="slice")
+        assert isinstance(ci[0], slice)
+        assert c == src[ci]

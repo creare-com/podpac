@@ -40,7 +40,7 @@ def _higher_precision_time_coords1d(coords0, coords1):
 
 def _index2slice(index):
     if index.size == 0:
-        return index
+        return slice(0, 0)
     elif index.size == 1:
         return slice(index[0], index[0] + 1)
     else:
@@ -85,7 +85,7 @@ class Selector(tl.HasTraits):
         coords = Coordinates(coords)
         if index_type == "numpy":
             coords_inds = self.merge_indices(coords_inds, source_coords.dims, request_coords.dims)
-        return coords, coords_inds
+        return coords, tuple(coords_inds)
 
     def select1d(self, source, request, index_type):
         if isinstance(source, StackedCoordinates):
