@@ -299,6 +299,86 @@ class TestNodeEval(object):
         out = node.eval(coords)
         assert out.shape == (4, 2)
 
+    def test_evaluate_transpose(self):
+        class MyNode(Node):
+            def _eval(self, coordinates, output=None, selector=None):
+                coords = coordinates.transpose("lat", "lon")
+                data = np.arange(coords.size).reshape(coords.shape)
+                a = self.create_output_array(coords, data=data)
+                if output is None:
+                    output = a
+                else:
+                    output[:] = a.transpose(*output.dims)
+                return output
+
+        coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
+
+        node = MyNode()
+        o1 = node.eval(coords)
+        o2 = node.eval(coords.transpose("lon", "lat"))
+
+        # returned output should match the requested coordinates and data should be transposed
+        assert o1.dims == ("lat", "lon")
+        assert o2.dims == ("lon", "lat")
+        np.testing.assert_array_equal(o2.transpose("lat", "lon").data, o1.data)
+
+        # with transposed output
+        o3 = node.create_output_array(coords.transpose("lon", "lat"))
+        o4 = node.eval(coords, output=o3)
+
+        assert o3.dims == ("lon", "lat")  # stay the same
+        assert o4.dims == ("lat", "lon")  # match requested coordinates
+        np.testing.assert_equal(o3.transpose("lat", "lon").data, o4.data)
+
+    def test_eval_get_cache(self):
+        podpac.settings["RAM_CACHE_ENABLED"] = True
+
+        class MyNode(Node):
+            def _eval(self, coordinates, output=None, selector=None):
+                coords = coordinates.transpose("lat", "lon")
+                data = np.arange(coords.size).reshape(coords.shape)
+                a = self.create_output_array(coords, data=data)
+                if output is None:
+                    output = a
+                else:
+                    output[:] = a.transpose(*output.dims)
+                return output
+
+        coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
+
+        node = MyNode(cache_output=True, cache_ctrl=CacheCtrl([RamCacheStore()]))
+
+        # first eval
+        o1 = node.eval(coords)
+        assert node._from_cache == False
+
+        # get from cache
+        o2 = node.eval(coords)
+        assert node._from_cache == True
+        np.testing.assert_array_equal(o2, o1)
+
+        # get from cache with output
+        o3 = node.eval(coords, output=o1)
+        assert node._from_cache == True
+        np.testing.assert_array_equal(o3, o1)
+
+        # get from cache with output transposed
+        o4 = node.eval(coords, output=o1.transpose("lon", "lat"))
+        assert node._from_cache == True
+        np.testing.assert_array_equal(o4, o1)
+
+        # get from cache with coords transposed
+        o5 = node.eval(coords.transpose("lon", "lat"))
+        assert node._from_cache == True
+        np.testing.assert_array_equal(o5, o1.transpose("lon", "lat"))
+
+    def test_eval_output_crs(self):
+        coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
+
+        node = Node()
+        with pytest.raises(ValueError, match="Output coordinate reference system .* does not match"):
+            node.eval(coords, output=node.create_output_array(coords.transform("EPSG:2193")))
+
 
 class TestCaching(object):
     @classmethod

@@ -642,32 +642,3 @@ class TestDataSourceWithInterpolation(object):
 
         assert isinstance(output, UnitsDataArray)
         assert np.all(output.alt.values == coords["alt"].coordinates)
-
-
-@pytest.mark.skip("TODO: move or remove")
-class TestNode(object):
-    def test_evaluate_transpose(self):
-        node = MockDataSource()
-        coords = node.coordinates.transpose("lon", "lat")
-        output = node.eval(coords)
-
-        # returned output should match the requested coordinates
-        assert output.dims == ("lon", "lat")
-
-        # data should be transposed
-        np.testing.assert_array_equal(output.transpose("lat", "lon").data, node.data)
-
-    def test_evaluate_with_output_transpose(self):
-        # evaluate with dims=[lat, lon], passing in the output
-        node = MockDataSource()
-        output = node.create_output_array(node.coordinates.transpose("lon", "lat"))
-        returned_output = node.eval(node.coordinates, output=output)
-
-        # returned output should match the requested coordinates
-        assert returned_output.dims == ("lat", "lon")
-
-        # dims should stay in the order of the output, rather than the order of the requested coordinates
-        assert output.dims == ("lon", "lat")
-
-        # output data and returned output data should match
-        np.testing.assert_equal(output.transpose("lat", "lon").data, returned_output.data)
