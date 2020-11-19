@@ -378,10 +378,7 @@ class DataSource(Node):
             output.data[:] = data.data
 
         # get indexed boundary
-        if rsci is not None:
-            rsb = self._get_boundary(rsci)
-        else:
-            rsb = self.boundary
+        rsb = self._get_boundary(rsci)
         output.attrs["boundary_data"] = rsb
         output.attrs["bounds"] = self.coordinates.bounds
 
@@ -458,6 +455,9 @@ class DataSource(Node):
         boundary : dict
             Indexed boundary. Uniform boundaries are unchanged and non-uniform boundary arrays are indexed.
         """
+
+        if index is None:
+            return self.boundary
 
         boundary = {}
         for c, I in zip(self.coordinates.values(), index):
