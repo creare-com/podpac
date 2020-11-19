@@ -561,8 +561,9 @@ class TestDataSourceWithMultipleOutputs(object):
         np.testing.assert_array_equal(o.dims, ["lat", "lon"])
         np.testing.assert_array_equal(o, 1)
 
-        o = node.eval(Coordinates([[100, 200], [1000, 2000, 3000]], dims=["lat", "lon"]))  # no intersection case
-        assert o.shape == (2, 3)
+        # no intersection case
+        o = node.eval(Coordinates([[100, 200], [1000, 2000, 3000]], dims=["lat", "lon"]))
+        assert o.shape == (0, 0)
         np.testing.assert_array_equal(o.dims, ["lat", "lon"])
         np.testing.assert_array_equal(o, np.nan)
 
