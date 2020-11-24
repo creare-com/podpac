@@ -23,6 +23,7 @@ bs4 = lazy_module("bs4")
 
 import podpac
 from podpac.core.utils import cached_property
+from podpac.core.compositor.data_compositor import InterpDataCompositor
 
 
 def _convert_str_to_vals(properties):
@@ -48,10 +49,6 @@ class COSMOSStation(podpac.data.DataSource):
 
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/StationDat/")
     station_data = tl.Dict().tag(attr=True)
-
-    @tl.default("interpolation")
-    def _interpolation_default(self):
-        return {"method": "nearest", "params": {"spatial_tolerance": 1.1, "time_tolerance": np.timedelta64(1, "D")}}
 
     @cached_property
     def raw_data(self):
@@ -85,7 +82,7 @@ class COSMOSStation(podpac.data.DataSource):
         data[data > 100] = np.nan
         data[data < 0] = np.nan
         data /= 100.0  # Make it fractional
-        return self.create_output_array(coordinates, data=data[:, None, None])
+        return self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
 
     def get_coordinates(self):
         lat_lon = self.station_data["location"]
@@ -101,7 +98,7 @@ class COSMOSStation(podpac.data.DataSource):
             time = np.datetime64("NaT")
         else:
             time = np.array([t[0] + "T" + t[1] for t in time], np.datetime64)
-        c = podpac.Coordinates([time, lat_lon[0], lat_lon[1]], ["time", "lat", "lon"])
+        c = podpac.Coordinates([time, [lat_lon[0], lat_lon[1]]], ["time", ["lat", "lon"]])
         return c
 
     @property
@@ -137,10 +134,14 @@ class COSMOSStation(podpac.data.DataSource):
         return _convert_str_to_vals(properties)
 
 
-class COSMOSStations(podpac.compositor.OrderedCompositor):
+class COSMOSStations(InterpDataCompositor):
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/")
     stations_url = tl.Unicode("sitesNoLegend.js")
     dims = ["lat", "lon", "time"]
+
+    @tl.default("interpolation")
+    def _interpolation_default(self):
+        return {"method": "nearest", "params": {"use_selector": False, "remove_nan": False, "time_scale": "1,M"}}
 
     ## PROPERTIES
     @cached_property(use_cache_ctrl=True)
@@ -232,7 +233,7 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
             raise ValueError("The coordinates object must have a stacked 'lat_lon' dimension.")
 
         labels_map = {s["location"]: s["label"] for s in self.stations_data["items"]}
-        labels = [labels_map.get(ll, None) for ll in lat_lon.coords["lat_lon"]]
+        labels = [labels_map.get(ll, None) for ll in lat_lon.xcoords["lat_lon"]]
         return labels
 
     def latlon_from_label(self, label):
@@ -365,14 +366,25 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
 
 if __name__ == "__main__":
     bounds = {"lat": [40, 46], "lon": [-78, -68]}
-    cs = COSMOSStations(cache_ctrl=["ram", "disk"])
+    cs = COSMOSStations(
+        cache_ctrl=["ram", "disk"],
+        interpolation={"method": "nearest", "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M"}},
+    )
 
     sd = cs.stations_data
     ci = cs.source_coordinates.select(bounds)
     ce = podpac.coordinates.merge_dims(
         [podpac.Coordinates([podpac.crange("2018-05-01", "2018-06-01", "1,D", "time")]), ci]
     )
+    cg = podpac.Coordinates(
+        [
+            podpac.clinspace(ci["lat"].bounds[1], ci["lat"].bounds[0], 12, "lat"),
+            podpac.clinspace(ci["lon"].bounds[1], ci["lon"].bounds[0], 16, "lon"),
+            ce["time"],
+        ]
+    )
     o = cs.eval(ce)
+    og = cs.eval(cg)
 
     # Test helper functions
     labels = cs.stations_label

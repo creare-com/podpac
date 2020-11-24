@@ -78,10 +78,7 @@ class TestBaseCompositor(object):
             )
 
     def test_select_sources_default(self):
-        node = BaseCompositor(
-            sources=[DataSource(), DataSource(interpolation="nearest_preview"), podpac.algorithm.Arange()],
-            interpolation="bilinear",
-        )
+        node = BaseCompositor(sources=[DataSource(), DataSource(), podpac.algorithm.Arange()], interpolation="bilinear")
         sources = node.select_sources(podpac.Coordinates([[0, 10]], ["time"]))
 
         assert isinstance(sources, list)

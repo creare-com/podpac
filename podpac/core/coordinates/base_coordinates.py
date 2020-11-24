@@ -22,22 +22,31 @@ class BaseCoordinates(tl.HasTraits):
 
     @property
     def udims(self):
-        """:tuple: Dimensions."""
-        raise NotImplementedError
+        """:tuple: Tuple of unstacked dimension names, for compatibility. This is the same as the dims."""
+        return self.dims
 
     @property
-    def idims(self):
-        """:tuple: Dimensions."""
+    def xdims(self):
+        """:tuple: Tuple of indexing dimensions used to create xarray DataArray."""
+
+        if self.ndim == 1:
+            return (self.name,)
+        else:
+            return tuple("%s-%d" % (self.name, i) for i in range(1, self.ndim + 1))
+
+    @property
+    def ndim(self):
+        """coordinates array ndim."""
         raise NotImplementedError
 
     @property
     def size(self):
-        """Number of coordinates."""
+        """coordinates array size."""
         raise NotImplementedError
 
     @property
     def shape(self):
-        """coordinates shape."""
+        """coordinates array shape."""
         raise NotImplementedError
 
     @property
@@ -46,8 +55,8 @@ class BaseCoordinates(tl.HasTraits):
         raise NotImplementedError
 
     @property
-    def coords(self):
-        """xarray coords value"""
+    def xcoords(self):
+        """xarray coords"""
         raise NotImplementedError
 
     @property
@@ -69,16 +78,28 @@ class BaseCoordinates(tl.HasTraits):
         """Deep copy of the coordinates and their properties."""
         raise NotImplementedError
 
+    def unique(self, return_index=False):
+        """ Remove duplicate coordinate values."""
+        raise NotImplementedError
+
     def get_area_bounds(self, boundary):
         """Get coordinate area bounds, including boundary information, for each unstacked dimension. """
         raise NotImplementedError
 
-    def select(self, bounds, outer=False, return_indices=False):
+    def select(self, bounds, outer=False, return_index=False):
         """Get coordinate values that are with the given bounds."""
         raise NotImplementedError
 
     def simplify(self):
         """ Get the simplified/optimized representation of these coordinates. """
+        raise NotImplementedError
+
+    def flatten(self):
+        """ Get a copy of the coordinates with a flattened array. """
+        raise NotImplementedError
+
+    def reshape(self, newshape):
+        """ Get a copy of the coordinates with a reshaped array (wraps numpy.reshape). """
         raise NotImplementedError
 
     def issubset(self, other):

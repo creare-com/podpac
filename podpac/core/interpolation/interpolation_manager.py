@@ -1,16 +1,20 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
+import logging
+import warnings
 from copy import deepcopy
 from collections import OrderedDict
 from six import string_types
-import logging
-
-import traitlets as tl
 import numpy as np
+import traitlets as tl
 
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import merge_dims
+from podpac.core.coordinates import merge_dims, Coordinates
+from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 from podpac.core.interpolation.interpolator import Interpolator
-from podpac.core.interpolation.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyPoint, ScipyGrid
+from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
+from podpac.core.interpolation.rasterio_interpolator import Rasterio
+from podpac.core.interpolation.scipy_interpolator import ScipyPoint, ScipyGrid
+from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
 
 _logger = logging.getLogger(__name__)
 
@@ -18,7 +22,7 @@ _logger = logging.getLogger(__name__)
 INTERPOLATION_DEFAULT = "nearest"
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
 
-INTERPOLATORS = [NearestNeighbor, NearestPreview, Rasterio, ScipyPoint, ScipyGrid]
+INTERPOLATORS = [NearestNeighbor, XarrayInterpolator, Rasterio, ScipyPoint, ScipyGrid, NearestPreview]
 """list : list of available interpolator classes"""
 
 INTERPOLATORS_DICT = {}
@@ -27,7 +31,9 @@ INTERPOLATORS_DICT = {}
 INTERPOLATION_METHODS = [
     "nearest_preview",
     "nearest",
+    "linear",
     "bilinear",
+    "quadratic",
     "cubic",
     "cubic_spline",
     "lanczos",
@@ -39,9 +45,14 @@ INTERPOLATION_METHODS = [
     "med",
     "q1",
     "q3",
+    "slinear",  # Spline linear
+    "splinef2d",
     "spline_2",
     "spline_3",
     "spline_4",
+    "zero",
+    "next",
+    "previous",
 ]
 
 INTERPOLATION_METHODS_DICT = {}
@@ -104,15 +115,15 @@ class InterpolationManager(object):
     config = OrderedDict()  # container for interpolation methods for each dimension
     _last_interpolator_queue = None  # container for the last run interpolator queue - useful for debugging
     _last_select_queue = None  # container for the last run select queue - useful for debugging
+    _interpolation_params = None
 
     def __init__(self, definition=INTERPOLATION_DEFAULT):
 
         self.definition = deepcopy(definition)
         self.config = OrderedDict()
+        self._interpolation_params = {}
 
         # if definition is None, set to default
-        # TODO: do we want to always have a default for interpolation?
-        # Or should there be an option to turn off interpolation?
         if self.definition is None:
             self.definition = INTERPOLATION_DEFAULT
 
@@ -147,17 +158,23 @@ class InterpolationManager(object):
                             + "multiple times in interpolation definition {}".format(interp_definition)
                         )
                 # add all udims to definition
-                self._set_interpolation_method(udims, method)
+                self.config = self._set_interpolation_method(udims, method)
 
             # set default if its not been specified in the dict
             if ("default",) not in self.config:
+                existing_dims = set(v for k in self.config.keys() for v in k)  # Default is NOT allowed to adjust these
+                name = ("default",)
+                if len(existing_dims) > 0:
+                    valid_dims = set(VALID_DIMENSION_NAMES)
+                    default_dims = valid_dims - existing_dims
+                    name = tuple(default_dims)
 
                 default_method = self._parse_interpolation_method(INTERPOLATION_DEFAULT)
-                self._set_interpolation_method(("default",), default_method)
+                self.config = self._set_interpolation_method(name, default_method)
 
         elif isinstance(definition, string_types):
             method = self._parse_interpolation_method(definition)
-            self._set_interpolation_method(("default",), method)
+            self.config = self._set_interpolation_method(("default",), method)
 
         else:
             raise TypeError(
@@ -166,8 +183,9 @@ class InterpolationManager(object):
             )
 
         # make sure ('default',) is always the last entry in config dictionary
-        default = self.config.pop(("default",))
-        self.config[("default",)] = default
+        if ("default",) in self.config:
+            default = self.config.pop(("default",))
+            self.config[("default",)] = default
 
     def __repr__(self):
         rep = str(self.__class__.__name__)
@@ -321,12 +339,17 @@ class InterpolationManager(object):
 
         # instantiate interpolators
         for (idx, interpolator) in enumerate(interpolators):
-            interpolators[idx] = interpolator(method=method, **params)
+            parms = {k: v for k, v in params.items() if hasattr(interpolator, k)}
+            interpolators[idx] = interpolator(method=method, **parms)
 
         definition["interpolators"] = interpolators
 
+        # Record parameters to make sure they are being captured
+        self._interpolation_params.update({k: False for k in params})
+
         # set to interpolation configuration for dims
         self.config[udims] = definition
+        return self.config
 
     def _select_interpolator_queue(self, source_coordinates, eval_coordinates, select_method, strict=False):
         """Create interpolator queue based on interpolation configuration and requested/native source_coordinates
@@ -377,7 +400,10 @@ class InterpolationManager(object):
                     break
 
                 # see which dims the interpolator can handle
-                can_handle = getattr(interpolator, select_method)(udims, source_coordinates, eval_coordinates)
+                if self.config[key]["method"] not in interpolator.methods_supported:
+                    can_handle = tuple()
+                else:
+                    can_handle = getattr(interpolator, select_method)(udims, source_coordinates, eval_coordinates)
 
                 # if interpolator can handle all udims
                 if not set(udims) - set(can_handle):
@@ -392,7 +418,7 @@ class InterpolationManager(object):
 
         # throw error if the source_dims don't encompass all the supported dims
         # this should happen rarely because of default
-        if len(source_dims) > len(handled_dims) and strict:
+        if len(source_dims - handled_dims) > 0 and strict:
             missing_dims = list(source_dims - handled_dims)
             raise InterpolationException(
                 "Dimensions {} ".format(missing_dims)
@@ -402,7 +428,7 @@ class InterpolationManager(object):
         # TODO: adjust by interpolation cost
         return interpolator_queue
 
-    def select_coordinates(self, source_coordinates, source_coordinates_index, eval_coordinates):
+    def select_coordinates(self, source_coordinates, eval_coordinates, index_type="numpy"):
         """
         Select a subset or coordinates if interpolator can downselect.
 
@@ -414,9 +440,6 @@ class InterpolationManager(object):
         ----------
         source_coordinates : :class:`podpac.Coordinates`
             Intersected source coordinates
-        source_coordinates_index : list
-            Index of intersected source coordinates. See :class:`podpac.data.DataSource` for
-            more information about valid values for the source_coordinates_index
         eval_coordinates : :class:`podpac.Coordinates`
             Requested coordinates to evaluate
 
@@ -430,24 +453,42 @@ class InterpolationManager(object):
         # TODO: short circuit if source_coordinates contains eval_coordinates
         # short circuit if source and eval coordinates are the same
         if source_coordinates == eval_coordinates:
-            return source_coordinates, tuple(source_coordinates_index)
+            return source_coordinates, tuple([slice(0, None)] * len(source_coordinates.shape))
 
         interpolator_queue = self._select_interpolator_queue(source_coordinates, eval_coordinates, "can_select")
 
         self._last_select_queue = interpolator_queue
 
-        selected_coords = deepcopy(source_coordinates)
-        selected_coords_idx = deepcopy(source_coordinates_index)
-
+        # For heterogeneous selections, we need to select and then recontruct each set of dimensions
+        selected_coords = {}
+        selected_coords_idx = {k: np.arange(source_coordinates[k].size) for k in source_coordinates.dims}
         for udims in interpolator_queue:
             interpolator = interpolator_queue[udims]
-
+            extra_dims = [d for d in source_coordinates.udims if d not in udims]
+            sc = source_coordinates.drop(extra_dims)
             # run interpolation. mutates selected coordinates and selected coordinates index
-            selected_coords, selected_coords_idx = interpolator.select_coordinates(
-                udims, selected_coords, selected_coords_idx, eval_coordinates
+            sel_coords, sel_coords_idx = interpolator.select_coordinates(
+                udims, sc, eval_coordinates, index_type=index_type
             )
+            # Save individual 1-D coordinates for later reconstruction
+            for i, k in enumerate(sel_coords.dims):
+                selected_coords[k] = sel_coords[k]
+                selected_coords_idx[k] = sel_coords_idx[i]
 
-        return selected_coords, tuple(selected_coords_idx)
+        # Reconstruct dimensions
+        for d in source_coordinates.dims:
+            if d not in selected_coords:  # Some coordinates may not have a selector when heterogeneous
+                selected_coords[d] = source_coordinates[d]
+            # np.ix_ call doesn't work with slices, and fancy numpy indexing does not work well with mixed slice/index
+            if isinstance(selected_coords_idx[d], slice) and index_type != "slice":
+                selected_coords_idx[d] = np.arange(selected_coords[d].size)
+
+        selected_coords = Coordinates([selected_coords[k] for k in source_coordinates.dims], source_coordinates.dims)
+        if index_type != "slice":
+            selected_coords_idx2 = np.ix_(*[selected_coords_idx[k].ravel() for k in source_coordinates.dims])
+        else:
+            selected_coords_idx2 = tuple([selected_coords_idx[d] for d in source_coordinates.dims])
+        return selected_coords, tuple(selected_coords_idx2)
 
     def interpolate(self, source_coordinates, source_data, eval_coordinates, output_data):
         """Interpolate data from requested coordinates to source coordinates
@@ -486,10 +527,10 @@ class InterpolationManager(object):
                 )
             return output_data
 
-        # drop already-selected output variable
-        if "output" in output_data.coords:
-            source_data = source_data.drop("output")
-            output_data = output_data.drop("output")
+        ## drop already-selected output variable
+        # if "output" in output_data.coords:
+        # source_data = source_data.drop("output")
+        # output_data = output_data.drop("output")
 
         # TODO does this allow undesired extrapolation?
         # short circuit if the source data and requested coordinates are of shape == 1
@@ -500,8 +541,10 @@ class InterpolationManager(object):
         # short circuit if source_coordinates contains eval_coordinates
         if eval_coordinates.issubset(source_coordinates):
             try:
-                output_data.data[:] = source_data.sel(output_data.coords, method="nearest").transpose(*output_data.dims)
-            except NotImplementedError:
+                output_data.data[:] = source_data.interp(output_data.coords, method="nearest").transpose(
+                    *output_data.dims
+                )
+            except (NotImplementedError, ValueError):
                 output_data.data[:] = source_data.sel(output_data.coords).transpose(*output_data.dims)
             return output_data
 
@@ -512,10 +555,21 @@ class InterpolationManager(object):
         # for debugging purposes, save the last defined interpolator queue
         self._last_interpolator_queue = interpolator_queue
 
+        # reset interpolation parameters
+        for k in self._interpolation_params:
+            self._interpolation_params[k] = False
+
         # iterate through each dim tuple in the queue
         dtype = output_data.dtype
+        attrs = source_data.attrs
         for udims, interpolator in interpolator_queue.items():
             # TODO move the above short-circuits into this loop
+            if all([ud not in source_coordinates.udims for ud in udims]):
+                # Skip this udim if it's not part of the source coordinates (can happen with default)
+                continue
+            # Check if parameters are being used
+            for k in self._interpolation_params:
+                self._interpolation_params[k] = hasattr(interpolator, k) or self._interpolation_params[k]
 
             # interp_coordinates are essentially intermediate eval_coordinates
             interp_dims = [dim for dim, c in source_coordinates.items() if set(c.dims).issubset(udims)]
@@ -527,10 +581,17 @@ class InterpolationManager(object):
             )
 
             # prepare for the next iteration
-            source_data = interp_data
+            source_data = interp_data.transpose(*interp_coordinates.dims)
+            source_data.attrs = attrs
             source_coordinates = interp_coordinates
 
         output_data.data = interp_data.transpose(*output_data.dims)
+
+        # Throw warnings for unused parameters
+        for k in self._interpolation_params:
+            if self._interpolation_params[k]:
+                continue
+            _logger.warning("The interpolation parameter '{}' was ignored during interpolation.".format(k))
 
         return output_data
 

@@ -14,11 +14,12 @@ import logging
 import numpy as np
 import traitlets as tl
 import six
+from podpac.core.utils import common_doc
+from podpac.core.interpolation.selector import Selector
 
 # Set up logging
 _log = logging.getLogger(__name__)
 
-from podpac.core.utils import common_doc
 
 COMMON_INTERPOLATOR_DOCS = {
     "interpolator_attributes": """
@@ -49,11 +50,39 @@ COMMON_INTERPOLATOR_DOCS = {
             This attribute should be defined by the implementing :class:`Interpolator`.
             Used by private convience method :meth:`_filter_udims_supported`.
         spatial_tolerance : float
-            Maximum distance to the nearest coordinate in space.
+            Default is inf. Maximum distance to the nearest coordinate in space.
             Cooresponds to the unit of the space measurement.
         time_tolerance : float
-            Maximum distance to the nearest coordinate in time coordinates.
+            Default is inf. Maximum distance to the nearest coordinate in time coordinates.
             Accepts p.timedelta64() (i.e. np.timedelta64(1, 'D') for a 1-Day tolerance)
+        alt_tolerance : float
+            Default is inf. Maximum distance to the nearest coordinate in altitude coordinates. Corresponds to the unit
+            of the altitude as part of the requested coordinates
+        spatial_scale : float
+            Default is 1. This only applies when the source has stacked dimensions with different units.
+            The spatial_scale defines the factor that lat, lon coordinates will be scaled by (coordinates are divided by spatial_scale)
+            to output a valid distance for the combined set of dimensions.
+        time_scale : float
+            Default is 1. This only applies when the source has stacked dimensions with different units.
+            The time_scale defines the factor that time coordinates will be scaled by (coordinates are divided by time_scale)
+            to output a valid distance for the combined set of dimensions.
+        alt_scale : float
+            Default is 1. This only applies when the source has stacked dimensions with different units.
+            The alt_scale defines the factor that alt coordinates will be scaled by (coordinates are divided by alt_scale)
+            to output a valid distance for the combined set of dimensions.
+        respect_bounds : bool
+            Default is True. If True, any requested dimension OUTSIDE of the bounds will be interpolated as 'nan'. 
+            Otherwise, any point outside the bounds will have NN interpolation allowed. 
+        remove_nan: bool
+            Default is False. If True, nan's in the source dataset will NOT be interpolated. This can be used if a value for the function
+            is needed at every point of the request. It is not helpful when computing statistics, where nan values will be explicitly
+            ignored. In that case, if remove_nan is True, nan values will take on the values of neighbors, skewing the statistical result. 
+        use_selector: bool
+            Default is True. If True, a subset of the coordinates will be selected BEFORE the data of a dataset is retrieved. This 
+            reduces the number of data retrievals needed for large datasets. In cases where remove_nan = True, the selector may select
+            only nan points, in which case the interpolation fails to produce non-nan data. This usually happens when requesting a single
+            point from a dataset that contains nans. As such, in these cases set use_selector = False to get a non-nan value. 
+
         """,
     "interpolator_can_select": """
         Evaluate if interpolator can downselect the source coordinates from the requested coordinates
@@ -168,7 +197,6 @@ class Interpolator(tl.HasTraits):
     # defined by implementing Interpolator class
     methods_supported = tl.List(tl.Unicode())
     dims_supported = tl.List(tl.Unicode())
-    spatial_tolerance = tl.Float(allow_none=True, default_value=np.inf)
 
     # defined at instantiation
     method = tl.Unicode()
@@ -263,67 +291,47 @@ class Interpolator(tl.HasTraits):
         return True
 
     def _loop_helper(
-        self, func, keep_dims, udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs
+        self, func, interp_dims, udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs
     ):
-        loop_dims = [d for d in source_data.dims if d not in keep_dims]
-        if loop_dims:
-            dim = loop_dims[0]
-            for i in output_data.coords[dim]:
-                idx = {dim: i}
-
-                # TODO: handle this using presecribed interpolation method instead of "nearest"
-                if not i.isin(source_data.coords[dim]):
-                    if self.method != "nearest":
-                        _log.warning(
-                            "Interpolation method {} is not supported yet in this context. Using 'nearest' for {}".format(
-                                self.method, dim
-                            )
-                        )
-
-                    # find the closest value
-                    if dim == "time":
-                        tol = self.time_tolerance
-                    else:
-                        tol = self.spatial_tolerance
-
-                    diff = np.abs(source_data.coords[dim].values - i.values)
-                    if tol == None or tol == "" or np.any(diff <= tol):
-                        src_i = (diff).argmin()
-                        src_idx = {dim: source_data.coords[dim][src_i]}
-                    else:
-                        src_idx = None  # There is no closest neighbor within the tolerance
-                        continue
-
-                else:
-                    src_idx = idx
-
-                output_data.loc[idx] = self._loop_helper(
-                    func,
-                    keep_dims,
-                    udims,
-                    source_coordinates.drop(dim),
-                    source_data.loc[src_idx],
-                    eval_coordinates.drop(dim),
-                    output_data.loc[idx],
-                    **kwargs
-                )
-
-        else:
-            # TODO does this allow undesired extrapolation?
-            # short circuit if the source data and requested coordinates are of size 1
-            if source_data.size == 1 and eval_coordinates.size == 1:
-                output_data.data[:] = source_data.data.flatten()[0]
-                return output_data
-
-            # short circuit if source_coordinates contains eval_coordinates
-            if eval_coordinates.issubset(source_coordinates):
-                # select/transpose, and copy
-                output_coords = output_data.coords
-                output_data[:] = source_data.sel(output_coords)
-                return output_data
-
+        """In cases where the interpolator can only handle a limited number of dimensions, loop over the extra ones
+        Parameters
+        ----------
+        func : callable
+            The interpolation function that should be called on the data subset. Should have the following arguments:
+            func(udims, source_coordinates, source_data, eval_coordinates, output_data)
+        interp_dims: list(str)
+            List of source dimensions that will be interpolator. The looped dimensions will be computed
+        udims: list(str)
+           The unstacked coordinates that this interpolator handles
+        source_coordinates: podpac.Coordinates
+            The coordinates of the source data
+        eval_coordinates: podpac.Coordinates
+            The user-requested or evaluated coordinates
+        output_data: podpac.UnitsDataArray
+            Container for the output of the interpolation function
+        """
+        loop_dims = [d for d in source_data.dims if d not in interp_dims]
+        if not loop_dims:  # Do the actual interpolation
             return func(udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs)
 
+        dim = loop_dims[0]
+        for i in output_data.coords[dim]:
+            idx = {dim: i}
+
+            if not i.isin(source_data.coords[dim]):
+                # This case should have been properly handled in the interpolation_manager
+                raise InterpolatorException("Unexpected interpolation error")
+
+            output_data.loc[idx] = self._loop_helper(
+                func,
+                interp_dims,
+                udims,
+                source_coordinates.drop(dim),
+                source_data.loc[idx],
+                eval_coordinates.drop(dim),
+                output_data.loc[idx],
+                **kwargs
+            )
         return output_data
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
@@ -331,15 +339,19 @@ class Interpolator(tl.HasTraits):
         """
         {interpolator_can_select}
         """
+        if not (self.method in Selector.supported_methods):
+            return tuple()
 
-        return tuple()
+        udims_subset = self._filter_udims_supported(udims)
+        return udims_subset
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def select_coordinates(self, udims, source_coordinates, source_coordinates_index, eval_coordinates):
+    def select_coordinates(self, udims, source_coordinates, eval_coordinates, index_type="numpy"):
         """
         {interpolator_select}
         """
-        raise NotImplementedError
+        selector = Selector(method=self.method)
+        return selector.select(source_coordinates, eval_coordinates, index_type=index_type)
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):

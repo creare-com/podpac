@@ -104,10 +104,10 @@ class StackedCoordinates(BaseCoordinates):
         val = d["value"]
 
         # check sizes
-        size = val[0].size
+        shape = val[0].shape
         for c in val[1:]:
-            if c.size != size:
-                raise ValueError("Size mismatch in stacked coords %d != %d" % (c.size, size))
+            if c.shape != shape:
+                raise ValueError("Shape mismatch in stacked coords %s != %s" % (c.shape, shape))
 
         # check dims
         dims = [c.name for c in val]
@@ -120,7 +120,7 @@ class StackedCoordinates(BaseCoordinates):
     def _set_name(self, value):
         dims = value.split("_")
 
-        # check size
+        # check length
         if len(dims) != len(self._coords):
             raise ValueError("Invalid name '%s' for StackedCoordinates with length %d" % (value, len(self._coords)))
 
@@ -130,6 +130,10 @@ class StackedCoordinates(BaseCoordinates):
         # check size
         if len(dims) != len(self._coords):
             raise ValueError("Invalid dims '%s' for StackedCoordinates with length %d" % (dims, len(self._coords)))
+
+        for i, dim in enumerate(dims):
+            if dim is not None and dim in dims[:i]:
+                raise ValueError("Duplicate dimension '%s' in dims" % dim)
 
         # set names, checking for duplicates
         for i, (c, dim) in enumerate(zip(self._coords, dims)):
@@ -142,24 +146,24 @@ class StackedCoordinates(BaseCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_xarray(cls, xcoords):
+    def from_xarray(cls, x, **kwargs):
         """
-        Convert an xarray coord to StackedCoordinates
+        Create 1d Coordinates from named xarray coordinates.
 
-        Parameters
-        ----------
-        xcoords : DataArrayCoordinates
-            xarray coords attribute to convert
+        Arguments
+        ---------
+        x : xarray.DataArray
+            Nade DataArray of the coordinate values
 
         Returns
         -------
-        coord : :class:`StackedCoordinates`
-            stacked coordinates object
+        :class:`ArrayCoordinates1d`
+            1d coordinates
         """
 
-        dims = xcoords.indexes[xcoords.dims[0]].names
-        coords = [ArrayCoordinates1d.from_xarray(xcoords[dims]) for dims in dims]
-        return cls(coords)
+        dims = x.dims[0].split("_")
+        cs = [x[dim].data for dim in dims]
+        return cls(cs, dims=dims, **kwargs)
 
     @classmethod
     def from_definition(cls, d):
@@ -241,11 +245,17 @@ class StackedCoordinates(BaseCoordinates):
 
     def __contains__(self, item):
         try:
-            item = tuple(make_coord_value(value) for value in item)
+            item = np.array([make_coord_value(value) for value in item])
         except:
             return False
 
-        return item in self.coordinates
+        if len(item) != len(self._coords):
+            return False
+
+        if any(val not in c for val, c in zip(item, self._coords)):
+            return False
+
+        return (self.flatten().coordinates == item).all(axis=1).any()
 
     def __eq__(self, other):
         if not isinstance(other, StackedCoordinates):
@@ -255,7 +265,7 @@ class StackedCoordinates(BaseCoordinates):
         if self.dims != other.dims:
             return False
 
-        if self.size != other.size:
+        if self.shape != other.shape:
             return False
 
         # full check of underlying coordinates
@@ -274,18 +284,9 @@ class StackedCoordinates(BaseCoordinates):
         return tuple(c.name for c in self._coords)
 
     @property
-    def udims(self):
-        """:tuple: Tuple of unstacked dimension names, for compatibility. This is the same as the dims."""
-        return self.dims
-
-    @property
-    def idims(self):
-        """:tuple: Tuple of indexing dimensions.
-
-        For stacked coordinates, this is a singleton of the stacked coordinates name ``(self.name,)``.
-        """
-
-        return (self.name,)
+    def ndim(self):
+        """:int: coordinates array ndim."""
+        return self._coords[0].ndim
 
     @property
     def name(self):
@@ -302,7 +303,7 @@ class StackedCoordinates(BaseCoordinates):
     @property
     def shape(self):
         """:tuple: Shape of the stacked coordinates."""
-        return (self.size,)
+        return self._coords[0].shape
 
     @property
     def bounds(self):
@@ -313,22 +314,27 @@ class StackedCoordinates(BaseCoordinates):
 
     @property
     def coordinates(self):
-        """:pandas.MultiIndex: MultiIndex of stacked coordinates values."""
-
-        return pd.MultiIndex.from_arrays([np.array(c.coordinates) for c in self._coords], names=self.dims)
-
-    @property
-    def values(self):
-        """:pandas.MultiIndex: MultiIndex of stacked coordinates values."""
-
-        return self.coordinates
+        dtypes = [c.dtype for c in self._coords]
+        if len(set(dtypes)) == 1:
+            dtype = dtypes[0]
+        else:
+            dtype = object
+        return np.dstack([c.coordinates.astype(dtype) for c in self._coords]).squeeze()
 
     @property
-    def coords(self):
+    def xcoords(self):
         """:dict-like: xarray coordinates (container of coordinate arrays)"""
         if None in self.dims:
-            raise ValueError("Cannot get coords for StackedCoordinates with un-named dimensions")
-        return {self.name: self.coordinates}
+            raise ValueError("Cannot get xcoords for StackedCoordinates with un-named dimensions")
+
+        if self.ndim == 1:
+            # use a multi-index so that we can use DataArray.sel easily
+            coords = pd.MultiIndex.from_arrays([np.array(c.coordinates) for c in self._coords], names=self.dims)
+            xcoords = {self.name: coords}
+        else:
+            # fall-back for shaped coordinates
+            xcoords = {c.name: (self.xdims, c.coordinates) for c in self._coords}
+        return xcoords
 
     @property
     def definition(self):
@@ -358,6 +364,30 @@ class StackedCoordinates(BaseCoordinates):
 
         return StackedCoordinates(self._coords)
 
+    def unique(self, return_index=False):
+        """
+        Remove duplicate stacked coordinate values.
+
+        Arguments
+        ---------
+        return_index : bool, optional
+            If True, return index for the unique coordinates in addition to the coordinates. Default False.
+
+        Returns
+        -------
+        unique : :class:`StackedCoordinates`
+            New StackedCoordinates object with unique, sorted, flattened coordinate values.
+        unique_index : list of indices
+            index
+        """
+
+        flat = self.flatten()
+        a, I = np.unique(flat.coordinates, axis=0, return_index=True)
+        if return_index:
+            return flat[I], I
+        else:
+            return flat[I]
+
     def get_area_bounds(self, boundary):
         """Get coordinate area bounds, including boundary information, for each unstacked dimension.
 
@@ -376,7 +406,7 @@ class StackedCoordinates(BaseCoordinates):
             raise ValueError("Cannot get area_bounds for StackedCoordinates with un-named dimensions")
         return {dim: self[dim].get_area_bounds(boundary.get(dim)) for dim in self.dims}
 
-    def select(self, bounds, outer=False, return_indices=False):
+    def select(self, bounds, outer=False, return_index=False):
         """
         Get the coordinate values that are within the given bounds in all dimensions.
 
@@ -388,44 +418,49 @@ class StackedCoordinates(BaseCoordinates):
             dictionary of dim -> (low, high) selection bounds
         outer : bool, optional
             If True, do *outer* selections. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selections in addition to coordinates. Default False.
+        return_index : bool, optional
+            If True, return index for the selections in addition to coordinates. Default False.
 
         Returns
         -------
         selection : :class:`StackedCoordinates`
             StackedCoordinates object consisting of the selection in all dimensions.
-        I : slice or list
-            Slice or index for the selected coordinates, only if ``return_indices`` is True.
+        selection_index : slice, boolean array
+            Slice or index for the selected coordinates, only if ``return_index`` is True.
         """
 
         # logical AND of the selection in each dimension
-        indices = [c.select(bounds, outer=outer, return_indices=True)[1] for c in self._coords]
-        I = self._and_indices(indices)
+        indices = [c.select(bounds, outer=outer, return_index=True)[1] for c in self._coords]
+        index = self._and_indices(indices)
 
-        if return_indices:
-            return self[I], I
+        if return_index:
+            return self[index], index
         else:
-            return self[I]
+            return self[index]
 
     def _and_indices(self, indices):
-        # logical AND of the selected indices
-        I = indices[0]
-        for J in indices[1:]:
-            if isinstance(I, slice) and isinstance(J, slice):
-                I = slice(max(I.start or 0, J.start or 0), min(I.stop or self.size, J.stop or self.size))
-            else:
-                if isinstance(I, slice):
-                    I = np.arange(self.size)[I]
-                if isinstance(J, slice):
-                    J = np.arange(self.size)[I]
-                I = [i for i in I if i in J]
+        if all(isinstance(index, slice) for index in indices):
+            index = slice(max(index.start or 0 for index in indices), min(index.stop or self.size for index in indices))
 
-        # for consistency
-        if isinstance(I, slice) and I.start == 0 and I.stop == self.size:
-            I = slice(None, None)
+            # for consistency
+            if index.start == 0 and index.stop == self.size:
+                index = slice(None, None)
 
-        return I
+        else:
+            # convert any slices to boolean array
+            for i, index in enumerate(indices):
+                if isinstance(index, slice):
+                    indices[i] = np.zeros(self.shape, dtype=bool)
+                    indices[i][index] = True
+
+            # logical and
+            index = np.logical_and.reduce(indices)
+
+            # for consistency
+            if np.all(index):
+                index = slice(None, None)
+
+        return index
 
     def _transform(self, transformer):
         coords = [c.copy() for c in self._coords]
@@ -451,6 +486,15 @@ class StackedCoordinates(BaseCoordinates):
             lat = coords[ilat]
             lon = coords[ilon]
             tlon, tlat = transformer.transform(lon.coordinates, lat.coordinates)
+
+            if (
+                self.ndim == 2
+                and all(np.allclose(a, tlat[:, 0]) for a in tlat.T)
+                and all(np.allclose(a, tlon[0]) for a in tlon)
+            ):
+                coords[ilat] = ArrayCoordinates1d(tlat[:, 0], name="lat").simplify()
+                coords[ilon] = ArrayCoordinates1d(tlon[0], name="lon").simplify()
+                return coords
 
             coords[ilat] = ArrayCoordinates1d(tlat, "lat").simplify()
             coords[ilon] = ArrayCoordinates1d(tlon, "lon").simplify()
@@ -499,6 +543,12 @@ class StackedCoordinates(BaseCoordinates):
         else:
             return StackedCoordinates(coordinates)
 
+    def flatten(self):
+        return StackedCoordinates([c.flatten() for c in self._coords])
+
+    def reshape(self, newshape):
+        return StackedCoordinates([c.reshape(newshape) for c in self._coords])
+
     def issubset(self, other):
         """Report whether other coordinates contains these coordinates.
 
@@ -513,7 +563,7 @@ class StackedCoordinates(BaseCoordinates):
             True if these coordinates are a subset of the other coordinates.
         """
 
-        from podpac.core.coordinates import Coordinates, DependentCoordinates
+        from podpac.core.coordinates import Coordinates
 
         if not isinstance(other, (Coordinates, StackedCoordinates)):
             raise TypeError(
@@ -524,7 +574,9 @@ class StackedCoordinates(BaseCoordinates):
             if set(self.dims) != set(other.dims):
                 return False
 
-            return set(self.coordinates).issubset(other.transpose(*self.dims).coordinates)
+            mine = self.flatten().coordinates
+            other = other.flatten().transpose(*self.dims).coordinates
+            return set(map(tuple, mine)).issubset(map(tuple, other))
 
         elif isinstance(other, Coordinates):
             if not all(dim in other.udims for dim in self.dims):
@@ -544,14 +596,10 @@ class StackedCoordinates(BaseCoordinates):
                         ocs.append(coords)
                     elif isinstance(coords, StackedCoordinates):
                         ocs.append(coords[dims[0]])
-                    elif isinstance(coords, DependentCoordinates):
-                        ocs.append(coords[dims[0]].coordinates.ravel(), name=dims[0])
 
                 elif len(dims) > 1:
                     acs.append(StackedCoordinates([self[dim] for dim in dims]))
                     if isinstance(coords, StackedCoordinates):
                         ocs.append(StackedCoordinates([coords[dim] for dim in dims]))
-                    elif isinstance(coords, DependentCoordinates):
-                        ocs.append(StackedCoordinates([coords[dim].coordinates.ravel() for dim in dims], dims=dims))
 
             return all(a.issubset(o) for a, o in zip(acs, ocs))

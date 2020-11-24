@@ -85,9 +85,9 @@ class ModifyCoordinates(UnaryAlgorithm):
             dims = outputs["source"].dims
             coords = self._requested_coordinates
             extra_dims = [d for d in coords.dims if d not in dims]
-            coords = coords.drop(extra_dims).coords
+            coords = coords.drop(extra_dims)
 
-            outputs["source"] = outputs["source"].assign_coords(**coords)
+            outputs["source"] = outputs["source"].assign_coords(**coords.xcoords)
 
         if output is None:
             output = outputs["source"]

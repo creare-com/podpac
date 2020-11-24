@@ -266,9 +266,10 @@ class Node(tl.HasTraits):
         -------
         output : {eval_return}
         """
+
         output = kwargs.get("output", None)
         # check crs compatibility
-        if (output is not None) and ("crs" in output.attrs) and (output.attrs["crs"] != coordinates.crs):
+        if output is not None and "crs" in output.attrs and output.attrs["crs"] != coordinates.crs:
             raise ValueError(
                 "Output coordinate reference system ({}) does not match".format(output.crs)
                 + "request Coordinates coordinate reference system ({})".format(coordinates.crs)
@@ -297,7 +298,7 @@ class Node(tl.HasTraits):
             data = data.sel(output=self.output)
 
         # transpose data to match the dims order of the requested coordinates
-        order = [dim for dim in coordinates.idims if dim in data.dims]
+        order = [dim for dim in coordinates.xdims if dim in data.dims]
         if "output" in data.dims:
             order.append("output")
         data = data.part_transpose(order)

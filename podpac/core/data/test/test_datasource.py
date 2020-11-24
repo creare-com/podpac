@@ -2,7 +2,7 @@
 Test podpac.core.data.datasource module
 """
 
-from collections import OrderedDict
+# from collections import OrderedDict
 
 import pytest
 
@@ -11,17 +11,15 @@ import traitlets as tl
 import xarray as xr
 from xarray.core.coordinates import DataArrayCoordinates
 
+import podpac
 from podpac.core.units import UnitsDataArray
-from podpac.core.node import COMMON_NODE_DOC, NodeException
+from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.style import Style
-from podpac.core.coordinates import Coordinates, clinspace, crange
-from podpac.core.interpolation.interpolation_manager import InterpolationManager
-from podpac.core.interpolation.interpolator import Interpolator
+from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
-from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
-class MockDataSource(InterpolationMixin, DataSource):
+class MockDataSource(DataSource):
     data = np.ones((11, 11))
     data[0, 0] = 10
     data[0, 1] = 1
@@ -45,18 +43,12 @@ class MockDataSourceStacked(DataSource):
         return self.create_output_array(coordinates, data=self.data[coordinates_index])
 
 
-class MockDataSourceArray(DataSource):
-    data = np.ones((11, 11))
-    data[0, 0] = 10
-    data[0, 1] = 1
-    data[1, 0] = 5
-    data[1, 1] = None
-
-    def get_coordinates(self):
-        return Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
+class MockMultipleDataSource(DataSource):
+    outputs = ["a", "b", "c"]
+    coordinates = Coordinates([[0, 1, 2, 3], [10, 11]], dims=["lat", "lon"])
 
     def get_data(self, coordinates, coordinates_index):
-        return self.data[coordinates_index]
+        return self.create_output_array(coordinates, data=1)
 
 
 class TestDataDocs(object):
@@ -80,6 +72,10 @@ class TestDataSource(object):
     def test_init(self):
         node = DataSource()
 
+    def test_repr(self):
+        node = DataSource()
+        repr(node)
+
     def test_get_data_not_implemented(self):
         node = DataSource()
 
@@ -97,7 +93,7 @@ class TestDataSource(object):
         with pytest.raises(NotImplementedError):
             node.coordinates
 
-        # use get_coordinates (once)
+        # make sure get_coordinates gets called only once
         class MyDataSource(DataSource):
             get_coordinates_called = 0
 
@@ -112,7 +108,7 @@ class TestDataSource(object):
         assert isinstance(node.coordinates, Coordinates)
         assert node.get_coordinates_called == 1
 
-        # can't set
+        # can't set coordinates attribute
         with pytest.raises(AttributeError, match="can't set attribute"):
             node.coordinates = Coordinates([])
 
@@ -225,10 +221,6 @@ class TestDataSource(object):
         with pytest.raises(ValueError, match="Invalid boundary"):
             node = DataSource(boundary={"time": "2018-01-01"})  # not a delta
 
-    def test_invalid_interpolation(self):
-        with pytest.raises(tl.TraitError):
-            DataSource(interpolation="myowninterp")
-
     def test_invalid_nan_vals(self):
         with pytest.raises(tl.TraitError):
             DataSource(nan_vals={})
@@ -236,9 +228,12 @@ class TestDataSource(object):
         with pytest.raises(tl.TraitError):
             DataSource(nan_vals=10)
 
-    def test_repr(self):
-        node = DataSource()
-        repr(node)
+    def test_find_coordinates(self):
+        node = MockDataSource()
+        l = node.find_coordinates()
+        assert isinstance(l, list)
+        assert len(l) == 1
+        assert l[0] == node.coordinates
 
     def test_evaluate_at_coordinates(self):
         """evaluate node at coordinates"""
@@ -259,113 +254,30 @@ class TestDataSource(object):
         # assert attributes
         assert isinstance(output.attrs["layer_style"], Style)
 
-    def test_evaluate_with_output(self):
+    def test_evaluate_at_coordinates_with_output(self):
         node = MockDataSource()
+        output = node.create_output_array(node.coordinates)
+        node.eval(node.coordinates, output=output)
 
-        # initialize a large output array
-        fullcoords = Coordinates([crange(20, 30, 1), crange(20, 30, 1)], dims=["lat", "lon"])
-        output = node.create_output_array(fullcoords)
+        assert output.shape == (11, 11)
+        assert output[0, 0] == 10
 
-        # evaluate a subset of the full coordinates
-        coords = Coordinates([fullcoords["lat"][3:8], fullcoords["lon"][3:8]])
+    def test_evaluate_no_overlap(self):
+        """evaluate node with coordinates that do not overlap"""
 
-        # after evaluation, the output should be
-        # - the same where it was not evaluated
-        # - NaN where it was evaluated but doesn't intersect with the data source
-        # - 1 where it was evaluated and does intersect with the data source (because this datasource is all 0)
-        expected = output.copy()
-        expected[3:8, 3:8] = np.nan
-        expected[3:8, 3:8] = 1.0
-
-        # evaluate the subset coords, passing in the cooresponding slice of the initialized output array
-        # TODO: discuss if we should be using the same reference to output slice?
-        output[3:8, 3:8] = node.eval(coords, output=output[3:8, 3:8])
-
-        np.testing.assert_equal(output.data, expected.data)
-
-    def test_evaluate_with_get_data_array(self):
-        node = MockDataSourceArray()
-
-        # initialize a large output array
-        fullcoords = Coordinates([crange(20, 30, 1), crange(20, 30, 1)], dims=["lat", "lon"])
-
-        # evaluate a subset of the full coordinates
-        coords = Coordinates([fullcoords["lat"][3:8], fullcoords["lon"][3:8]])
-
-        # evaluate the subset coords, passing in the cooresponding slice of the initialized output array
-        # TODO: discuss if we should be using the same reference to output slice?
+        node = MockDataSource()
+        coords = Coordinates([clinspace(-55, -45, 20), clinspace(-55, -45, 20)], dims=["lat", "lon"])
         output = node.eval(coords)
 
-        assert isinstance(output, UnitsDataArray)
+        assert np.all(np.isnan(output))
 
-    def test_evaluate_with_output_different_crs(self):
-
-        # default crs EPSG:4193
-        node = MockDataSource()
-        c = Coordinates([crange(20, 30, 1), crange(20, 30, 1)], dims=["lat", "lon"], crs="EPSG:4326")
-        c_x = Coordinates([crange(20, 30, 1), crange(20, 30, 1)], dims=["lat", "lon"], crs="EPSG:2193")
-
-        # this will not throw an error because the requested coordinates is in the same crs as the output
-        output = node.create_output_array(c_x)
-        node.eval(c_x, output=output)
-
-        # this will throw an error because output is not in the same crs as node
-        output = node.create_output_array(c_x)
-        with pytest.raises(ValueError, match="does not match"):
-            node.eval(c, output=output)
-
-    def test_evaluate_with_output_no_intersect(self):
+    def test_evaluate_no_overlap_with_output(self):
         # there is a shortcut if there is no intersect, so we test that here
         node = MockDataSource()
         coords = Coordinates([clinspace(30, 40, 10), clinspace(30, 40, 10)], dims=["lat", "lon"])
-        output = UnitsDataArray(np.ones(coords.shape), coords=coords.coords, dims=coords.dims)
+        output = UnitsDataArray.create(coords, data=1)
         node.eval(coords, output=output)
         np.testing.assert_equal(output.data, np.full(output.shape, np.nan))
-
-    def test_evaluate_with_output_transpose(self):
-        # initialize coords with dims=[lon, lat]
-        lat = clinspace(10, 20, 11)
-        lon = clinspace(10, 15, 6)
-        coords = Coordinates([lat, lon], dims=["lat", "lon"])
-
-        # evaluate with dims=[lat, lon], passing in the output
-        node = MockDataSource()
-        output = node.create_output_array(coords.transpose("lon", "lat"))
-        returned_output = node.eval(coords, output=output)
-
-        # returned output should match the requested coordinates
-        assert returned_output.dims == ("lat", "lon")
-
-        # dims should stay in the order of the output, rather than the order of the requested coordinates
-        assert output.dims == ("lon", "lat")
-
-        # output data and returned output data should match
-        np.testing.assert_equal(output.transpose("lat", "lon").data, returned_output.data)
-        np.testing.assert_equal(output.transpose("lat", "lon").data, returned_output.data)
-
-    def test_evaluate_with_crs_transform(self):
-        # grid coords
-        grid_coords = Coordinates([np.linspace(-10, 10, 21), np.linspace(-10, 10, 21)], dims=["lat", "lon"])
-        grid_coords = grid_coords.transform("EPSG:2193")
-
-        node = MockDataSource()
-        out = node.eval(grid_coords)
-
-        assert round(out.coords["lat"].values[0, 0]) == -8889021.0
-        assert round(out.coords["lon"].values[0, 0]) == 1928929.0
-
-        # stacked coords
-        stack_coords = Coordinates(
-            [(np.linspace(-10, 10, 21), np.linspace(-10, -10, 21)), np.linspace(0, 10, 10)], dims=["lat_lon", "time"]
-        )
-        stack_coords = stack_coords.transform("EPSG:2193")
-
-        node = MockDataSource()
-        out = node.eval(stack_coords)
-
-        assert "lat_lon" in out.coords
-        assert round(out.coords["lat"].values[0]) == -8889021.0
-        assert round(out.coords["lon"].values[0]) == 1928929.0
 
     def test_evaluate_extra_dims(self):
         # drop extra unstacked dimension
@@ -414,58 +326,27 @@ class TestDataSource(object):
         with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
             node.eval(Coordinates([1], dims=["time"]))
 
-        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
-            node.eval(Coordinates([1], dims=["lat"]))
+    def test_evaluate_crs_transform(self):
+        node = MockDataSource()
 
-    def test_evaluate_no_overlap(self):
-        """evaluate node with coordinates that do not overlap"""
+        coords = node.coordinates.transform("EPSG:2193")
+        out = node.eval(coords)
+
+        # test data
+        np.testing.assert_array_equal(out.data, node.data)
+
+    def test_evaluate_selector(self):
+        def selector(rsc, coordinates, index_type=None):
+            """ mock selector that just strides by 2 """
+            new_rsci = tuple(slice(None, None, 2) for dim in rsc.dims)
+            new_rsc = rsc[new_rsci]
+            return new_rsc, new_rsci
 
         node = MockDataSource()
-        coords = Coordinates([clinspace(-55, -45, 20), clinspace(-55, -45, 20)], dims=["lat", "lon"])
-        output = node.eval(coords)
-
-        assert np.all(np.isnan(output))
-
-    def test_evaluate_extract_output(self):
-        class MyMultipleDataSource(DataSource):
-            outputs = ["a", "b", "c"]
-            coordinates = Coordinates([[0, 1, 2, 3], [10, 11]], dims=["lat", "lon"])
-
-            def get_data(self, coordinates, coordinates_index):
-                return self.create_output_array(coordinates, data=1)
-
-        # don't extract when no output field is requested
-        node = MyMultipleDataSource()
-        o = node.eval(node.coordinates)
-        assert o.shape == (4, 2, 3)
-        np.testing.assert_array_equal(o.dims, ["lat", "lon", "output"])
-        np.testing.assert_array_equal(o["output"], ["a", "b", "c"])
-        np.testing.assert_array_equal(o, 1)
-
-        # do extract when an output field is requested
-        node = MyMultipleDataSource(output="b")
-
-        o = node.eval(node.coordinates)  # get_data case
-        assert o.shape == (4, 2)
-        np.testing.assert_array_equal(o.dims, ["lat", "lon"])
-        np.testing.assert_array_equal(o, 1)
-
-        o = node.eval(Coordinates([[100, 200], [1000, 2000, 3000]], dims=["lat", "lon"]))  # no intersection case
-        assert o.shape == (2, 3)
-        np.testing.assert_array_equal(o.dims, ["lat", "lon"])
-        np.testing.assert_array_equal(o, np.nan)
-
-        # should still work if the node has already extracted it
-        class MyMultipleDataSource2(MyMultipleDataSource):
-            def get_data(self, coordinates, coordinates_index):
-                out = self.create_output_array(coordinates, data=1)
-                return out.sel(output=self.output)
-
-        node = MyMultipleDataSource2(output="b")
-        o = node.eval(node.coordinates)
-        assert o.shape == (4, 2)
-        np.testing.assert_array_equal(o.dims, ["lat", "lon"])
-        np.testing.assert_array_equal(o, 1)
+        output = node.eval(node.coordinates, _selector=selector)
+        assert output.shape == (6, 6)
+        np.testing.assert_array_equal(output["lat"].data, node.coordinates["lat"][::2].coordinates)
+        np.testing.assert_array_equal(output["lon"].data, node.coordinates["lon"][::2].coordinates)
 
     def test_nan_vals(self):
         """ evaluate note with nan_vals """
@@ -513,12 +394,59 @@ class TestDataSource(object):
         assert isinstance(output, UnitsDataArray)
         assert node.coordinates["lat"].coordinates[4] == output.coords["lat"].values[4]
 
-    def test_find_coordinates(self):
-        node = MockDataSource()
-        l = node.find_coordinates()
-        assert isinstance(l, list)
-        assert len(l) == 1
-        assert l[0] == node.coordinates
+    def test_get_data_invalid(self):
+        class MockDataSourceReturnsInvalid(MockDataSource):
+            def get_data(self, coordinates, coordinates_index):
+                return self.data[coordinates_index].tolist()
+
+        node = MockDataSourceReturnsInvalid()
+        with pytest.raises(TypeError, match="Unknown data type"):
+            output = node.eval(node.coordinates)
+
+    def test_evaluate_debug_attributes(self):
+        with podpac.settings:
+            podpac.settings["DEBUG"] = True
+
+            node = MockDataSource()
+
+            assert node._evaluated_coordinates is None
+            assert node._requested_coordinates is None
+            assert node._requested_source_coordinates is None
+            assert node._requested_source_coordinates_index is None
+            assert node._requested_source_boundary is None
+            assert node._requested_source_data is None
+
+            node.eval(node.coordinates)
+
+            assert node._evaluated_coordinates is not None
+            assert node._requested_coordinates is not None
+            assert node._requested_source_coordinates is not None
+            assert node._requested_source_coordinates_index is not None
+            assert node._requested_source_boundary is not None
+            assert node._requested_source_data is not None
+
+    def test_evaluate_debug_attributes_no_overlap(self):
+        with podpac.settings:
+            podpac.settings["DEBUG"] = True
+
+            node = MockDataSource()
+
+            assert node._evaluated_coordinates is None
+            assert node._requested_coordinates is None
+            assert node._requested_source_coordinates is None
+            assert node._requested_source_coordinates_index is None
+            assert node._requested_source_boundary is None
+            assert node._requested_source_data is None
+
+            coords = Coordinates([clinspace(-55, -45, 20), clinspace(-55, -45, 20)], dims=["lat", "lon"])
+            node.eval(coords)
+
+            assert node._evaluated_coordinates is not None
+            assert node._requested_coordinates is not None
+            assert node._requested_source_coordinates is not None
+            assert node._requested_source_coordinates_index is not None
+            assert node._requested_source_boundary is None  # still none in this case
+            assert node._requested_source_data is None  # still none in this case
 
     def test_get_boundary(self):
         # disable boundary validation (until non-centered and non-uniform boundaries are fully implemented)
@@ -585,47 +513,53 @@ class TestDataSource(object):
         np.testing.assert_array_equal(boundary["lon"], lon_boundary[index])
 
 
-class TestInterpolateData(object):
-    """test default generic interpolation defaults"""
-
-    def test_one_data_point(self):
-        """ test when there is only one data point """
-        # TODO: as this is currently written, this would never make it to the interpolater
-        pass
-
-    def test_interpolate_time(self):
-        """ for now time uses nearest neighbor """
-
-        class MyDataSource(InterpolationMixin, DataSource):
-            coordinates = Coordinates([clinspace(0, 10, 5)], dims=["time"])
+class TestDataSourceWithMultipleOutputs(object):
+    def test_evaluate_no_overlap_with_output_extract_output(self):
+        class MockMultipleDataSource(DataSource):
+            outputs = ["a", "b", "c"]
+            coordinates = Coordinates([[0, 1, 2, 3], [10, 11]], dims=["lat", "lon"])
 
             def get_data(self, coordinates, coordinates_index):
-                return self.create_output_array(coordinates)
+                return self.create_output_array(coordinates, data=1)
 
-        node = MyDataSource()
-        coords = Coordinates([clinspace(1, 11, 5)], dims=["time"])
+        node = MockMultipleDataSource(output="a")
+        coords = Coordinates([clinspace(-55, -45, 20), clinspace(-55, -45, 20)], dims=["lat", "lon"])
         output = node.eval(coords)
 
-        assert isinstance(output, UnitsDataArray)
-        assert np.all(output.time.values == coords.coords["time"])
+        assert np.all(np.isnan(output))
 
-    def test_interpolate_lat_time(self):
-        """interpolate with n dims and time"""
-        pass
+    def test_evaluate_extract_output(self):
+        # don't extract when no output field is requested
+        node = MockMultipleDataSource()
+        o = node.eval(node.coordinates)
+        assert o.shape == (4, 2, 3)
+        np.testing.assert_array_equal(o.dims, ["lat", "lon", "output"])
+        np.testing.assert_array_equal(o["output"], ["a", "b", "c"])
+        np.testing.assert_array_equal(o, 1)
 
-    def test_interpolate_alt(self):
-        """ for now alt uses nearest neighbor """
+        # do extract when an output field is requested
+        node = MockMultipleDataSource(output="b")
 
-        class MyDataSource(InterpolationMixin, DataSource):
-            coordinates = Coordinates([clinspace(0, 10, 5)], dims=["alt"], crs="+proj=merc +vunits=m")
+        o = node.eval(node.coordinates)  # get_data case
+        assert o.shape == (4, 2)
+        np.testing.assert_array_equal(o.dims, ["lat", "lon"])
+        np.testing.assert_array_equal(o, 1)
 
+        # no intersection case
+        o = node.eval(Coordinates([[100, 200], [1000, 2000, 3000]], dims=["lat", "lon"]))
+        assert o.shape == (0, 0)
+        np.testing.assert_array_equal(o.dims, ["lat", "lon"])
+        np.testing.assert_array_equal(o, np.nan)
+
+    def test_evaluate_output_already_extracted(self):
+        # should still work if the node has already extracted it
+        class ExtractedMultipleDataSource(MockMultipleDataSource):
             def get_data(self, coordinates, coordinates_index):
-                return self.create_output_array(coordinates)
+                out = self.create_output_array(coordinates, data=1)
+                return out.sel(output=self.output)
 
-        coords = Coordinates([clinspace(1, 11, 5)], dims=["alt"], crs="+proj=merc +vunits=m")
-
-        node = MyDataSource()
-        output = node.eval(coords)
-
-        assert isinstance(output, UnitsDataArray)
-        assert np.all(output.alt.values == coords.coords["alt"])
+        node = ExtractedMultipleDataSource(output="b")
+        o = node.eval(node.coordinates)
+        assert o.shape == (4, 2)
+        np.testing.assert_array_equal(o.dims, ["lat", "lon"])
+        np.testing.assert_array_equal(o, 1)

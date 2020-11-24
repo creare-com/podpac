@@ -50,7 +50,7 @@ class BaseFileSource(DataSource):
     source = tl.Unicode().tag(attr=True)
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
-    _repr_keys = ["source", "interpolation"]
+    _repr_keys = ["source"]
 
     @tl.default("source")
     def _default_source(self):
@@ -178,7 +178,7 @@ class FileKeysMixin(tl.HasTraits):
     @property
     def _repr_keys(self):
         """ list of attribute names, used by __repr__ and __str__ to display minimal info about the node"""
-        keys = ["source", "interpolation"]
+        keys = ["source"]
         if len(self.available_data_keys) > 1 and not isinstance(self.data_key, list):
             keys.append("data_key")
         return keys

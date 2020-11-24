@@ -7,6 +7,8 @@ import traitlets as tl
 from podpac.core.utils import common_doc
 from podpac.core.compositor.compositor import COMMON_COMPOSITOR_DOC, BaseCompositor
 from podpac.core.units import UnitsDataArray
+from podpac.core.interpolation.interpolation import InterpolationMixin
+from podpac.core.coordinates import Coordinates
 
 
 @common_doc(COMMON_COMPOSITOR_DOC)
@@ -46,8 +48,13 @@ class DataCompositor(BaseCompositor):
         for arr in data_arrays:
             res = res.combine_first(arr)
         res = UnitsDataArray(res)
-
+        coords = Coordinates.from_xarray(res.coords)
+        res.attrs["bounds"] = coords.bounds
         if result is not None:
             result.data[:] = res.transponse(*result.dims).data
             return result
         return res
+
+
+class InterpDataCompositor(InterpolationMixin, DataCompositor):
+    pass

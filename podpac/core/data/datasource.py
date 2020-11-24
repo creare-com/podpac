@@ -152,7 +152,6 @@ class DataSource(Node):
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_coordinates` methods.
     """
 
-    interpolation = InterpolationTrait().tag(attr=True)
     nan_vals = tl.List().tag(attr=True)
     boundary = tl.Dict().tag(attr=True)
 
@@ -163,13 +162,13 @@ class DataSource(Node):
     # privates
     _coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
 
-    if settings["DEBUG"]:
-        _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
-        _requested_source_coordinates = tl.Instance(Coordinates)
-        _requested_source_coordinates_index = tl.Tuple()
-        _requested_source_boundary = tl.Dict()
-        _requested_source_data = tl.Instance(UnitsDataArray)
-        _evaluated_coordinates = tl.Instance(Coordinates)
+    # debug attributes
+    _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
+    _requested_source_coordinates = tl.Instance(Coordinates, allow_none=True)
+    _requested_source_coordinates_index = tl.Instance(tuple, allow_none=True)
+    _requested_source_boundary = tl.Instance(dict, allow_none=True)
+    _requested_source_data = tl.Instance(UnitsDataArray, allow_none=True)
+    _evaluated_coordinates = tl.Instance(Coordinates, allow_none=True)
 
     @tl.validate("boundary")
     def _validate_boundary(self, d):
@@ -237,7 +236,7 @@ class DataSource(Node):
 
         Raises
         ------
-        ValueError
+        TypeError
             Raised if unknown data is passed by from self.get_data
         NotImplementedError
             Raised if get_data is not implemented by data source subclass
@@ -256,7 +255,7 @@ class DataSource(Node):
         elif isinstance(data, np.ndarray):
             udata_array = self.create_output_array(rc, data=data)
         else:
-            raise ValueError(
+            raise TypeError(
                 "Unknown data type passed back from "
                 + "{}.get_data(): {}. ".format(type(self).__name__, type(data))
                 + "Must be one of numpy.ndarray, xarray.DataArray, or podpac.UnitsDataArray"
@@ -311,13 +310,6 @@ class DataSource(Node):
 
         log.debug("Evaluating {} data source".format(self.__class__.__name__))
 
-        if self.coordinate_index_type not in ["slice", "numpy"]:
-            warnings.warn(
-                "Coordinates index type {} is not yet supported.".format(self.coordinate_index_type)
-                + "`coordinate_index_type` is set to `numpy`",
-                UserWarning,
-            )
-
         # store requested coordinates for debugging
         if settings["DEBUG"]:
             self._requested_coordinates = coordinates
@@ -328,7 +320,7 @@ class DataSource(Node):
                 if c.name not in coordinates.udims:
                     raise ValueError("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
             elif isinstance(c, StackedCoordinates):
-                if any(s.name not in coordinates.udims for s in c):
+                if all(s.name not in coordinates.udims for s in c):
                     raise ValueError("Cannot evaluate these coordinates, missing at least one dim in '%s'" % c.name)
 
         # remove extra dimensions
@@ -340,20 +332,24 @@ class DataSource(Node):
         ]
         coordinates = coordinates.drop(extra)
 
-        requested_crs = coordinates.crs
-        requested_dims_order = coordinates.dims
+        # save before transforming
+        requested_coordinates = coordinates
 
         # transform coordinates into native crs if different
         if self.coordinates.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(self.coordinates.crs)
 
-        # get source coordinates that are within the requested coordinates bounds
-        (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
+        # Use the selector
+        if _selector is not None:
+            (rsc, rsci) = _selector(self.coordinates, coordinates, index_type=self.coordinate_index_type)
+        else:
+            # get source coordinates that are within the requested coordinates bounds
+            (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_index=True)
 
         # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
         if rsc.size == 0:
             if output is None:
-                output = self.create_output_array(coordinates)
+                output = self.create_output_array(rsc)
                 if "output" in output.dims and self.output is not None:
                     output = output.sel(output=self.output)
             else:
@@ -369,36 +365,14 @@ class DataSource(Node):
 
             return output
 
-        # Use the selector
-        if _selector is not None:
-            (rsc, rsci) = _selector(rsc, rsci, coordinates)
-
-        # Check the coordinate_index_type
-        if self.coordinate_index_type == "slice":  # Most restrictive
-            new_rsci = []
-            for index in rsci:
-                if isinstance(index, slice):
-                    new_rsci.append(index)
-                    continue
-
-                if len(index) > 1:
-                    mx, mn = np.max(index), np.min(index)
-                    df = np.diff(index)
-                    if np.all(df == df[0]):
-                        step = df[0]
-                    else:
-                        step = 1
-                    new_rsci.append(slice(mn, mx + 1, step))
-                else:
-                    new_rsci.append(slice(np.max(index), np.max(index) + 1))
-
-            rsci = tuple(new_rsci)
-
         # get data from data source
         rsd = self._get_data(rsc, rsci)
 
-        data = rsd.part_transpose(requested_dims_order)
+        # data = rsd.part_transpose(requested_coordinates.dims) # this does not appear to be necessary anymore
+        data = rsd
         if output is None:
+            if requested_coordinates.crs.lower() != coordinates.crs.lower():
+                data = self.create_output_array(rsc, data=data.data)
             output = data
         else:
             output.data[:] = data.data
@@ -406,6 +380,7 @@ class DataSource(Node):
         # get indexed boundary
         rsb = self._get_boundary(rsci)
         output.attrs["boundary_data"] = rsb
+        output.attrs["bounds"] = self.coordinates.bounds
 
         # save output to private for debugging
         if settings["DEBUG"]:
@@ -480,6 +455,9 @@ class DataSource(Node):
         boundary : dict
             Indexed boundary. Uniform boundaries are unchanged and non-uniform boundary arrays are indexed.
         """
+
+        if index is None:
+            return self.boundary
 
         boundary = {}
         for c, I in zip(self.coordinates.values(), index):

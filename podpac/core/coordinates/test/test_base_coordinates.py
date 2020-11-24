@@ -8,10 +8,10 @@ class TestBaseCoordinates(object):
         attrs = [
             "name",
             "dims",
-            "idims",
+            "xdims",
             "udims",
             "coordinates",
-            "coords",
+            "xcoords",
             "size",
             "shape",
             "definition",
@@ -41,6 +41,11 @@ class TestBaseCoordinates(object):
             pass
 
         try:
+            c.unique()
+        except NotImplementedError:
+            pass
+
+        try:
             c.get_area_bounds(None)
         except NotImplementedError:
             pass
@@ -51,7 +56,7 @@ class TestBaseCoordinates(object):
             pass
 
         try:
-            c.select([0, 1], outer=True, return_indices=True)
+            c.select([0, 1], outer=True, return_index=True)
         except NotImplementedError:
             pass
 
@@ -72,6 +77,16 @@ class TestBaseCoordinates(object):
 
         try:
             c.simplify()
+        except NotImplementedError:
+            pass
+
+        try:
+            c.flatten()
+        except NotImplementedError:
+            pass
+
+        try:
+            c.reshape((10, 10))
         except NotImplementedError:
             pass
 

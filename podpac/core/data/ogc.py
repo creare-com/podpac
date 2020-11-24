@@ -50,7 +50,7 @@ class WCSBase(DataSource):
     crs : str
         coordinate reference system, passed through to the GetCoverage requests (default 'EPSG:4326')
     interpolation : str
-        Interpolation, passed through to the GetCoverage requests. 
+        Interpolation, passed through to the GetCoverage requests.
     max_size : int
         maximum request size, optional.
         If provided, the coordinates will be tiled into multiple requests.
@@ -59,6 +59,7 @@ class WCSBase(DataSource):
     source = tl.Unicode().tag(attr=True)
     layer = tl.Unicode().tag(attr=True)
     version = tl.Unicode(default_value="1.0.0").tag(attr=True)
+    interpolation = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
 
     format = tl.CaselessStrEnum(["geotiff", "geotiff_byte"], default_value="geotiff")
     crs = tl.Unicode(default_value="EPSG:4326")
@@ -140,8 +141,8 @@ class WCSBase(DataSource):
             and (coordinates["lon"].is_uniform or coordinates["lon"].size == 1)
         ):
 
-            def selector(rsc, rsci, coordinates):
-                return coordinates, tuple(slice(None) for dim in coordinates)
+            def selector(rsc, coordinates, index_type=None):
+                return coordinates, None
 
             return super()._eval(coordinates, output=output, _selector=selector)
 
@@ -153,10 +154,10 @@ class WCSBase(DataSource):
             and (coordinates["lon"].is_uniform or coordinates["lon"].size == 1)
         ):
 
-            def selector(rsc, rsci, coordinates):
+            def selector(rsc, coordinates, index_type=None):
                 unstacked = coordinates.unstack()
                 unstacked = unstacked.drop("alt", ignore_missing=True)  # if lat_lon_alt
-                return unstacked, tuple(slice(None) for dim in unstacked)
+                return unstacked, None
 
             udata = super()._eval(coordinates, output=None, _selector=selector)
             data = udata.data.diagonal()  # get just the stacked data
@@ -170,9 +171,7 @@ class WCSBase(DataSource):
         return super()._eval(coordinates, output=output, _selector=_selector)
 
     def _get_data(self, coordinates, coordinates_index):
-        """{get_data}
-
-        """
+        """{get_data}"""
 
         # transpose the coordinates to match the response data
         if "time" in coordinates:
@@ -199,7 +198,7 @@ class WCSBase(DataSource):
 
         # request each chunk and composite the data
         output = self.create_output_array(coordinates)
-        for chunk, slc in coordinates.iterchunks(shape, return_slices=True):
+        for i, (chunk, slc) in enumerate(coordinates.iterchunks(shape, return_slices=True)):
             output[slc] = self._get_chunk(chunk)
 
         return output
@@ -275,4 +274,4 @@ class WCSBase(DataSource):
 
 
 class WCS(InterpolationMixin, WCSBase):
-    pass
+    coordinate_index_type = tl.Unicode("slice", read_only=True)
