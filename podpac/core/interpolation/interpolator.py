@@ -197,9 +197,6 @@ class Interpolator(tl.HasTraits):
     # defined by implementing Interpolator class
     methods_supported = tl.List(tl.Unicode())
     dims_supported = tl.List(tl.Unicode())
-    spatial_tolerance = tl.Float(allow_none=True, default_value=np.inf)
-    time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
-    alt_tolerance = tl.Float(default_value=np.inf, allow_none=True)
 
     # defined at instantiation
     method = tl.Unicode()
@@ -294,80 +291,47 @@ class Interpolator(tl.HasTraits):
         return True
 
     def _loop_helper(
-        self, func, keep_dims, udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs
+        self, func, interp_dims, udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs
     ):
-        loop_dims = [d for d in source_data.dims if d not in keep_dims]
-        if loop_dims:
-            dim = loop_dims[0]
-            for i in output_data.coords[dim]:
-                idx = {dim: i}
-
-                # TODO: handle this using presecribed interpolation method instead of "nearest"
-                if not i.isin(source_data.coords[dim]):
-                    if self.method != "nearest":
-                        _log.warning(
-                            "Interpolation method {} is not supported yet in this context. Using 'nearest' for {}".format(
-                                self.method, dim
-                            )
-                        )
-
-                    # find the closest value
-                    if dim == "time":
-                        tol = self.time_tolerance
-                    else:
-                        tol = self.spatial_tolerance
-
-                    diff = np.abs(source_data.coords[dim].values - i.values)
-                    if tol == None or tol == "" or np.any(diff <= tol):
-                        src_i = (diff).argmin()
-                        src_idx = {dim: source_data.coords[dim][src_i]}
-                    else:
-                        src_idx = None  # There is no closest neighbor within the tolerance
-                        continue
-
-                else:
-                    src_idx = idx
-
-                output_data.loc[idx] = self._loop_helper(
-                    func,
-                    keep_dims,
-                    udims,
-                    source_coordinates.drop(dim),
-                    source_data.loc[src_idx],
-                    eval_coordinates.drop(dim),
-                    output_data.loc[idx],
-                    **kwargs
-                )
-
-        else:
-            # TODO does this allow undesired extrapolation?
-            # short circuit if the source data and requested coordinates are of size 1
-            if source_data.size == 1 and eval_coordinates.size == 1:
-                output_data.data[:] = source_data.data.flatten()[0]
-                return output_data
-
-            # short circuit if source_coordinates contains eval_coordinates
-            if eval_coordinates.issubset(source_coordinates):
-                # select/transpose, and copy
-                d = {}
-                for k, c in source_coordinates.items():
-                    if isinstance(c, Coordinates1d):
-                        d[k] = output_data[k].data
-                    elif isinstance(c, StackedCoordinates):
-                        bs = [np.isin(c[dim].coordinates, eval_coordinates[dim].coordinates) for dim in c.dims]
-                        b = np.logical_and.reduce(bs)
-                        d[k] = source_data[k].data[b]
-
-                if all(isinstance(c, Coordinates1d) for c in source_coordinates.values()):
-                    method = "nearest"
-                else:
-                    method = None
-
-                output_data[:] = source_data.sel(output_data.coords, method=method)
-                return output_data
-
+        """In cases where the interpolator can only handle a limited number of dimensions, loop over the extra ones
+        Parameters
+        ----------
+        func : callable
+            The interpolation function that should be called on the data subset. Should have the following arguments:
+            func(udims, source_coordinates, source_data, eval_coordinates, output_data)
+        interp_dims: list(str)
+            List of source dimensions that will be interpolator. The looped dimensions will be computed
+        udims: list(str)
+           The unstacked coordinates that this interpolator handles
+        source_coordinates: podpac.Coordinates
+            The coordinates of the source data
+        eval_coordinates: podpac.Coordinates
+            The user-requested or evaluated coordinates
+        output_data: podpac.UnitsDataArray
+            Container for the output of the interpolation function
+        """
+        loop_dims = [d for d in source_data.dims if d not in interp_dims]
+        if not loop_dims:  # Do the actual interpolation
             return func(udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs)
 
+        dim = loop_dims[0]
+        for i in output_data.coords[dim]:
+            idx = {dim: i}
+
+            if not i.isin(source_data.coords[dim]):
+                # This case should have been properly handled in the interpolation_manager
+                raise InterpolatorException("Unexpected interpolation error")
+
+            output_data.loc[idx] = self._loop_helper(
+                func,
+                interp_dims,
+                udims,
+                source_coordinates.drop(dim),
+                source_data.loc[idx],
+                eval_coordinates.drop(dim),
+                output_data.loc[idx],
+                **kwargs
+            )
         return output_data
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)

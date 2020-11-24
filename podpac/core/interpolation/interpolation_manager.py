@@ -339,7 +339,8 @@ class InterpolationManager(object):
 
         # instantiate interpolators
         for (idx, interpolator) in enumerate(interpolators):
-            interpolators[idx] = interpolator(method=method, **params)
+            parms = {k: v for k, v in params.items() if hasattr(interpolator, k)}
+            interpolators[idx] = interpolator(method=method, **parms)
 
         definition["interpolators"] = interpolators
 

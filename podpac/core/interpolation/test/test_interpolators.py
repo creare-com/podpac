@@ -546,13 +546,17 @@ class TestInterpolateScipyGrid(object):
     def test_interpolate_irregular_arbitrary_2dims(self):
         """ irregular interpolation """
 
+        # Note, this test also tests the looper helper
+
         # try >2 dims
         source = np.random.rand(5, 5, 3)
         coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5), [2, 3, 5]], dims=["lat", "lon", "time"])
-        coords_dst = Coordinates([clinspace(1, 11, 5), clinspace(1, 11, 5), [2, 3, 5]], dims=["lat", "lon", "time"])
+        coords_dst = Coordinates([clinspace(1, 11, 5), clinspace(1, 11, 5), [2, 3, 4]], dims=["lat", "lon", "time"])
 
         node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "nearest", "interpolators": [ScipyGrid]}
+            data=source,
+            coordinates=coords_src,
+            interpolation=[{"method": "nearest", "interpolators": [ScipyGrid]}, {"method": "linear", "dims": ["time"]}],
         )
         output = node.eval(coords_dst)
 
@@ -562,6 +566,44 @@ class TestInterpolateScipyGrid(object):
         assert np.all(output.time.values == coords_dst["time"].coordinates)
 
         # assert output.data[0, 0] == source[]
+
+    def test_interpolate_looper_helper(self):
+        """ irregular interpolation """
+
+        # Note, this test also tests the looper helper
+
+        # try >2 dims
+        source = np.random.rand(5, 5, 3, 2)
+        result = source.copy()
+        result[:, :, 2, :] = (result[:, :, 1, :] + result[:, :, 2, :]) / 2
+        result = (result[..., 0:1] + result[..., 1:]) / 2
+        result = result[[0, 1, 2, 3, 4]]
+        result = result[:, [0, 1, 2, 3, 4]]
+        result[-1] = np.nan
+        result[:, -1] = np.nan
+        coords_src = Coordinates(
+            [clinspace(0, 10, 5), clinspace(0, 10, 5), [2, 3, 5], [0, 2]], dims=["lat", "lon", "time", "alt"]
+        )
+        coords_dst = Coordinates(
+            [clinspace(1, 11, 5), clinspace(1, 11, 5), [2, 3, 4], [1]], dims=["lat", "lon", "time", "alt"]
+        )
+
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation=[
+                {"method": "nearest", "interpolators": [ScipyGrid]},
+                {"method": "linear", "dims": ["time", "alt"]},
+            ],
+        )
+        output = node.eval(coords_dst)
+
+        assert isinstance(output, UnitsDataArray)
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        assert np.all(output.lon.values == coords_dst["lon"].coordinates)
+        assert np.all(output.time.values == coords_dst["time"].coordinates)
+        assert np.all(output.alt.values == coords_dst["alt"].coordinates)
+        np.testing.assert_array_almost_equal(result, output.data)
 
     def test_interpolate_irregular_arbitrary_descending(self):
         """should handle descending"""
@@ -860,3 +902,45 @@ class TestXarrayInterpolator(object):
         assert output.values[0] == source[0, 0]
         assert output.values[1] == source[1, 1]
         assert output.values[-1] == source[-1, -1]
+
+    def test_interpolate_fill_nan(self):
+        source = np.arange(0, 25).astype(float)
+        source.resize((5, 5))
+        source[2, 2] = np.nan
+
+        coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
+        coords_dst = Coordinates([clinspace(1, 11, 5), clinspace(1, 11, 5)], dims=["lat", "lon"])
+
+        # Ensure nan present
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "linear", "interpolators": [XarrayInterpolator], "params": {"fill_nan": False}},
+        )
+        output = node.eval(coords_dst)
+        assert isinstance(output, UnitsDataArray)
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        assert np.all(np.isnan(output.data[1:3, 1:3]))
+
+        # Ensure nan gone
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "linear", "interpolators": [XarrayInterpolator], "params": {"fill_nan": True}},
+        )
+        output = node.eval(coords_dst)
+        assert isinstance(output, UnitsDataArray)
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        np.testing.assert_array_almost_equal(output.data[1:3, 1:3].ravel(), [8.4, 9.4, 13.4, 14.4])
+
+        # Ensure nan gone, flip lat-lon on source
+        coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lon", "lat"])
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "linear", "interpolators": [XarrayInterpolator], "params": {"fill_nan": True}},
+        )
+        output = node.eval(coords_dst)
+        assert isinstance(output, UnitsDataArray)
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        np.testing.assert_array_almost_equal(output.data[1:3, 1:3].T.ravel(), [8.4, 9.4, 13.4, 14.4])

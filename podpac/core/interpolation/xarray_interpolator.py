@@ -23,7 +23,17 @@ from podpac.core.coordinates.utils import get_timedelta
 class XarrayInterpolator(Interpolator):
     """Xarray interpolation Interpolation
 
-    {nearest_neighbor_attributes}
+    Attributes
+    ----------
+    {interpolator_attributes}
+
+    fill_nan: bool
+        Default is False. If True, nan values will be filled before interpolation.
+    fill_value: float,str
+        Default is None. The value that will be used to fill nan values. This can be a number, or "extrapolate", see `scipy.interpn`/`scipy/interp1d`
+    kwargs: dict
+        Default is {{"bounds_error": False}}. Additional values to pass to xarray's `interp` method.
+
     """
 
     dims_supported = ["lat", "lon", "alt", "time"]
@@ -73,13 +83,11 @@ class XarrayInterpolator(Interpolator):
         """
         {interpolator_interpolate}
         """
-        indexers = []
-
         coords = {}
         nn_coords = {}
-        used_dims = set()
 
         for d in udims:
+            # Note: This interpolator cannot handle stacked source -- and this is handled in the can_interpolate function
             if source_coordinates[d].size == 1:
                 # If the source only has a single coordinate, xarray will automatically throw an error asking for at least 2 coordinates
                 # So, we prevent this. Main problem is that this won't respect any tolerances.
@@ -95,9 +103,6 @@ class XarrayInterpolator(Interpolator):
                 coords[d] = xr.DataArray(
                     eval_coordinates[d].coordinates, dims=[new_dim], coords=[eval_coordinates.xcoords[new_dim]]
                 )
-
-            elif source_coordinates.is_stacked(d) and not eval_coordinates.is_stacked(d):
-                raise InterpolatorException("Xarray interpolator cannot handle multi-index (source is points).")
             else:
                 # TODO: Check dependent coordinates
                 coords[d] = eval_coordinates[d].coordinates

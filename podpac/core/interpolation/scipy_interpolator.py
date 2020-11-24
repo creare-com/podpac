@@ -34,6 +34,7 @@ class ScipyPoint(Interpolator):
 
     methods_supported = ["nearest"]
     method = tl.Unicode(default_value="nearest")
+    dims_supported = ["lat", "lon"]
 
     # TODO: implement these parameters for the method 'nearest'
     spatial_tolerance = tl.Float(default_value=np.inf)
@@ -162,7 +163,7 @@ class ScipyGrid(ScipyPoint):
             and self._dim_in(["lat", "lon"], eval_coordinates, unstacked=True)
         ):
 
-            return udims
+            return ["lat", "lon"]
 
         # otherwise return no supported dims
         return tuple()
