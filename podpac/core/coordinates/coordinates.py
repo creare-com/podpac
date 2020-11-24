@@ -1364,17 +1364,12 @@ class Coordinates(tl.HasTraits):
         cs = [c for c in self.values()]
 
         if "lat" in self.dims and "lon" in self.dims:
-            lat_sample = np.linspace(self["lat"].bounds[0], self["lat"].bounds[1], 5)
-            lon_sample = np.linspace(self["lon"].bounds[0], self["lon"].bounds[1], 5)
-            sample = StackedCoordinates(np.meshgrid(lat_sample, lon_sample, indexing="ij"), dims=["lat", "lon"])
-            t = sample._transform(transformer)
+            st = self._simplified_transform(transformer, cs)
 
-            if not isinstance(t, StackedCoordinates):
-                cs[self.dims.index("lat")] = self["lat"].simplify()
-                cs[self.dims.index("lon")] = self["lon"].simplify()
-
+            if st:  # We could do the shortcut, and we have the result already
+                cs = st
             # otherwise, replace lat and lon coordinates with a single stacked lat_lon:
-            else:
+            else:  # Have to convert every coordinate
                 ilat = self.dims.index("lat")
                 ilon = self.dims.index("lon")
                 if ilat == ilon - 1:
@@ -1394,7 +1389,7 @@ class Coordinates(tl.HasTraits):
                 cs.pop(i)
                 cs.insert(i, c)
 
-        # transform
+        # transform the altitude if needed
         ts = []
         for c in cs:
             tc = c._transform(transformer)
@@ -1404,6 +1399,35 @@ class Coordinates(tl.HasTraits):
                 ts.append(tc)
 
         return Coordinates(ts, crs=crs, validate_crs=False)
+
+    def _simplified_transform(self, transformer, cs):
+        lat_sample = np.linspace(self["lat"].bounds[0], self["lat"].bounds[1], 5)
+        lon_sample = np.linspace(self["lon"].bounds[0], self["lon"].bounds[1], 5)
+        sample = StackedCoordinates(np.meshgrid(lat_sample, lon_sample, indexing="ij"), dims=["lat", "lon"])
+        t = sample._transform(transformer)
+
+        if isinstance(t, StackedCoordinates):  # Need to transform ALL the coordinates
+            return
+        # Then we can do a faster transform, either already done or just the diagonal
+        for i, j in zip([0, 1], [1, 0]):
+            if isinstance(t[i], UniformCoordinates1d):  # already done
+                start = t[i].start
+                stop = t[i].stop
+                if self[t[i].name].is_descending:
+                    start, stop = stop, start
+                cs[self.dims.index(t[i].name)] = clinspace(start, stop, self[t[i].name].size, name=t[i].name)
+                continue
+            # Transform all of the points for this dimension (either lat or lon) and record result
+            this = self[t[i].name]
+            that = self[t[j].name]
+            if this.size > 1:
+                other = clinspace(that.bounds[0], that.bounds[1], this.size)
+            else:
+                other = that.coordinates
+            diagonal = StackedCoordinates([this.coordinates, other], dims=[this.name, that.name])
+            t_diagonal = diagonal._transform(transformer)
+            cs[self.dims.index(this.name)] = t_diagonal[this.name]
+        return cs
 
     def simplify(self):
         """Simplify coordinates in each dimension.

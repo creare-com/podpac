@@ -1891,7 +1891,6 @@ class TestCoordinatesMethodTransform(object):
         np.testing.assert_array_almost_equal(t["lat"].coordinates, c["lat"].coordinates)
         np.testing.assert_array_almost_equal(t["lon"].coordinates, c["lon"].coordinates)
 
-    @pytest.mark.skip("TODO")
     def test_transform_uniform_to_array(self):
         c = Coordinates([clinspace(-45, 45, 5, "lat"), clinspace(-180, 180, 11, "lon")])
 
@@ -1900,6 +1899,25 @@ class TestCoordinatesMethodTransform(object):
 
         assert isinstance(t["lat"], ArrayCoordinates1d)
         assert isinstance(t["lon"], UniformCoordinates1d)
+        assert t["lon"].is_descending == c["lon"].is_descending
+        assert t["lat"].is_descending == c["lat"].is_descending
+
+        t2 = t.transform(c.crs)
+
+        for d in ["lon", "lat"]:
+            for a in ["start", "stop", "step"]:
+                np.testing.assert_almost_equal(getattr(c[d], a), getattr(t2[d], a))
+
+        # Reverse the order of the coordinates
+        c = Coordinates([clinspace(45, -45, 5, "lat"), clinspace(180, -180, 11, "lon")])
+
+        # Ok for array coordinates
+        t = c.transform("EPSG:3395")
+
+        assert isinstance(t["lat"], ArrayCoordinates1d)
+        assert isinstance(t["lon"], UniformCoordinates1d)
+        assert t["lon"].is_descending == c["lon"].is_descending
+        assert t["lat"].is_descending == c["lat"].is_descending
 
         t2 = t.transform(c.crs)
 
