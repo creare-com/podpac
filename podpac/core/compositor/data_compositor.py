@@ -48,7 +48,7 @@ class DataCompositor(BaseCompositor):
         for arr in data_arrays:
             res = res.combine_first(arr)
         res = UnitsDataArray(res)
-        coords = Coordinates.from_xarray(res.coords)
+        coords = Coordinates.from_xarray(res.coords, crs=res.crs)
         res.attrs["bounds"] = coords.bounds
         if result is not None:
             result.data[:] = res.transponse(*result.dims).data

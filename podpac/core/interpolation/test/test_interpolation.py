@@ -160,3 +160,19 @@ class TestInterpolationBehavior(object):
         )
         o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
         assert_array_equal(o.data, np.linspace(0, 2, 9))
+
+    def test_selection_crs(self):
+        base = podpac.core.data.array_source.ArrayBase(
+            source=[0, 1, 2],
+            coordinates=podpac.Coordinates(
+                [[1, 5, 9]], dims=["time"], crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m"
+            ),
+        )
+        node = podpac.interpolators.Interpolate(
+            source=base,
+            interpolation="linear",
+        )
+        tocrds = podpac.Coordinates([podpac.crange(1, 9, 1, "time")], crs="EPSG:4326")
+        o = node.eval(tocrds)
+        assert o.crs == tocrds.crs
+        assert_array_equal(o.data, np.linspace(0, 2, 9))

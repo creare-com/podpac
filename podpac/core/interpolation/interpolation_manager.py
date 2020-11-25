@@ -483,7 +483,9 @@ class InterpolationManager(object):
             if isinstance(selected_coords_idx[d], slice) and index_type != "slice":
                 selected_coords_idx[d] = np.arange(selected_coords[d].size)
 
-        selected_coords = Coordinates([selected_coords[k] for k in source_coordinates.dims], source_coordinates.dims)
+        selected_coords = Coordinates(
+            [selected_coords[k] for k in source_coordinates.dims], source_coordinates.dims, crs=source_coordinates.crs
+        )
         if index_type != "slice":
             selected_coords_idx2 = np.ix_(*[selected_coords_idx[k].ravel() for k in source_coordinates.dims])
         else:
