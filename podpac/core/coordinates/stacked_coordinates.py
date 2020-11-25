@@ -452,6 +452,10 @@ class StackedCoordinates(BaseCoordinates):
                 if isinstance(index, slice):
                     indices[i] = np.zeros(self.shape, dtype=bool)
                     indices[i][index] = True
+                elif len(index) == 0:
+                    # Cannot have empty index, otherwise the logical_and will fail when
+                    # one of the dimensions is empty and the other is not
+                    indices[i] = np.ones(self.shape, dtype=bool)
 
             # logical and
             index = np.logical_and.reduce(indices)
