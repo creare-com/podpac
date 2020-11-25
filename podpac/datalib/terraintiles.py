@@ -314,7 +314,7 @@ def _get_tile_tuples(zoom, coordinates=None):
     else:
         _logger.debug("Getting tiles for coordinates {}".format(coordinates))
 
-        if "lat" not in coordinates or "lon" not in coordinates:
+        if "lat" not in coordinates.udims or "lon" not in coordinates.udims:
             raise TypeError("input coordinates must have lat and lon dimensions to get tiles")
 
         # transform to WGS84 (epsg:4326) to use the mapzen example for transforming coordinates to tilespace

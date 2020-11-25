@@ -41,6 +41,7 @@ extras_require = {
         "rasterio>=1.0",
         "zarr>=2.3",
         "owslib",
+        "h5netcdf"
         # "intake>=0.5"  Not supported in Python 3.5
     ],
     "aws": ["awscli>=1.16", "boto3>=1.9.200", "s3fs>=0.4"],
