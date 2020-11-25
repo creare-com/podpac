@@ -23,7 +23,8 @@ bs4 = lazy_module("bs4")
 
 import podpac
 from podpac.core.utils import cached_property
-from podpac.core.compositor.data_compositor import InterpDataCompositor
+from podpac.core.compositor.data_compositor import DataCompositor
+from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 def _convert_str_to_vals(properties):
@@ -134,7 +135,7 @@ class COSMOSStation(podpac.data.DataSource):
         return _convert_str_to_vals(properties)
 
 
-class COSMOSStations(InterpDataCompositor):
+class COSMOSStationsRaw(DataCompositor):
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/")
     stations_url = tl.Unicode("sitesNoLegend.js")
     dims = ["lat", "lon", "time"]
@@ -364,9 +365,17 @@ class COSMOSStations(InterpDataCompositor):
         return [self.stations_data["items"][i] for i in inds]
 
 
+class COSMOSStations(InterpolationMixin, COSMOSStationsRaw):
+    pass
+
+
 if __name__ == "__main__":
     bounds = {"lat": [40, 46], "lon": [-78, -68]}
     cs = COSMOSStations(
+        cache_ctrl=["ram", "disk"],
+        interpolation={"method": "nearest", "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M"}},
+    )
+    csr = COSMOSStationsRaw(
         cache_ctrl=["ram", "disk"],
         interpolation={"method": "nearest", "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M"}},
     )
@@ -384,6 +393,7 @@ if __name__ == "__main__":
         ]
     )
     o = cs.eval(ce)
+    o_r = csr.eval(ce)
     og = cs.eval(cg)
 
     # Test helper functions
@@ -414,6 +424,7 @@ if __name__ == "__main__":
     ax = plt.gca()
     plt.ylim(0, 1)
     plt.legend(cs.label_from_latlon(ce))
+    # plt.plot(o_r.time, o_r.data, ".-")
     plt.ylabel("Soil Moisture ($m^3/m^3$)")
     plt.xlabel("Date")
     # plt.xticks(rotation=90)
