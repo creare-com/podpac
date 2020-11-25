@@ -16,7 +16,7 @@ from podpac.core.data.rasterio_source import rasterio
 from podpac.core.data.datasource import DataSource
 from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationException
 from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
-from podpac.core.interpolation.rasterio_interpolator import Rasterio
+from podpac.core.interpolation.rasterio_interpolator import RasterioInterpolator
 from podpac.core.interpolation.scipy_interpolator import ScipyGrid, ScipyPoint
 from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
 from podpac.core.interpolation.interpolation import InterpolationMixin
@@ -434,7 +434,7 @@ class TestNearest(object):
         assert np.isnan(output.data[0])
 
 
-class TestInterpolateRasterio(object):
+class TestInterpolateRasterioInterpolator(object):
     """test interpolation functions"""
 
     def test_interpolate_rasterio(self):
@@ -450,7 +450,9 @@ class TestInterpolateRasterio(object):
 
         # try one specific rasterio case to measure output
         node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "min", "interpolators": [Rasterio]}
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "min", "interpolators": [RasterioInterpolator]},
         )
         output = node.eval(coords_dst)
 
@@ -460,7 +462,9 @@ class TestInterpolateRasterio(object):
         assert output.data[0, 4] == 4.0
 
         node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "max", "interpolators": [Rasterio]}
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "max", "interpolators": [RasterioInterpolator]},
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
@@ -472,7 +476,7 @@ class TestInterpolateRasterio(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "bilinear", "interpolators": [Rasterio]},
+            interpolation={"method": "bilinear", "interpolators": [RasterioInterpolator]},
             boundary={"lat": 2.5, "lon": 1.25},
         )
         output = node.eval(coords_dst)
@@ -490,7 +494,9 @@ class TestInterpolateRasterio(object):
         coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
         node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "nearest", "interpolators": [Rasterio]}
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "nearest", "interpolators": [RasterioInterpolator]},
         )
         output = node.eval(coords_dst)
 

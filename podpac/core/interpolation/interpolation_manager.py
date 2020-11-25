@@ -12,7 +12,7 @@ from podpac.core.coordinates import merge_dims, Coordinates
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 from podpac.core.interpolation.interpolator import Interpolator
 from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
-from podpac.core.interpolation.rasterio_interpolator import Rasterio
+from podpac.core.interpolation.rasterio_interpolator import RasterioInterpolator
 from podpac.core.interpolation.scipy_interpolator import ScipyPoint, ScipyGrid
 from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
 
@@ -22,7 +22,7 @@ _logger = logging.getLogger(__name__)
 INTERPOLATION_DEFAULT = "nearest"
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
 
-INTERPOLATORS = [NearestNeighbor, XarrayInterpolator, Rasterio, ScipyPoint, ScipyGrid, NearestPreview]
+INTERPOLATORS = [NearestNeighbor, XarrayInterpolator, RasterioInterpolator, ScipyPoint, ScipyGrid, NearestPreview]
 """list : list of available interpolator classes"""
 
 INTERPOLATORS_DICT = {}
@@ -57,7 +57,7 @@ INTERPOLATION_METHODS = [
 
 INTERPOLATION_METHODS_DICT = {}
 """dict: Dictionary of string interpolation methods and associated interpolator classes
-   (i.e. ``'nearest': [NearestNeighbor, Rasterio, Scipy]``) """
+   (i.e. ``'nearest': [NearestNeighbor, RasterioInterpolator, ScipyGrid]``) """
 
 
 def load_interpolators():

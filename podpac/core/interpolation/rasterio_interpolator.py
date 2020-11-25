@@ -25,7 +25,7 @@ from podpac.core.coordinates.utils import get_timedelta
 
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)
-class Rasterio(Interpolator):
+class RasterioInterpolator(Interpolator):
     """Rasterio Interpolation
 
     Attributes
