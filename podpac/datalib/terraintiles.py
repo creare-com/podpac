@@ -42,9 +42,10 @@ import traitlets as tl
 import numpy as np
 
 import podpac
-from podpac.data import Rasterio
-from podpac.compositor import OrderedCompositor, TileCompositor
-from podpac.interpolators import Rasterio as RasterioInterpolator, ScipyGrid, ScipyPoint
+from podpac.core.data.rasterio_source import RasterioBase
+from podpac.compositor import DataCompositor
+from podpac.interpolators import InterpolationMixin
+from podpac.interpolators import RasterioInterpolator, ScipyGrid, ScipyPoint
 from podpac.data import InterpolationTrait
 from podpac.utils import cached_property
 from podpac.authentication import S3Mixin
@@ -57,7 +58,7 @@ from podpac.authentication import S3Mixin
 _logger = logging.getLogger(__name__)
 
 
-class TerrainTilesSource(Rasterio):
+class TerrainTilesSource(RasterioBase):
     """DataSource to handle individual TerrainTiles raster files
 
     Parameters
@@ -73,9 +74,7 @@ class TerrainTilesSource(Rasterio):
 
     anon = tl.Bool(True)
     # attributes
-    interpolation = InterpolationTrait(
-        default_value={"method": "nearest", "interpolators": [RasterioInterpolator, ScipyGrid, ScipyPoint]}
-    ).tag(attr=True)
+    interpolation = InterpolationTrait(default_value="nearest").tag(attr=True)
 
     @tl.default("crs")
     def _default_crs(self):
@@ -120,31 +119,7 @@ class TerrainTilesSource(Rasterio):
         return coordinates
 
 
-class TerrainTilesComposite(S3Mixin, TileCompositor):
-    urls = tl.List(trait=tl.Unicode()).tag(attr=True)
-    anon = tl.Bool(True)
-
-    _repr_keys = ["urls"]
-
-    @cached_property
-    def sources(self):
-        return [self._create_source(url) for url in self.urls]
-
-    def get_coordinates(self):
-        return podpac.coordinates.union([source.coordinates for source in self.sources])
-
-    def _create_source(self, url):
-        return TerrainTilesSource(
-            source=url,
-            cache_ctrl=self.cache_ctrl,
-            force_eval=self.force_eval,
-            cache_output=self.cache_output,
-            cache_dataset=True,
-            s3=self.s3,
-        )
-
-
-class TerrainTiles(S3Mixin, OrderedCompositor):
+class TerrainTilesComposite(DataCompositor):
     """Terrain Tiles gridded elevation tiles data library
 
     Hosted on AWS S3
@@ -180,6 +155,7 @@ class TerrainTiles(S3Mixin, OrderedCompositor):
     tile_format = tl.Enum(["geotiff", "terrarium", "normal"], default_value="geotiff").tag(attr=True)
     bucket = tl.Unicode(default_value="elevation-tiles-prod").tag(attr=True)
     sources = None  # these are loaded as needed
+    urls = tl.List(trait=tl.Unicode()).tag(attr=True)  # Maps directly to sources
     dims = ["lat", "lon"]
     anon = tl.Bool(True)
 
@@ -196,6 +172,9 @@ class TerrainTiles(S3Mixin, OrderedCompositor):
                     s.set_trait("interpolation", self.interpolation)
         return self.sources
 
+    def find_coordinates(self):
+        return [podpac.coordinates.union([source.coordinates for source in self.sources])]
+
     def download(self, path="terraintiles"):
         """
         Download active terrain tile source files to local directory
@@ -211,19 +190,62 @@ class TerrainTiles(S3Mixin, OrderedCompositor):
             for source in self.sources[0].sources:
                 source.download(path)
         except tl.TraitError as e:
-            raise ValueError("No terrain tile sources selected. Evaluate node at coordinates to select sources.")
+            raise ValueError("No terrain tile sources selected. Evaluate node at coordinates to select sources.") from e
 
     def _create_composite(self, urls):
+        # Share the s3 connection
+        s1 = TerrainTilesSource(
+            source=urls[0],
+            cache_ctrl=self.cache_ctrl,
+            force_eval=self.force_eval,
+            cache_output=self.cache_output,
+            cache_dataset=True,
+        )
         return [
-            TerrainTilesComposite(
-                urls=urls,
+            TerrainTilesSource(
+                source=url,
+                s3=s1.s3,
                 cache_ctrl=self.cache_ctrl,
                 force_eval=self.force_eval,
                 cache_output=self.cache_output,
                 cache_dataset=True,
-                s3=self.s3,
             )
+            for url in urls
         ]
+
+
+class TerrainTiles(InterpolationMixin, TerrainTilesComposite):
+    """Terrain Tiles gridded elevation tiles data library
+
+    Hosted on AWS S3
+    https://registry.opendata.aws/terrain-tiles/
+
+    Description
+        Gridded elevation tiles
+    Resource type
+        S3 Bucket
+    Amazon Resource Name (ARN)
+        arn:aws:s3:::elevation-tiles-prod
+    AWS Region
+        us-east-1
+
+    Documentation: https://mapzen.com/documentation/terrain-tiles/
+
+    Parameters
+    ----------
+    zoom : int
+        Zoom level of tiles. Defaults to 6.
+    tile_format : str
+        One of ['geotiff', 'terrarium', 'normal']. Defaults to 'geotiff'
+        PODPAC node can only evaluate 'geotiff' formats.
+        Other tile_formats can be specified for :meth:`download`
+        No support for 'skadi' formats at this time.
+    bucket : str
+        Bucket of the terrain tiles.
+        Defaults to 'elevation-tiles-prod'
+    """
+
+    pass
 
 
 ############

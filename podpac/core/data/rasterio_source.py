@@ -47,6 +47,7 @@ class RasterioBase(LoadFileMixin, BaseFileSource):
     crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     driver = tl.Unicode(allow_none=True, default_value=None)
     read_from_source = tl.Bool(False).tag(attr=True)
+    coordinate_index_type = "slice"
 
     @cached_property
     def dataset(self):
