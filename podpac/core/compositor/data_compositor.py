@@ -45,11 +45,13 @@ class DataCompositor(BaseCompositor):
 
         # TODO: Fix boundary information on the combined data arrays
         res = next(data_arrays)
+        bounds = res.attrs["bounds"]
         for arr in data_arrays:
             res = res.combine_first(arr)
+            obounds = arr.attrs["bounds"]
+            bounds = {k: (min(bounds[k][0], obounds[k][0]), max(bounds[k][1], obounds[k][1])) for k in bounds}
         res = UnitsDataArray(res)
-        coords = Coordinates.from_xarray(res.coords, crs=res.crs)
-        res.attrs["bounds"] = coords.bounds
+        res.attrs["bounds"] = bounds
         if result is not None:
             result.data[:] = res.transponse(*result.dims).data
             return result
