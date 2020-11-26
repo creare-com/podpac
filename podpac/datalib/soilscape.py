@@ -581,7 +581,7 @@ class SoilSCAPE20min(podpac.core.compositor.compositor.BaseCompositor):
     def _make_source(self, site, node):
         return SoilSCAPENode(site=site, node=node, cache_ctrl=self.cache_ctrl, dataset_expires=self.dataset_expires)
 
-    def select_sources(self, coordinates):
+    def select_sources(self, coordinates, _selector=None):
         return [source for source in self.sources if (source.lat, source.lon) in coordinates["lat_lon"]]
 
     def composite(self, coordinates, data_arrays, result=None):

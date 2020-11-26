@@ -311,13 +311,15 @@ class SMAPCompositor(OrderedCompositor):
     is_source_coordinates_complete = tl.Bool(False)
     shared_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None)
 
-    def select_sources(self, coordinates):
+    def select_sources(self, coordinates, _selector=None):
         """Select sources based on requested coordinates, including setting coordinates, if possible.
 
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
             Coordinates to evaluate at compositor sources
+        _selector : :class:`podpac.core.interpolation.selectors.Selector`
+            Selector used to sub-select sources based on the interpolation scheme
 
         Returns
         -------
@@ -333,7 +335,7 @@ class SMAPCompositor(OrderedCompositor):
 
         """ Optimization: . """
 
-        src_subset = super(SMAPCompositor, self).select_sources(coordinates)
+        src_subset = super(SMAPCompositor, self).select_sources(coordinates, _selector)
 
         if self.is_source_coordinates_complete:
             coords_subset = list(self.source_coordinates.intersect(coordinates, outer=True).coords.values())[0]

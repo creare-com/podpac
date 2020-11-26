@@ -206,7 +206,7 @@ class TerrainTilesComposite(DataCompositor):
                 break
         return zoom
 
-    def select_sources(self, coordinates):
+    def select_sources(self, coordinates, _selector=None):
         # get all the tile sources for the requested zoom level and coordinates
         sources = get_tile_urls(self.tile_format, self._zoom(coordinates), coordinates)
         urls = ["s3://{}/{}".format(self.bucket, s) for s in sources]

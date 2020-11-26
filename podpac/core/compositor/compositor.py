@@ -116,13 +116,15 @@ class BaseCompositor(Node):
 
         return outputs
 
-    def select_sources(self, coordinates):
+    def select_sources(self, coordinates, _selector=None):
         """Select and prepare sources based on requested coordinates.
 
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
             Coordinates to evaluate at compositor sources
+        _selector : :class:`podpac.core.interpolation.selectors.Selector`
+            Selector used to sub-select sources based on the interpolation scheme
 
         Returns
         -------
@@ -140,7 +142,10 @@ class BaseCompositor(Node):
             sources = self.sources
         else:
             try:
-                _, I = self.source_coordinates.intersect(coordinates, outer=True, return_index=True)
+                if _selector is not None:
+                    _, I = _selector(self.source_coordinates, coordinates, index_type="numpy")
+                else:
+                    _, I = self.source_coordinates.intersect(coordinates, outer=True, return_index=True)
             except:
                 # Likely non-monotonic coordinates
                 _, I = self.source_coordinates.intersect(coordinates, outer=False, return_index=True)
@@ -191,7 +196,7 @@ class BaseCompositor(Node):
         """
 
         # get sources, potentially downselected
-        sources = self.select_sources(coordinates)
+        sources = self.select_sources(coordinates, _selector)
 
         if settings["DEBUG"]:
             self._eval_sources = sources
