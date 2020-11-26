@@ -56,6 +56,23 @@ from podpac.authentication import S3Mixin
 
 # create log for module
 _logger = logging.getLogger(__name__)
+ZOOM_SIZES = [
+    8271.5169531233,
+    39135.75848200978,
+    19567.87924100587,
+    9783.939620502935,
+    4891.969810250487,
+    2445.9849051252454,
+    1222.9924525636013,
+    611.4962262818025,
+    305.7481131408976,
+    152.8740565714275,
+    76.43702828571375,
+    38.218514142856876,
+    19.109257072407146,
+    9.554628536203573,
+    4.777314268103609,
+]
 
 
 class TerrainTilesSource(RasterioBase):
@@ -139,7 +156,8 @@ class TerrainTilesComposite(DataCompositor):
     Parameters
     ----------
     zoom : int
-        Zoom level of tiles. Defaults to 6.
+        Zoom level of tiles, in [0, ..., 14]. Defaults to 7. A value of "-1" will automatically determine the zoom level.
+        WARNING: When automatic zoom is used, evaluating points (stacked lat,lon) uses the maximum zoom level (level 14)
     tile_format : str
         One of ['geotiff', 'terrarium', 'normal']. Defaults to 'geotiff'
         PODPAC node can only evaluate 'geotiff' formats.
@@ -151,17 +169,46 @@ class TerrainTilesComposite(DataCompositor):
     """
 
     # parameters
-    zoom = tl.Int(default_value=6).tag(attr=True)
+    zoom = tl.Int(default_value=-1).tag(attr=True)
     tile_format = tl.Enum(["geotiff", "terrarium", "normal"], default_value="geotiff").tag(attr=True)
     bucket = tl.Unicode(default_value="elevation-tiles-prod").tag(attr=True)
-    sources = None  # these are loaded as needed
+    sources = []  # these are loaded as needed
     urls = tl.List(trait=tl.Unicode()).tag(attr=True)  # Maps directly to sources
     dims = ["lat", "lon"]
     anon = tl.Bool(True)
 
+    def _zoom(self, coordinates):
+        if self.zoom >= 0:
+            return self.zoom
+        crds = coordinates.transform("EPSG:3857")
+        if coordinates.is_stacked("lat") or coordinates.is_stacked("lon"):
+            return len(ZOOM_SIZES) - 1
+        steps = []
+        for crd in crds.values():
+            if crd.name not in ["lat", "lon"]:
+                continue
+            if crd.size == 1:
+                continue
+            if isinstance(crd, podpac.coordinates.UniformCoordinates1d):
+                steps.append(np.abs(crd.step))
+            elif isinstance(crd, podpac.coordinates.ArrayCoordinates1d):
+                steps.append(np.abs(np.diff(crd.coordinates)).min())
+            else:
+                continue
+        if not steps:
+            return len(ZOOM_SIZES) - 1
+
+        step = min(steps) / 2
+        zoom = 0
+        for z, zs in enumerate(ZOOM_SIZES):
+            zoom = z
+            if zs < step:
+                break
+        return zoom
+
     def select_sources(self, coordinates):
         # get all the tile sources for the requested zoom level and coordinates
-        sources = get_tile_urls(self.tile_format, self.zoom, coordinates)
+        sources = get_tile_urls(self.tile_format, self._zoom(coordinates), coordinates)
         urls = ["s3://{}/{}".format(self.bucket, s) for s in sources]
 
         # create TerrainTilesSource classes for each url source
