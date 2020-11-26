@@ -439,23 +439,36 @@ class StackedCoordinates(BaseCoordinates):
             return self[index]
 
     def _and_indices(self, indices):
+        def _index_len(index):
+            if isinstance(index, slice):
+                if index.stop is None:
+                    stop = self.size
+                elif index.stop < 0:
+                    stop = self.size - index.stop
+                else:
+                    stop = index.stop
+                if index.start is None:
+                    start = 0
+                elif index.start < 0:
+                    start = self.size - index.start
+                else:
+                    start = index.start
+                return stop - start
+            return len(index)
+
         if all(isinstance(index, slice) for index in indices):
             index = slice(max(index.start or 0 for index in indices), min(index.stop or self.size for index in indices))
-
             # for consistency
             if index.start == 0 and index.stop == self.size:
                 index = slice(None, None)
-
+        elif any(_index_len(index) == 0 for index in indices):
+            return slice(0, 0)
         else:
             # convert any slices to boolean array
             for i, index in enumerate(indices):
                 if isinstance(index, slice):
                     indices[i] = np.zeros(self.shape, dtype=bool)
                     indices[i][index] = True
-                elif len(index) == 0:
-                    # Cannot have empty index, otherwise the logical_and will fail when
-                    # one of the dimensions is empty and the other is not
-                    indices[i] = np.ones(self.shape, dtype=bool)
 
             # logical and
             index = np.logical_and.reduce(indices)
