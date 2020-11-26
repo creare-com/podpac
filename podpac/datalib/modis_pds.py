@@ -12,9 +12,10 @@ import traitlets as tl
 
 import podpac
 from podpac.utils import cached_property
-from podpac.compositor import UniformTileCompositor, UniformTileMixin, OrderedCompositor
-from podpac.data import Rasterio, DataSource
+from podpac.compositor import DataCompositor
+from podpac.data import RasterioBase
 from podpac.authentication import S3Mixin
+from podpac.interpolators import InterpolationMixin
 
 _logger = logging.getLogger(__name__)
 
@@ -101,7 +102,7 @@ def get_tile_coordinates(h, v):
     return podpac.Coordinates([lat, lon], crs=CRS)
 
 
-class MODISSource(Rasterio):
+class MODISSource(RasterioBase):
     """
     Individual MODIS data tile using AWS OpenData, with caching.
 
@@ -176,57 +177,7 @@ class MODISSource(Rasterio):
         return get_tile_coordinates(self.horizontal, self.vertical)
 
 
-class MODISTile(S3Mixin, DataSource):
-    product = tl.Enum(values=PRODUCTS, help="MODIS product ID").tag(attr=True)
-    horizontal = tl.Unicode(help="column in the MODIS Sinusoidal Tiling System, e.g. '21'").tag(attr=True)
-    vertical = tl.Unicode(help="row in the MODIS Sinusoidal Tiling System, e.g. '07'").tag(attr=True)
-    data_key = tl.Unicode(help="data to retrieve (varies by product)").tag(attr=True)
-    anon = tl.Bool(True)
-    _repr_keys = ["product", "data_key"]
-
-    @cached_property
-    def sources(self):
-        return [self._make_source(date) for date in self.available_dates]
-
-    @cached_property(use_cache_ctrl=True)  # TODO expiration
-    def available_dates(self):
-        _logger.info(
-            "Looking up available dates (product=%s, h=%s, v=%s)..." % (self.product, self.horizontal, self.vertical)
-        )
-        return _available(self.s3, self.product, self.horizontal, self.vertical)
-
-    @cached_property
-    def tile_coordinates(self):
-        return get_tile_coordinates(self.horizontal, self.vertical)
-
-    def get_coordinates(self):
-        # lookup available dates and use pre-fetched lat and lon bounds
-        time = podpac.Coordinates([[_parse_modis_date(date) for date in self.available_dates]], dims=["time"], crs=CRS)
-        return podpac.coordinates.merge_dims([time, self.tile_coordinates])
-
-    def get_data(self, coordinates, coordinates_index):
-        data = self.create_output_array(coordinates)
-        for i, source in enumerate(self.sources[coordinates_index[0]]):
-            data[i, :, :] = source.eval(coordinates.drop("time"))
-        return data
-
-    def _make_source(self, date):
-        return MODISSource(
-            product=self.product,
-            horizontal=self.horizontal,
-            vertical=self.vertical,
-            date=date,
-            data_key=self.data_key,
-            check_exists=False,
-            cache_ctrl=self.cache_ctrl,
-            force_eval=self.force_eval,
-            cache_output=self.cache_output,
-            cache_dataset=True,
-            s3=self.s3,
-        )
-
-
-class MODIS(S3Mixin, OrderedCompositor):
+class MODISComposite(S3Mixin, DataCompositor):
     """MODIS whole-world compositor.
     For documentation about the data, start here: https://ladsweb.modaps.eosdis.nasa.gov/search/order/1
     For information about the bands, see here: https://modis.gsfc.nasa.gov/about/specifications.php
@@ -251,36 +202,55 @@ class MODIS(S3Mixin, OrderedCompositor):
 
     _repr_keys = ["product", "data_key"]
 
-    @cached_property
-    def sources(self):
-        return [self._make_tile(h, v) for h, v in self.available_tiles]
+    @cached_property(use_cache_ctrl=True)
+    def tile_coordinates(self):
+        return [get_tile_coordinates(*hv) for hv in self.available_tiles]
 
     @cached_property(use_cache_ctrl=True)
     def available_tiles(self):
         _logger.info("Looking up available tiles...")
         return [(h, v) for h in _available(self.s3, self.product) for v in _available(self.s3, self.product, h)]
 
-    def select_sources(self, coordinates):
+    def select_sources(self, coordinates, _selector=None):
         """ 2d select sources filtering """
-
-        sources = super(MODIS, self).select_sources(coordinates)
 
         # filter tiles spatially
         ct = coordinates.transform(CRS)
-        return [source for source in sources if ct.select(source.tile_coordinates.bounds).size > 0]
+        tiles = [at for at, atc in zip(self.available_tiles, self.tile_coordinates) if ct.select(atc.bounds).size > 0]
+        sources = []
+        for tile in tiles:
+            h, v = tile
+            dates = [_parse_modis_date(date) for date in _available(self.s3, self.product, h, v)]
+            date_coords = podpac.Coordinates([dates], dims=["time"])
+            # Filter individual tiles temporally
+            if _selector is not None:
+                _, I = _selector(date_coords, ct, index_type="numpy")
+            else:
+                _, I = date_coords.intersect(ct, outer=True, return_index=True)
+            valid_dates = np.array(dates)[I]
+            valid_sources = [
+                MODISSource(
+                    product=self.product,
+                    horizontal=h,
+                    vertical=v,
+                    date=date,
+                    data_key=self.data_key,
+                    check_exists=False,
+                    cache_ctrl=self.cache_ctrl,
+                    force_eval=self.force_eval,
+                    cache_output=self.cache_output,
+                    cache_dataset=True,
+                    s3=self.s3,
+                )
+                for date in valid_dates
+            ]
+            sources.extend(valid_sources)
+        self.sources = sources
+        return sources
 
-    def _make_tile(self, horizontal, vertical):
-        return MODISTile(
-            product=self.product,
-            horizontal=horizontal,
-            vertical=vertical,
-            data_key=self.data_key,
-            cache_ctrl=self.cache_ctrl,
-            force_eval=self.force_eval,
-            cache_output=self.cache_output,
-            cache_dataset=True,
-            s3=self.s3,
-        )
+
+class MODIS(InterpolationMixin, MODISComposite):
+    pass
 
 
 if __name__ == "__main__":
