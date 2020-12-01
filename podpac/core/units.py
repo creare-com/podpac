@@ -287,7 +287,10 @@ class UnitsDataArray(xr.DataArray):
         for dim in self.dims:
             if dim in self.coords or "-" in dim:  # The "-" is for multi-dimensional stacked coordinates
                 continue
-            self = self.set_index(**{dim: dim.split("-")[0].split("_")})
+            try:
+                self = self.set_index(**{dim: dim.split("-")[0].split("_")})
+            except ValueError as e:
+                _logger.warn("Tried to rebuild stacked coordinates but failed with error: {}".format(e))
         return self
 
     def __getitem__(self, key):
