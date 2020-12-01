@@ -583,7 +583,7 @@ class InterpolationManager(object):
             )
 
             # prepare for the next iteration
-            source_data = interp_data.transpose(*interp_coordinates.dims)
+            source_data = interp_data.transpose(*interp_coordinates.xdims)
             source_data.attrs = attrs
             source_coordinates = interp_coordinates
 

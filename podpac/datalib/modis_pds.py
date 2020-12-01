@@ -13,7 +13,7 @@ import traitlets as tl
 import podpac
 from podpac.utils import cached_property
 from podpac.compositor import DataCompositor
-from podpac.data import RasterioBase
+from podpac.core.data.rasterio_source import RasterioBase
 from podpac.authentication import S3Mixin
 from podpac.interpolators import InterpolationMixin
 
@@ -174,7 +174,9 @@ class MODISSource(RasterioBase):
 
     def get_coordinates(self):
         # use pre-fetched coordinate bounds (instead of loading from the dataset)
-        return get_tile_coordinates(self.horizontal, self.vertical)
+        spatial_coords = get_tile_coordinates(self.horizontal, self.vertical)
+        time_coords = podpac.Coordinates([_parse_modis_date(self.date)], ["time"], crs=spatial_coords.crs)
+        return podpac.coordinates.merge_dims([spatial_coords, time_coords])
 
 
 class MODISComposite(S3Mixin, DataCompositor):
@@ -220,14 +222,15 @@ class MODISComposite(S3Mixin, DataCompositor):
         sources = []
         for tile in tiles:
             h, v = tile
-            dates = [_parse_modis_date(date) for date in _available(self.s3, self.product, h, v)]
+            available_dates = _available(self.s3, self.product, h, v)
+            dates = [_parse_modis_date(date) for date in available_dates]
             date_coords = podpac.Coordinates([dates], dims=["time"])
             # Filter individual tiles temporally
             if _selector is not None:
                 _, I = _selector(date_coords, ct, index_type="numpy")
             else:
                 _, I = date_coords.intersect(ct, outer=True, return_index=True)
-            valid_dates = np.array(dates)[I]
+            valid_dates = np.array(available_dates)[I]
             valid_sources = [
                 MODISSource(
                     product=self.product,
@@ -245,7 +248,7 @@ class MODISComposite(S3Mixin, DataCompositor):
                 for date in valid_dates
             ]
             sources.extend(valid_sources)
-        self.sources = sources
+        self.set_trait("sources", sources)
         return sources
 
 

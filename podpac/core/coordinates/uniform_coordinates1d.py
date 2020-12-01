@@ -240,7 +240,9 @@ class UniformCoordinates1d(Coordinates1d):
                 start, stop = stop, start
 
         # empty slice
-        if start > stop and step > 0:
+        if ((start > stop) and np.array(step).astype(float) > 0) or (
+            (start < stop) and np.array(step).astype(float) < 0
+        ):
             return ArrayCoordinates1d([], **self.properties)
         return UniformCoordinates1d(start, stop, step, **self.properties)
 

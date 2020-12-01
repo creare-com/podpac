@@ -127,7 +127,7 @@ class RasterioBase(LoadFileMixin, BaseFileSource):
             raster_data = self.dataset.read(out_shape=(len(self.outputs),) + tuple(coordinates.shape), window=window)
             raster_data = np.moveaxis(raster_data, 0, 2)
         else:  # read the requested band
-            raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
+            raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape)[:2], window=window)
 
         # set raster data to output array
         data.data.ravel()[:] = raster_data.ravel()

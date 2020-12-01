@@ -593,6 +593,8 @@ class StackedCoordinates(BaseCoordinates):
 
             mine = self.flatten().coordinates
             other = other.flatten().transpose(*self.dims).coordinates
+            if len(mine.shape) > len(other.shape):
+                other = other.reshape(-1, 1)
             return set(map(tuple, mine)).issubset(map(tuple, other))
 
         elif isinstance(other, Coordinates):
