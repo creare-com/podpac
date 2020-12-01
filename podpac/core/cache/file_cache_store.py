@@ -188,7 +188,7 @@ class FileCacheStore(CacheStore):
         # deserialize
         if path.endswith(".uda.nc"):
             x = xr.open_dataarray(s)
-            data = podpac.core.units.UnitsDataArray(x)
+            data = podpac.core.units.UnitsDataArray(x)._pp_deserialize()
         elif path.endswith(".xrda.nc"):
             data = xr.open_dataarray(s)
         elif path.endswith(".xrds.nc"):
