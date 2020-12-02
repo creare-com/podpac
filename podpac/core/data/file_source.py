@@ -185,6 +185,8 @@ class FileKeysMixin(tl.HasTraits):
 
     @tl.default("data_key")
     def _default_data_key(self):
+        if self.output:
+            return self.output
         if len(self.available_data_keys) == 1:
             return self.available_data_keys[0]
         else:

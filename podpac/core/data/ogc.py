@@ -15,7 +15,7 @@ from podpac.core.data.datasource import DataSource
 from podpac.core.interpolation.interpolation import InterpolationMixin
 from podpac.core.node import NodeException
 from podpac.core.coordinates import Coordinates
-from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d
+from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d, Coordinates1d, StackedCoordinates
 
 # Optional dependencies
 from lazy_import import lazy_module, lazy_class
@@ -69,6 +69,7 @@ class WCSBase(DataSource):
 
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _evaluated_coordinates = tl.Instance(Coordinates)
+    coordinate_index_type = "slice"
 
     @cached_property
     def client(self):
@@ -129,6 +130,14 @@ class WCSBase(DataSource):
         ValueError
             Cannot evaluate these coordinates
         """
+        # remove extra dimensions
+        extra = [
+            c.name
+            for c in coordinates.values()
+            if (isinstance(c, Coordinates1d) and c.name not in self.coordinates.udims)
+            or (isinstance(c, StackedCoordinates) and all(dim not in self.coordinates.udims for dim in c.dims))
+        ]
+        coordinates = coordinates.drop(extra)
 
         # the datasource does do this, but we need to do it here to correctly select the correct case
         if self.coordinates.crs.lower() != coordinates.crs.lower():

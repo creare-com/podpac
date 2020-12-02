@@ -57,6 +57,7 @@ class PyDAPBase(authentication.RequestsSessionMixin, DataSource):
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     _repr_keys = ["source", "interpolation"]
+    coordinate_index_type = "slice"
 
     # hostname for RequestsSession is source. Try parsing off netloc
     @tl.default("hostname")
