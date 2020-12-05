@@ -49,7 +49,9 @@ class DataCompositor(BaseCompositor):
         for arr in data_arrays:
             res = res.combine_first(arr)
             obounds = arr.attrs.get("bounds", {})
-            bounds = {k: (min(bounds[k][0], obounds[k][0]), max(bounds[k][1], obounds[k][1])) for k in bounds}
+            bounds = {
+                k: (min(bounds[k][0], obounds[k][0]), max(bounds[k][1], obounds[k][1])) for k in bounds if k in obounds
+            }
         res = UnitsDataArray(res)
         if bounds:
             res.attrs["bounds"] = bounds

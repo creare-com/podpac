@@ -938,7 +938,7 @@ class ResampleReduce(UnaryAlgorithm):
     ----------
     custom_reduce_fn : function
         required if reduce_fn is 'custom'.
-    resampleby : str
+    resample : str
         datetime sub-accessor. Currently 'dayofyear' is the enabled option.
     reduce_fn : str
         builtin xarray groupby reduce function, or 'custom'.
@@ -946,11 +946,11 @@ class ResampleReduce(UnaryAlgorithm):
         Source node
     """
 
-    _repr_keys = ["source", "resampleby", "reduce_fn"]
+    _repr_keys = ["source", "resample", "reduce_fn"]
     coordinates_source = NodeTrait(allow_none=True).tag(attr=True)
 
     # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61
-    resample = tl.Unicode().tag(attr=True)  # could add season, month, etc
+    resample = tl.Unicode().tag(attr=True)
     reduce_fn = tl.CaselessStrEnum(_REDUCE_FUNCTIONS).tag(attr=True)
     custom_reduce_fn = tl.Any(allow_none=True, default_value=None).tag(attr=True)
 
@@ -980,7 +980,7 @@ class ResampleReduce(UnaryAlgorithm):
         Raises
         ------
         ValueError
-            If source it not time-depended (required by this node).
+            If source it not time-dependent (required by this node).
         """
 
         source_output = self.source.eval(coordinates, _selector=_selector)
@@ -996,11 +996,8 @@ class ResampleReduce(UnaryAlgorithm):
             out = getattr(grouped, self.reduce_fn)()
 
         if output is None:
-            coords = podpac.coordinates.merge_dims(
-                [coordinates.drop("time"), Coordinates([out.coords["time"]], ["time"])]
-            )
-            coords = coords.transpose(*out.dims)
-            output = self.create_output_array(coords, data=out.data)
+            output = podpac.UnitsDataArray(out)
+            output.attrs = source_output.attrs
         else:
             output.data[:] = out.data[:]
 

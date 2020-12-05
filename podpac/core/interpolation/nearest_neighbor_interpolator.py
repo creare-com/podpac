@@ -277,7 +277,7 @@ class NearestNeighbor(Interpolator):
         if self.respect_bounds:
             rindex[(rindex < 0) | (rindex >= stop_ind)] = -1
         else:
-            rindex = np.clip(rindex, 0, stop_ind)
+            rindex = np.clip(rindex, 0, stop_ind - 1)
         if tol and tol != np.inf:
             if dim == "time":
                 step = self._time_to_float(source.step, source, request)
