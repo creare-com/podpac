@@ -7,6 +7,7 @@ import numpy as np
 from dateutil import parser
 import requests
 import json
+import logging
 
 try:
     import cPickle  # Python 2.7
@@ -25,6 +26,8 @@ import podpac
 from podpac.core.utils import cached_property
 from podpac.core.compositor.data_compositor import DataCompositor
 from podpac.core.interpolation.interpolation import InterpolationMixin
+
+_logger = logging.getLogger(__name__)
 
 
 def _convert_str_to_vals(properties):
@@ -53,6 +56,8 @@ class COSMOSStation(podpac.data.DataSource):
 
     @cached_property
     def raw_data(self):
+        _logger.info("Downloading station data from {}".format(self.station_data_url))
+
         r = requests.get(self.station_data_url)
         return r.text
 
