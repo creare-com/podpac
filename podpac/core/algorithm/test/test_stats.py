@@ -7,8 +7,8 @@ import scipy.stats
 import traitlets as tl
 
 import podpac
-from podpac.core.algorithm.utility import Arange
-from podpac.core.data.array_source import Array
+from podpac.data import Array
+from podpac.algorithm import Arange
 from podpac.core.algorithm.stats import Reduce
 from podpac.core.algorithm.stats import Min, Max, Sum, Count, Mean, Variance, Skew, Kurtosis, StandardDeviation
 from podpac.core.algorithm.generic import Arithmetic

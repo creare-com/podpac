@@ -5,6 +5,7 @@ import pytest
 import numpy as np
 
 import podpac
+from podpac.core.interpolation.interpolation import Interpolate
 from podpac.core.data.datasource import DataSource
 from podpac.core.data.array_source import Array
 from podpac.core.algorithm.utility import Arange
@@ -113,11 +114,15 @@ class TestYearSubstituteCoordinates(object):
         np.testing.assert_array_equal(o["time"], COORDS["time"].coordinates)
 
     def test_year_substitution_missing_coords(self):
-        source = Array(
-            source=[[1, 2, 3], [4, 5, 6]],
-            coordinates=podpac.Coordinates(
-                [podpac.crange("2018-01-01", "2018-01-02", "1,D"), podpac.clinspace(45, 66, 3)], dims=["time", "lat"]
+        source = Interpolate(
+            source=Array(
+                source=[[1, 2, 3], [4, 5, 6]],
+                coordinates=podpac.Coordinates(
+                    [podpac.crange("2018-01-01", "2018-01-02", "1,D"), podpac.clinspace(45, 66, 3)],
+                    dims=["time", "lat"],
+                ),
             ),
+            interpolation="nearest",
         )
         node = YearSubstituteCoordinates(source=source, year="2018")
         o = node.eval(COORDS)
@@ -125,11 +130,15 @@ class TestYearSubstituteCoordinates(object):
         assert o["time"].data != xr.DataArray(COORDS["time"].coordinates).data
 
     def test_year_substitution_missing_coords_orig_coords(self):
-        source = Array(
-            source=[[1, 2, 3], [4, 5, 6]],
-            coordinates=podpac.Coordinates(
-                [podpac.crange("2018-01-01", "2018-01-02", "1,D"), podpac.clinspace(45, 66, 3)], dims=["time", "lat"]
+        source = Interpolate(
+            source=Array(
+                source=[[1, 2, 3], [4, 5, 6]],
+                coordinates=podpac.Coordinates(
+                    [podpac.crange("2018-01-01", "2018-01-02", "1,D"), podpac.clinspace(45, 66, 3)],
+                    dims=["time", "lat"],
+                ),
             ),
+            interpolation="nearest",
         )
         node = YearSubstituteCoordinates(source=source, year="2018", substitute_eval_coords=True)
         o = node.eval(COORDS)
@@ -137,7 +146,10 @@ class TestYearSubstituteCoordinates(object):
         np.testing.assert_array_equal(o["time"], COORDS["time"].coordinates)
 
     def test_year_substitution_multiple_outputs(self):
-        multi = Array(source=np.random.random(COORDS.shape + (2,)), coordinates=COORDS, outputs=["a", "b"])
+        multi = Interpolate(
+            source=Array(source=np.random.random(COORDS.shape + (2,)), coordinates=COORDS, outputs=["a", "b"]),
+            interpolation="nearest",
+        )
         node = YearSubstituteCoordinates(source=multi, year="2018")
         o = node.eval(COORDS)
         assert o.time.dt.year.data[0] == 2018

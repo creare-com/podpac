@@ -546,7 +546,7 @@ class SoilSCAPENode(podpac.core.data.dataset_source.DatasetBase):
         return "soil_moist_20min_{site}_n{node}".format(site=self.site, node=self.node)
 
 
-class SoilSCAPE20minBase(podpac.core.compositor.data_compositor.DataCompositor):
+class SoilSCAPE20min(podpac.core.compositor.data_compositor.DataCompositor):
     """SoilSCAPE 20min soil moisture data for an entire site.
 
     Data is loaded from the THREDDS https fileserver.
@@ -630,10 +630,6 @@ class SoilSCAPE20minBase(podpac.core.compositor.data_compositor.DataCompositor):
     @property
     def available_sites(self):
         return list(NODES.keys())
-
-
-class SoilSCAPE20min(podpac.core.interpolation.interpolation.InterpolationMixin, SoilSCAPE20minBase):
-    pass
 
 
 def test_soilscape():

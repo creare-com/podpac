@@ -8,7 +8,6 @@ import podpac
 from podpac.utils import cached_property
 from podpac.data import DataSource
 from podpac.core.compositor.tile_compositor import TileCompositor, UniformTileCompositor, UniformTileMixin
-from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 class MockTile(UniformTileMixin, podpac.data.DataSource):
@@ -19,7 +18,7 @@ class MockTile(UniformTileMixin, podpac.data.DataSource):
         return self.create_output_array(coordinates, data=self.data[coordinates_index] + self.x)
 
 
-class MockTileCompositor(InterpolationMixin, UniformTileCompositor):
+class MockTileCompositor(UniformTileCompositor):
     shape = (3, 3, 3)
 
     @cached_property

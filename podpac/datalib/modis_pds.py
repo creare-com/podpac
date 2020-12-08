@@ -15,7 +15,6 @@ from podpac.utils import cached_property
 from podpac.compositor import DataCompositor
 from podpac.core.data.rasterio_source import RasterioBase
 from podpac.authentication import S3Mixin
-from podpac.interpolators import InterpolationMixin
 
 _logger = logging.getLogger(__name__)
 
@@ -250,10 +249,6 @@ class MODISComposite(S3Mixin, DataCompositor):
             sources.extend(valid_sources)
         self.set_trait("sources", sources)
         return sources
-
-
-class MODIS(InterpolationMixin, MODISComposite):
-    pass
 
 
 if __name__ == "__main__":

@@ -46,50 +46,6 @@ class TestReprojectedSource(object):
         node = ReprojectedSource(source=source, reprojected_coordinates=source.coordinates)
         output = node.eval(node.coordinates)
 
-    def test_source_interpolation(self):
-        """test get data from reprojected source"""
-
-        # no source_interpolation
-        source = Array(source=self.data, coordinates=self.coordinates, interpolation="nearest")
-        node = ReprojectedSource(source=source, reprojected_coordinates=self.reprojected_coordinates)
-        assert source.interpolation == "nearest"
-        assert node.source.interpolation == "nearest"
-        assert node.eval_source.interpolation == "nearest"
-        assert node.eval_source.coordinates == source.coordinates
-        np.testing.assert_array_equal(node.eval_source.source, source.source)
-
-        # matching source_interpolation
-        source = Array(source=self.data, coordinates=self.coordinates, interpolation="nearest")
-        node = ReprojectedSource(
-            source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="nearest"
-        )
-        assert source.interpolation == "nearest"
-        assert node.source.interpolation == "nearest"
-        assert node.eval_source.interpolation == "nearest"
-        assert node.eval_source.coordinates == source.coordinates
-        np.testing.assert_array_equal(node.eval_source.source, source.source)
-
-        # non-matching source_interpolation
-        source = Array(source=self.data, coordinates=self.coordinates, interpolation="nearest")
-        node = ReprojectedSource(
-            source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="bilinear"
-        )
-        assert source.interpolation == "nearest"
-        assert node.source.interpolation == "nearest"
-        assert node.eval_source.interpolation == "bilinear"
-        assert node.eval_source.coordinates == source.coordinates
-        np.testing.assert_array_equal(node.eval_source.source, source.source)
-
-        # no source.interpolation to set (trigger logger warning)
-        source = Node()
-        node = ReprojectedSource(
-            source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="bilinear"
-        )
-
-    def test_interpolation_warning(self):
-        node = ReprojectedSource(source=Arange(), reprojected_coordinates=self.coordinates)
-        output = node.eval(node.coordinates)
-
     def test_base_ref(self):
         """test base ref"""
 

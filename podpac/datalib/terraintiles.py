@@ -44,7 +44,6 @@ import numpy as np
 import podpac
 from podpac.core.data.rasterio_source import RasterioBase
 from podpac.compositor import DataCompositor
-from podpac.interpolators import InterpolationMixin
 from podpac.interpolators import RasterioInterpolator, ScipyGrid, ScipyPoint
 from podpac.data import InterpolationTrait
 from podpac.utils import cached_property

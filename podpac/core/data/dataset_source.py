@@ -4,11 +4,10 @@ import traitlets as tl
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin, LoadFileMixin
-from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 @common_doc(COMMON_DATA_DOC)
-class DatasetBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
+class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
     """Create a DataSource node using xarray.open_dataset.
 
     Attributes
@@ -52,7 +51,7 @@ class DatasetBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
         return xr.open_dataset(fp)
 
     def close_dataset(self):
-        super(DatasetBase, self).close_dataset()
+        super(Dataset, self).close_dataset()
         self.dataset.close()
 
     @cached_property
@@ -78,7 +77,3 @@ class DatasetBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
             data = data.transpose(*tdims)
 
         return self.create_output_array(coordinates, data.data[coordinates_index])
-
-
-class Dataset(InterpolationMixin, DatasetBase):
-    pass

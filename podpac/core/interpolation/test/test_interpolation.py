@@ -18,40 +18,19 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node
 from podpac.core.coordinates import Coordinates
 from podpac.core.interpolation.interpolation_manager import InterpolationException
-from podpac.core.interpolation.interpolation import Interpolate, InterpolationMixin
-from podpac.core.data.array_source import Array, ArrayBase
+from podpac.core.interpolation.interpolation import Interpolate
+from podpac.core.data.array_source import Array
 from podpac.core.compositor.data_compositor import DataCompositor
 from podpac.core.compositor.ordered_compositor import OrderedCompositor
 from podpac.core.interpolation.scipy_interpolator import ScipyGrid
 
 
-class TestInterpolationMixin(object):
-    def test_interpolation_mixin(self):
-        class InterpArray(InterpolationMixin, ArrayBase):
-            pass
-
-        data = np.random.rand(4, 5)
-        native_coords = Coordinates([np.linspace(0, 3, 4), np.linspace(0, 4, 5)], ["lat", "lon"])
-        coords = Coordinates([np.linspace(0, 3, 7), np.linspace(0, 4, 9)], ["lat", "lon"])
-
-        iarr_src = InterpArray(source=data, coordinates=native_coords, interpolation="bilinear")
-        arr_src = Array(source=data, coordinates=native_coords, interpolation="bilinear")
-        arrb_src = ArrayBase(source=data, coordinates=native_coords)
-
-        iaso = iarr_src.eval(coords)
-        aso = arr_src.eval(coords)
-        abso = arrb_src.eval(coords)
-
-        np.testing.assert_array_equal(iaso.data, aso.data)
-        np.testing.assert_array_equal(abso.data, data)
-
-
 class TestInterpolation(object):
-    s1 = ArrayBase(
+    s1 = Array(
         source=np.random.rand(9, 15),
         coordinates=Coordinates([np.linspace(0, 8, 9), np.linspace(0, 14, 15)], ["lat", "lon"]),
     )
-    s2 = ArrayBase(
+    s2 = Array(
         source=np.random.rand(9, 15),
         coordinates=Coordinates([np.linspace(9, 17, 9), np.linspace(0, 14, 15)], ["lat", "lon"]),
     )
@@ -92,7 +71,7 @@ class TestInterpolationBehavior(object):
         for dim in ["lat", "lon", "alt", "time"]:
             ec = Coordinates([raw_e_coords], [dim])
 
-            arrb = ArrayBase(source=data, coordinates=Coordinates([raw_coords], [dim]))
+            arrb = Array(source=data, coordinates=Coordinates([raw_coords], [dim]))
             node = Interpolate(source=arrb, interpolation="linear")
             o = node.eval(ec)
 
@@ -103,7 +82,7 @@ class TestInterpolationBehavior(object):
         raw_et_coords = ["2020-11-01", "2020-11-02", "2020-11-03", "2020-11-04", "2020-11-05"]
         ec = Coordinates([raw_et_coords], ["time"])
 
-        arrb = ArrayBase(source=data, coordinates=Coordinates([raw_coords], ["time"]))
+        arrb = Array(source=data, coordinates=Coordinates([raw_coords], ["time"]))
         node = Interpolate(source=arrb, interpolation="linear")
         o = node.eval(ec)
 
@@ -112,10 +91,12 @@ class TestInterpolationBehavior(object):
         )
 
     def test_stacked_coords_with_partial_dims_issue123(self):
-        node = Array(
-            source=[0, 1, 2],
-            coordinates=Coordinates(
-                [[[0, 2, 1], [10, 12, 11], ["2018-01-01", "2018-01-02", "2018-01-03"]]], dims=["lat_lon_time"]
+        node = Interpolate(
+            source=Array(
+                source=[0, 1, 2],
+                coordinates=Coordinates(
+                    [[[0, 2, 1], [10, 12, 11], ["2018-01-01", "2018-01-02", "2018-01-03"]]], dims=["lat_lon_time"]
+                ),
             ),
             interpolation="nearest",
         )
@@ -132,9 +113,8 @@ class TestInterpolationBehavior(object):
         assert o3.data[0] == 0
 
     def test_ignored_interpolation_params_issue340(self, caplog):
-        node = Array(
-            source=[0, 1, 2],
-            coordinates=Coordinates([[0, 2, 1]], dims=["time"]),
+        node = Interpolate(
+            source=Array(source=[0, 1, 2], coordinates=Coordinates([[0, 2, 1]], dims=["time"])),
             interpolation={"method": "nearest", "params": {"fake_param": 1.1, "spatial_tolerance": 1}},
         )
 
@@ -145,33 +125,29 @@ class TestInterpolationBehavior(object):
         assert "interpolation parameter 'spatial_tolerance' was ignored" not in caplog.text
 
     def test_silent_nearest_neighbor_interp_bug_issue412(self):
-        node = podpac.data.Array(
-            source=[0, 1, 2],
-            coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),
+        node = Interpolate(
+            source=Array(source=[0, 1, 2], coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"])),
             interpolation=[{"method": "bilinear", "dims": ["lat"], "interpolators": [ScipyGrid]}],
         )
+
         with pytest.raises(InterpolationException, match="can't be handled"):
             o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
 
-        node = podpac.data.Array(
-            source=[0, 1, 2],
-            coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),
+        node = Interpolate(
+            source=Array(source=[0, 1, 2], coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"])),
             interpolation=[{"method": "bilinear", "dims": ["lat"]}],
         )
         o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
         assert_array_equal(o.data, np.linspace(0, 2, 9))
 
     def test_selection_crs(self):
-        base = podpac.core.data.array_source.ArrayBase(
+        base = Array(
             source=[0, 1, 2],
             coordinates=podpac.Coordinates(
                 [[1, 5, 9]], dims=["time"], crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m"
             ),
         )
-        node = podpac.interpolators.Interpolate(
-            source=base,
-            interpolation="linear",
-        )
+        node = podpac.interpolators.Interpolate(source=base, interpolation="linear")
         tocrds = podpac.Coordinates([podpac.crange(1, 9, 1, "time")], crs="EPSG:4326")
         o = node.eval(tocrds)
         assert o.crs == tocrds.crs

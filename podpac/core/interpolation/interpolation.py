@@ -19,19 +19,6 @@ from podpac.core.interpolation.interpolation_manager import InterpolationManager
 _logger = logging.getLogger(__name__)
 
 
-class InterpolationMixin(tl.HasTraits):
-    interpolation = InterpolationTrait().tag(attr=True)
-    _interp_node = None
-
-    def _eval(self, coordinates, output=None, _selector=None):
-        node = Interpolate(interpolation=self.interpolation)
-        node._set_interpolation()
-        selector = node._interpolation.select_coordinates
-        node._source_xr = super()._eval(coordinates, _selector=selector)
-        self._interp_node = node
-        return node.eval(coordinates, output=output)
-
-
 class Interpolate(Node):
     """Node to used to interpolate from self.source.coordinates to the user-specified, evaluated coordinates.
 

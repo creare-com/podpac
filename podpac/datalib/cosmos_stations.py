@@ -25,7 +25,6 @@ bs4 = lazy_module("bs4")
 import podpac
 from podpac.core.utils import cached_property
 from podpac.core.compositor.data_compositor import DataCompositor
-from podpac.core.interpolation.interpolation import InterpolationMixin
 
 _logger = logging.getLogger(__name__)
 
@@ -370,8 +369,10 @@ class COSMOSStationsRaw(DataCompositor):
         return [self.stations_data["items"][i] for i in inds]
 
 
-class COSMOSStations(InterpolationMixin, COSMOSStationsRaw):
-    pass
+class COSMOSStations(Interpolate):
+    @property
+    def source(self):
+        return COSMOSStationsRaw(TODO)
 
 
 if __name__ == "__main__":
