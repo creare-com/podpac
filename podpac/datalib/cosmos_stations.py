@@ -5,7 +5,6 @@ import traitlets as tl
 import re
 import numpy as np
 from dateutil import parser
-import requests
 import json
 import logging
 
@@ -58,7 +57,11 @@ class COSMOSStation(podpac.data.DataSource):
     def raw_data(self):
         _logger.info("Downloading station data from {}".format(self.station_data_url))
 
-        r = requests.get(self.station_data_url)
+        r = _get_from_url(self.station_data_url)
+        if r is None:
+            raise ConnectionError(
+                "COSMOS data cannot be retrieved. Is the site {} down?".format(self.station_calibration_url)
+            )
         return r.text
 
     @cached_property
@@ -121,13 +124,22 @@ class COSMOSStation(podpac.data.DataSource):
 
     @cached_property(use_cache_ctrl=True)
     def calibration_data(self):
-        cd = _get_from_url(self.station_calibration_url).json()
+        cd = _get_from_url(self.station_calibration_url)
+        if cd is None:
+            raise ConnectionError(
+                "COSMOS data cannot be retrieved. Is the site {} down?".format(self.station_calibration_url)
+            )
+        cd = cd.json()
         cd["items"] = [_convert_str_to_vals(i) for i in cd["items"]]
         return cd
 
     @cached_property(use_cache_ctrl=True)
     def site_properties(self):
         r = _get_from_url(self.station_properties_url)
+        if r is None:
+            raise ConnectionError(
+                "COSMOS data cannot be retrieved. Is the site {} down?".format(self.station_properties_url)
+            )
         soup = bs4.BeautifulSoup(r.text, "lxml")
         regex = re.compile("Soil Organic Carbon")
         loc = soup.body.findAll(text=regex)[0].parent.parent
@@ -154,6 +166,9 @@ class COSMOSStationsRaw(DataCompositor):
     def _stations_data_raw(self):
         url = self.url + self.stations_url
         r = _get_from_url(url)
+        if r is None:
+            raise ConnectionError("COSMOS data cannot be retrieved. Is the site {} down?".format(url))
+
         t = r.text
 
         # Fix the JSON
