@@ -49,6 +49,12 @@ class TileCompositorRaw(BaseCompositor):
         bounds = res.attrs.get("bounds", {})
         for arr in data_arrays:
             res = res.combine_first(arr)
+
+            # combine_first overrides MultiIndex names, even if they match. Reset them here:
+            for dim, index in res.indexes.items():
+                if isinstance(index, pd.MultiIndex):
+                    res = res.reindex({dim: pd.MultiIndex.from_tuples(index.values, names=arr.indexes[dim].names)})
+
             obounds = arr.attrs.get("bounds", {})
             bounds = {
                 k: (min(bounds[k][0], obounds[k][0]), max(bounds[k][1], obounds[k][1])) for k in bounds if k in obounds
