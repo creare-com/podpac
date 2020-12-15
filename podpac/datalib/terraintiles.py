@@ -43,7 +43,7 @@ import numpy as np
 
 import podpac
 from podpac.core.data.rasterio_source import RasterioBase
-from podpac.compositor import DataCompositor
+from podpac.compositor import TileCompositorRaw
 from podpac.interpolators import InterpolationMixin
 from podpac.interpolators import RasterioInterpolator, ScipyGrid, ScipyPoint
 from podpac.data import InterpolationTrait
@@ -136,7 +136,7 @@ class TerrainTilesSource(RasterioBase):
         return coordinates
 
 
-class TerrainTilesComposite(DataCompositor):
+class TerrainTilesComposite(TileCompositorRaw):
     """Terrain Tiles gridded elevation tiles data library
 
     Hosted on AWS S3

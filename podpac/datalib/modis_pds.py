@@ -12,7 +12,7 @@ import traitlets as tl
 
 import podpac
 from podpac.utils import cached_property
-from podpac.compositor import DataCompositor
+from podpac.compositor import TileCompositorRaw
 from podpac.core.data.rasterio_source import RasterioBase
 from podpac.authentication import S3Mixin
 from podpac.interpolators import InterpolationMixin
@@ -179,7 +179,7 @@ class MODISSource(RasterioBase):
         return podpac.coordinates.merge_dims([spatial_coords, time_coords])
 
 
-class MODISComposite(S3Mixin, DataCompositor):
+class MODISComposite(S3Mixin, TileCompositorRaw):
     """MODIS whole-world compositor.
     For documentation about the data, start here: https://ladsweb.modaps.eosdis.nasa.gov/search/order/1
     For information about the bands, see here: https://modis.gsfc.nasa.gov/about/specifications.php

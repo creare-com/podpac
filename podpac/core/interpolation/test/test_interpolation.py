@@ -20,7 +20,7 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.interpolation.interpolation_manager import InterpolationException
 from podpac.core.interpolation.interpolation import Interpolate, InterpolationMixin
 from podpac.core.data.array_source import Array, ArrayBase
-from podpac.core.compositor.data_compositor import DataCompositor
+from podpac.core.compositor.tile_compositor import TileCompositorRaw
 from podpac.core.compositor.ordered_compositor import OrderedCompositor
 from podpac.core.interpolation.scipy_interpolator import ScipyGrid
 
@@ -76,7 +76,7 @@ class TestInterpolation(object):
         assert node.json == self.interp.json
 
     def test_compositor_chain(self):
-        dc = DataCompositor(sources=[self.s2, self.s1])
+        dc = TileCompositorRaw(sources=[self.s2, self.s1])
         node = Interpolate(source=dc, interpolation="nearest")
         o = node.eval(self.coords2)
 
@@ -168,10 +168,7 @@ class TestInterpolationBehavior(object):
                 [[1, 5, 9]], dims=["time"], crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m"
             ),
         )
-        node = podpac.interpolators.Interpolate(
-            source=base,
-            interpolation="linear",
-        )
+        node = podpac.interpolators.Interpolate(source=base, interpolation="linear")
         tocrds = podpac.Coordinates([podpac.crange(1, 9, 1, "time")], crs="EPSG:4326")
         o = node.eval(tocrds)
         assert o.crs == tocrds.crs

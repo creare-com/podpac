@@ -1,20 +1,19 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from six import string_types
-import traitlets as tl
 import re
-import numpy as np
-from dateutil import parser
 import json
 import logging
+from six import string_types
+from dateutil import parser
+from io import StringIO
 
 try:
     import cPickle  # Python 2.7
 except:
     import _pickle as cPickle
-from io import StringIO
 
-from podpac.core.utils import _get_from_url
+import numpy as np
+import traitlets as tl
 
 # Optional dependencies
 from lazy_import import lazy_module
@@ -22,9 +21,10 @@ from lazy_import import lazy_module
 bs4 = lazy_module("bs4")
 
 import podpac
-from podpac.core.utils import cached_property
-from podpac.core.compositor.data_compositor import DataCompositor
-from podpac.core.interpolation.interpolation import InterpolationMixin
+from podpac.core.utils import _get_from_url, cached_property
+from podpac.data import DataSource
+from podpac.compositor import TileCompositorRaw
+from podpac.interpolators import InterpolationMixin
 
 _logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ def _convert_str_to_vals(properties):
     return properties
 
 
-class COSMOSStation(podpac.data.DataSource):
+class COSMOSStation(DataSource):
     _repr_keys = ["label", "network", "location"]
 
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/StationDat/")
@@ -152,7 +152,7 @@ class COSMOSStation(podpac.data.DataSource):
         return _convert_str_to_vals(properties)
 
 
-class COSMOSStationsRaw(DataCompositor):
+class COSMOSStationsRaw(TileCompositorRaw):
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/")
     stations_url = tl.Unicode("sitesNoLegend.js")
     dims = ["lat", "lon", "time"]

@@ -310,3 +310,7 @@ class Sentinel2(SatUtils):
     """
 
     collection = "sentinel-2-l1c"
+
+
+if __name__ == "__main__":
+    landsat8 = Landsat8(asset="B1")

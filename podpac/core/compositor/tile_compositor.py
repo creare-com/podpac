@@ -1,129 +1,66 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import numpy as np
+import xarray as xr
+import pandas as pd
 import traitlets as tl
 
-import podpac
-from podpac.core.coordinates import Coordinates
+from podpac.core.utils import common_doc
+from podpac.core.compositor.compositor import COMMON_COMPOSITOR_DOC, BaseCompositor
 from podpac.core.units import UnitsDataArray
-from podpac.core.utils import common_doc, cached_property, ind2slice
-from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC
+from podpac.core.interpolation.interpolation import InterpolationMixin
+from podpac.core.coordinates import Coordinates
 
 
-@common_doc(COMMON_DATA_DOC)
-class TileCompositor(DataSource):
-    """Composite tiled datasources.
+@common_doc(COMMON_COMPOSITOR_DOC)
+class TileCompositorRaw(BaseCompositor):
+    """Compositor that combines tiled sources.
 
-    Attributes
-    ----------
-    sources : list
-        The tiled data sources.
-    coordinates : :class:`podpac.Coordinates`
-        Coordinates encompassing all of the tiled sources.
-
-    Notes
-    -----
-    This compositor aggregates source data first and then interpolates the requested coordinates.
-    """
-
-    @property
-    def sources(self):
-        """Tiled data sources (using the TileMixin).
-
-        Child classes should define these sources including a reference to itself and the tile_coordinates_index.
-        """
-
-        raise NotImplementedError()
-
-    def get_data(self, coordinates, coordinates_index):
-        """{get_data}"""
-
-        output = self.create_output_array(coordinates)
-        for source in self.sources:
-            c, I = source.coordinates.intersect(coordinates, outer=True, return_index=True)
-            if c.size == 0:
-                continue
-            source_data = source.get_data(c, I)
-            output.loc[source_data.coords] = source_data.data
-
-        return output
-
-
-@common_doc(COMMON_DATA_DOC)
-class UniformTileCompositor(TileCompositor):
-    """Composite a grid of uniformly tiled datasources.
+    The requested data does not need to be interpolated by the sources before being composited
 
     Attributes
     ----------
     sources : list
-        The tiled data sources.
-    coordinates : :class:`podpac.Coordinates`
-        Coordinates encompassing all of the tiled sources.
-    shape : tuple
-        shape of the tile grid
-    tile_width : tuple
-        shape of the coordinates for each tile
-
-    Notes
-    -----
-    This compositor aggregates source data first and then interpolates the requested coordinates.
+        Source nodes (tiles). The sources should not be overlapping.
+    source_coordinates : :class:`podpac.Coordinates`
+        Coordinates that make each source unique. Must the same size as ``sources`` and single-dimensional. Optional.
     """
 
-    shape = tl.Tuple()
-    _repr_keys = ["shape"]
+    @common_doc(COMMON_COMPOSITOR_DOC)
+    def composite(self, coordinates, data_arrays, result=None):
+        """Composites data_arrays (tiles) into a single result.
 
-    @property
-    def sources(self):
-        """Tiled data sources (using the UniformTileMixin).
+        Parameters
+        ----------
+        coordinates : :class:`podpac.Coordinates`
+            {requested_coordinates}
+        data_arrays : generator
+            Evaluated source data.
+        result : podpac.UnitsDataArray, optional
+            {eval_output}
 
-        Child classes should define these sources including a reference to itself and the tile index in the grid.
+        Returns
+        -------
+        {eval_return} This composites tiled sources into a single result.
         """
 
-        raise NotImplementedError()
+        # TODO: Fix boundary information on the combined data arrays
+        res = next(data_arrays)
+        bounds = res.attrs.get("bounds", {})
+        for arr in data_arrays:
+            res = res.combine_first(arr)
+            obounds = arr.attrs.get("bounds", {})
+            bounds = {
+                k: (min(bounds[k][0], obounds[k][0]), max(bounds[k][1], obounds[k][1])) for k in bounds if k in obounds
+            }
+        res = UnitsDataArray(res)
+        if bounds:
+            res.attrs["bounds"] = bounds
+        if result is not None:
+            result.data[:] = res.transpose(*result.dims).data
+            return result
+        return res
 
-    @cached_property
-    def tile_width(self):
-        """Tuple of the number of coordinates that the tile covers in each dimension."""
-        return tuple(int(n / m) for n, m in zip(self.coordinates.shape, self.shape))
 
-
-@common_doc(COMMON_DATA_DOC)
-class UniformTileMixin(tl.HasTraits):
-    """DataSource mixin for uniform tiles in a grid.
-
-    Defines the tile coordinates from the grid coordinates using the tile position in the grid.
-
-    Attributes
-    ----------
-    grid : TileCompositor
-        tiling compositor containing the grid coordinates, grid shape, and tile sources
-    tile : tuple
-        index for this tile in the grid
-    width : tuple
-        width
-    """
-
-    grid = tl.Instance(TileCompositor)
-    tile = tl.Tuple()
-
-    @tl.validate("tile")
-    def _validate_tile(self, d):
-        tile = d["value"]
-        if len(tile) != len(self.grid.shape):
-            raise ValueError("tile index does not match grid shape (%d != %d)" % (len(tile), len(self.grid.shape)))
-        if not all(0 <= i < n for (i, n) in zip(tile, self.grid.shape)):
-            raise ValueError("tile index %s out of range for grid shape %s)" % (len(tile), len(self.grid.shape)))
-        return tile
-
-    @property
-    def width(self):
-        return self.grid.tile_width
-
-    def get_coordinates(self):
-        """{get_coordinates}"""
-        Is = tuple(slice(w * i, w * (i + 1)) for i, w in zip(self.tile, self.width))
-        return self.grid.coordinates[Is]
-
-    @property
-    def _repr_keys(self):
-        return super(UniformTileMixin, self)._repr_keys + ["tile"]
+class TileCompositor(InterpolationMixin, TileCompositorRaw):
+    pass
