@@ -12,10 +12,9 @@ s3fs = lazy_module("s3fs")
 # Internal imports
 from podpac.core.data.rasterio_source import RasterioBase
 from podpac.core.compositor.data_compositor import InterpDataCompositor
-from podpac.data import DataSource
+from podpac.core.authentication import S3Mixin
 from podpac.coordinates import Coordinates
 from podpac.utils import cached_property, DiskCacheMixin
-from podpac.core.authentication import S3Mixin
 
 BUCKET = "noaa-gfs-pds"
 
