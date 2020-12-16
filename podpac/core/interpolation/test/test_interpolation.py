@@ -19,15 +19,14 @@ from podpac.core.node import Node
 from podpac.core.coordinates import Coordinates
 from podpac.core.interpolation.interpolation_manager import InterpolationException
 from podpac.core.interpolation.interpolation import Interpolate, InterpolationMixin
-from podpac.core.data.array_source import Array, ArrayBase
+from podpac.core.data.array_source import Array, ArrayRaw
 from podpac.core.compositor.tile_compositor import TileCompositorRaw
-from podpac.core.compositor.ordered_compositor import OrderedCompositor
 from podpac.core.interpolation.scipy_interpolator import ScipyGrid
 
 
 class TestInterpolationMixin(object):
     def test_interpolation_mixin(self):
-        class InterpArray(InterpolationMixin, ArrayBase):
+        class InterpArray(InterpolationMixin, ArrayRaw):
             pass
 
         data = np.random.rand(4, 5)
@@ -36,7 +35,7 @@ class TestInterpolationMixin(object):
 
         iarr_src = InterpArray(source=data, coordinates=native_coords, interpolation="bilinear")
         arr_src = Array(source=data, coordinates=native_coords, interpolation="bilinear")
-        arrb_src = ArrayBase(source=data, coordinates=native_coords)
+        arrb_src = ArrayRaw(source=data, coordinates=native_coords)
 
         iaso = iarr_src.eval(coords)
         aso = arr_src.eval(coords)
@@ -47,11 +46,11 @@ class TestInterpolationMixin(object):
 
 
 class TestInterpolation(object):
-    s1 = ArrayBase(
+    s1 = ArrayRaw(
         source=np.random.rand(9, 15),
         coordinates=Coordinates([np.linspace(0, 8, 9), np.linspace(0, 14, 15)], ["lat", "lon"]),
     )
-    s2 = ArrayBase(
+    s2 = ArrayRaw(
         source=np.random.rand(9, 15),
         coordinates=Coordinates([np.linspace(9, 17, 9), np.linspace(0, 14, 15)], ["lat", "lon"]),
     )
@@ -92,7 +91,7 @@ class TestInterpolationBehavior(object):
         for dim in ["lat", "lon", "alt", "time"]:
             ec = Coordinates([raw_e_coords], [dim])
 
-            arrb = ArrayBase(source=data, coordinates=Coordinates([raw_coords], [dim]))
+            arrb = ArrayRaw(source=data, coordinates=Coordinates([raw_coords], [dim]))
             node = Interpolate(source=arrb, interpolation="linear")
             o = node.eval(ec)
 
@@ -103,7 +102,7 @@ class TestInterpolationBehavior(object):
         raw_et_coords = ["2020-11-01", "2020-11-02", "2020-11-03", "2020-11-04", "2020-11-05"]
         ec = Coordinates([raw_et_coords], ["time"])
 
-        arrb = ArrayBase(source=data, coordinates=Coordinates([raw_coords], ["time"]))
+        arrb = ArrayRaw(source=data, coordinates=Coordinates([raw_coords], ["time"]))
         node = Interpolate(source=arrb, interpolation="linear")
         o = node.eval(ec)
 
@@ -162,7 +161,7 @@ class TestInterpolationBehavior(object):
         assert_array_equal(o.data, np.linspace(0, 2, 9))
 
     def test_selection_crs(self):
-        base = podpac.core.data.array_source.ArrayBase(
+        base = podpac.core.data.array_source.ArrayRaw(
             source=[0, 1, 2],
             coordinates=podpac.Coordinates(
                 [[1, 5, 9]], dims=["time"], crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m"

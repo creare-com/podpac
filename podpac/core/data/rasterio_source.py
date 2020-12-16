@@ -21,7 +21,7 @@ from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 @common_doc(COMMON_DATA_DOC)
-class RasterioBase(LoadFileMixin, BaseFileSource):
+class RasterioRaw(LoadFileMixin, BaseFileSource):
     """Create a DataSource using rasterio.
 
     Attributes
@@ -40,6 +40,10 @@ class RasterioBase(LoadFileMixin, BaseFileSource):
     read_as_filename : bool, optional
         Default is False. If True, the file will be read using rasterio.open(self.source) instead of being automatically
         parsed to handle ftp, s3, in-memory files, etc.
+
+    See Also
+    --------
+    Rasterio : Interpolated rasterio datasource for general use.
     """
 
     # dataset = tl.Instance(rasterio.DatasetReader).tag(readonly=True)
@@ -57,7 +61,7 @@ class RasterioBase(LoadFileMixin, BaseFileSource):
             self.set_trait("read_from_source", True)
             return rasterio.open(self.source)
         else:
-            return super(RasterioBase, self).dataset
+            return super(RasterioRaw, self).dataset
 
     @tl.default("band")
     def _band_default(self):
@@ -207,5 +211,7 @@ class RasterioBase(LoadFileMixin, BaseFileSource):
         return matches
 
 
-class Rasterio(InterpolationMixin, RasterioBase):
+class Rasterio(InterpolationMixin, RasterioRaw):
+    """ Rasterio datasource with interpolation. """
+
     pass

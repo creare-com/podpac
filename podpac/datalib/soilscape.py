@@ -4,9 +4,9 @@ import datetime
 import traitlets as tl
 import numpy as np
 
-from podpac.core.utils import cached_property
-
 import podpac
+from podpac.core.utils import cached_property
+from podpac.interpolators import InterpolationMixin
 
 _logger = logging.getLogger(__name__)
 
@@ -473,7 +473,7 @@ def get_site_coordinates(site, time=None, depth=None):
     return podpac.Coordinates([[lats, lons], time, depth], dims=["lat_lon", "time", "alt"], crs=CRS)
 
 
-class SoilSCAPENode(podpac.core.data.dataset_source.DatasetBase):
+class SoilSCAPENode(podpac.core.data.dataset_source.DatasetRaw):
     """SoilSCAPE 20min soil moisture for a particular node.
 
     Data is loaded from the THREDDS https fileserver.
@@ -546,8 +546,8 @@ class SoilSCAPENode(podpac.core.data.dataset_source.DatasetBase):
         return "soil_moist_20min_{site}_n{node}".format(site=self.site, node=self.node)
 
 
-class SoilSCAPE20minBase(podpac.compositor.TileCompositorRaw):
-    """SoilSCAPE 20min soil moisture data for an entire site.
+class SoilSCAPE20minRaw(podpac.compositor.TileCompositorRaw):
+    """Raw SoilSCAPE 20min soil moisture data for an entire site.
 
     Data is loaded from the THREDDS https fileserver.
 
@@ -632,44 +632,7 @@ class SoilSCAPE20minBase(podpac.compositor.TileCompositorRaw):
         return list(NODES.keys())
 
 
-class SoilSCAPE20min(podpac.core.interpolation.interpolation.InterpolationMixin, SoilSCAPE20minBase):
+class SoilSCAPE20min(InterpolationMixin, SoilSCAPE20minRaw):
+    """SoilSCAPE 20min soil moisture data for an entire site, with interpolation."""
+
     pass
-
-
-def test_soilscape():
-    # 20m local file
-    node = SoilSCAPEFile(source="/home/jmilloy/Creare/Pipeline/SoilSCAPE_1339/data/soil_moist_20min_Canton_OK_n101.nc")
-    coords_source = podpac.Coordinates([node.coordinates["alt"], node.coordinates["time"][:5]], crs=CRS)
-    coords_interp_time = podpac.Coordinates(
-        [node.coordinates["alt"], "2012-01-01T12:00:00"], dims=["alt", "time"], crs=CRS
-    )
-    coords_interp_alt = podpac.Coordinates([5, node.coordinates["time"][:5]], dims=["alt", "time"], crs=CRS)
-
-    o1 = node.eval(coords_source)
-    o2 = node.eval(coords_interp_time)
-    o3 = node.eval(coords_interp_alt)
-
-    # 20m url https url
-    node = SoilSCAPEFile(
-        source="https://thredds.daac.ornl.gov/thredds/fileServer/ornldaac/1339/soil_moist_20min_Canton_OK_n101.nc"
-    )
-    node.coordinates
-    o1 = node.eval(coords_source)
-    o2 = node.eval(coords_interp_time)
-    o3 = node.eval(coords_interp_alt)
-
-    # 20m site and node
-    node = SoilSCAPENode(site="Canton_OK", node=101, cache_ctrl=["disk"])
-    node.coordinates
-    o1 = node.eval(coords_source)
-    o2 = node.eval(coords_interp_time)
-    o3 = node.eval(coords_interp_alt)
-
-    # 20m site (composite), with filtering
-    sm = SoilSCAPE20min(site="Canton_OK", cache_ctrl=["disk"])
-    coords_source = sm.make_coordinates(time=sm.sources[0].coordinates["time"][:5])
-    coords_interp_time = sm.make_coordinates(time="2016-01-01")
-    coords_interp_alt = sm.make_coordinates(time=sm.sources[0].coordinates["time"][:5], depth=5)
-    o1 = sm.eval(coords_source)
-    o2 = sm.eval(coords_interp_time)
-    o3 = sm.eval(coords_interp_alt)

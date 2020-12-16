@@ -23,7 +23,6 @@ from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES, make_coord_delt
 from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
-from podpac.core.interpolation.interpolation import Interpolate, InterpolationTrait
 
 log = logging.getLogger(__name__)
 

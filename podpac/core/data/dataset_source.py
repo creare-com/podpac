@@ -8,7 +8,7 @@ from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 @common_doc(COMMON_DATA_DOC)
-class DatasetBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
+class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
     """Create a DataSource node using xarray.open_dataset.
 
     Attributes
@@ -35,6 +35,10 @@ class DatasetBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
     extra_dim : dict
         In cases where the data contain dimensions other than ['lat', 'lon', 'time', 'alt'], these dimensions need to be selected.
         For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim=dict(channel=1)`
+
+    See Also
+    --------
+    Dataset : Interpolated xarray dataset source for general use.
     """
 
     # dataset = tl.Instance(xr.Dataset).tag(readonly=True)
@@ -52,7 +56,7 @@ class DatasetBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
         return xr.open_dataset(fp)
 
     def close_dataset(self):
-        super(DatasetBase, self).close_dataset()
+        super(DatasetRaw, self).close_dataset()
         self.dataset.close()
 
     @cached_property
@@ -80,5 +84,7 @@ class DatasetBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
         return self.create_output_array(coordinates, data.data[coordinates_index])
 
 
-class Dataset(InterpolationMixin, DatasetBase):
+class Dataset(InterpolationMixin, DatasetRaw):
+    """ xarray dataset source with interpolation. """
+
     pass

@@ -12,7 +12,7 @@ from podpac.core.compositor.compositor import COMMON_COMPOSITOR_DOC, BaseComposi
 class OrderedCompositor(BaseCompositor):
     """Compositor that combines sources based on their order in self.sources.
 
-    The requested data is interpolated by the sources before being composited.
+    The sources should generally be interpolated before being composited (i.e. not raw datasources).
 
     Attributes
     ----------

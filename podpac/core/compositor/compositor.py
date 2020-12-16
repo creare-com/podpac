@@ -17,7 +17,7 @@ from podpac.core.coordinates.utils import Dimension
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
-from podpac.core.interpolation.interpolation import InterpolationTrait
+from podpac.core.interpolation import InterpolationTrait
 from podpac.core.managers.multi_threading import thread_manager
 
 COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC

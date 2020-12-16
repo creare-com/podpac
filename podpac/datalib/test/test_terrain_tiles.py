@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from .coordinates_for_tests import COORDINATES
-from podpac.datalib.terraintiles import TerrainTiles, TerrainTilesSource, get_tile_urls
+from podpac.datalib.terraintiles import TerrainTiles, get_tile_urls
 from podpac import Coordinates, clinspace
 
 
