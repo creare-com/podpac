@@ -534,14 +534,15 @@ class InterpolationManager(object):
         # source_data = source_data.drop("output")
         # output_data = output_data.drop("output")
 
-        # TODO does this allow undesired extrapolation?
         # short circuit if the source data and requested coordinates are of shape == 1
         if source_data.size == 1 and eval_coordinates.size == 1:
             output_data.data[:] = source_data.data.flatten()[0]
             return output_data
 
         # short circuit if source_coordinates contains eval_coordinates
-        if eval_coordinates.issubset(source_coordinates):
+        # TODO handle stacked issubset of unstacked case
+        #      this case is currently skipped because of the set(eval_coordinates) == set(source_coordinates)))
+        if eval_coordinates.issubset(source_coordinates) and set(eval_coordinates) == set(source_coordinates):
             try:
                 output_data.data[:] = source_data.interp(output_data.coords, method="nearest").transpose(
                     *output_data.dims
