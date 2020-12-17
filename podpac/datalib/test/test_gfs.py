@@ -7,7 +7,7 @@ import podpac
 
 
 @pytest.mark.integration
-class TestCOSMOS(object):
+class TestGFS(object):
     parameter = "SOIM"
     level = "0-10 m DPTH"
 
