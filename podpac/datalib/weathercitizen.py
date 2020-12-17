@@ -82,12 +82,13 @@ class WeatherCitizen(InterpolationMixin, DataSource):
         projection = {"properties.time": 1, "geometry.coordinates": 1}
 
         # make sure data_key exists in dataset
-        query = {self.data_key: {"$exists": True}}
+        key = "properties.%s" % self.data_key
+        query = {key: {"$exists": True}}
 
         # handle if the user specifies and query and the data_key is already in that query
         if self.query is not None and self.data_key in self.query:
             query = deepcopy(self.query)
-            query[self.data_key]["$exists"] = True
+            query[key]["$exists"] = True
 
         # check the length of the matched items
         length = get(
@@ -149,15 +150,16 @@ class WeatherCitizen(InterpolationMixin, DataSource):
         box = [[lon_bounds[0], lat_bounds[0]], [lon_bounds[1], lat_bounds[1]]]
 
         # make sure data_key exists in dataset
-        query = {self.data_key: {"$exists": True}}
+        key = "properties.%s" % self.data_key
+        query = {key: {"$exists": True}}
 
         # handle if the user specifies and query and the data_key is already in that query
         if self.query is not None and self.data_key in self.query:
             query = deepcopy(self.query)
-            query[self.data_key]["$exists"] = True
+            query[key]["$exists"] = True
 
         # only project data key
-        projection = {self.data_key: 1}
+        projection = {key: 1}
 
         # check the length of the matched items
         length = get(
@@ -195,16 +197,7 @@ class WeatherCitizen(InterpolationMixin, DataSource):
             verbose=self.verbose,
         )
 
-        # The data_key is like 'properties.pressure', but the items are nested like {'properties': {'pressure': 1.0}}
-        # This _get function recursively handles that, but it feels like a hack. Did the weathercitizen API change?
-        def _get_nested(d, key):
-            if "." in key:
-                head, tail = key.split(".", 1)
-                return _get_nested(d[head], tail)
-            else:
-                return d[key]
-
-        data = np.array([_get_nested(item, self.data_key) for item in items])
+        data = np.array([item["properties"][self.data_key] for item in items])
 
         return self.create_output_array(coordinates, data=data)
 
