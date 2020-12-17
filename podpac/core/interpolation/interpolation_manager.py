@@ -576,7 +576,9 @@ class InterpolationManager(object):
             # interp_coordinates are essentially intermediate eval_coordinates
             interp_dims = [dim for dim, c in source_coordinates.items() if set(c.dims).issubset(udims)]
             other_dims = [dim for dim, c in eval_coordinates.items() if not set(c.dims).issubset(udims)]
-            interp_coordinates = merge_dims([source_coordinates.drop(interp_dims), eval_coordinates.drop(other_dims)])
+            interp_coordinates = merge_dims(
+                [source_coordinates.drop(interp_dims), eval_coordinates.drop(other_dims)], validate_crs=False
+            )
             interp_data = UnitsDataArray.create(interp_coordinates, dtype=dtype)
             interp_data = interpolator.interpolate(
                 udims, source_coordinates, source_data, interp_coordinates, interp_data

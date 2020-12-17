@@ -324,7 +324,9 @@ class Coordinates(tl.HasTraits):
             podpac Coordinates
         """
 
-        if not isinstance(xcoord, xarray.core.coordinates.DataArrayCoordinates):
+        if not isinstance(
+            xcoord, (xarray.core.coordinates.DataArrayCoordinates, xarray.core.coordinates.DatasetCoordinates)
+        ):
             raise TypeError("Coordinates.from_xarray expects xarray DataArrayCoordinates, not '%s'" % type(xcoord))
 
         d = OrderedDict()
@@ -1489,7 +1491,7 @@ class Coordinates(tl.HasTraits):
         return rep
 
 
-def merge_dims(coords_list):
+def merge_dims(coords_list, validate_crs=True):
     """
     Merge the coordinates.
 
@@ -1497,6 +1499,10 @@ def merge_dims(coords_list):
     ---------
     coords_list : list
         List of :class:`Coordinates` with unique dimensions.
+
+    validate_crs : bool, optional
+        Default is True. If False, the coordinates will not be checked for a common crs,
+        and the crs of the first item in the list will be used.
 
     Returns
     -------
@@ -1519,7 +1525,7 @@ def merge_dims(coords_list):
 
     # check crs
     crs = coords_list[0].crs
-    if not all(coords.crs == crs for coords in coords_list):
+    if validate_crs and not all(coords.crs == crs for coords in coords_list):
         raise ValueError("Cannot merge Coordinates, crs mismatch")
 
     # merge
