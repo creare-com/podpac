@@ -27,6 +27,7 @@ h5py = lazy_module("h5py")
 from podpac import Coordinates, Node
 from podpac.compositor import OrderedCompositor
 from podpac.data import DataSource
+from podpac.interpolators import InterpolationMixin
 from podpac import authentication
 from podpac import settings
 from podpac import cached_property
@@ -41,7 +42,7 @@ _log = logging.getLogger(__name__)
 BASE_URL = "https://n5eil01u.ecs.nsidc.org/egi/request"
 
 
-class EGI(DataSource):
+class EGI(InterpolationMixin, DataSource):
     """
     PODPAC DataSource node to access the NASA EGI Programmatic Interface
     https://developer.earthdata.nasa.gov/sdps/programmatic-access-docs#cmrparameters
@@ -207,7 +208,7 @@ class EGI(DataSource):
 
     def get_data(self, coordinates, coordinates_index):
         if self.data is not None:
-            da = self.data[coordinates_index]
+            da = self.data.data[coordinates_index]
             return da
         else:
             _log.warning("No data found in EGI source")
@@ -436,6 +437,10 @@ class EGI(DataSource):
 
         for zip_file in zip_files:
             for name in zip_file.namelist():
+                if name.endswith("json"):
+                    _log.debug("Ignoring file: {}".format(name))
+                    continue
+
                 _log.debug("Reading file: {}".format(name))
 
                 # BytesIO
