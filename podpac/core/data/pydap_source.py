@@ -32,7 +32,7 @@ _logger = logging.getLogger(__name__)
 
 
 @common_doc(COMMON_DATA_DOC)
-class PyDAPBase(authentication.RequestsSessionMixin, DataSource):
+class PyDAPRaw(authentication.RequestsSessionMixin, DataSource):
     """Create a DataSource from an OpenDAP server feed.
 
     Attributes
@@ -46,6 +46,10 @@ class PyDAPBase(authentication.RequestsSessionMixin, DataSource):
         {coordinates}
     source : str
         URL of the OpenDAP server.
+
+    See Also
+    --------
+    PyDAP : Interpolated OpenDAP datasource for general use.
     """
 
     source = tl.Unicode().tag(attr=True)
@@ -132,5 +136,7 @@ class PyDAPBase(authentication.RequestsSessionMixin, DataSource):
         return self.dataset.keys()
 
 
-class PyDAP(InterpolationMixin, PyDAPBase):
+class PyDAP(InterpolationMixin, PyDAPRaw):
+    """ OpenDAP datasource with interpolation. """
+
     pass

@@ -20,7 +20,7 @@ from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
-class ArrayBase(NoCacheMixin, DataSource):
+class ArrayRaw(NoCacheMixin, DataSource):
     """Create a DataSource from an array -- this node is mostly meant for small experiments
 
     Attributes
@@ -33,6 +33,10 @@ class ArrayBase(NoCacheMixin, DataSource):
     Notes
     ------
     `coordinates` need to supplied by the user when instantiating this node.
+
+    See Also
+    --------
+    Array : Interpolated array datasource.
 
     This Node is not meant for large arrays, and cause issues with caching. As such, this Node override the default
     cache behavior as having no cache -- its data is in RAM already and caching is not helpful.
@@ -94,5 +98,7 @@ class ArrayBase(NoCacheMixin, DataSource):
         pass
 
 
-class Array(InterpolationMixin, ArrayBase):
+class Array(InterpolationMixin, ArrayRaw):
+    """ Array datasource with interpolation. """
+
     pass

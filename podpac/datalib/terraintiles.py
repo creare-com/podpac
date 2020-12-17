@@ -42,11 +42,10 @@ import traitlets as tl
 import numpy as np
 
 import podpac
-from podpac.core.data.rasterio_source import RasterioBase
-from podpac.compositor import DataCompositor
+from podpac.core.data.rasterio_source import RasterioRaw
+from podpac.compositor import TileCompositorRaw
 from podpac.interpolators import InterpolationMixin
 from podpac.interpolators import RasterioInterpolator, ScipyGrid, ScipyPoint
-from podpac.data import InterpolationTrait
 from podpac.utils import cached_property
 from podpac.authentication import S3Mixin
 
@@ -75,7 +74,7 @@ ZOOM_SIZES = [
 ]
 
 
-class TerrainTilesSource(RasterioBase):
+class TerrainTilesSourceRaw(RasterioRaw):
     """DataSource to handle individual TerrainTiles raster files
 
     Parameters
@@ -90,8 +89,6 @@ class TerrainTilesSource(RasterioBase):
     """
 
     anon = tl.Bool(True)
-    # attributes
-    interpolation = InterpolationTrait(default_value="nearest").tag(attr=True)
 
     @tl.default("crs")
     def _default_crs(self):
@@ -128,7 +125,7 @@ class TerrainTilesSource(RasterioBase):
 
     # this is a little crazy, but I get floating point issues with indexing if i don't round to 7 decimal digits
     def get_coordinates(self):
-        coordinates = super(TerrainTilesSource, self).get_coordinates()
+        coordinates = super(TerrainTilesSourceRaw, self).get_coordinates()
 
         for dim in coordinates:
             coordinates[dim] = np.round(coordinates[dim].coordinates, 6)
@@ -136,7 +133,7 @@ class TerrainTilesSource(RasterioBase):
         return coordinates
 
 
-class TerrainTilesComposite(DataCompositor):
+class TerrainTilesComposite(TileCompositorRaw):
     """Terrain Tiles gridded elevation tiles data library
 
     Hosted on AWS S3
@@ -211,7 +208,7 @@ class TerrainTilesComposite(DataCompositor):
         sources = get_tile_urls(self.tile_format, self._zoom(coordinates), coordinates)
         urls = ["s3://{}/{}".format(self.bucket, s) for s in sources]
 
-        # create TerrainTilesSource classes for each url source
+        # create TerrainTilesSourceRaw classes for each url source
         self.sources = self._create_composite(urls)
         if self.trait_is_defined("interpolation") and self.interpolation is not None:
             for s in self.sources:
@@ -241,7 +238,7 @@ class TerrainTilesComposite(DataCompositor):
 
     def _create_composite(self, urls):
         # Share the s3 connection
-        s1 = TerrainTilesSource(
+        sample_source = TerrainTilesSourceRaw(
             source=urls[0],
             cache_ctrl=self.cache_ctrl,
             force_eval=self.force_eval,
@@ -249,9 +246,9 @@ class TerrainTilesComposite(DataCompositor):
             cache_dataset=True,
         )
         return [
-            TerrainTilesSource(
+            TerrainTilesSourceRaw(
                 source=url,
-                s3=s1.s3,
+                s3=sample_source.s3,
                 cache_ctrl=self.cache_ctrl,
                 force_eval=self.force_eval,
                 cache_output=self.cache_output,

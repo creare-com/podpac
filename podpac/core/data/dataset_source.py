@@ -9,7 +9,7 @@ from podpac.core.coordinates.coordinates import Coordinates
 
 
 @common_doc(COMMON_DATA_DOC)
-class DatasetBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
+class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
     """Create a DataSource node using xarray.open_dataset.
 
     Attributes
@@ -38,6 +38,10 @@ class DatasetBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
         For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim=dict(channel=1)`
     infer_podpac_coords: bool
         Default is False. If True, it assumes the file was saved using PODPAC, and the coordinates definitions match PODPAC format
+
+    See Also
+    --------
+    Dataset : Interpolated xarray dataset source for general use.
     """
 
     # dataset = tl.Instance(xr.Dataset).tag(readonly=True)
@@ -56,7 +60,7 @@ class DatasetBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
         return xr.open_dataset(fp)
 
     def close_dataset(self):
-        super(DatasetBase, self).close_dataset()
+        super(DatasetRaw, self).close_dataset()
         self.dataset.close()
 
     @cached_property
@@ -91,5 +95,7 @@ class DatasetBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
         return super().get_coordinates()
 
 
-class Dataset(InterpolationMixin, DatasetBase):
+class Dataset(InterpolationMixin, DatasetRaw):
+    """ xarray dataset source with interpolation. """
+
     pass

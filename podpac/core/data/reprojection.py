@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import logging
 import copy
+import warnings
 
 from six import string_types
 import traitlets as tl
@@ -9,8 +10,8 @@ import traitlets as tl
 from podpac.core.utils import common_doc, NodeTrait, cached_property
 from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
-from podpac.core.interpolation.interpolation import InterpolationTrait
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
+from podpac.core.interpolation import InterpolationTrait
 
 _logger = logging.getLogger(__name__)
 
@@ -37,6 +38,12 @@ class ReprojectedSource(DataSource):
     _repr_keys = ["source", "interpolation"]
 
     def _first_init(self, **kwargs):
+        warnings.warn(
+            "ReprojectedSource has been replaced by the Reproject algorithm node "
+            "and will be removed in a future version of podpac.",
+            DeprecationWarning,
+        )
+
         if "reprojected_coordinates" in kwargs:
             if isinstance(kwargs["reprojected_coordinates"], dict):
                 kwargs["reprojected_coordinates"] = Coordinates.from_definition(kwargs["reprojected_coordinates"])

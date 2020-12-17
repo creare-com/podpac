@@ -220,11 +220,13 @@ class NodeTrait(tl.Instance):
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
         # podpac objects with definitions
-        if isinstance(obj, (podpac.Coordinates, podpac.Node, podpac.data.Interpolate, podpac.core.style.Style)):
+        if isinstance(
+            obj, (podpac.Coordinates, podpac.Node, podpac.interpolators.Interpolate, podpac.core.style.Style)
+        ):
             return obj.definition
 
         # podpac Interpolator type
-        if isinstance(obj, type) and obj in podpac.data.INTERPOLATORS:
+        if isinstance(obj, type) and obj in podpac.core.interpolation.INTERPOLATORS:
             return obj().definition
 
         # pint Units

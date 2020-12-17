@@ -33,7 +33,7 @@ class WCSError(NodeException):
     pass
 
 
-class WCSBase(DataSource):
+class WCSRaw(DataSource):
     """
     Access data from a WCS source.
 
@@ -54,6 +54,10 @@ class WCSBase(DataSource):
     max_size : int
         maximum request size, optional.
         If provided, the coordinates will be tiled into multiple requests.
+
+    See Also
+    --------
+    WCS : WCS datasource with podpac interpolation.
     """
 
     source = tl.Unicode().tag(attr=True)
@@ -282,5 +286,7 @@ class WCSBase(DataSource):
         return list(client.contents)
 
 
-class WCS(InterpolationMixin, WCSBase):
+class WCS(InterpolationMixin, WCSRaw):
+    """ WCS datasource with podpac interpolation. """
+
     coordinate_index_type = tl.Unicode("slice", read_only=True)
