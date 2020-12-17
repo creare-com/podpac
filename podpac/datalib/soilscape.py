@@ -510,7 +510,10 @@ class SoilSCAPENode(podpac.core.data.dataset_source.DatasetRaw):
             tdims = tuple(self.dataset.dims) + ("output",)
             data = data.transpose(*tdims)
 
-        return self.create_output_array(coordinates, data.data[coordinates_index[:2]])
+        # add dims for lat and lon
+        data = data.data.reshape(data.shape + (1, 1))
+
+        return self.create_output_array(coordinates, data[coordinates_index])
 
     @property
     def lat(self):
