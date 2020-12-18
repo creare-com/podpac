@@ -484,12 +484,16 @@ class SoilSCAPENode(podpac.core.data.dataset_source.DatasetRaw):
         SoilSCAPE site, e.g. 'Canton_OK'.
     node : int
         SoilSCAPE node id.
+    rescale : float
+        Default is 0.01. The soilscape soil moisture is multiplied by this number.
+        Soilscape soil moisture by default is absolute volumetric percentage, so we can rescale that to absolute volumetric fraction.
     """
 
     alt_key = "depth"
     site = tl.Enum(list(NODES)).tag(attr=True)
     node = tl.Int().tag(attr=True)
     cache_dataset = tl.Bool(True)
+    rescale = tl.Float(0.01)
 
     _repr_keys = ["site", "node"]
 
@@ -513,7 +517,7 @@ class SoilSCAPENode(podpac.core.data.dataset_source.DatasetRaw):
         # add dims for lat and lon
         data = data.data.reshape(data.shape + (1, 1))
 
-        return self.create_output_array(coordinates, data[coordinates_index])
+        return self.create_output_array(coordinates, data[coordinates_index] * self.rescale)
 
     @property
     def lat(self):

@@ -5,6 +5,7 @@ from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin, LoadFileMixin
 from podpac.core.interpolation.interpolation import InterpolationMixin
+from podpac.core.coordinates.coordinates import Coordinates
 
 
 @common_doc(COMMON_DATA_DOC)
@@ -35,6 +36,8 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
     extra_dim : dict
         In cases where the data contain dimensions other than ['lat', 'lon', 'time', 'alt'], these dimensions need to be selected.
         For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim=dict(channel=1)`
+    infer_podpac_coords: bool
+        Default is False. If True, it assumes the file was saved using PODPAC, and the coordinates definitions match PODPAC format
 
     See Also
     --------
@@ -43,6 +46,7 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     # dataset = tl.Instance(xr.Dataset).tag(readonly=True)
     extra_dim = tl.Dict(allow_none=True).tag(attr=True)
+    infer_podpac_coords = tl.Bool(False).tag(attr=True)
 
     @tl.default("extra_dim")
     def _default_extra_dim(self):
@@ -82,6 +86,13 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
             data = data.transpose(*tdims)
 
         return self.create_output_array(coordinates, data.data[coordinates_index])
+
+    @common_doc(COMMON_DATA_DOC)
+    def get_coordinates(self):
+        """{get_coordinates}"""
+        if self.infer_podpac_coords:
+            return Coordinates.from_xarray(self.dataset.coords)
+        return super().get_coordinates()
 
 
 class Dataset(InterpolationMixin, DatasetRaw):
