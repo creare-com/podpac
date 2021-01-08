@@ -19,8 +19,8 @@ satsearch = lazy_module("satsearch")
 
 # Internal dependencies
 import podpac
-from podpac.compositor import OrderedCompositor
-from podpac.data import Rasterio
+from podpac.compositor import TileCompositor
+from podpac.core.data.rasterio_source import RasterioRaw
 from podpac.core.units import UnitsDataArray
 from podpac.authentication import S3Mixin
 from podpac import settings
@@ -28,31 +28,53 @@ from podpac import settings
 _logger = logging.getLogger(__name__)
 
 
-class SatUtilsSource(Rasterio):
+def _get_asset_info(item, name):
+    """ for forwards/backwards compatibility, convert B0x to/from Bx as needed """
+
+    if name in item.assets:
+        return item.assets[name]
+    elif name.replace("B", "B0") in item.assets:
+        # Bx -> B0x
+        return item.assets[name.replace("B", "B0")]
+    elif name.replace("B0", "B") in item.assets:
+        # B0x -> Bx
+        return item.assets[name.replace("B0", "B")]
+    else:
+        available = [key for key in item.assets.keys() if key not in ["thumbnail", "overview", "info", "metadata"]]
+        raise KeyError("asset '%s' not found. Available assets: %s" % (name, avaialable))
+
+
+def _get_s3_url(item, asset_name):
+    """ convert to s3:// urls
+    href: https://landsat-pds.s3.us-west-2.amazonaws.com/c1/L8/034/033/LC08_L1TP_034033_20201209_20201218_01_T1/LC08_L1TP_034033_20201209_20201218_01_T1_B2.TIF
+    url:  s3://landsat-pds/c1/L8/034/033/LC08_L1TP_034033_20201209_20201218_01_T1/LC08_L1TP_034033_20201209_20201218_01_T1_B2.TIF
+    """
+
+    info = _get_asset_info(item, asset_name)
+
+    if info["href"].startswith("s3://"):
+        return info["href"]
+
+    elif info["href"].startswith("https://"):
+        root, key = info["href"][8:].split("/", 1)
+        bucket = root.split(".")[0]
+        return "s3://%s/%s" % (bucket, key)
+
+    else:
+        raise ValueError("Could not parse satutils asset href '%s'" % info["href"])
+
+
+class SatUtilsSource(RasterioRaw):
     date = tl.Unicode(help="item.properties.datetime from sat-utils item").tag(attr=True)
 
     def get_coordinates(self):
-        # get original coordinates
+        # get spatial coordinates from rasterio over s3
         spatial_coordinates = super(SatUtilsSource, self).get_coordinates()
-
-        # lookup available dates and use pre-fetched lat and lon bounds. Make sure CRS is set to spatial coords
         time = podpac.Coordinates([self.date], dims=["time"], crs=spatial_coordinates.crs)
-
-        # merge dims
-        return podpac.coordinates.merge_dims([time, spatial_coordinates])
-
-    def get_data(self, coordinates, coordinates_index):
-
-        # create array for time, lat, lon
-        data = self.create_output_array(coordinates)
-
-        # eval in space for single time
-        data[0, :, :] = super(SatUtilsSource, self).get_data(coordinates.drop("time"), coordinates_index[1:])
-
-        return data
+        return podpac.coordinates.merge_dims([spatial_coordinates, time])
 
 
-class SatUtils(S3Mixin, OrderedCompositor):
+class SatUtils(S3Mixin, TileCompositor):
     """
     PODPAC DataSource node to access the data using sat-utils developed by Development Seed
     See https://github.com/sat-utils
@@ -82,70 +104,38 @@ class SatUtils(S3Mixin, OrderedCompositor):
         [lat - min_bounds_span['lat'] / 2, lat + min_bounds_span['lat'] / 2]
     """
 
-    # required
+    stac_api_url = tl.Unicode().tag(attr=True)
     collection = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
+    asset = tl.Unicode().tag(attr=True)
     query = tl.Dict(default_value=None, allow_none=True).tag(attr=True)
-    asset = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
 
     min_bounds_span = tl.Dict(allow_none=True).tag(attr=True)
 
-    # attributes
-    _search = None
+    @tl.default("stac_api_url")
+    def _get_stac_api_url_from_env(self):
+        if "STAC_API_URL" not in os.environ:
+            raise TypeError(
+                "STAC endpoint required. Please define the SatUtils 'stac_api_url' or 'STAC_API_URL' environmental variable"
+            )
 
-    @property
-    def sources(self):
-        if not self._search:
-            raise AttributeError("Run `node.eval` or `node.search` with coordinates to define `node.sources` property")
+        return os.environ
 
-        try:
-            items = self._search.items()
-        except AttributeError:
+    def select_sources(self, coordinates, _selector=None):
+        result = self.search(coordinates)
+
+        if result.found() == 0:
             _logger.warning(
                 "Sat Utils did not find any items for collection {}. Ensure that sat-stac is installed, or try with a different set of coordinates (self.search(coordinates)).".format(
                     self.collection
                 )
             )
             return []
-
-        if len(items) == 0:
-            _logger.warning(
-                "Sat Utils did not find any items for collection {}. Ensure that sat-stac is installed, or try with a different set of coordinates (self.search(coordinates)).".format(
-                    self.collection
-                )
-            )
-            return []
-
-        if self.asset is None:
-            raise ValueError("Asset type must be defined. Use `list_assets` method")
-
-        if self.asset not in items[0].assets:
-            raise ValueError(
-                'Requested asset "{}" is not available in item assets: {}'.format(
-                    self.asset, list(items[0].assets.keys())
-                )
-            )
-
-        # generate s3:// urls instead of https:// so that file-loader can handle
-        s3_urls = [
-            item.assets[self.asset]["href"].replace("https://", "s3://").replace(".s3.amazonaws.com", "")
-            for item in items
-        ]
 
         return [
-            SatUtilsSource(source=s3_urls[item_idx], date=item.properties["datetime"])
-            for item_idx, item in enumerate(items)
+            SatUtilsSource(source=_get_s3_url(item, self.asset), date=item.properties["datetime"])
+            for item in result.items()
         ]
 
-    def _eval(self, coordinates, output=None, _selector=None):
-        # update sources with search
-        _ = self.search(coordinates)
-
-        # run normal eval once self.data is prepared
-        return super(SatUtils, self)._eval(coordinates, output=output, _selector=_selector)
-
-    ##########
-    # Data I/O
-    ##########
     def search(self, coordinates):
         """
         Query data from sat-utils interface within PODPAC coordinates
@@ -170,8 +160,6 @@ class SatUtils(S3Mixin, OrderedCompositor):
         coordinates = coordinates.transform("epsg:4326")
 
         time_bounds = None
-        bbox = None
-
         if "time" in coordinates.udims:
             time_bounds = [
                 str(np.datetime64(bound, "s"))
@@ -190,6 +178,7 @@ class SatUtils(S3Mixin, OrderedCompositor):
                     pad = (time_delta - timediff) / 2
                     time_bounds = [str((time_bounds_dt[0] - pad)[0]), str((time_bounds_dt[1] + pad)[0])]
 
+        bbox = None
         if "lat" in coordinates.udims or "lon" in coordinates.udims:
             lat = coordinates["lat"].bounds
             lon = coordinates["lon"].bounds
@@ -211,43 +200,32 @@ class SatUtils(S3Mixin, OrderedCompositor):
             raise ValueError("No time or spatial coordinates requested")
 
         # search dict
-        search = {}
+        search_kwargs = {}
+
+        search_kwargs["url"] = self.stac_api_url
+
         if time_bounds is not None:
-            search["time"] = "{start_time}/{end_time}".format(start_time=time_bounds[0], end_time=time_bounds[1])
+            search_kwargs["datetime"] = "{start_time}/{end_time}".format(
+                start_time=time_bounds[0], end_time=time_bounds[1]
+            )
 
         if bbox is not None:
-            search["bbox"] = bbox
+            search_kwargs["bbox"] = bbox
 
         if self.query is not None:
-            search["query"] = self.query
+            search_kwargs["query"] = self.query
         else:
-            search["query"] = {}
+            search_kwargs["query"] = {}
 
-        # note, this will override the collection in "query"
         if self.collection is not None:
-            search["query"]["collection"] = {"eq": self.collection}
+            search_kwargs["collections"] = [self.collection]
 
         # search with sat-search
-        _logger.debug("sat-search searching with {}".format(search))
-        self._search = satsearch.Search(**search)
-        _logger.debug("sat-search found {} items".format(self._search.found()))
+        _logger.debug("sat-search searching with {}".format(search_kwargs))
+        search = satsearch.Search(**search_kwargs)
+        _logger.debug("sat-search found {} items".format(search.found()))
 
-        return self._search
-
-    def list_assets(self):
-        """List available assets (or bands) within data source.
-        You must run `search` with coordinates before you can list the assets available for those coordinates
-
-        Returns
-        -------
-        list
-            list of string asset names
-        """
-        if not self._search:
-            raise AttributeError("Run `node.eval` or `node.search` with coordinates to be able to list assets")
-        else:
-            items = self._search.items()
-            return list(items[0].assets.keys())
+        return search
 
 
 class Landsat8(SatUtils):
@@ -261,10 +239,9 @@ class Landsat8(SatUtils):
     ----------
     asset : str, optional
         Asset to download from the satellite image.
-        For Landsat8, this includes: 'B1','B2','B3','B4','B5','B6','B7','B8','B9','B10','B11'
+        For Landsat8, this includes: 'B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12'
         The asset must be a band name or a common extension name, see https://github.com/radiantearth/stac-spec/tree/master/extensions/eo
         See also the Assets section of this tutorial: https://github.com/sat-utils/sat-stac/blob/master/tutorial-2.ipynb
-        Use `list_assets` helper to list the assets available for a search.
     query : dict, optional
         Dictionary of properties to query on, supports eq, lt, gt, lte, gte
         Passed through to the sat-search module.
@@ -277,7 +254,7 @@ class Landsat8(SatUtils):
         [lat - min_bounds_span['lat'] / 2, lat + min_bounds_span['lat'] / 2]
     """
 
-    collection = "landsat-8-l1"
+    collection = "landsat-8-l1-c1"
 
 
 class Sentinel2(SatUtils):
@@ -296,7 +273,6 @@ class Sentinel2(SatUtils):
         For Sentinel2, this includes: 'tki','B01','B02','B03','B04','B05','B06','B07','B08','B8A','B09','B10','B11','B12
         The asset must be a band name or a common extension name, see https://github.com/radiantearth/stac-spec/tree/master/extensions/eo
         See also the Assets section of this tutorial: https://github.com/sat-utils/sat-stac/blob/master/tutorial-2.ipynb
-        Use `list_assets` helper to list the assets available for a search.
     query : dict, optional
         Dictionary of properties to query on, supports eq, lt, gt, lte, gte
         Passed through to the sat-search module.
@@ -309,8 +285,4 @@ class Sentinel2(SatUtils):
         [lat - min_bounds_span['lat'] / 2, lat + min_bounds_span['lat'] / 2]
     """
 
-    collection = "sentinel-2-l1c"
-
-
-if __name__ == "__main__":
-    landsat8 = Landsat8(asset="B1")
+    collection = "sentinel-s2-l1c"
