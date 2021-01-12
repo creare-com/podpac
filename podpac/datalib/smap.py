@@ -50,10 +50,13 @@ import podpac
 from podpac import NodeException
 from podpac import authentication
 from podpac.coordinates import Coordinates, merge_dims
-from podpac.data import PyDAP
 from podpac.utils import cached_property, DiskCacheMixin
 from podpac.compositor import OrderedCompositor
+from podpac.interpolators import InterpolationMixin
+from podpac.core.compositor.tile_compositor import TileCompositorRaw
 from podpac.core.data.datasource import COMMON_DATA_DOC
+from podpac.core.data.pydap_source import PyDAPRaw
+from podpac.core.interpolation.interpolation_manager import InterpolationTrait
 from podpac.core.utils import common_doc, _get_from_url
 
 from podpac.datalib import nasaCMR
@@ -139,7 +142,8 @@ def _infer_SMAP_product_version(product, base_url, session):
         Authenticated EDS session. Generally returned from :class:`SMAPSessionMixin`.
     """
 
-    r = _get_from_url(base_url, session=session)
+    url = "%s/contents.html" % base_url
+    r = _get_from_url(url, session=session)
     if r:
         m = re.search(product, r.text)
         return int(r.text[m.end() + 1 : m.end() + 4])
@@ -291,7 +295,7 @@ class SMAPSessionMixin(authentication.RequestsSessionMixin):
         return
 
 
-class SMAPCompositor(OrderedCompositor):
+class SMAPCompositor(TileCompositorRaw):
     """
 
     Attributes
@@ -312,7 +316,8 @@ class SMAPCompositor(OrderedCompositor):
     shared_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None)
 
     def select_sources(self, coordinates, _selector=None):
-        """Select sources based on requested coordinates, including setting coordinates, if possible.
+        """ Select sources based on requested coordinates.
+            Extends the base method to set coordinates if possible as an optimization..
 
         Parameters
         ----------
@@ -329,17 +334,14 @@ class SMAPCompositor(OrderedCompositor):
         Notes
         -----
          * If :attr:`source_coordinates` is defined, only sources that intersect the requested coordinates are selected.
-         * Sets sources :attr:`interpolation`.
          * If source coordinates complete, sets sources :attr:`coordinates` as an optimization.
         """
-
-        """ Optimization: . """
 
         src_subset = super(SMAPCompositor, self).select_sources(coordinates, _selector)
 
         if self.is_source_coordinates_complete:
-            coords_subset = list(self.source_coordinates.intersect(coordinates, outer=True).coords.values())[0]
-            coords_dim = list(self.source_coordinates.dims)[0]
+            coords_dim = self.source_coordinates.dims[0]
+            coords_subset = self.source_coordinates.intersect(coordinates, outer=True)[coords_dim].coordinates
             crs = self.source_coordinates.crs
             for s, c in zip(src_subset, coords_subset):
                 nc = merge_dims(
@@ -354,7 +356,7 @@ class SMAPCompositor(OrderedCompositor):
 
 
 @common_doc(COMMON_DOC)
-class SMAPSource(SMAPSessionMixin, DiskCacheMixin, PyDAP):
+class SMAPSourceRaw(SMAPSessionMixin, DiskCacheMixin, PyDAPRaw):
     """Accesses SMAP data given a specific openDAP URL. This is the base class giving access to SMAP data, and knows how
     to extract the correct coordinates and data keys for the soil moisture data.
 
@@ -482,7 +484,7 @@ class SMAPSource(SMAPSessionMixin, DiskCacheMixin, PyDAP):
         return d
 
 
-class SMAPProperties(SMAPSource):
+class SMAPProperties(SMAPSourceRaw):
     """Accesses properties related to the generation of SMAP products.
 
     Attributes
@@ -511,12 +513,12 @@ class SMAPProperties(SMAPSource):
     @tl.default("source")
     def _property_source_default(self):
         v = _infer_SMAP_product_version("SPL4SMLM", SMAP_BASE_URL(), self.session)
-        url = SMAP_BASE_URL() + "/SPL4SMLM.%03d/2015.03.31/" % (v)
-        r = _get_from_url(url, session=self.session)
+        base_url = "%s/SPL4SMLM.%03d/2015.03.31/" % (SMAP_BASE_URL(), v)
+        r = _get_from_url("%s/contents.html" % url, session=self.session)
         if not r:
             return "None"
         n = self.file_url_re.search(r.text).group()
-        return url + n
+        return base_url + n
 
     property = tl.Enum(
         [
@@ -677,7 +679,7 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
 
     @cached_property
     def sources(self):
-        """SMAPSource objects pointing to URLs of specific SMAP files in the folder"""
+        """SMAPSourceRaw objects pointing to URLs of specific SMAP files in the folder"""
 
         # Swapped the try and except blocks. SMAP filenames may change version numbers, which causes cached source to
         # break. Hence, try to get the new source everytime, unless data is offline, in which case rely on the cache.
@@ -694,16 +696,8 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
         else:
             self.put_cache(sources, "sources", overwrite=True)
 
-        time_crds = self.source_coordinates["time"]
-        if time_crds.is_monotonic and time_crds.is_uniform and time_crds.size > 1:
-            tol = time_crds.coordinates[1] - time_crds.coordinates[0]
-        else:
-            tol = self.source_coordinates["time"].coordinates[0]
-            tol = tol - tol
-            tol = np.timedelta64(1, dtype=(tol.dtype))
-
-        kwargs = {"layer_key": self.layer_key, "interpolation": {"method": "nearest", "time_tolerance": tol}}
-        return [SMAPSource(source="%s/%s" % (self.folder_url, s), **kwargs) for s in sources]
+        kwargs = {"layer_key": self.layer_key, "cache_ctrl": self.cache_ctrl}
+        return [SMAPSourceRaw(source="%s/%s" % (self.folder_url, s), **kwargs) for s in sources]
 
     @property
     def is_source_coordinates_complete(self):
@@ -757,9 +751,10 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
         RuntimeError
             If the NSIDC website cannot be accessed
         """
-        r = _get_from_url(self.folder_url, self.session)
+        url = "%s/contents.html" % self.folder_url
+        r = _get_from_url(url, self.session)
         if r is None:
-            _logger.warning("Could not contact {} to retrieve source coordinates".format(self.folder_url))
+            _logger.warning("Could not contact {} to retrieve source coordinates".format(url))
             return np.array([]), None, np.array([])
         soup = BeautifulSoup(r.text, "lxml")
         a = soup.find_all("a")
@@ -815,9 +810,9 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
 
 
 @common_doc(COMMON_DOC)
-class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
-    """Compositor of all the SMAPDateFolder's for every available SMAP date. Essentially a compositor of all SMAP data
-    for a particular product.
+class SMAPRaw(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
+    """ Raw Compositor of all the SMAPDateFolder's for every available SMAP date.
+        Essentially a compositor of all SMAP data for a particular product.
 
     Attributes
     ----------
@@ -869,11 +864,12 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
     @cached_property
     def available_dates(self):
         """ Available dates in SMAP date format, sorted."""
-        url = "/".join([self.base_url, "%s.%03d" % (self.product, self.version)])
+        url = "%s/%s.%03d/contents.html" % (self.base_url, self.product, self.version)
         r = _get_from_url(url, self.session)
         if r is None:
             _logger.warning("Could not contact {} to retrieve source coordinates".format(url))
             return []
+
         soup = BeautifulSoup(r.text, "lxml")
         matches = [self.date_url_re.match(a.get_text()) for a in soup.find_all("a")]
         dates = [m.group() for m in matches if m]
@@ -888,6 +884,7 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
             "version": self.version,
             "layer_key": self.layer_key,
             "shared_coordinates": self.shared_coordinates,  # this is an optimization
+            "cache_ctrl": self.cache_ctrl,
         }
         return [SMAPDateFolder(folder_date=date, **kwargs) for date in self.available_dates]
 
@@ -1024,8 +1021,6 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
 
         # Create kwargs for making a SMAP source
         create_kwargs = {"layer_key": self.layer_key}
-        if self.interpolation:
-            create_kwargs["interpolation"] = self.interpolation
 
         try:  # Try retrieving index from cache
             if update_cache:
@@ -1072,22 +1067,29 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
                 self.put_cache(crds, "filename.coordinates", overwrite=update_cache)
                 self.put_cache(sources, "filename.sources", overwrite=update_cache)
 
-        # Updates interpolation and/or other keyword arguments in the sources class
+        # Updates keyword arguments in the sources class
         sources.create_kwargs = create_kwargs
         return crds, sources
+
+
+class SMAP(InterpolationMixin, SMAPRaw):
+    """ Compositor of all the SMAPDateFolder's for every available SMAP date, with interpolation. """
+
+    pass
 
 
 class SMAPBestAvailable(OrderedCompositor):
     """Compositor of SMAP-Sentinel and the Level 4 SMAP Analysis Update soil moisture"""
 
+    interpolation = InterpolationTrait().tag(attr=True)
+
     @cached_property
     def sources(self):
         """Orders the compositor of SPL2SMAP_S in front of SPL4SMAU. """
 
-        return [
-            SMAP(interpolation=self.interpolation, product="SPL2SMAP_S"),
-            SMAP(interpolation=self.interpolation, product="SPL4SMAU"),
-        ]
+        kwargs = {"interpolation": self.interpolation, "cache_ctrl": self.cache_ctrl}
+
+        return [SMAP(product="SPL2SMAP_S", **kwargs), SMAP(product="SPL4SMAU", **kwargs)]
 
 
 class GetSMAPSources(object):
@@ -1108,7 +1110,7 @@ class GetSMAPSources(object):
                 raise ValueError("Invalid slice")
         base_url = self.base_url
         source_urls = [base_url + np2smap_date(d)[:10] + "/" + f for d, f in zip(self.dates[slc], self.filenames[slc])]
-        return np.array([SMAPSource(source=s, **self.create_kwargs) for s in source_urls], object)[return_slice]
+        return np.array([SMAPSourceRaw(source=s, **self.create_kwargs) for s in source_urls], object)[return_slice]
 
     @cached_property
     def base_url(self):
@@ -1124,67 +1126,3 @@ class GetSMAPSources(object):
             dates=[self.dates[i] for i in I],
             create_kwargs=self.create_kwargs,
         )
-
-
-if __name__ == "__main__":
-    import getpass
-    from matplotlib import pyplot
-    import podpac
-
-    logging.basicConfig()
-
-    product = "SPL4SMAU"
-    interpolation = {"method": "nearest", "params": {"time_tolerance": np.timedelta64(2, "h")}}
-
-    sm = SMAP(product=product, interpolation=interpolation)
-
-    # username = input("Username: ")
-    # password = getpass.getpass("Password: ")
-    # sm.set_credentials(username=username, password=password)
-
-    # SMAP info
-    print(sm)
-    print("SMAP Definition:", sm.json_pretty)
-    print(
-        "SMAP available_dates:",
-        "%s - %s (%d)" % (sm.available_dates[0], sm.available_dates[1], len(sm.available_dates)),
-    )
-    print("SMAP source_coordinates:", sm.source_coordinates)
-    print("SMAP shared_coordinates:", sm.shared_coordinates)
-    print("Sources:", sm.sources[:3], "... (%d)" % len(sm.sources))
-
-    # sample SMAPDateFolder info
-    sm_datefolder = sm.sources[0]
-    print("Sample DateFolder:", sm_datefolder)
-    print("Sample DateFolder Definition:", sm_datefolder.json_pretty)
-    print("Sample DateFolder source_coordinates:", sm_datefolder.source_coordinates)
-    print("Sample DateFolder Sources:", sm_datefolder.sources[:3], "... (%d)" % len(sm_datefolder.sources))
-
-    # sample SMAPSource info
-    sm_source = sm_datefolder.sources[0]
-    print("Sample DAP Source:", sm_source)
-    print("Sample DAP Source Definition:", sm_source.json_pretty)
-    print("Sample DAP Native Coordinates:", sm_source.coordinates)
-
-    print("Another Sample DAP Native Coordinates:", sm_datefolder.sources[1].coordinates)
-
-    # eval whole world
-    c_world = Coordinates(
-        [podpac.crange(90, -90, -2.0), podpac.crange(-180, 180, 2.0), "2018-05-19T12:00:00"],
-        dims=["lat", "lon", "time"],
-    )
-    o = sm.eval(c_world)
-    o.plot(cmap="gist_earth_r")
-    pyplot.axis("scaled")
-
-    # eval points over time
-    lat = [45.0, 45.0, 0.0, 45.0]
-    lon = [-100.0, 20.0, 20.0, 100.0]
-    c_pts = Coordinates([[lat, lon], podpac.crange("2018-05-15T00", "2018-05-19T00", "3,h")], dims=["lat_lon", "time"])
-
-    o = sm.eval(c_pts)
-    # sm.threaded = False
-    pyplot.plot(ot.time, ot.data.T)
-
-    pyplot.show()
-    print("Done")
