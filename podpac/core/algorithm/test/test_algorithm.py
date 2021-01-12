@@ -24,6 +24,19 @@ class TestBaseAlgorithm(object):
         with pytest.raises(NotImplementedError):
             node.eval(c)
 
+    def test_inputs(self):
+        class MyAlgorithm(BaseAlgorithm):
+            x = NodeTrait().tag(attr=True)
+            y = NodeTrait().tag(attr=True)
+
+        node = MyAlgorithm(
+            x=Array(coordinates=podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])),
+            y=Array(coordinates=podpac.Coordinates([[0, 1, 2], [110, 120]], dims=["lat", "lon"])),
+        )
+
+        assert "x" in node.inputs
+        assert "y" in node.inputs
+
     def test_find_coordinates(self):
         class MyAlgorithm(BaseAlgorithm):
             x = NodeTrait().tag(attr=True)

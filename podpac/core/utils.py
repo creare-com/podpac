@@ -152,7 +152,7 @@ else:
 class ArrayTrait(tl.TraitType):
     """ A coercing numpy array trait. """
 
-    def __init__(self, ndim=None, shape=None, dtype=None, dtypes=None, *args, **kwargs):
+    def __init__(self, ndim=None, shape=None, dtype=None, dtypes=None, default_value=None, *args, **kwargs):
         if ndim is not None and shape is not None and len(shape) != ndim:
             raise ValueError("Incompatible ndim and shape (ndim=%d, shape=%s)" % (ndim, shape))
         if dtype is not None and not isinstance(dtype, type):
@@ -162,7 +162,7 @@ class ArrayTrait(tl.TraitType):
         self.ndim = ndim
         self.shape = shape
         self.dtype = dtype
-        super(ArrayTrait, self).__init__(*args, **kwargs)
+        super(ArrayTrait, self).__init__(default_value=default_value, *args, **kwargs)
 
     def validate(self, obj, value):
         # coerce type

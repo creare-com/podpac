@@ -26,22 +26,22 @@ class TestOrderedCompositor(object):
             acoords = podpac.Coordinates([[-1, 0, 1], [10, 20, 30]], dims=["lat", "lon"])
             asource = np.ones(acoords.shape)
             asource[0, :] = np.nan
-            a = Array(source=asource, coordinates=acoords)
+            a = Array(source=asource, coordinates=acoords, interpolation="bilinear")
 
             bcoords = podpac.Coordinates([[0, 1, 2, 3], [10, 20, 30, 40]], dims=["lat", "lon"])
             bsource = np.zeros(bcoords.shape)
             bsource[:, 0] = np.nan
-            b = Array(source=bsource, coordinates=bcoords)
+            b = Array(source=bsource, coordinates=bcoords, interpolation="bilinear")
 
             coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40, 50]], dims=["lat", "lon"])
 
-            node = OrderedCompositor(sources=[a, b], interpolation="bilinear")
+            node = OrderedCompositor(sources=[a, b])
             expected = np.array(
                 [[1.0, 1.0, 1.0, 0.0, np.nan], [1.0, 1.0, 1.0, 0.0, np.nan], [np.nan, np.nan, 0.0, 0.0, np.nan]]
             )
             np.testing.assert_allclose(node.eval(coords), expected, equal_nan=True)
 
-            node = OrderedCompositor(sources=[b, a], interpolation="bilinear")
+            node = OrderedCompositor(sources=[b, a])
             expected = np.array(
                 [[1.0, 1.0, 0.0, 0.0, np.nan], [1.0, 1.0, 0.0, 0.0, np.nan], [np.nan, np.nan, 0.0, 0.0, np.nan]]
             )
@@ -55,22 +55,22 @@ class TestOrderedCompositor(object):
             acoords = podpac.Coordinates([[-1, 0, 1], [10, 20, 30]], dims=["lat", "lon"])
             asource = np.ones(acoords.shape)
             asource[0, :] = np.nan
-            a = Array(source=asource, coordinates=acoords)
+            a = Array(source=asource, coordinates=acoords, interpolation="bilinear")
 
             bcoords = podpac.Coordinates([[0, 1, 2, 3], [10, 20, 30, 40]], dims=["lat", "lon"])
             bsource = np.zeros(bcoords.shape)
             bsource[:, 0] = np.nan
-            b = Array(source=bsource, coordinates=bcoords)
+            b = Array(source=bsource, coordinates=bcoords, interpolation="bilinear")
 
             coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40, 50]], dims=["lat", "lon"])
 
-            node = OrderedCompositor(sources=[a, b], interpolation="bilinear")
+            node = OrderedCompositor(sources=[a, b])
             expected = np.array(
                 [[1.0, 1.0, 1.0, 0.0, np.nan], [1.0, 1.0, 1.0, 0.0, np.nan], [np.nan, np.nan, 0.0, 0.0, np.nan]]
             )
             np.testing.assert_allclose(node.eval(coords), expected, equal_nan=True)
 
-            node = OrderedCompositor(sources=[b, a], interpolation="bilinear")
+            node = OrderedCompositor(sources=[b, a])
             expected = np.array(
                 [[1.0, 1.0, 0.0, 0.0, np.nan], [1.0, 1.0, 0.0, 0.0, np.nan], [np.nan, np.nan, 0.0, 0.0, np.nan]]
             )
@@ -82,9 +82,9 @@ class TestOrderedCompositor(object):
             podpac.settings["DEBUG"] = True
 
             coords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
-            a = Array(source=np.ones(coords.shape), coordinates=coords)
-            b = Array(source=np.zeros(coords.shape), coordinates=coords)
-            node = OrderedCompositor(sources=[a, b], interpolation="bilinear")
+            a = Array(source=np.ones(coords.shape), coordinates=coords, interpolation="bilinear")
+            b = Array(source=np.zeros(coords.shape), coordinates=coords, interpolation="bilinear")
+            node = OrderedCompositor(sources=[a, b])
             output = node.eval(coords)
             np.testing.assert_array_equal(output, a.source)
             assert node._eval_sources[0]._output is not None
@@ -98,9 +98,9 @@ class TestOrderedCompositor(object):
 
             coords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
             n_threads_before = podpac.core.managers.multi_threading.thread_manager._n_threads_used
-            a = Array(source=np.ones(coords.shape), coordinates=coords)
-            b = Array(source=np.zeros(coords.shape), coordinates=coords)
-            node = OrderedCompositor(sources=[a, b], interpolation="bilinear")
+            a = Array(source=np.ones(coords.shape), coordinates=coords, interpolation="bilinear")
+            b = Array(source=np.zeros(coords.shape), coordinates=coords, interpolation="bilinear")
+            node = OrderedCompositor(sources=[a, b])
             output = node.eval(coords)
             np.testing.assert_array_equal(output, a.source)
             assert node._multi_threaded == True
@@ -108,9 +108,9 @@ class TestOrderedCompositor(object):
 
     def test_composite_into_result(self):
         coords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
-        a = Array(source=np.ones(coords.shape), coordinates=coords)
-        b = Array(source=np.zeros(coords.shape), coordinates=coords)
-        node = OrderedCompositor(sources=[a, b], interpolation="bilinear")
+        a = Array(source=np.ones(coords.shape), coordinates=coords, interpolation="bilinear")
+        b = Array(source=np.zeros(coords.shape), coordinates=coords, interpolation="bilinear")
+        node = OrderedCompositor(sources=[a, b])
         result = node.create_output_array(coords, data=np.random.random(coords.shape))
         output = node.eval(coords, output=result)
         np.testing.assert_array_equal(output, a.source)
@@ -158,12 +158,12 @@ class TestOrderedCompositor(object):
     def test_composite_stacked_unstacked(self):
         anative = podpac.Coordinates([podpac.clinspace((0, 1), (1, 2), size=3)], dims=["lat_lon"])
         bnative = podpac.Coordinates([podpac.clinspace(-2, 3, 3), podpac.clinspace(-1, 4, 3)], dims=["lat", "lon"])
-        a = Array(source=np.random.rand(3), coordinates=anative)
-        b = Array(source=np.random.rand(3, 3) + 2, coordinates=bnative)
+        a = Array(source=np.random.rand(3), coordinates=anative, interpolation="nearest")
+        b = Array(source=np.random.rand(3, 3) + 2, coordinates=bnative, interpolation="nearest")
 
         coords = podpac.Coordinates([podpac.clinspace(-3, 4, 32), podpac.clinspace(-2, 5, 32)], dims=["lat", "lon"])
 
-        node = OrderedCompositor(sources=[a, b], interpolation="nearest")
+        node = OrderedCompositor(sources=[a, b])
         o = node.eval(coords)
         # Check that both data sources are being used in the interpolation
         assert np.any(o.data >= 2)
@@ -174,17 +174,17 @@ class TestOrderedCompositor(object):
             podpac.settings["MULTITHREADING"] = False
 
             coords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
-            a = Array(source=np.ones(coords.shape), coordinates=coords)
+            a = Array(source=np.ones(coords.shape), coordinates=coords, interpolation="bilinear")
 
             extra = podpac.Coordinates([coords["lat"], coords["lon"], "2020-01-01"], dims=["lat", "lon", "time"])
 
             # dims not provided, eval fails with extra dims
-            node = OrderedCompositor(sources=[a], interpolation="bilinear")
+            node = OrderedCompositor(sources=[a])
             np.testing.assert_array_equal(node.eval(coords), a.source)
             with pytest.raises(podpac.NodeException, match="Cannot evaluate compositor with requested dims"):
                 node.eval(extra)
 
             # dims provided, remove extra dims
-            node = OrderedCompositor(sources=[a], dims=["lat", "lon"], interpolation="bilinear")
+            node = OrderedCompositor(sources=[a], dims=["lat", "lon"])
             np.testing.assert_array_equal(node.eval(coords), a.source)
             np.testing.assert_array_equal(node.eval(extra), a.source)

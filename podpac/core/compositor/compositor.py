@@ -50,7 +50,6 @@ class BaseCompositor(Node):
     """
 
     sources = tl.List(trait=NodeTrait()).tag(attr=True)
-    interpolation = InterpolationTrait(allow_none=True, default_value=None).tag(attr=True)
     source_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
 
     dims = tl.List(trait=Dimension()).tag(attr=True)
@@ -134,7 +133,6 @@ class BaseCompositor(Node):
         Notes
         -----
          * If :attr:`source_coordinates` is defined, only sources that intersect the requested coordinates are selected.
-         * Sets sources :attr:`interpolation`.
         """
 
         # select intersecting sources, if possible
@@ -151,14 +149,6 @@ class BaseCompositor(Node):
                 _, I = self.source_coordinates.intersect(coordinates, outer=False, return_index=True)
             i = I[0]
             sources = np.array(self.sources)[i].tolist()
-
-        # set the interpolation properties for sources
-        if self.trait_is_defined("interpolation") and self.interpolation is not None:
-            for s in sources:
-                if s.has_trait("interpolation"):
-                    s.set_trait("interpolation", self.interpolation)
-                    if hasattr(s, "_podpac_cached_property_definition"):
-                        del s._podpac_cached_property_definition
 
         return sources
 

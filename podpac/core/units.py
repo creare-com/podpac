@@ -290,7 +290,7 @@ class UnitsDataArray(xr.DataArray):
             try:
                 self = self.set_index(**{dim: dim.split("-")[0].split("_")})
             except ValueError as e:
-                _logger.warn("Tried to rebuild stacked coordinates but failed with error: {}".format(e))
+                _logger.warning("Tried to rebuild stacked coordinates but failed with error: {}".format(e))
         return self
 
     def __getitem__(self, key):

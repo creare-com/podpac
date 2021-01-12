@@ -23,6 +23,10 @@ class InterpolationMixin(tl.HasTraits):
     interpolation = InterpolationTrait().tag(attr=True)
     _interp_node = None
 
+    @property
+    def _repr_keys(self):
+        return super()._repr_keys + ["interpolation"]
+
     def _eval(self, coordinates, output=None, _selector=None):
         node = Interpolate(interpolation=self.interpolation)
         node._set_interpolation()

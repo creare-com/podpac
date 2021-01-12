@@ -60,7 +60,7 @@ class PyDAPRaw(authentication.RequestsSessionMixin, DataSource):
     server_throttle_retries = tl.Int(default_value=100, help="Number of retries for a throttled server.").tag(attr=True)
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
-    _repr_keys = ["source", "interpolation"]
+    _repr_keys = ["source"]
     coordinate_index_type = "slice"
 
     # hostname for RequestsSession is source. Try parsing off netloc

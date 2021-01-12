@@ -480,10 +480,9 @@ class TestCoordinateCreation(object):
         assert c.alt_units is None
 
         c = Coordinates([alt], crs="+proj=merc +vunits=us-ft")
-        assert c.alt_units in [
-            "us-ft",  # pyproj < 3.0
-            "US survey foot",  # pyproj >= 3.0
-        ]
+
+        with pytest.warns(UserWarning):
+            assert c.alt_units in ["us-ft", "US survey foot"]  # pyproj < 3.0  # pyproj >= 3.0
 
 
 class TestCoordinatesSerialization(object):
