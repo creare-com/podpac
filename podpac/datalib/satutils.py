@@ -22,7 +22,6 @@ import podpac
 from podpac.compositor import OrderedCompositor
 from podpac.data import Rasterio
 from podpac.core.units import UnitsDataArray
-from podpac.core.node import node_eval
 from podpac.authentication import S3Mixin
 from podpac import settings
 
@@ -59,7 +58,7 @@ class SatUtils(S3Mixin, OrderedCompositor):
     See https://github.com/sat-utils
 
     See :class:`podpac.compositor.OrderedCompositor` for more information.
-    
+
     Parameters
     ----------
     collection : str, optional
@@ -74,12 +73,12 @@ class SatUtils(S3Mixin, OrderedCompositor):
     asset : str, optional
         Asset to download from the satellite image.
         The asset must be a band name or a common extension name, see https://github.com/radiantearth/stac-spec/tree/master/extensions/eo
-        See also the Assets section of this tutorial: https://github.com/sat-utils/sat-stac/blob/master/tutorial-2.ipynb 
+        See also the Assets section of this tutorial: https://github.com/sat-utils/sat-stac/blob/master/tutorial-2.ipynb
         Defaults to "B3" (green)
     min_bounds_span : dict, optional
         Default is {}. When specified, gives the minimum bounds that will be used for a coordinate in the query, so
-        it works properly. If a user specified a lat, lon point, the query may fail since the min/max values for 
-        lat/lon are the same. When specified, these bounds will be padded by the following for latitude (as an example): 
+        it works properly. If a user specified a lat, lon point, the query may fail since the min/max values for
+        lat/lon are the same. When specified, these bounds will be padded by the following for latitude (as an example):
         [lat - min_bounds_span['lat'] / 2, lat + min_bounds_span['lat'] / 2]
     """
 
@@ -137,13 +136,12 @@ class SatUtils(S3Mixin, OrderedCompositor):
             for item_idx, item in enumerate(items)
         ]
 
-    @node_eval
-    def eval(self, coordinates, output=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         # update sources with search
         _ = self.search(coordinates)
 
         # run normal eval once self.data is prepared
-        return super(SatUtils, self).eval(coordinates, output)
+        return super(SatUtils, self)._eval(coordinates, output=output, _selector=_selector)
 
     ##########
     # Data I/O
@@ -151,17 +149,17 @@ class SatUtils(S3Mixin, OrderedCompositor):
     def search(self, coordinates):
         """
         Query data from sat-utils interface within PODPAC coordinates
-        
+
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
             PODPAC coordinates specifying spatial and temporal bounds
-        
+
         Raises
         ------
         ValueError
             Error raised when no spatial or temporal bounds are provided
-        
+
         Returns
         -------
         search : :class:`satsearch.search.Search`
@@ -239,7 +237,7 @@ class SatUtils(S3Mixin, OrderedCompositor):
     def list_assets(self):
         """List available assets (or bands) within data source.
         You must run `search` with coordinates before you can list the assets available for those coordinates
-        
+
         Returns
         -------
         list
@@ -274,8 +272,8 @@ class Landsat8(SatUtils):
         Defaults to None
     min_bounds_span : dict, optional
         Default is {}. When specified, gives the minimum bounds that will be used for a coordinate in the query, so
-        it works properly. If a user specified a lat, lon point, the query may fail since the min/max values for 
-        lat/lon are the same. When specified, these bounds will be padded by the following for latitude (as an example): 
+        it works properly. If a user specified a lat, lon point, the query may fail since the min/max values for
+        lat/lon are the same. When specified, these bounds will be padded by the following for latitude (as an example):
         [lat - min_bounds_span['lat'] / 2, lat + min_bounds_span['lat'] / 2]
     """
 
@@ -306,8 +304,8 @@ class Sentinel2(SatUtils):
         Defaults to None
     min_bounds_span : dict, optional
         Default is {}. When specified, gives the minimum bounds that will be used for a coordinate in the query, so
-        it works properly. If a user specified a lat, lon point, the query may fail since the min/max values for 
-        lat/lon are the same. When specified, these bounds will be padded by the following for latitude (as an example): 
+        it works properly. If a user specified a lat, lon point, the query may fail since the min/max values for
+        lat/lon are the same. When specified, these bounds will be padded by the following for latitude (as an example):
         [lat - min_bounds_span['lat'] / 2, lat + min_bounds_span['lat'] / 2]
     """
 

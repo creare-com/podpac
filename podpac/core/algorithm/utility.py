@@ -14,12 +14,11 @@ from podpac.core.algorithm.algorithm import Algorithm
 
 
 class Arange(Algorithm):
-    """A simple test node that gives each value in the output a number.
-    """
+    """A simple test node that gives each value in the output a number."""
 
     def algorithm(self, inputs):
         """Uses np.arange to give each value in output a unique number
-        
+
         Arguments
         ---------
         inputs : dict
@@ -28,7 +27,7 @@ class Arange(Algorithm):
         Returns
         -------
         UnitsDataArray
-            A row-majored numbered array of the requested size. 
+            A row-majored numbered array of the requested size.
         """
         data = np.arange(self._requested_coordinates.size).reshape(self._requested_coordinates.shape)
         return self.create_output_array(self._requested_coordinates, data=data)
@@ -36,7 +35,7 @@ class Arange(Algorithm):
 
 class CoordData(Algorithm):
     """Extracts the coordinates from a request and makes it available as a data
-    
+
     Attributes
     ----------
     coord_name : str
@@ -47,7 +46,7 @@ class CoordData(Algorithm):
 
     def algorithm(self, inputs):
         """Extract coordinate from request and makes data available.
-        
+
         Arguments
         ----------
         inputs : dict
@@ -68,12 +67,11 @@ class CoordData(Algorithm):
 
 
 class SinCoords(Algorithm):
-    """A simple test node that creates a data based on coordinates and trigonometric (sin) functions. 
-    """
+    """A simple test node that creates a data based on coordinates and trigonometric (sin) functions."""
 
     def algorithm(self, inputs):
-        """Computes sinusoids of all the coordinates. 
-        
+        """Computes sinusoids of all the coordinates.
+
         Arguments
         ----------
         inputs : dict

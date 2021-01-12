@@ -7,8 +7,7 @@ from podpac.core.data.dataset_source import Dataset
 
 
 class TestDataset(object):
-    """ test xarray dataset source
-    """
+    """test xarray dataset source"""
 
     source = os.path.join(os.path.dirname(__file__), "assets/dataset.nc")
     lat = [0, 1, 2]

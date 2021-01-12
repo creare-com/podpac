@@ -6,5 +6,5 @@ Utils Public Module
 
 
 from podpac.core.utils import create_logfile, cached_property, NodeTrait
-from podpac.core.cache import clear_cache
+from podpac.core.cache import clear_cache, cache_cleanup
 from podpac.core.node import NoCacheMixin, DiskCacheMixin

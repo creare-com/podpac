@@ -174,9 +174,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
-latex_documents = [
-    (master_doc, "podpac.tex", "podpac Documentation", "Creare", "manual")
-]
+latex_documents = [(master_doc, "podpac.tex", "podpac Documentation", "Creare", "manual")]
 
 
 # -- Options for manual page output ---------------------------------------
@@ -212,9 +210,7 @@ def generate_example_links():
     base_link = "https://github.com/creare-com/podpac-examples/blob/develop/notebooks"
 
     nbpath = os.path.join(
-        os.path.join(
-            os.path.dirname(__file__), os.path.normpath(path_to_examples_repository)
-        ),
+        os.path.join(os.path.dirname(__file__), os.path.normpath(path_to_examples_repository)),
         "notebooks",
     )
     if os.path.exists(nbpath):
@@ -227,7 +223,7 @@ def generate_example_links():
     prestring = "- "
     string = "\n".join(
         [
-            prestring + " `{} <{}>`_".format(f.split('.ipynb')[0].replace('-', ' ').capitalize(), base_link + "/" + f)
+            prestring + " `{} <{}>`_".format(f.split(".ipynb")[0].replace("-", " ").capitalize(), base_link + "/" + f)
             for f in files
             if f.endswith("ipynb")
         ]
@@ -236,8 +232,7 @@ def generate_example_links():
     subdirs = [
         f
         for f in files
-        if os.path.isdir(os.path.join(nbpath, f))
-        and f not in [".ipynb_checkpoints", "developer", "__pycache__"]
+        if os.path.isdir(os.path.join(nbpath, f)) and f not in [".ipynb_checkpoints", "developer", "__pycache__"]
     ]
     subdirs.sort()
     for sd in subdirs:
@@ -245,11 +240,11 @@ def generate_example_links():
         link = base_link + "/" + sd
         fs = os.listdir(path)
         fs.sort()
-        string += "\n- {}\n".format(sd.replace('-', ' ').title())
+        string += "\n- {}\n".format(sd.replace("-", " ").title())
         prestring = "   -"
         string += "\n".join(
             [
-                prestring + " `{} <{}>`_".format(f.split('.ipynb')[0].replace('-', ' ').capitalize(), link + "/" + f)
+                prestring + " `{} <{}>`_".format(f.split(".ipynb")[0].replace("-", " ").capitalize(), link + "/" + f)
                 for f in fs
                 if f.endswith("ipynb")
             ]
@@ -259,20 +254,13 @@ def generate_example_links():
     with open(write_path, "w") as f:
         f.write(string)
 
+
 def copy_changelog():
     """copy the changelog from the root of the repository"""
 
     path_to_changelog = "../../CHANGELOG.md"
-    filepath = os.path.join(
-        os.path.join(
-            os.path.dirname(__file__), os.path.normpath(path_to_changelog)
-        )
-    )
-    destpath = os.path.join(
-        os.path.join(
-            os.path.dirname(__file__), "changelog.md"
-        )
-    )
+    filepath = os.path.join(os.path.join(os.path.dirname(__file__), os.path.normpath(path_to_changelog)))
+    destpath = os.path.join(os.path.join(os.path.dirname(__file__), "changelog.md"))
     # copy file to current directory
     copyfile(filepath, destpath)
 

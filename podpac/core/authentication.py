@@ -8,17 +8,20 @@ import logging
 
 import requests
 import traitlets as tl
-from lazy_import import lazy_module
+from lazy_import import lazy_module, lazy_function
 
 from podpac.core.settings import settings
 from podpac.core.utils import cached_property
+
+# Optional dependencies
+pydap_setup_session = lazy_function("pydap.cas.urs.setup_session")
 
 _log = logging.getLogger(__name__)
 
 
 def set_credentials(hostname, username=None, password=None):
     """Set authentication credentials for a remote URL in the :class:`podpac.settings`.
-    
+
     Parameters
     ----------
     hostname : str
@@ -59,12 +62,12 @@ class RequestsSessionMixin(tl.HasTraits):
     def username(self):
         """Returns username stored in settings for accessing `self.hostname`.
         The username is stored under key `username@<hostname>`
-        
+
         Returns
         -------
         str
             username stored in settings for accessing `self.hostname`
-        
+
         Raises
         ------
         ValueError
@@ -85,12 +88,12 @@ class RequestsSessionMixin(tl.HasTraits):
     def password(self):
         """Returns password stored in settings for accessing `self.hostname`.
         The password is stored under key `password@<hostname>`
-        
+
         Returns
         -------
         str
             password stored in settings for accessing `self.hostname`
-        
+
         Raises
         ------
         ValueError
@@ -111,7 +114,7 @@ class RequestsSessionMixin(tl.HasTraits):
     def session(self):
         """Requests Session object for making calls to remote `self.hostname`
         See https://2.python-requests.org/en/master/api/#sessionapi
-        
+
         Returns
         -------
         :class:requests.Session
@@ -121,7 +124,7 @@ class RequestsSessionMixin(tl.HasTraits):
 
     def set_credentials(self, username=None, password=None):
         """Shortcut to :func:`podpac.authentication.set_crendentials` using class member :attr:`self.hostname` for the hostname
-        
+
         Parameters
         ----------
         username : str, optional
@@ -137,7 +140,7 @@ class RequestsSessionMixin(tl.HasTraits):
 
     def _create_session(self):
         """Creates a :class:`requests.Session` with username and password defined
-        
+
         Returns
         -------
         :class:`requests.Session`
@@ -146,6 +149,34 @@ class RequestsSessionMixin(tl.HasTraits):
 
         try:
             s.auth = (self.username, self.password)
+        except ValueError as e:
+            if self.auth_required:
+                raise e
+            else:
+                _log.warning("No auth provided for session")
+
+        return s
+
+
+class NASAURSSessionMixin(RequestsSessionMixin):
+    check_url = tl.Unicode()
+    hostname = tl.Unicode(default_value="urs.earthdata.nasa.gov")
+    auth_required = tl.Bool(True)
+
+    def _create_session(self):
+        """Creates an authenticated :class:`requests.Session` with username and password defined
+
+        Returns
+        -------
+        :class:`requests.Session`
+
+        Notes
+        -----
+        The session is authenticated against the user-provided self.check_url
+        """
+
+        try:
+            s = pydap_setup_session(self.username, self.password, check_url=self.check_url)
         except ValueError as e:
             if self.auth_required:
                 raise e

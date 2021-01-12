@@ -1,12 +1,15 @@
+import copy
+import tempfile
+import shutil
+
 import pytest
 
 import podpac
-
 from podpac.core.cache.utils import CacheException
 from podpac.core.cache.ram_cache_store import RamCacheStore
 from podpac.core.cache.disk_cache_store import DiskCacheStore
 from podpac.core.cache.cache_ctrl import CacheCtrl
-from podpac.core.cache.cache_ctrl import get_default_cache_ctrl, make_cache_ctrl, clear_cache
+from podpac.core.cache.cache_ctrl import get_default_cache_ctrl, make_cache_ctrl, clear_cache, cache_cleanup
 
 
 class CacheCtrlTestNode(podpac.Node):
@@ -17,6 +20,34 @@ NODE = CacheCtrlTestNode()
 
 
 class TestCacheCtrl(object):
+    def setup_method(self):
+        # store the current settings
+        self.settings_orig = copy.deepcopy(podpac.settings)
+
+        # delete the ram cache
+        from podpac.core.cache.ram_cache_store import _thread_local
+
+        if hasattr(_thread_local, "cache"):
+            delattr(_thread_local, "cache")
+
+        # use an fresh temporary disk cache
+        self.test_cache_dir = tempfile.mkdtemp(prefix="podpac-test-")
+        podpac.settings["DISK_CACHE_DIR"] = self.test_cache_dir
+
+    def teardown_method(self):
+        # delete the ram cache
+        from podpac.core.cache.ram_cache_store import _thread_local
+
+        if hasattr(_thread_local, "cache"):
+            delattr(_thread_local, "cache")
+
+        # delete the disk cache
+        shutil.rmtree(self.test_cache_dir, ignore_errors=True)
+
+        # reset the settings
+        for key in podpac.settings:
+            podpac.settings[key] = self.settings_orig[key]
+
     def test_init_default(self):
         ctrl = CacheCtrl()
         assert len(ctrl._cache_stores) == 0
@@ -44,7 +75,6 @@ class TestCacheCtrl(object):
 
     def test_put_has_get(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
-        ctrl.clear()
 
         # has False
         assert not ctrl._cache_stores[0].has(NODE, "key")
@@ -66,7 +96,6 @@ class TestCacheCtrl(object):
 
     def test_partial_has_get(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
-        ctrl.clear()
 
         # has False
         assert not ctrl._cache_stores[0].has(NODE, "key")
@@ -89,7 +118,6 @@ class TestCacheCtrl(object):
 
     def test_get_cache_miss(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
-        ctrl.clear()
 
         with pytest.raises(CacheException, match="Requested data is not in any cache stores"):
             ctrl.get(NODE, "key")
@@ -140,7 +168,6 @@ class TestCacheCtrl(object):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
 
         # put disk and check has
-        ctrl.clear()
         assert not ctrl.has(NODE, "key")
 
         ctrl.put(NODE, 10, "key", mode="disk")
@@ -160,6 +187,41 @@ class TestCacheCtrl(object):
         assert not ctrl._cache_stores[1].has(NODE, "key")
         assert not ctrl.has(NODE, "key", mode="disk")
         assert ctrl.has(NODE, "key")
+
+    def test_put_has_expires(self):
+        ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
+
+        ctrl.put(NODE, 10, "key1", expires="1,D")
+        ctrl.put(NODE, 10, "key2", expires="-1,D")
+        assert ctrl.has(NODE, "key1")
+        assert not ctrl.has(NODE, "key2")
+
+    def test_put_get_expires(self):
+        ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
+
+        ctrl.put(NODE, 10, "key1", expires="1,D")
+        ctrl.put(NODE, 10, "key2", expires="-1,D")
+        assert ctrl.get(NODE, "key1") == 10
+        with pytest.raises(CacheException, match="Requested data is not in any cache stores"):
+            ctrl.get(NODE, "key2")
+
+    def test_cleanup(self):
+        from podpac.core.cache.ram_cache_store import _thread_local
+
+        ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
+
+        ctrl.put(NODE, 10, "key1", expires="1,D")
+        ctrl.put(NODE, 10, "key2", expires="-1,D")
+
+        # 2 entries (even though one is expired)
+        assert len(_thread_local.cache) == 2
+        assert len(ctrl._cache_stores[1].search(NODE)) == 2
+
+        ctrl.cleanup()
+
+        # only 1 entry (the expired entry has been removed)
+        assert len(_thread_local.cache) == 1
+        assert len(ctrl._cache_stores[1].search(NODE)) == 1
 
     def test_invalid_node(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
@@ -285,17 +347,24 @@ class TestMakeCacheCtrl(object):
             ctrl = make_cache_ctrl(["other"])
 
 
-class TestClearCache(object):
-    def test_clear_cache(self):
-        with podpac.settings:
-            # make a default cache
-            podpac.settings["DEFAULT_CACHE"] = ["ram"]
+def test_clear_cache():
+    with podpac.settings:
+        # make a default cache
+        podpac.settings["DEFAULT_CACHE"] = ["ram"]
 
-            # fill the default cache
-            node = podpac.algorithm.Arange()
-            node.put_cache(0, "mykey")
-            assert node.has_cache("mykey")
+        # fill the default cache
+        node = podpac.algorithm.Arange()
+        node.put_cache(0, "mykey")
+        assert node.has_cache("mykey")
 
-            clear_cache()
+        clear_cache()
 
-            assert not node.has_cache("mykey")
+        assert not node.has_cache("mykey")
+
+
+def test_cache_cleanup():
+    with podpac.settings:
+        # make a default cache
+        podpac.settings["DEFAULT_CACHE"] = ["ram"]
+
+        cache_cleanup()

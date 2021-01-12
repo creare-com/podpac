@@ -5,6 +5,7 @@ import io
 import warnings
 import re
 import hashlib
+import time
 
 try:
     import cPickle as pickle  # python 2
@@ -17,7 +18,7 @@ import xarray as xr
 import podpac
 from podpac.core.settings import settings
 from podpac.core.utils import is_json_serializable
-from podpac.core.cache.utils import CacheException, CacheWildCard
+from podpac.core.cache.utils import CacheException, CacheWildCard, expiration_timestamp
 from podpac.core.cache.cache_store import CacheStore
 
 
@@ -26,19 +27,41 @@ def _hash_string(s):
 
 
 class FileCacheStore(CacheStore):
-    """Abstract class with functionality common to persistent CacheStore objects (e.g. local disk, s3) that store things using multiple paths (filepaths or object paths)
-    """
+    """Abstract class with functionality common to persistent CacheStore objects (e.g. local disk, s3) that store things using multiple paths (filepaths or object paths)"""
 
     cache_mode = ""
     cache_modes = ["all"]
+
+    _root_dir_path = None  # should be set by children
 
     # -----------------------------------------------------------------------------------------------------------------
     # public cache API methods
     # -----------------------------------------------------------------------------------------------------------------
 
-    def put(self, node, data, key, coordinates=None, update=True):
+    def has(self, node, key, coordinates=None):
+        """Check for valid cached data for this node.
+
+        Parameters
+        ------------
+        node : Node
+            node requesting storage.
+        key : str
+            Cached object key, e.g. 'output'.
+        coordinates: Coordinate, optional
+            Coordinates for which cached object should be checked
+
+        Returns
+        -------
+        has_cache : bool
+             True if there is a valid cached object for this node for the given key and coordinates.
+        """
+
+        path = self.find(node, key, coordinates)
+        return path is not None and not self._expired(path)
+
+    def put(self, node, data, key, coordinates=None, expires=None, update=True):
         """Cache data for specified node.
-        
+
         Parameters
         ------------
         node : Node
@@ -49,71 +72,87 @@ class FileCacheStore(CacheStore):
             Cached object key, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
+        expires : float, datetime, timedelta
+            Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         """
 
-        # check for existing entry
-        if not update and self.has(node, key, coordinates):
-            raise CacheException("Cache entry already exists. Use `update=True` to overwrite.")
-
-        self.rem(node, key, coordinates)
+        # check for valid existing entry (expired entries are automatically ignored and overwritten)
+        if self.has(node, key, coordinates):
+            if not update:
+                raise CacheException("Cache entry already exists. Use `update=True` to overwrite.")
+            else:
+                self._remove(self.find(node, key, coordinates))
 
         # serialize
-        path_root = self._path_join(self._get_node_dir(node), self._get_filename(node, key, coordinates))
+        root = self._get_filename(node, key, coordinates)
 
         if isinstance(data, podpac.core.units.UnitsDataArray):
-            path = path_root + ".uda.nc"
+            ext = "uda.nc"
             s = data.to_netcdf()
         elif isinstance(data, xr.DataArray):
-            path = path_root + ".xrda.nc"
+            ext = "xrda.nc"
             s = data.to_netcdf()
         elif isinstance(data, xr.Dataset):
-            path = path_root + ".xrds.nc"
+            ext = "xrds.nc"
             s = data.to_netcdf()
         elif isinstance(data, np.ndarray):
-            path = path_root + ".npy"
+            ext = "npy"
             with io.BytesIO() as f:
                 np.save(f, data)
                 s = f.getvalue()
         elif isinstance(data, podpac.Coordinates):
-            path = path_root + ".coords.json"
+            ext = "coords.json"
             s = data.json.encode()
         elif isinstance(data, podpac.Node):
-            path = path_root + ".node.json"
+            ext = "node.json"
             s = data.json.encode()
         elif is_json_serializable(data):
-            path = path_root + ".json"
+            ext = "json"
             s = json.dumps(data).encode()
         else:
             warnings.warn(
                 "Object of type '%s' is not json serializable; caching object to file using pickle, which "
                 "may not be compatible with other Python versions or podpac versions." % type(data)
             )
-            path = path_root + ".pkl"
+            ext = "pkl"
             s = pickle.dumps(data)
 
         # check size
-        if self.max_size is not None and self.size + len(s) > self.max_size:
-            # TODO removal policy
-            warnings.warn(
-                "Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in "
-                "settings.{cache_limit_setting} or try clearing the cache (e.g. podpac.utils.clear_cache(, "
-                "mode='{cache_mode}') to clear ALL cached results in {cache_mode} cache)".format(
-                    cache_mode=self.cache_mode, cache_limit_setting=self._limit_setting
-                ),
-                UserWarning,
-            )
-            return False
+        if self.max_size is not None:
+            new_size = self.size + len(s)
+
+            if new_size > self.max_size:
+                # cleanup and check again
+                self.cleanup()
+
+            if new_size > self.max_size:
+                # TODO removal policy (using create time, last access, etc)
+                warnings.warn(
+                    "Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in "
+                    "settings.{cache_limit_setting} or try clearing the cache (e.g. podpac.utils.clear_cache(, "
+                    "mode='{cache_mode}') to clear ALL cached results in {cache_mode} cache)".format(
+                        cache_mode=self.cache_mode, cache_limit_setting=self._limit_setting
+                    ),
+                    UserWarning,
+                )
+                return False
 
         # save
-        self._make_node_dir(node)
-        self._save(path, s)
+        node_dir = self._get_node_dir(node)
+        path = self._path_join(node_dir, "%s.%s" % (root, ext))
+
+        metadata = {"created": time.time(), "accessed": None, "expires": expiration_timestamp(expires)}
+
+        self._make_dir(node_dir)
+        self._save(path, s, metadata=metadata)
+
         return True
 
     def get(self, node, key, coordinates=None):
         """Get cached data for this node.
-        
+
         Parameters
         ------------
         node : Node
@@ -122,12 +161,12 @@ class FileCacheStore(CacheStore):
             Cached object key, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
-            
+
         Returns
         -------
         data : any
             The cached data.
-        
+
         Raises
         -------
         CacheError
@@ -138,11 +177,16 @@ class FileCacheStore(CacheStore):
         if path is None:
             raise CacheException("Cache miss. Requested data not found.")
 
+        # get metadata
+        if self._expired(path):
+            raise CacheException("Cache miss. Requested data expired.")
+
         # read
         s = self._load(path)
+        self._set_metadata(path, "accessed", time.time())
 
         # deserialize
-        if path.endswith("uda.nc"):
+        if path.endswith(".uda.nc"):
             x = xr.open_dataarray(s)
             data = podpac.core.units.UnitsDataArray(x)
         elif path.endswith(".xrda.nc"):
@@ -165,30 +209,9 @@ class FileCacheStore(CacheStore):
 
         return data
 
-    def has(self, node, key, coordinates=None):
-        """Check for cached data for this node
-        
-        Parameters
-        ------------
-        node : Node
-            node requesting storage.
-        key : str
-            Cached object key, e.g. 'output'.
-        coordinates: Coordinate, optional
-            Coordinates for which cached object should be checked
-        
-        Returns
-        -------
-        has_cache : bool
-             True if there as a cached object for this node for the given key and coordinates.
-        """
-
-        path = self.find(node, key, coordinates)
-        return path is not None
-
     def rem(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
         """Delete cached data for this node.
-        
+
         Parameters
         ------------
         node : Node
@@ -204,9 +227,11 @@ class FileCacheStore(CacheStore):
             self._remove(path)
 
         # remove empty node directories
-        node_dir = self._get_node_dir(node=node)
-        if self._is_empty(node_dir):
-            self._rmdir(node_dir)
+        if not self.search(node):
+            path = self._get_node_dir(node=node)
+            while self._is_empty(path):
+                self._rmtree(path)
+                path = self._dirname(path)
 
     def clear(self):
         """
@@ -223,7 +248,7 @@ class FileCacheStore(CacheStore):
         """
         Search for matching cached objects.
         """
-        NotImplementedError
+        raise NotImplementedError
 
     def find(self, node, key, coordinates=None):
         """
@@ -249,7 +274,7 @@ class FileCacheStore(CacheStore):
         filename = "%s_%s_%s_%s" % (prefix, node.hash, _hash_string(key), coordinates.hash if coordinates else "None")
         return filename
 
-    def _match_filename(self, node, key, coordinates):
+    def _get_filename_pattern(self, node, key, coordinates):
         match_prefix = "*"
         match_node = node.hash
 
@@ -270,6 +295,13 @@ class FileCacheStore(CacheStore):
 
     def _sanitize(self, s):
         return re.sub("[_:<>/\\\\*]+", "-", s)  # replaces _:<>/\*
+
+    def _expired(self, path):
+        expires = self._get_metadata(path, "expires")
+        if expires is not None and time.time() >= expires:
+            self._remove(path)
+            return True
+        return False
 
     # -----------------------------------------------------------------------------------------------------------------
     # file storage abstraction
@@ -299,5 +331,14 @@ class FileCacheStore(CacheStore):
     def _rmdir(self, directory):
         raise NotImplementedError
 
-    def _make_node_dir(self, node):
+    def _make_dir(self, path):
+        raise NotImplementedError
+
+    def _dirname(self, path):
+        raise NotImplementedError
+
+    def _get_metadata(self, path, key):
+        raise NotImplementedError
+
+    def _set_metadata(self, path, key, value):
         raise NotImplementedError

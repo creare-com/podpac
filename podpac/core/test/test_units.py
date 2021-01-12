@@ -513,7 +513,7 @@ class TestToGeoTiff(object):
         # bands = 3
         node = Array(
             source=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
-            coordinates=Coordinates([clinspace(4, 0, 2, "lat"), clinspace(1, 4, 4, "lon")][::order]),
+            coordinates=Coordinates([clinspace(4, 0, 2, "lat"), clinspace(1, 4, 4, "lon")][::order], crs="EPSG:4326"),
             outputs=[str(s) for s in list(range(bands))],
         )
         return node

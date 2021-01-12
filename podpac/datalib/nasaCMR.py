@@ -16,9 +16,9 @@ from podpac.core.utils import _get_from_url
 CMR_URL = r"https://cmr.earthdata.nasa.gov/search/"
 
 
-def get_collection_id(session=None, short_name=None, keyword=None, **kwargs):
-    """ Users NASA CMR to retrieve metadata about a data collection
-    
+def get_collection_entries(session=None, short_name=None, keyword=None, **kwargs):
+    """Uses NASA CMR to retrieve metadata about a collection
+
     Parameters
     -----------
     session: :class:`requets.Session`, optional
@@ -29,13 +29,13 @@ def get_collection_id(session=None, short_name=None, keyword=None, **kwargs):
         Any keyword search parameters
     **kwargs: str, optional
         Any additional query parameters
-        
+
     Returns
     ---------
-    list
-        A list of collection id's (ideally only one)
-        
-    Examples: 
+    list:
+        A list of collection metadata dictionaries
+
+    Examples:
     -----------
     >>> # This make the following request https://cmr.earthdata.nasa.gov/search/collections.json?short_name=SPL2SMAP_S
     >>> get_collection_id(short_name='SPL2SMAP_S')
@@ -57,6 +57,37 @@ def get_collection_id(session=None, short_name=None, keyword=None, **kwargs):
     pydict = _get_from_url(base_url + query_string, session).json()
 
     entries = pydict["feed"]["entry"]
+
+    return entries
+
+
+def get_collection_id(session=None, short_name=None, keyword=None, **kwargs):
+    """Uses NASA CMR to retrieve collection id
+
+    Parameters
+    -----------
+    session: :class:`requets.Session`, optional
+        An authenticated Earthdata login session
+    short_name: str, optional
+        The short name of the dataset
+    keyword: str, optional
+        Any keyword search parameters
+    **kwargs: str, optional
+        Any additional query parameters
+
+    Returns
+    ---------
+    list
+        A list of collection id's (ideally only one)
+
+    Examples:
+    -----------
+    >>> # This make the following request https://cmr.earthdata.nasa.gov/search/collections.json?short_name=SPL2SMAP_S
+    >>> get_collection_id(short_name='SPL2SMAP_S')
+    ['C1522341104-NSIDC_ECS']
+    """
+
+    entries = get_collection_entries(session=session, short_name=short_name, keyword=keyword, **kwargs)
     if len(entries) > 1:
         _logger.warning("Found more than 1 entry for collection_id search")
 
@@ -66,8 +97,8 @@ def get_collection_id(session=None, short_name=None, keyword=None, **kwargs):
 
 
 def search_granule_json(session=None, entry_map=None, **kwargs):
-    """ Search for specific files from NASA CMR for a particular collection
-    
+    """Search for specific files from NASA CMR for a particular collection
+
     Parameters
     -----------
     session: :class:`requets.Session`, optional
@@ -75,10 +106,10 @@ def search_granule_json(session=None, entry_map=None, **kwargs):
     entry_map: function
         A function applied to each individual entry. Could be used to filter out certain data in an entry
     **kwargs: dict
-        Additional query string parameters. 
-        At minimum the provider, provider_id, concept_id, collection_concept_id, short_name, version, or entry_title 
-        need to be provided for a granule search. 
-        
+        Additional query string parameters.
+        At minimum the provider, provider_id, concept_id, collection_concept_id, short_name, version, or entry_title
+        need to be provided for a granule search.
+
     Returns
     ---------
     list
@@ -128,8 +159,8 @@ def search_granule_json(session=None, entry_map=None, **kwargs):
 
 
 def _get_all_granule_pages(session, url, entry_map, max_paging_depth=1000000):
-    """ Helper function for searching through all pages for a collection.
-    
+    """Helper function for searching through all pages for a collection.
+
     Parameters
     -----------
     session: :class:`requets.Session`, optional
@@ -138,7 +169,7 @@ def _get_all_granule_pages(session, url, entry_map, max_paging_depth=1000000):
         URL to website
     entry_map: function
         Function for mapping the entries to a desired format
-    max_paging_depth 
+    max_paging_depth
     """
     page_size = int([q for q in url.split("?")[1].split("&") if "page_size" in q][0].split("=")[1])
     max_pages = int(max_paging_depth / page_size)

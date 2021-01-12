@@ -227,7 +227,9 @@ class MODISTile(S3Mixin, DataSource):
 
 
 class MODIS(S3Mixin, OrderedCompositor):
-    """ MODIS whole-world compositor.
+    """MODIS whole-world compositor.
+    For documentation about the data, start here: https://ladsweb.modaps.eosdis.nasa.gov/search/order/1
+    For information about the bands, see here: https://modis.gsfc.nasa.gov/about/specifications.php
 
     Attributes
     ----------
@@ -244,6 +246,8 @@ class MODIS(S3Mixin, OrderedCompositor):
     start_date = "2013-01-01"
     end_date = datetime.date.today().strftime("%Y-%m-%d")
     anon = tl.Bool(True)
+
+    dims = ["time", "lat", "lon"]
 
     _repr_keys = ["product", "data_key"]
 

@@ -5,17 +5,18 @@ from podpac.core.utils import common_doc, cached_property
 from podpac.core.coordinates import Coordinates, StackedCoordinates
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin, LoadFileMixin
+from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 @common_doc(COMMON_DATA_DOC)
-class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
+class CSVBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
     """Create a DataSource from a .csv file.
 
     This class assumes that the data has a storage format such as:
     header 1,   header 2,   header 3, ...
     row1_data1, row1_data2, row1_data3, ...
     row2_data1, row2_data2, row2_data3, ...
-    
+
     Attributes
     ----------
     source : str
@@ -49,7 +50,7 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     @tl.default("data_key")
     def _default_data_key(self):
-        return super(CSV, self)._default_data_key()
+        return super(CSVBase, self)._default_data_key()
 
     @tl.validate("data_key")
     def _validate_data_key(self, d):
@@ -115,11 +116,11 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
     @common_doc(COMMON_DATA_DOC)
     def get_coordinates(self):
         """{get_coordinates}
-        
+
         Note: CSV files have StackedCoordinates.
         """
 
-        coords = super(CSV, self).get_coordinates()
+        coords = super(CSVBase, self).get_coordinates()
         if len(coords) == 1:
             return coords
         stacked = StackedCoordinates(list(coords.values()))
@@ -127,8 +128,7 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
 
         if not isinstance(self.data_key, list):
             I = self._get_col(self.data_key)
@@ -150,3 +150,7 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     def _get_col(self, key):
         return key if isinstance(key, int) else self.dataset.columns.get_loc(key)
+
+
+class CSV(InterpolationMixin, CSVBase):
+    pass

@@ -30,7 +30,7 @@ class UniformCoordinates1d(Coordinates1d):
     ``datetime64`` and timedelta strings such as ``'1,D'`` to ``timedelta64``.
 
     UniformCoordinates1d can also be created by specifying the size instead of the step.
-    
+
     Parameters
     ----------
     start : float or datetime64
@@ -119,16 +119,23 @@ class UniformCoordinates1d(Coordinates1d):
         super(UniformCoordinates1d, self).__init__(name=name)
 
     def __eq__(self, other):
-        if not super(UniformCoordinates1d, self).__eq__(other):
+        if not self._eq_base(other):
             return False
 
         if isinstance(other, UniformCoordinates1d):
-            if self.start != other.start or self.stop != other.stop or self.step != other.step:
+            if self.dtype == float:
+                if not np.allclose([self.start, self.stop, self.step], [other.start, other.stop, other.step]):
+                    return False
+            elif self.start != other.start or self.stop != other.stop or self.step != other.step:
                 return False
 
         if isinstance(other, ArrayCoordinates1d):
-            if not np.array_equal(self.coordinates, other.coordinates):
-                return False
+            if self.dtype == float:
+                if not np.allclose(self.coordinates, other.coordinates):
+                    return False
+            else:
+                if not np.array_equal(self.coordinates, other.coordinates):
+                    return False
 
         return True
 
@@ -205,13 +212,10 @@ class UniformCoordinates1d(Coordinates1d):
     # Standard methods, array-like
     # -----------------------------------------------------------------------------------------------------------------
 
-    def __len__(self):
-        return self.size
-
     def __getitem__(self, index):
         # fallback for non-slices
         if not isinstance(index, slice):
-            return ArrayCoordinates1d(self.coordinates[index], **self.properties)
+            return ArrayCoordinates1d(self.coordinates, **self.properties)[index]
 
         # start, stop, step
         if index.start is None:
@@ -238,8 +242,26 @@ class UniformCoordinates1d(Coordinates1d):
         # empty slice
         if start > stop and step > 0:
             return ArrayCoordinates1d([], **self.properties)
-
         return UniformCoordinates1d(start, stop, step, **self.properties)
+
+    def __contains__(self, item):
+        # overrides the Coordinates1d.__contains__ method with optimizations for uniform coordinates.
+
+        try:
+            item = make_coord_value(item)
+        except:
+            return False
+
+        if type(item) != self.dtype:
+            return False
+
+        if item < self.bounds[0] or item > self.bounds[1]:
+            return False
+
+        if self.dtype == np.datetime64:
+            return timedelta_divisible(item - self.start, self.step)
+        else:
+            return (item - self.start) % self.step == 0
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -252,6 +274,14 @@ class UniformCoordinates1d(Coordinates1d):
         coordinates = add_coord(self.start, np.arange(0, self.size) * self.step)
         # coordinates.setflags(write=False)  # This breaks the 002-open-point-file example
         return coordinates
+
+    @property
+    def ndim(self):
+        return 1
+
+    @property
+    def shape(self):
+        return (self.size,)
 
     @property
     def size(self):
@@ -276,11 +306,11 @@ class UniformCoordinates1d(Coordinates1d):
             range_ = self.stop - self.start
             step = self.step
 
-        return max(0, int(np.floor(range_ / step + 1e-12) + 1))
+        return max(0, int(np.floor(range_ / step + 1e-10) + 1))
 
     @property
     def dtype(self):
-        """ :type: Coordinates dtype.
+        """:type: Coordinates dtype.
 
         ``float`` for numerical coordinates and numpy ``datetime64`` for datetime coordinates.
         """
@@ -344,8 +374,30 @@ class UniformCoordinates1d(Coordinates1d):
         kwargs = self.properties
         return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
 
+    def unique(self, return_index=False):
+        """
+        Return the coordinates (uniform coordinates are already unique).
+
+        Arguments
+        ---------
+        return_index : bool, optional
+            If True, return index for the unique coordinates in addition to the coordinates. Default False.
+
+        Returns
+        -------
+        unique : :class:`ArrayCoordinates1d`
+            New ArrayCoordinates1d object with unique, sorted coordinate values.
+        unique_index : list of indices
+            index
+        """
+
+        if return_index:
+            return self.copy(), np.arange(self.size).tolist()
+        else:
+            return self.copy()
+
     def simplify(self):
-        """ Get the simplified/optimized representation of these coordinates.
+        """Get the simplified/optimized representation of these coordinates.
 
         Returns
         -------
@@ -353,10 +405,25 @@ class UniformCoordinates1d(Coordinates1d):
             These coordinates (the coordinates are already simplified).
         """
 
-        return self
+        return self.copy()
+
+    def flatten(self):
+        """
+        Return a copy of the uniform coordinates, for consistency.
+
+        Returns
+        -------
+        :class:`UniformCoordinates1d`
+            Flattened coordinates.
+        """
+
+        return self.copy()
+
+    def reshape(self, newshape):
+        return ArrayCoordinates1d(self.coordinates, **self.properties).reshape(newshape)
 
     def issubset(self, other):
-        """ Report whether other coordinates contains these coordinates.
+        """Report whether other coordinates contains these coordinates.
 
         Arguments
         ---------
@@ -398,7 +465,7 @@ class UniformCoordinates1d(Coordinates1d):
             return False
 
         # check start and step
-        if self.start not in other.coordinates:
+        if self.start not in other:
             return False
 
         if self.size == 1:
@@ -409,7 +476,7 @@ class UniformCoordinates1d(Coordinates1d):
         else:
             return self.step % other.step == 0
 
-    def _select(self, bounds, return_indices, outer):
+    def _select(self, bounds, return_index, outer):
         # TODO is there an easier way to do this with the new outer flag?
         my_bounds = self.bounds
 
@@ -436,13 +503,13 @@ class UniformCoordinates1d(Coordinates1d):
 
         # empty case
         if imin >= imax:
-            return self._select_empty(return_indices)
+            return self._select_empty(return_index)
 
         if self.is_descending:
             imax, imin = self.size - imin, self.size - imax
 
         I = slice(imin, imax)
-        if return_indices:
+        if return_index:
             return self[I], I
         else:
             return self[I]

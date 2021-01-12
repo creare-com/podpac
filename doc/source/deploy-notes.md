@@ -10,6 +10,8 @@
 * [ ] Update the conda environment .yml file (do this by-hand with any new packages in setup.py)
 * [ ] Update the explicit conda environemnt file `conda list --explicit > filename.json`
 * [ ] Update the `podpac_deps.zip` and `podpac_dist.zip` for the lambda function installs
+* [ ] Upload windows install folder to AWS
+* [ ] Make windows install folder public on AWS
 
 ## Uploading to pypi
 Run this command to create the wheel and source code tarball
@@ -66,7 +68,7 @@ $ conda create -n podpac python=3
 $ bin\activate_podpac_conda_env.bat
 
 # Install core dependencies
-$ conda install matplotlib>=2.1 numpy>=1.14 scipy>=1.0 traitlets>=4.3 xarray>=0.10 ipython psutil requests>=2.18
+$ conda install matplotlib>=2.1 numpy>=1.14 scipy>=1.0 traitlets>=4.3 xarray>=0.10 ipython psutil requests>=2.18 owslib
 $ conda install pyproj>=2.2 rasterio>=1.0 -c conda-forge
 $ pip install pint>=0.8 lazy-import>=0.2.2
 
@@ -92,8 +94,10 @@ $ jupyter labextension install jupyter-leaflet
 $ jupyter labextension install jupyter-matplotlib
 $ jupyter nbextension enable --py widgetsnbextension
 $ jupyter lab build
-$ ~~python -m ipykernel install --user~~
+```
+~~$ python -m ipykernel install --user~~
 
+```bash
 # clean conda environment
 $ conda clean -a -y
 # Also delete miniconda/pkgs/.trash for a smaller installation

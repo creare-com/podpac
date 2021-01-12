@@ -88,7 +88,7 @@ class TestPyDAP(object):
 
     def test_url_error(self):
         node = PyDAP(source="mysource")
-        with pytest.raises(RuntimeError):
+        with pytest.raises(Exception):
             node.dataset
 
     def test_get_data(self):

@@ -23,6 +23,7 @@ bs4 = lazy_module("bs4")
 
 import podpac
 from podpac.core.utils import cached_property
+from podpac.core.compositor.data_compositor import InterpDataCompositor
 
 
 def _convert_str_to_vals(properties):
@@ -48,10 +49,6 @@ class COSMOSStation(podpac.data.DataSource):
 
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/StationDat/")
     station_data = tl.Dict().tag(attr=True)
-
-    @tl.default("interpolation")
-    def _interpolation_default(self):
-        return {"method": "nearest", "params": {"spatial_tolerance": 1.1, "time_tolerance": np.timedelta64(1, "D")}}
 
     @cached_property
     def raw_data(self):
@@ -85,7 +82,7 @@ class COSMOSStation(podpac.data.DataSource):
         data[data > 100] = np.nan
         data[data < 0] = np.nan
         data /= 100.0  # Make it fractional
-        return self.create_output_array(coordinates, data=data[:, None, None])
+        return self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
 
     def get_coordinates(self):
         lat_lon = self.station_data["location"]
@@ -101,7 +98,7 @@ class COSMOSStation(podpac.data.DataSource):
             time = np.datetime64("NaT")
         else:
             time = np.array([t[0] + "T" + t[1] for t in time], np.datetime64)
-        c = podpac.Coordinates([time, lat_lon[0], lat_lon[1]], ["time", "lat", "lon"])
+        c = podpac.Coordinates([time, [lat_lon[0], lat_lon[1]]], ["time", ["lat", "lon"]])
         return c
 
     @property
@@ -137,9 +134,14 @@ class COSMOSStation(podpac.data.DataSource):
         return _convert_str_to_vals(properties)
 
 
-class COSMOSStations(podpac.compositor.OrderedCompositor):
+class COSMOSStations(InterpDataCompositor):
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/")
     stations_url = tl.Unicode("sitesNoLegend.js")
+    dims = ["lat", "lon", "time"]
+
+    @tl.default("interpolation")
+    def _interpolation_default(self):
+        return {"method": "nearest", "params": {"use_selector": False, "remove_nan": False, "time_scale": "1,M"}}
 
     ## PROPERTIES
     @cached_property(use_cache_ctrl=True)
@@ -181,13 +183,13 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
 
     ## UTILITY FUNCTIONS
     def stations_value(self, key, stations_data=None):
-        """ Returns a list of values for all the station for a particular key
-        
+        """Returns a list of values for all the station for a particular key
+
         Parameters
         -----------
         key: str
-           Key describing the station data. See self.available_data_keys for available keys. 
-           
+           Key describing the station data. See self.available_data_keys for available keys.
+
         Returns
         --------
         list
@@ -199,8 +201,7 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         return self._stations_value(key, stations_data)
 
     def _stations_value(self, key, stations_data=None):
-        """ helper function for stations_value
-        """
+        """helper function for stations_value"""
         if stations_data is None:
             stations_data = self.stations_data
 
@@ -211,20 +212,20 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         return self.stations_value("label")
 
     def label_from_latlon(self, lat_lon):
-        """ Returns the COSMOS station's label given it's lat/lon coordinates
-        
+        """Returns the COSMOS station's label given it's lat/lon coordinates
+
         Parameters
         -----------
         lat_lon : podpac.Coordinates
             The lat/lon locations whose station name will be returned. Note, the lat/lon coordinates have to match
             exactly the coordinates given in station_data[N]['location'], where N is the station.
             This should be Coordinates object with 'lat_lon' stacked coordinates as one of the dimensions.
-            
+
         Returns
         --------
         list
-            List of COSMOS station names corresponding to the given coordinates. If a coordinate has no match, then 
-            "None" is returned.        
+            List of COSMOS station names corresponding to the given coordinates. If a coordinate has no match, then
+            "None" is returned.
         """
         if "lon_lat" in lat_lon.dims:
             lat_lon = lat_lon.transpose("lon_lat")
@@ -232,17 +233,17 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
             raise ValueError("The coordinates object must have a stacked 'lat_lon' dimension.")
 
         labels_map = {s["location"]: s["label"] for s in self.stations_data["items"]}
-        labels = [labels_map.get(ll, None) for ll in lat_lon.coords["lat_lon"]]
+        labels = [labels_map.get(ll, None) for ll in lat_lon.xcoords["lat_lon"]]
         return labels
 
     def latlon_from_label(self, label):
-        """ Returns the lat/lon coordinates of COSMOS stations that match the given labels
-        
+        """Returns the lat/lon coordinates of COSMOS stations that match the given labels
+
         Parameters
         ------------
         label: str, list
-            Strings that partially describe a COSMOS station label. 
-            
+            Strings that partially describe a COSMOS station label.
+
         Returns
         --------
         podpac.Coordinates
@@ -255,7 +256,10 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         if ind.size == 0:
             return podpac.Coordinates([])  # Empty
 
-        return self.source_coordinates[ind]
+        lat_lon = np.array(self.stations_value("location"))[ind].squeeze()
+        c = podpac.Coordinates([[lat_lon[0], lat_lon[1]]], ["lat_lon"])
+
+        return c
 
     def _get_label_inds(self, label):
         """ Helper function to get source indices for partially matched labels """
@@ -267,21 +271,21 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         return ind
 
     def get_calibration_data(self, label=None, lat_lon=None):
-        """ Returns the calibration information for a station. Users must supply a label or lat_lon coordinates.
-        
+        """Returns the calibration information for a station. Users must supply a label or lat_lon coordinates.
+
         Parameters
         ------------
         label: str, List (optional)
             Labels describing the station.
-        
+
         lat_lon: podpac.Coordinates (optional)
             Coordinates of the COSMOS station. Note, this object has to have a 'lat_lon' dimension which matches exactly
-            with the COSMOS stations. 
-            
+            with the COSMOS stations.
+
         Returns
         --------
         list
-            A list of dictionaries containing the calibration data for the requested stations. 
+            A list of dictionaries containing the calibration data for the requested stations.
         """
 
         if label is None and lat_lon is None:
@@ -298,21 +302,21 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         return [self.sources[i].calibration_data for i in inds]
 
     def get_site_properties(self, label=None, lat_lon=None):
-        """ Returns the site properties for a station. Users must supply a label or lat_lon coordinates.
-        
+        """Returns the site properties for a station. Users must supply a label or lat_lon coordinates.
+
         Parameters
         ------------
         label: str, List (optional)
             Labels describing the station.
-        
+
         lat_lon: podpac.Coordinates (optional)
             Coordinates of the COSMOS station. Note, this object has to have a 'lat_lon' dimension which matches exactly
-            with the COSMOS stations. 
-            
+            with the COSMOS stations.
+
         Returns
         --------
         list
-            A list of dictionaries containing the properties for the requested stations. 
+            A list of dictionaries containing the properties for the requested stations.
         """
 
         if label is None and lat_lon is None:
@@ -329,21 +333,21 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         return [self.sources[i].site_properties for i in inds]
 
     def get_station_data(self, label=None, lat_lon=None):
-        """ Returns the station data. Users must supply a label or lat_lon coordinates.
-        
+        """Returns the station data. Users must supply a label or lat_lon coordinates.
+
         Parameters
         ------------
         label: str, List (optional)
             Labels describing the station.
-        
+
         lat_lon: podpac.Coordinates (optional)
             Coordinates of the COSMOS station. Note, this object has to have a 'lat_lon' dimension which matches exactly
-            with the COSMOS stations. 
-            
+            with the COSMOS stations.
+
         Returns
         --------
         list
-            A list of dictionaries containing the data for the requested stations. 
+            A list of dictionaries containing the data for the requested stations.
         """
 
         if label is None and lat_lon is None:
@@ -362,14 +366,25 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
 
 if __name__ == "__main__":
     bounds = {"lat": [40, 46], "lon": [-78, -68]}
-    cs = COSMOSStations(cache_ctrl=["ram", "disk"])
+    cs = COSMOSStations(
+        cache_ctrl=["ram", "disk"],
+        interpolation={"method": "nearest", "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M"}},
+    )
 
     sd = cs.stations_data
     ci = cs.source_coordinates.select(bounds)
     ce = podpac.coordinates.merge_dims(
         [podpac.Coordinates([podpac.crange("2018-05-01", "2018-06-01", "1,D", "time")]), ci]
     )
+    cg = podpac.Coordinates(
+        [
+            podpac.clinspace(ci["lat"].bounds[1], ci["lat"].bounds[0], 12, "lat"),
+            podpac.clinspace(ci["lon"].bounds[1], ci["lon"].bounds[0], 16, "lon"),
+            ce["time"],
+        ]
+    )
     o = cs.eval(ce)
+    og = cs.eval(cg)
 
     # Test helper functions
     labels = cs.stations_label

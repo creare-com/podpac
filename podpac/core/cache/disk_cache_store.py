@@ -3,11 +3,17 @@ from __future__ import division, print_function, absolute_import
 import os
 import glob
 import shutil
+import json
+import fnmatch
+import logging
 
 import podpac
 from podpac.core.settings import settings
 from podpac.core.cache.utils import CacheException, CacheWildCard
 from podpac.core.cache.file_cache_store import FileCacheStore
+
+
+logger = logging.getLogger(__name__)
 
 
 class DiskCacheStore(FileCacheStore):
@@ -43,16 +49,21 @@ class DiskCacheStore(FileCacheStore):
     # -----------------------------------------------------------------------------------------------------------------
 
     def search(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
-        match_path = self._path_join(self._get_node_dir(node), self._match_filename(node, key, coordinates))
-        return glob.glob(match_path)
+        pattern = self._path_join(self._get_node_dir(node), self._get_filename_pattern(node, key, coordinates))
+        return [path for path in glob.glob(pattern) if not path.endswith(".meta")]
 
     # -----------------------------------------------------------------------------------------------------------------
     # file storage abstraction
     # -----------------------------------------------------------------------------------------------------------------
 
-    def _save(self, path, s):
+    def _save(self, path, s, metadata=None):
         with open(path, "wb") as f:
             f.write(s)
+
+        if metadata:
+            metadata_path = "%s.meta" % path
+            with open(metadata_path, "w") as f:
+                json.dump(metadata, f)
 
     def _load(self, path):
         with open(path, "rb") as f:
@@ -66,6 +77,8 @@ class DiskCacheStore(FileCacheStore):
 
     def _remove(self, path):
         os.remove(path)
+        if os.path.exists("%s.meta" % path):
+            os.remove("%s.meta" % path)
 
     def _exists(self, path):
         return os.path.exists(path)
@@ -77,9 +90,72 @@ class DiskCacheStore(FileCacheStore):
         os.rmdir(directory)
 
     def _rmtree(self, path, ignore_errors=False):
-        shutil.rmtree(self._root_dir_path, ignore_errors=True)
+        shutil.rmtree(path, ignore_errors=True)
 
-    def _make_node_dir(self, node):
-        node_dir = self._get_node_dir(node)
-        if not os.path.exists(node_dir):
-            os.makedirs(node_dir)
+    def _make_dir(self, path):
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+    def _dirname(self, path):
+        return os.path.dirname(path)
+
+    def _get_metadata(self, path, key):
+        metadata_path = "%s.meta" % path
+        try:
+            with open(metadata_path, "r") as f:
+                metadata = json.load(f)
+        except IOError:
+            # missing, permissions
+            logger.exception("Error reading metadata file: '%s'" % metadata_path)
+            return None
+        except ValueError:
+            # invalid json
+            logger.exception("Error reading metadata file: '%s'" % metadata_path)
+            return None
+
+        return metadata.get(key)
+
+    def _set_metadata(self, path, key, value):
+        metadata_path = "%s.meta" % path
+
+        # read existing
+        try:
+            with open(metadata_path, "r") as f:
+                metadata = json.load(f)
+        except IOError:
+            # missing, permissions
+            logger.exception("Error reading metadata file: '%s'" % metadata_path)
+            metadata = {}
+        except ValueError:
+            # invalid json
+            logger.exception("Error reading metadata file: '%s'" % metadata_path)
+            metadata = {}
+
+        # write
+        metadata[key] = value
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f)
+
+    def cleanup(self):
+        """
+        Remove expired entries and orphaned metadata.
+        """
+
+        for root, dirnames, filenames in os.walk(self._root_dir_path):
+            for filename in fnmatch.filter(filenames, "*.meta"):
+                metadata_path = os.path.join(root, filename)
+                path = os.path.join(root, filename[:-5])  # strip .meta
+                if not os.path.exists(path):  # orphaned
+                    os.remove(metadata_path)
+                elif self._expired(path):
+                    # _expired removes the entry automatically
+                    pass
+
+        # remove empty directories
+        for root, dirnames, filenames in os.walk(self._root_dir_path):
+            for dirname in dirnames:
+                path = os.path.join(root, dirname)
+                if not os.path.exists(path):
+                    continue
+                if not [f for r, d, fs in os.walk(path) for f in fs]:
+                    shutil.rmtree(path)

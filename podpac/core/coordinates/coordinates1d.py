@@ -10,7 +10,7 @@ import copy
 import numpy as np
 import traitlets as tl
 
-from podpac.core.utils import ArrayTrait
+from podpac.core.utils import ArrayTrait, TupleTrait
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord, divide_delta, lower_precision_time_bounds
 from podpac.core.coordinates.utils import Dimension
@@ -23,14 +23,14 @@ class Coordinates1d(BaseCoordinates):
 
     Coordinates1d objects contain values and metadata for a single dimension of coordinates. :class:`podpac.Coordinates` and
     :class:`StackedCoordinates` use Coordinate1d objects.
-    
+
     Parameters
     ----------
     name : str
         Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
     coordinates : array, read-only
         Full array of coordinate values.
-    
+
     See Also
     --------
     :class:`ArrayCoordinates1d`, :class:`UniformCoordinates1d`
@@ -56,15 +56,20 @@ class Coordinates1d(BaseCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     def __repr__(self):
-        return "%s(%s): Bounds[%s, %s], N[%d]" % (
-            self.__class__.__name__,
-            self.name or "?",
-            self.bounds[0],
-            self.bounds[1],
-            self.size,
-        )
+        if self.name is None:
+            name = "%s" % (self.__class__.__name__,)
+        else:
+            name = "%s(%s)" % (self.__class__.__name__, self.name)
 
-    def __eq__(self, other):
+        if self.ndim == 1:
+            desc = "Bounds[%s, %s], N[%d]" % (self.bounds[0], self.bounds[1], self.size)
+        else:
+            desc = "Bounds[%s, %s], N[%s], Shape%s" % (self.bounds[0], self.bounds[1], self.size, self.shape)
+
+        return "%s: %s" % (name, desc)
+
+    def _eq_base(self, other):
+        """ used by child __eq__ methods for common checks """
         if not isinstance(other, Coordinates1d):
             return False
 
@@ -74,11 +79,25 @@ class Coordinates1d(BaseCoordinates):
                 return False
 
         # shortcuts (not strictly necessary)
-        for name in ["size", "is_monotonic", "is_descending", "is_uniform"]:
+        for name in ["shape", "is_monotonic", "is_descending", "is_uniform"]:
             if getattr(self, name) != getattr(other, name):
                 return False
 
         return True
+
+    def __len__(self):
+        return self.shape[0]
+
+    def __contains__(self, item):
+        try:
+            item = make_coord_value(item)
+        except:
+            return False
+
+        if type(item) != self.dtype:
+            return False
+
+        return item in self.coordinates
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -91,22 +110,13 @@ class Coordinates1d(BaseCoordinates):
         return (self.name,)
 
     @property
-    def udims(self):
-        return self.dims
+    def xcoords(self):
+        """:dict: xarray coords"""
 
-    @property
-    def idims(self):
-        return self.dims
+        if self.name is None:
+            raise ValueError("Cannot get xcoords for unnamed Coordinates1d")
 
-    @property
-    def shape(self):
-        return (self.size,)
-
-    @property
-    def coords(self):
-        """:dict-like: xarray coordinates (container of coordinate arrays)"""
-
-        return {self.name: self.coordinates}
+        return {self.name: (self.xdims, self.coordinates)}
 
     @property
     def dtype(self):
@@ -194,7 +204,7 @@ class Coordinates1d(BaseCoordinates):
         raise NotImplementedError
 
     def simplify(self):
-        """ Get the simplified/optimized representation of these coordinates.
+        """Get the simplified/optimized representation of these coordinates.
 
         Returns
         -------
@@ -212,12 +222,12 @@ class Coordinates1d(BaseCoordinates):
         ---------
         boundary : float, timedelta, array, None
             Boundary offsets in this dimension.
-            
-            * For a centered uniform boundary (same for every coordinate), use a single positive float or timedelta 
+
+            * For a centered uniform boundary (same for every coordinate), use a single positive float or timedelta
                 offset. This represents the "total segment length" / 2.
-            * For a uniform boundary (segment or polygon same for every coordinate), use an array of float or 
+            * For a uniform boundary (segment or polygon same for every coordinate), use an array of float or
                 timedelta offsets
-            * For a fully specified boundary, use an array of boundary arrays (2-D array, N_coords x boundary spec), 
+            * For a fully specified boundary, use an array of boundary arrays (2-D array, N_coords x boundary spec),
                  one per coordinate. The boundary_spec can be a single number, two numbers, or an array of numbers.
             * For point coordinates, use None.
 
@@ -258,21 +268,21 @@ class Coordinates1d(BaseCoordinates):
 
         return lo, hi
 
-    def _select_empty(self, return_indices):
+    def _select_empty(self, return_index):
         I = []
-        if return_indices:
+        if return_index:
             return self[I], I
         else:
             return self[I]
 
-    def _select_full(self, return_indices):
+    def _select_full(self, return_index):
         I = slice(None)
-        if return_indices:
+        if return_index:
             return self[I], I
         else:
             return self[I]
 
-    def select(self, bounds, return_indices=False, outer=False):
+    def select(self, bounds, return_index=False, outer=False):
         """
         Get the coordinate values that are within the given bounds.
 
@@ -284,19 +294,19 @@ class Coordinates1d(BaseCoordinates):
             Out[2]: array([2.])
 
         The *outer* selection returns the minimal set of coordinates that contain the bounds::
-        
+
             In [3]: c.select([1.5, 2.5], outer=True).coordinates
             Out[3]: array([1., 2., 3.])
 
         The *outer* selection also returns a boundary coordinate if a bound is outside this coordinates bounds but
         *inside* its area bounds::
-        
+
             In [4]: c.select([3.25, 3.35], outer=True).coordinates
             Out[4]: array([3.0], dtype=float64)
 
             In [5]: c.select([10.0, 11.0], outer=True).coordinates
             Out[5]: array([], dtype=float64)
-        
+
         Parameters
         ----------
         bounds : (low, high) or dict
@@ -304,25 +314,25 @@ class Coordinates1d(BaseCoordinates):
             coordinates will be selected if available, otherwise the full coordinates will be returned.
         outer : bool, optional
             If True, do an *outer* selection. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selection in addition to coordinates. Default False.
+        return_index : bool, optional
+            If True, return index for the selection in addition to coordinates. Default False.
 
         Returns
         -------
         selection : :class:`Coordinates1d`
             Coordinates1d object with coordinates within the bounds.
-        I : slice or list
-            index or slice for the selected coordinates (only if return_indices=True)
+        I : slice, boolean array
+            index or slice for the selected coordinates (only if return_index=True)
         """
 
         # empty case
         if self.dtype is None:
-            return self._select_empty(return_indices)
+            return self._select_empty(return_index)
 
         if isinstance(bounds, dict):
             bounds = bounds.get(self.name)
             if bounds is None:
-                return self._select_full(return_indices)
+                return self._select_full(return_index)
 
         bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
 
@@ -344,16 +354,16 @@ class Coordinates1d(BaseCoordinates):
 
         # full
         if my_bounds[0] >= bounds[0] and my_bounds[1] <= bounds[1]:
-            return self._select_full(return_indices)
+            return self._select_full(return_index)
 
         # none
         if my_bounds[0] > bounds[1] or my_bounds[1] < bounds[0]:
-            return self._select_empty(return_indices)
+            return self._select_empty(return_index)
 
         # partial, implemented in child classes
-        return self._select(bounds, return_indices, outer)
+        return self._select(bounds, return_index, outer)
 
-    def _select(self, bounds, return_indices, outer):
+    def _select(self, bounds, return_index, outer):
         raise NotImplementedError
 
     def _transform(self, transformer):
@@ -364,11 +374,11 @@ class Coordinates1d(BaseCoordinates):
         # transform "alt" coordinates
         from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
-        _, _, tcoordinates = transformer.transform(np.zeros(self.size), np.zeros(self.size), self.coordinates)
+        _, _, tcoordinates = transformer.transform(np.zeros(self.shape), np.zeros(self.shape), self.coordinates)
         return ArrayCoordinates1d(tcoordinates, **self.properties)
 
     def issubset(self, other):
-        """ Report whether other coordinates contains these coordinates.
+        """Report whether other coordinates contains these coordinates.
 
         Arguments
         ---------
@@ -403,8 +413,8 @@ class Coordinates1d(BaseCoordinates):
 
         # check actual coordinates using built-in set method issubset
         # for datetimes, convert to the higher resolution
-        my_coordinates = self.coordinates
-        other_coordinates = other.coordinates
+        my_coordinates = self.coordinates.ravel()
+        other_coordinates = other.coordinates.ravel()
 
         if self.dtype == np.datetime64:
             if my_coordinates[0].dtype < other_coordinates[0].dtype:
@@ -412,4 +422,4 @@ class Coordinates1d(BaseCoordinates):
             elif other_coordinates[0].dtype < my_coordinates[0].dtype:
                 other_coordinates = other_coordinates.astype(my_coordinates.dtype)
 
-        return set(my_coordinates).issubset(other_coordinates.ravel())
+        return set(my_coordinates).issubset(other_coordinates)

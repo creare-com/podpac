@@ -11,7 +11,7 @@ from podpac.core.compositor.compositor import COMMON_COMPOSITOR_DOC, BaseComposi
 @common_doc(COMMON_COMPOSITOR_DOC)
 class OrderedCompositor(BaseCompositor):
     """Compositor that combines sources based on their order in self.sources.
-    
+
     The requested data is interpolated by the sources before being composited.
 
     Attributes
@@ -27,7 +27,7 @@ class OrderedCompositor(BaseCompositor):
     @common_doc(COMMON_COMPOSITOR_DOC)
     def composite(self, coordinates, data_arrays, result=None):
         """Composites data_arrays in order that they appear. Once a request contains no nans, the result is returned.
-        
+
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
@@ -36,7 +36,7 @@ class OrderedCompositor(BaseCompositor):
             Evaluated source data, in the same order as the sources.
         result : podpac.UnitsDataArray, optional
             {eval_output}
-        
+
         Returns
         -------
         {eval_return} This composites the sources together until there are no nans or no more sources.

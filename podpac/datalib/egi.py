@@ -31,7 +31,6 @@ from podpac import authentication
 from podpac import settings
 from podpac import cached_property
 from podpac.core.units import UnitsDataArray
-from podpac.core.node import node_eval
 
 # Set up logging
 _log = logging.getLogger(__name__)
@@ -46,7 +45,7 @@ class EGI(DataSource):
     """
     PODPAC DataSource node to access the NASA EGI Programmatic Interface
     https://developer.earthdata.nasa.gov/sdps/programmatic-access-docs#cmrparameters
-    
+
     Parameters
     ----------
     short_name : str
@@ -62,8 +61,8 @@ class EGI(DataSource):
         Key for longitude data in endpoint HDF-5 file. Required.
     min_bounds_span: dict, optional
         Default is {}. When specified, gives the minimum bounds that will be used for a coordinate in the EGI query, so
-        it works properly. If a user specified a lat,lon point, the EGI query may fail since the min/max values for 
-        lat/lon are the same. When specified, these bounds will be padded by the following for latitude (as an example): 
+        it works properly. If a user specified a lat,lon point, the EGI query may fail since the min/max values for
+        lat/lon are the same. When specified, these bounds will be padded by the following for latitude (as an example):
         [lat - min_bounds_span['lat'] / 2, lat + min_bounds_span['lat'] / 2]
     base_url : str, optional
         URL for EGI data endpoint.
@@ -214,8 +213,7 @@ class EGI(DataSource):
             _log.warning("No data found in EGI source")
             return np.array([])
 
-    @node_eval
-    def eval(self, coordinates, output=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         # download data for coordinate bounds, then handle that data as an H5PY node
         zip_files = self._download(coordinates)
         try:
@@ -229,23 +227,23 @@ class EGI(DataSource):
             raise e
 
         # run normal eval once self.data is prepared
-        return super(EGI, self).eval(coordinates, output)
+        return super(EGI, self)._eval(coordinates, output=output, _selector=_selector)
 
     ##########
     # Data I/O
     ##########
     def read_file(self, filelike):
         """Interpret individual file from  EGI zip archive.
-        
+
         Parameters
         ----------
         filelike : filelike
             Reference to file inside EGI zip archive
-        
+
         Returns
         -------
         podpac.UnitsDataArray
-        
+
         Raises
         ------
         ValueError
@@ -276,14 +274,14 @@ class EGI(DataSource):
 
     def append_file(self, all_data, data):
         """Append new data
-        
+
         Parameters
         ----------
         all_data : podpac.UnitsDataArray
             aggregated data
         data : podpac.UnitsDataArray
             new data to append
-        
+
         Raises
         ------
         NotImplementedError
@@ -293,17 +291,17 @@ class EGI(DataSource):
     def _download(self, coordinates):
         """
         Download data from EGI Interface within PODPAC coordinates
-        
+
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
             PODPAC coordinates specifying spatial and temporal bounds
-        
+
         Raises
         ------
         ValueError
             Error raised when no spatial or temporal bounds are provided
-        
+
         Returns
         -------
         zipfile.ZipFile
@@ -372,19 +370,19 @@ class EGI(DataSource):
 
     def _query_egi(self, url, page_num=1):
         """Generator for getting zip files from EGI interface
-        
+
         Parameters
         ----------
         url : str
             base url without page_num attached
         page_num : int, optional
             page_num to query
-        
+
         Yields
         ------
         zipfile.ZipFile
             ZipFile of results from page
-        
+
         Raises
         ------
         ValueError
@@ -484,7 +482,7 @@ class EGI(DataSource):
     def token_valid(self):
         """
         Validate EGI token set in :attr:`token` attribute of EGI Node
-        
+
         Returns
         -------
         Bool
@@ -497,12 +495,12 @@ class EGI(DataSource):
     def get_token(self):
         """
         Get token for EGI interface using Earthdata credentials
-        
+
         Returns
         -------
         str
             Token for access to EGI interface
-        
+
         Raises
         ------
         ValueError

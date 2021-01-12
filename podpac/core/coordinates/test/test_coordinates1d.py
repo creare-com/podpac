@@ -20,14 +20,14 @@ class TestCoordinates1d(object):
             "stop",
             "step",
             "dims",
-            "idims",
+            "xdims",
             "udims",
             "shape",
             "size",
             "dtype",
             "deltatype",
             "bounds",
-            "coords",
+            "xcoords",
             "definition",
             "full_definition",
         ]
@@ -54,7 +54,7 @@ class TestCoordinates1d(object):
             pass
 
         try:
-            c.select([0, 1], outer=True, return_indices=True)
+            c.select([0, 1], outer=True, return_index=True)
         except NotImplementedError:
             pass
 
@@ -63,10 +63,18 @@ class TestCoordinates1d(object):
         except NotImplementedError:
             pass
 
-        assert c != None
-
         try:
             c.simplify()
+        except NotImplementedError:
+            pass
+
+        try:
+            c.flatten()
+        except NotImplementedError:
+            pass
+
+        try:
+            c.reshape((10, 10))
         except NotImplementedError:
             pass
 

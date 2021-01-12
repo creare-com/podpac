@@ -11,6 +11,7 @@ import datetime
 import functools
 import importlib
 import logging
+import time
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -37,7 +38,7 @@ from . import settings
 
 
 def common_doc(doc_dict):
-    """ Decorator: replaces commond fields in a function docstring
+    """Decorator: replaces commond fields in a function docstring
 
     Parameters
     -----------
@@ -219,7 +220,7 @@ class NodeTrait(tl.Instance):
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
         # podpac objects with definitions
-        if isinstance(obj, (podpac.Coordinates, podpac.Node, podpac.data.Interpolation, podpac.core.style.Style)):
+        if isinstance(obj, (podpac.Coordinates, podpac.Node, podpac.data.Interpolate, podpac.core.style.Style)):
             return obj.definition
 
         # podpac Interpolator type
@@ -294,14 +295,14 @@ def _get_query_params_from_url(url):
 
 def _get_from_url(url, session=None):
     """Helper function to get data from an url with error checking.
-    
+
     Parameters
     ----------
     url : str
         URL to website
     session : :class:`requests.Session`, optional
         Requests session to use when making the GET request to `url`
-    
+
     Returns
     -------
     str
@@ -339,6 +340,9 @@ def cached_property(*args, **kwargs):
     use_cache_ctrl : bool
         If True, the property is cached using the Node cache_ctrl. If False, the property is only cached as a private
         attribute. Default False.
+    expires : float, datetime, timedelta
+        Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
+        Ignored if use_cache_ctrl=False.
 
     Notes
     -----
@@ -366,6 +370,7 @@ def cached_property(*args, **kwargs):
     """
 
     use_cache_ctrl = kwargs.pop("use_cache_ctrl", False)
+    expires = kwargs.pop("expires", None)
 
     if args and (len(args) != 1 or not callable(args[0])):
         raise TypeError("cached_property decorator does not accept any positional arguments")
@@ -387,7 +392,7 @@ def cached_property(*args, **kwargs):
                 value = fn(self)
                 setattr(self, key, value)
                 if use_cache_ctrl:
-                    self.put_cache(value, key)
+                    self.put_cache(value, key, expires=expires)
             return value
 
         return wrapper
@@ -399,7 +404,7 @@ def cached_property(*args, **kwargs):
 
 
 def ind2slice(Is):
-    """ Convert boolean and integer index arrays to slices.
+    """Convert boolean and integer index arrays to slices.
 
     Integer and boolean arrays are converted to slices that span the selected elements, but may include additional
     elements. If possible, the slices are stepped.

@@ -157,9 +157,7 @@ class TestAlgorithm(object):
         class DataArrayAlgorithm(Algorithm):
             def algorithm(self, inputs):
                 data = np.ones(self._requested_coordinates.shape)
-                return xr.DataArray(
-                    data, dims=self._requested_coordinates.dims, coords=self._requested_coordinates.coords
-                )
+                return self.create_output_array(self._requested_coordinates, data=data)
 
         node = DataArrayAlgorithm()
         result = node.eval(coords)

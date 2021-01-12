@@ -4,12 +4,13 @@ import traitlets as tl
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin, LoadFileMixin
+from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 @common_doc(COMMON_DATA_DOC)
-class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
+class DatasetBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
     """Create a DataSource node using xarray.open_dataset.
-    
+
     Attributes
     ----------
     source : str
@@ -32,7 +33,7 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
     crs : str
         Coordinate reference system of the coordinates
     extra_dim : dict
-        In cases where the data contain dimensions other than ['lat', 'lon', 'time', 'alt'], these dimensions need to be selected. 
+        In cases where the data contain dimensions other than ['lat', 'lon', 'time', 'alt'], these dimensions need to be selected.
         For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim=dict(channel=1)`
     """
 
@@ -51,7 +52,7 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
         return xr.open_dataset(fp)
 
     def close_dataset(self):
-        super(Dataset, self).close_dataset()
+        super(DatasetBase, self).close_dataset()
         self.dataset.close()
 
     @cached_property
@@ -66,8 +67,7 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
+        """{get_data}"""
 
         if not isinstance(self.data_key, list):
             data = self.dataset[self.data_key]
@@ -78,3 +78,7 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
             data = data.transpose(*tdims)
 
         return self.create_output_array(coordinates, data.data[coordinates_index])
+
+
+class Dataset(InterpolationMixin, DatasetBase):
+    pass

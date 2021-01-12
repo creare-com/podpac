@@ -36,7 +36,7 @@ class TestParallel(object):
         o = node.eval(coords)
         o_p = o.copy()
         o_p[:] = np.nan
-        node_p.eval(coords, o_p)
+        node_p.eval(coords, output=o_p)
 
         np.testing.assert_array_equal(o, o_p)
 
@@ -48,7 +48,7 @@ class TestParallel(object):
         o = node.eval(coords)
         o_p = o.copy()
         o_p[:] = np.nan
-        node_p.eval(coords, o_p)
+        node_p.eval(coords, output=o_p)
         time.sleep(0.1)
 
         np.testing.assert_array_equal(o, o_p)

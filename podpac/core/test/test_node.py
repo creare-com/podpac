@@ -29,7 +29,6 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore
 from podpac.core.node import Node, NodeException, NodeDefinitionError
-from podpac.core.node import node_eval
 from podpac.core.node import NoCacheMixin, DiskCacheMixin
 
 
@@ -122,7 +121,10 @@ class TestNode(object):
 
     def test_trait_is_defined(self):
         node = Node()
-        assert node.trait_is_defined("units")
+        if tl.version_info[0] >= 5:
+            assert not node.trait_is_defined("units")
+        else:
+            assert node.trait_is_defined("units")
 
     def test_init(self):
         class MyNode(Node):
@@ -174,7 +176,7 @@ class TestNode(object):
 
     def test_eval_group(self):
         class MyNode(Node):
-            def eval(self, coordinates, output=None):
+            def eval(self, coordinates, output=None, selector=None):
                 return self.create_output_array(coordinates)
 
         c1 = podpac.Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])
@@ -200,10 +202,10 @@ class TestNode(object):
     def test_eval_not_implemented(self):
         node = Node()
         with pytest.raises(NotImplementedError):
-            node.eval(None)
+            node.eval(podpac.Coordinates([]))
 
         with pytest.raises(NotImplementedError):
-            node.eval(None, output=None)
+            node.eval(podpac.Coordinates([]), output=None)
 
     def test_find_coordinates_not_implemented(self):
         node = Node()
@@ -272,8 +274,7 @@ class TestNodeEval(object):
         class MyNode1(Node):
             outputs = ["a", "b", "c"]
 
-            @node_eval
-            def eval(self, coordinates, output=None):
+            def _eval(self, coordinates, output=None, selector=None):
                 return self.create_output_array(coordinates)
 
         # don't extract when no output field is requested
@@ -290,14 +291,93 @@ class TestNodeEval(object):
         class MyNode2(Node):
             outputs = ["a", "b", "c"]
 
-            @node_eval
-            def eval(self, coordinates, output=None):
+            def _eval(self, coordinates, output=None, selector=None):
                 out = self.create_output_array(coordinates)
                 return out.sel(output=self.output)
 
         node = MyNode2(output="b")
         out = node.eval(coords)
         assert out.shape == (4, 2)
+
+    def test_evaluate_transpose(self):
+        class MyNode(Node):
+            def _eval(self, coordinates, output=None, selector=None):
+                coords = coordinates.transpose("lat", "lon")
+                data = np.arange(coords.size).reshape(coords.shape)
+                a = self.create_output_array(coords, data=data)
+                if output is None:
+                    output = a
+                else:
+                    output[:] = a.transpose(*output.dims)
+                return output
+
+        coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
+
+        node = MyNode()
+        o1 = node.eval(coords)
+        o2 = node.eval(coords.transpose("lon", "lat"))
+
+        # returned output should match the requested coordinates and data should be transposed
+        assert o1.dims == ("lat", "lon")
+        assert o2.dims == ("lon", "lat")
+        np.testing.assert_array_equal(o2.transpose("lat", "lon").data, o1.data)
+
+        # with transposed output
+        o3 = node.create_output_array(coords.transpose("lon", "lat"))
+        o4 = node.eval(coords, output=o3)
+
+        assert o3.dims == ("lon", "lat")  # stay the same
+        assert o4.dims == ("lat", "lon")  # match requested coordinates
+        np.testing.assert_equal(o3.transpose("lat", "lon").data, o4.data)
+
+    def test_eval_get_cache(self):
+        podpac.settings["RAM_CACHE_ENABLED"] = True
+
+        class MyNode(Node):
+            def _eval(self, coordinates, output=None, selector=None):
+                coords = coordinates.transpose("lat", "lon")
+                data = np.arange(coords.size).reshape(coords.shape)
+                a = self.create_output_array(coords, data=data)
+                if output is None:
+                    output = a
+                else:
+                    output[:] = a.transpose(*output.dims)
+                return output
+
+        coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
+
+        node = MyNode(cache_output=True, cache_ctrl=CacheCtrl([RamCacheStore()]))
+
+        # first eval
+        o1 = node.eval(coords)
+        assert node._from_cache == False
+
+        # get from cache
+        o2 = node.eval(coords)
+        assert node._from_cache == True
+        np.testing.assert_array_equal(o2, o1)
+
+        # get from cache with output
+        o3 = node.eval(coords, output=o1)
+        assert node._from_cache == True
+        np.testing.assert_array_equal(o3, o1)
+
+        # get from cache with output transposed
+        o4 = node.eval(coords, output=o1.transpose("lon", "lat"))
+        assert node._from_cache == True
+        np.testing.assert_array_equal(o4, o1)
+
+        # get from cache with coords transposed
+        o5 = node.eval(coords.transpose("lon", "lat"))
+        assert node._from_cache == True
+        np.testing.assert_array_equal(o5, o1.transpose("lon", "lat"))
+
+    def test_eval_output_crs(self):
+        coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
+
+        node = Node()
+        with pytest.raises(ValueError, match="Output coordinate reference system .* does not match"):
+            node.eval(coords, output=node.create_output_array(coords.transform("EPSG:2193")))
 
 
 class TestCaching(object):
@@ -444,6 +524,19 @@ class TestCaching(object):
         assert self.node.has_cache("c", coordinates=self.coords)
         assert self.node.has_cache("c", coordinates=self.coords2)
         assert self.node.has_cache("d", coordinates=self.coords)
+
+    def test_put_has_expires(self):
+        self.node.put_cache(10, "key1", expires="1,D")
+        self.node.put_cache(10, "key2", expires="-1,D")
+        assert self.node.has_cache("key1")
+        assert not self.node.has_cache("key2")
+
+    def test_put_get_expires(self):
+        self.node.put_cache(10, "key1", expires="1,D")
+        self.node.put_cache(10, "key2", expires="-1,D")
+        assert self.node.get_cache("key1") == 10
+        with pytest.raises(NodeException, match="cached data not found"):
+            self.node.get_cache("key2")
 
     # node definition errors
     # this demonstrates both classes of error in the has_cache case, but only one for put/get/rem

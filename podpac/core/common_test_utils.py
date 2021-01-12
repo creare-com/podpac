@@ -186,8 +186,8 @@ def get_dims_list():
 
 
 def make_coordinate_combinations(lat=None, lon=None, alt=None, time=None):
-    """ Generates every combination of stacked and unstacked coordinates podpac expects to handle
-    
+    """Generates every combination of stacked and unstacked coordinates podpac expects to handle
+
     Parameters
     -----------
     lat: podpac.core.coordinates.Coordinates1d, optional
@@ -208,12 +208,12 @@ def make_coordinate_combinations(lat=None, lon=None, alt=None, time=None):
     OrderedDict:
         Dictionary of all the podpac.Core.Coordinate objects podpac expects to handle. The dictionary keys is a tuple of
         coordinate dimensions, and the values are the actual Coordinate objects.
-        
+
     Notes
     ------
-    When custom lat, lon, alt, and time 1D coordinates are given, only those with the same number of coordinates are 
-    stacked together. For example, if lat, lon, alt, and time have sizes 3, 4, 5, and 6, respectively, no stacked 
-    coordinates are created. Also, no exception or warning is thrown for this case. 
+    When custom lat, lon, alt, and time 1D coordinates are given, only those with the same number of coordinates are
+    stacked together. For example, if lat, lon, alt, and time have sizes 3, 4, 5, and 6, respectively, no stacked
+    coordinates are created. Also, no exception or warning is thrown for this case.
     """
 
     # make the 1D coordinates

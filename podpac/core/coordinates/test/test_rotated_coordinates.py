@@ -11,7 +11,7 @@ from numpy.testing import assert_equal, assert_allclose
 import podpac
 from podpac.coordinates import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
-from podpac.core.coordinates.dependent_coordinates import DependentCoordinates, ArrayCoordinatesNd
+from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
 
 
@@ -27,8 +27,8 @@ class TestRotatedCoordinatesCreation(object):
         assert_allclose(c.corner, [7.171573, 25.656854])
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
-        assert c.idims == ("i", "j")
-        assert c.name == "lat,lon"
+        assert len(set(c.xdims)) == 2
+        assert c.name == "lat_lon"
         repr(c)
 
         # negative steps
@@ -40,9 +40,21 @@ class TestRotatedCoordinatesCreation(object):
         assert_allclose(c.corner, [12.828427, 14.343146])
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
-        assert c.idims == ("i", "j")
-        assert c.name == "lat,lon"
+        assert len(set(c.xdims)) == 2
+        assert c.name == "lat_lon"
         repr(c)
+
+    def test_dims(self):
+        # lon_lat
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi / 4, origin=[10, 20], step=[1.0, 2.0], dims=["lon", "lat"])
+        assert c.dims == ("lon", "lat")
+        assert c.udims == ("lon", "lat")
+        assert len(set(c.xdims)) == 2
+        assert c.name == "lon_lat"
+
+        # alt
+        with pytest.raises(ValueError, match="RotatedCoordinates dims must be 'lat' or 'lon'"):
+            c = RotatedCoordinates(shape=(3, 4), theta=np.pi / 4, origin=[10, 20], step=[1.0, 2.0], dims=["lat", "alt"])
 
     def test_init_corner(self):
         c = RotatedCoordinates(shape=(3, 4), theta=np.pi / 4, origin=[10, 20], corner=[15, 17], dims=["lat", "lon"])
@@ -53,8 +65,8 @@ class TestRotatedCoordinatesCreation(object):
         assert_allclose(c.corner, [15.0, 17.0])
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
-        assert c.idims == ("i", "j")
-        assert c.name == "lat,lon"
+        assert len(set(c.xdims)) == 2
+        assert c.name == "lat_lon"
         repr(c)
 
     def test_thetas(self):
@@ -97,12 +109,6 @@ class TestRotatedCoordinatesCreation(object):
 
         with pytest.raises(ValueError, match="Invalid step"):
             RotatedCoordinates(shape=(3, 4), theta=np.pi / 4, origin=[10, 20], step=[0, 2.0], dims=["lat", "lon"])
-
-        with pytest.raises(ValueError, match="RotatedCoordinates dims"):
-            RotatedCoordinates(shape=(3, 4), theta=np.pi / 4, origin=[10, 20], step=[1.0, 2.0], dims=["lat", "time"])
-
-        with pytest.raises(ValueError, match="dims and coordinates size mismatch"):
-            RotatedCoordinates(shape=(3, 4), theta=np.pi / 4, origin=[10, 20], step=[1.0, 2.0], dims=["lat"])
 
         with pytest.raises(ValueError, match="Duplicate dimension"):
             RotatedCoordinates(shape=(3, 4), theta=np.pi / 4, origin=[10, 20], step=[1.0, 2.0], dims=["lat", "lat"])
@@ -240,14 +246,14 @@ class TestRotatedCoordinatesIndexing(object):
 
         lat = c["lat"]
         lon = c["lon"]
-        assert isinstance(lat, ArrayCoordinatesNd)
-        assert isinstance(lon, ArrayCoordinatesNd)
+        assert isinstance(lat, ArrayCoordinates1d)
+        assert isinstance(lon, ArrayCoordinates1d)
         assert lat.name == "lat"
         assert lon.name == "lon"
         assert_equal(lat.coordinates, c.coordinates[0])
         assert_equal(lon.coordinates, c.coordinates[1])
 
-        with pytest.raises(KeyError, match="Cannot get dimension"):
+        with pytest.raises(KeyError, match="Dimension .* not found"):
             c["other"]
 
     def test_get_index_slices(self):
@@ -307,7 +313,7 @@ class TestRotatedCoordinatesIndexing(object):
 
         # int/slice/indices
         c2 = c[I, J]
-        assert isinstance(c2, DependentCoordinates)
+        assert isinstance(c2, StackedCoordinates)
         assert c2.shape == (2, 3)
         assert c2.dims == c.dims
         assert_equal(c2["lat"].coordinates, lat[I, J])
@@ -334,7 +340,7 @@ class TestRotatedCoordinatesIndexing(object):
 #         assert isinstance(s, StackedCoordinates)
 #         assert s == c[E0, E1]
 
-#         s, I = c.select(bounds, return_indices=True)
+#         s, I = c.select(bounds, return_index=True)
 #         assert isinstance(s, StackedCoordinates)
 #         assert s == c[I]
 #         assert_equal(I[0], E0)
@@ -348,7 +354,7 @@ class TestRotatedCoordinatesIndexing(object):
 #         assert isinstance(s, StackedCoordinates)
 #         assert s == c[E0, E1]
 
-#         s, I = c.select(bounds, return_indices=True)
+#         s, I = c.select(bounds, return_index=True)
 #         assert isinstance(s, StackedCoordinates)
 #         assert s == c[I]
 #         assert_equal(I[0], E0)
@@ -362,7 +368,7 @@ class TestRotatedCoordinatesIndexing(object):
 #         assert isinstance(s, StackedCoordinates)
 #         assert s == c[E0, E1]
 
-#         s, I = c.select(bounds, outer=True, return_indices=True)
+#         s, I = c.select(bounds, outer=True, return_index=True)
 #         assert isinstance(s, StackedCoordinates)
 #         assert s == c[E0, E1]
 #         assert_equal(I[0], E0)
@@ -373,7 +379,7 @@ class TestRotatedCoordinatesIndexing(object):
 #         s = c.select(bounds)
 #         assert s == c
 
-#         s, I = c.select(bounds, return_indices=True)
+#         s, I = c.select(bounds, return_index=True)
 #         assert s == c[I]
 #         assert s == c
 
@@ -386,7 +392,7 @@ class TestRotatedCoordinatesIndexing(object):
 #         s = c.select(bounds)
 #         assert s == c[E0, E1]
 
-#         s, I = c.select(bounds, return_indices=True)
+#         s, I = c.select(bounds, return_index=True)
 #         assert s == c[E0, E1]
 #         assert_equal(I[0], E0)
 #         assert_equal(I[1], E1)
@@ -403,7 +409,7 @@ class TestRotatedCoordinatesIndexing(object):
 #         s = c.intersect(other_lat)
 #         assert s == c[E0, E1]
 
-#         s, I = c.intersect(other_lat, return_indices=True)
+#         s, I = c.intersect(other_lat, return_index=True)
 #         assert s == c[E0, E1]
 #         assert s == c[I]
 
@@ -436,7 +442,7 @@ class TestRotatedCoordinatesIndexing(object):
 #         s = c.intersect(other)
 #         assert s == c
 
-#         s, I = c.intersect(other, return_indices=True)
+#         s, I = c.intersect(other, return_index=True)
 #         assert s == c
 #         assert s == c[I]
 

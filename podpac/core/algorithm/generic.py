@@ -54,7 +54,7 @@ class GenericInputs(Algorithm):
 
 class Arithmetic(GenericInputs):
     """Create a simple point-by-point computation using named input nodes.
-        
+
     Examples
     ----------
     a = SinCoords()
@@ -82,13 +82,13 @@ class Arithmetic(GenericInputs):
         super(Arithmetic, self).init()
 
     def algorithm(self, inputs):
-        """ Compute the algorithms equation
+        """Compute the algorithms equation
 
         Attributes
         ----------
         inputs : dict
             Evaluated outputs of the input nodes. The keys are the attribute names.
-        
+
         Returns
         -------
         UnitsDataArray
@@ -123,7 +123,7 @@ class Arithmetic(GenericInputs):
 class Generic(GenericInputs):
     """
     Generic Algorithm Node that allows arbitrary Python code to be executed.
-    
+
     Attributes
     ----------
     code : str
@@ -167,8 +167,8 @@ class Generic(GenericInputs):
 
 
 class Mask(Algorithm):
-    """ Masks the `source` based on a boolean expression involving the `mask` (i.e. source[mask <bool_op> <bool_val> ] = <masked_val>). For a normal boolean mask input, default values for `bool_op`, `bool_val` and `masked_val` can be used.
-    
+    """Masks the `source` based on a boolean expression involving the `mask` (i.e. source[mask <bool_op> <bool_val> ] = <masked_val>). For a normal boolean mask input, default values for `bool_op`, `bool_val` and `masked_val` can be used.
+
     Attributes
     ----------
     source : podpac.Node
@@ -182,26 +182,26 @@ class Mask(Algorithm):
     bool_op : enum, optional
         Default value is '=='. One of ['==', '<', '<=', '>', '>=']
     in_place : bool, optional
-        Default is False. If True, the source array will be changed in-place, which could affect the value of the source 
-        in other parts of the pipeline. 
-        
+        Default is False. If True, the source array will be changed in-place, which could affect the value of the source
+        in other parts of the pipeline.
+
     Examples
     ----------
     # Mask data from a boolean data node using the default behavior.
     # Create a boolean masked Node (as an example)
-    b = Arithmetic(A=SinCoords(), eqn='A>0)  
+    b = Arithmetic(A=SinCoords(), eqn='A>0)
     # Create the source node
-    a = Arange()  
+    a = Arange()
     masked = Mask(source=a, mask=b)
-    
+
     # Create a node that make the following substitution "a[b > 0] = np.nan"
     a = Arange()
     b = SinCoords()
     masked = Mask(source=a, mask=b,
-                  masked_val=np.nan, 
+                  masked_val=np.nan,
                   bool_val=0, bool_op='>'
                   in_place=True)
-    
+
     """
 
     source = NodeTrait().tag(attr=True)
@@ -214,8 +214,7 @@ class Mask(Algorithm):
     _repr_keys = ["source", "mask"]
 
     def algorithm(self, inputs):
-        """ Sets the values in inputs['source'] to self.masked_val using (inputs['mask'] <self.bool_op> <self.bool_val>)
-        """
+        """Sets the values in inputs['source'] to self.masked_val using (inputs['mask'] <self.bool_op> <self.bool_val>)"""
         # shorter names
         mask = inputs["mask"]
         source = inputs["source"]
@@ -248,7 +247,7 @@ class Mask(Algorithm):
 
 
 class Combine(GenericInputs):
-    """ Combine multiple nodes into a single node with multiple outputs.
+    """Combine multiple nodes into a single node with multiple outputs.
 
     If not output names are specified, the keyword argument names will be used.
     """
