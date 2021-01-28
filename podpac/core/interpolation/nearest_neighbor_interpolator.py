@@ -366,6 +366,9 @@ class NearestPreview(NearestNeighbor):
             eval_coordinates, outer=True, return_index=True
         )
 
+        if source_coords.size == 0:
+            return source_coords, source_coords_index
+
         # iterate over the source coordinate dims in case they are stacked
         for src_dim, idx in zip(source_coords, source_coords_index):
 

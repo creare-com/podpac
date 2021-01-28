@@ -9,6 +9,7 @@ import pytest
 import traitlets as tl
 import numpy as np
 
+import podpac
 from podpac.core.utils import ArrayTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, clinspace
@@ -98,6 +99,16 @@ class TestNearest(object):
         assert len(coords["lat"]) == len(reqcoords["lat"])
         assert len(coords["lon"]) == len(reqcoords["lon"])
         assert np.all(coords["lat"].coordinates == np.array([0, 2, 4]))
+
+    def test_nearest_select_issue445(self):
+        sc = Coordinates([clinspace(-59.9, 89.9, 100, name="lat"), clinspace(-179.9, 179.9, 100, name="lon")])
+        node = podpac.data.Array(
+            interpolation="nearest_preview", source=np.arange(sc.size).reshape(sc.shape), coordinates=sc
+        )
+        coords = Coordinates([-61, 72], dims=["lat", "lon"])
+        out = node.eval(coords)
+        assert out.shape == (1, 1)
+        assert np.isnan(out.data[0, 0])
 
     def test_interpolation(self):
 
@@ -278,9 +289,7 @@ class TestNearest(object):
             [[np.linspace(0, 10, 5), clinspace("2018-01-01", "2018-01-09", 5)]], dims=[["lat", "time"]]
         )
         node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
+            data=source, coordinates=coords_src, interpolation={"method": "nearest", "interpolators": [NearestNeighbor]}
         )
 
         coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9], clinspace("2018-01-01", "2018-01-09", 3)], dims=["lat", "time"])

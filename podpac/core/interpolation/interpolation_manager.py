@@ -487,7 +487,7 @@ class InterpolationManager(object):
             [selected_coords[k] for k in source_coordinates.dims], source_coordinates.dims, crs=source_coordinates.crs
         )
         if index_type != "slice":
-            selected_coords_idx2 = np.ix_(*[selected_coords_idx[k].ravel() for k in source_coordinates.dims])
+            selected_coords_idx2 = np.ix_(*[np.ravel(selected_coords_idx[k]) for k in source_coordinates.dims])
         else:
             selected_coords_idx2 = tuple([selected_coords_idx[d] for d in source_coordinates.dims])
         return selected_coords, tuple(selected_coords_idx2)
