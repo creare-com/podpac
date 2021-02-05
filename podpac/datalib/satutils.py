@@ -17,13 +17,11 @@ from lazy_import import lazy_module
 
 satsearch = lazy_module("satsearch")
 
-# Internal dependencies
 import podpac
 from podpac.compositor import TileCompositor
-from podpac.core.data.rasterio_source import RasterioRaw
-from podpac.core.units import UnitsDataArray
+from podpac.data import Rasterio
 from podpac.authentication import S3Mixin
-from podpac import settings
+from podpac.core.coordinates import ArrayCoordinates1d
 
 _logger = logging.getLogger(__name__)
 
@@ -64,8 +62,8 @@ def _get_s3_url(item, asset_name):
         raise ValueError("Could not parse satutils asset href '%s'" % info["href"])
 
 
-class SatUtilsSource(RasterioRaw):
-    date = tl.Unicode(help="item.properties.datetime from sat-utils item").tag(attr=True)
+class SatUtilsSource(Rasterio):
+    date = tl.Any()
 
     def get_coordinates(self):
         # get spatial coordinates from rasterio over s3
@@ -74,7 +72,10 @@ class SatUtilsSource(RasterioRaw):
         return podpac.coordinates.merge_dims([spatial_coordinates, time])
 
 
-class SatUtils(S3Mixin, TileCompositor):
+from podpac.core.compositor.tile_compositor import TileCompositorRaw
+
+
+class SatUtils(S3Mixin, TileCompositorRaw):
     """
     PODPAC DataSource node to access the data using sat-utils developed by Development Seed
     See https://github.com/sat-utils
@@ -104,128 +105,95 @@ class SatUtils(S3Mixin, TileCompositor):
         [lat - min_bounds_span['lat'] / 2, lat + min_bounds_span['lat'] / 2]
     """
 
-    stac_api_url = tl.Unicode().tag(attr=True)
+    stac_api_url = tl.Unicode("https://earth-search.aws.element84.com/v0").tag(attr=True)
     collection = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     asset = tl.Unicode().tag(attr=True)
     query = tl.Dict(default_value=None, allow_none=True).tag(attr=True)
 
-    min_bounds_span = tl.Dict(allow_none=True).tag(attr=True)
+    time_tol = tl.Instance(np.timedelta64, default_value=np.timedelta64(2, "D"), allow_none=True)
 
-    @tl.default("stac_api_url")
-    def _get_stac_api_url_from_env(self):
-        if "STAC_API_URL" not in os.environ:
-            raise TypeError(
-                "STAC endpoint required. Please define the SatUtils 'stac_api_url' or 'STAC_API_URL' environmental variable"
-            )
+    @tl.validate("time_tol")
+    def validate_time_tol(self, d):
+        if d["value"] is None:
+            return None
 
-        return os.environ
+        try:
+            value = get_timedelta(d["value"])
+        except:
+            raise TypeError("Invalid time_tol '%s' of type %s" % (d[value], type(d["value"])))
+
+        if value < 0:
+            raise ValueError("Invalid time_tol '%s', time_tol cannot be negative" % value)
+
+        return value
 
     def select_sources(self, coordinates, _selector=None):
-        result = self.search(coordinates)
+        items = self._search(coordinates)
+        sources = [SatUtilsSource(source=_get_s3_url(item, self.asset), date=item.datetime) for item in items]
+        import pdb
 
-        if result.found() == 0:
-            _logger.warning(
-                "Sat Utils did not find any items for collection {}. Ensure that sat-stac is installed, or try with a different set of coordinates (self.search(coordinates)).".format(
-                    self.collection
-                )
-            )
-            return []
+        pdb.set_trace()  # breakpoint 2b5e462b //
 
-        return [
-            SatUtilsSource(source=_get_s3_url(item, self.asset), date=item.properties["datetime"])
-            for item in result.items()
-        ]
+        return sources
 
-    def search(self, coordinates):
-        """
-        Query data from sat-utils interface within PODPAC coordinates
+    # def _eval(self, coordinates, output=None, _selector=None):
+    #     tiles = self._search(coordinates)
 
-        Parameters
-        ----------
-        coordinates : :class:`podpac.Coordinates`
-            PODPAC coordinates specifying spatial and temporal bounds
+    #     native_time_coordinates = coordinates.copy()
+    #     native_time_coordinates['time'] = ArrayCoordinates1d(sorted([tile.datetime for tile in items]))
+    #     import pdb; pdb.set_trace()  # breakpoint c31cf643 //
 
-        Raises
-        ------
-        ValueError
-            Error raised when no spatial or temporal bounds are provided
+    #     return super(self)._eval(native_time_coordinates, output=output, _selector=_selector)
 
-        Returns
-        -------
-        search : :class:`satsearch.search.Search`
-            Results form sat-search
-        """
-
-        # Ensure Coordinates are in decimal lat-lon
-        coordinates = coordinates.transform("epsg:4326")
-
-        time_bounds = None
-        if "time" in coordinates.udims:
-            time_bounds = [
-                str(np.datetime64(bound, "s"))
-                for bound in coordinates["time"].bounds
-                if isinstance(bound, np.datetime64)
-            ]
-            if len(time_bounds) < 2:
-                raise ValueError("Time coordinates must be of type np.datetime64")
-
-            if self.min_bounds_span != None and "time" in self.min_bounds_span:
-                time_span, time_unit = self.min_bounds_span["time"].split(",")
-                time_delta = np.timedelta64(int(time_span), time_unit)
-                time_bounds_dt = [np.datetime64(tb) for tb in time_bounds]
-                timediff = np.diff(time_bounds_dt)
-                if timediff < time_delta:
-                    pad = (time_delta - timediff) / 2
-                    time_bounds = [str((time_bounds_dt[0] - pad)[0]), str((time_bounds_dt[1] + pad)[0])]
-
-        bbox = None
-        if "lat" in coordinates.udims or "lon" in coordinates.udims:
-            lat = coordinates["lat"].bounds
-            lon = coordinates["lon"].bounds
-            if (self.min_bounds_span != None) and ("lat" in self.min_bounds_span) and ("lon" in self.min_bounds_span):
-                latdiff = np.diff(lat)
-                londiff = np.diff(lon)
-                if latdiff < self.min_bounds_span["lat"]:
-                    pad = ((self.min_bounds_span["lat"] - latdiff) / 2)[0]
-                    lat = [lat[0] - pad, lat[1] + pad]
-
-                if londiff < self.min_bounds_span["lon"]:
-                    pad = ((self.min_bounds_span["lon"] - londiff) / 2)[0]
-                    lon = [lon[0] - pad, lon[1] + pad]
-
-            bbox = [lon[0], lat[0], lon[1], lat[1]]
-
-        # TODO: do we actually want to limit an open query?
-        if time_bounds is None and bbox is None:
-            raise ValueError("No time or spatial coordinates requested")
-
-        # search dict
+    def _search(self, coordinates):
         search_kwargs = {}
 
         search_kwargs["url"] = self.stac_api_url
-
-        if time_bounds is not None:
-            search_kwargs["datetime"] = "{start_time}/{end_time}".format(
-                start_time=time_bounds[0], end_time=time_bounds[1]
-            )
-
-        if bbox is not None:
-            search_kwargs["bbox"] = bbox
+        search_kwargs["collections"] = [self.collection]
 
         if self.query is not None:
             search_kwargs["query"] = self.query
-        else:
-            search_kwargs["query"] = {}
 
-        if self.collection is not None:
-            search_kwargs["collections"] = [self.collection]
+        # bbox
+        # TODO spatial tolerance
+        coordinates = coordinates.transform("EPSG:4326")
+        lat = coordinates["lat"].bounds
+        lon = coordinates["lon"].bounds
+        search_kwargs["bbox"] = [lon[0], lat[0], lon[1], lat[1]]
 
-        # search with sat-search
-        _logger.debug("sat-search searching with {}".format(search_kwargs))
-        search = satsearch.Search(**search_kwargs)
-        _logger.debug("sat-search found {} items".format(search.found()))
+        # time bounds
+        # TODO time tolerance
+        lo, hi = coordinates["time"].bounds
+        search_kwargs["datetime"] = "%s/%s" % (lo, hi)
 
-        return search
+        # search
+        items = satsearch.Search(**search_kwargs).items()
+
+        # # outer time intersection
+        # dates = np.unique([item.datetime for item in items]) # also sorted
+        # lo = max(dates < coordinates['time'].bounds[0])
+        # hi = min(dates > coordinates['time'].bounds[1])
+        # return [item for item in items if lo <= item.datetime <= hi]
+
+        return items
+
+    def get_times(self, coordinates=None):
+        if "lat" not in coordinates.udims or "lon" not in coordinates.udims:
+            raise ValueError("coordinates must contain spatial dimensions (lat and lon)")
+        coordinates = coordinates.transform("EPSG:4326")
+        lat = coordinates["lat"].bounds
+        lon = coordinates["lon"].bounds
+        bbox = [lon[0], lat[0], lon[1], lat[1]]
+
+        search_kwargs = {}
+        search_kwargs["url"] = self.stac_api_url
+        search_kwargs["collections"] = [self.collection]
+        if self.query is not None:
+            search_kwargs["query"] = self.query
+        search_kwargs["bbox"] = bbox
+
+        result = satsearch.Search(**search_kwargs)
+        return podpac.Coordinates([[item.datetime for item in result.items()]], dims=[["time"]])
 
 
 class Landsat8(SatUtils):
