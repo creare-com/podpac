@@ -80,8 +80,10 @@ class Selector(tl.HasTraits):
             The coordinates of the source data
         request_coords: :class:`podpac.Coordinates`
             The coordinates of the request (user eval)
-        index_type: str
-            Supported type of indexing that the source can use, either "numpy" (default),"xarray", or "slice"
+        index_type: str, optional
+            Default is 'numpy'. Either "numpy", "xarray", or "slice". The returned index will be compatible with,
+            either "numpy" (default) or "xarray" objects, or any
+            object that works with tuples of slices ("slice")
 
         Returns
         --------
@@ -107,7 +109,7 @@ class Selector(tl.HasTraits):
         if index_type == "numpy":
             coords_inds = self._merge_indices(coords_inds, source_coords.dims, request_coords.dims)
         elif index_type == "xarray":
-            pass
+            pass  # unlike numpy, xarray assumes indexes are orthogonal by default, so the 1d coordinates are already correct
         return coords, tuple(coords_inds)
 
     def _select1d(self, source, request, index_type):
