@@ -45,7 +45,7 @@ def _get_asset_info(item, name):
 
 
 def _get_s3_url(item, asset_name):
-    """ convert to s3:// urls
+    """convert to s3:// urls
     href: https://landsat-pds.s3.us-west-2.amazonaws.com/c1/L8/034/033/LC08_L1TP_034033_20201209_20201218_01_T1/LC08_L1TP_034033_20201209_20201218_01_T1_B2.TIF
     url:  s3://landsat-pds/c1/L8/034/033/LC08_L1TP_034033_20201209_20201218_01_T1/LC08_L1TP_034033_20201209_20201218_01_T1_B2.TIF
     """

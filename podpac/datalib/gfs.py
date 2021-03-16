@@ -20,7 +20,7 @@ BUCKET = "noaa-gfs-pds"
 
 
 class GFSSourceRaw(DiskCacheMixin, RasterioRaw):
-    """ Raw GFS data from S3
+    """Raw GFS data from S3
 
     Attributes
     ----------
@@ -48,7 +48,7 @@ class GFSSourceRaw(DiskCacheMixin, RasterioRaw):
 
 
 class GFS(S3Mixin, DiskCacheMixin, TileCompositor):
-    """ Composited and interpolated GFS data from S3
+    """Composited and interpolated GFS data from S3
 
     Attributes
     ----------

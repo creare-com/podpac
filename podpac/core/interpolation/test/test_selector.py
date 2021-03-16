@@ -2,6 +2,7 @@ import pytest
 import traitlets as tl
 import numpy as np
 
+from podpac.core.node import Node
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.interpolation.selector import Selector
 
@@ -244,6 +245,22 @@ class TestSelector(object):
         c, ci = selector.select(u_fine, p_coarse)
         for cci, trth in zip(ci, np.ix_(self.nn_request_coarse_from_fine, self.nn_request_coarse_from_fine)):
             np.testing.assert_array_equal(cci, trth)
+
+    def test_point2uniform_non_square_xarray_type(self):
+        u_fine = Coordinates([self.lat_fine, self.lon_fine[:-1]], ["lat", "lon"])
+        u_coarse = Coordinates([self.lat_coarse[:-1], self.lon_coarse], ["lat", "lon"])
+
+        p_fine = Coordinates([[self.lat_fine, self.lon_fine]], [["lat", "lon"]])
+        p_coarse = Coordinates([[self.lat_coarse, self.lon_coarse]], [["lat", "lon"]])
+
+        selector = Selector("nearest")
+        # Test xarray indices instead
+        cx, cix = selector.select(u_fine, p_coarse, index_type="xarray")
+        cn, cin = selector.select(u_fine, p_coarse, index_type="numpy")
+        xarr = Node().create_output_array(u_fine)
+        xarr[...] = np.random.rand(*xarr.shape)
+
+        np.testing.assert_equal(xarr[cix], xarr.data[cin])
 
     def test_slice_index(self):
         selector = Selector("nearest")
