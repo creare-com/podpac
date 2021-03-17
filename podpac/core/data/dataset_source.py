@@ -49,6 +49,7 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
     # dataset = tl.Instance(xr.Dataset).tag(readonly=True)
     selection = tl.Dict(allow_none=True, default_value=None).tag(attr=True)
     infer_podpac_coords = tl.Bool(False).tag(attr=True)
+    coordinate_index_type = "xarray"
 
     # -------------------------------------------------------------------------
     # public api properties and methods
@@ -83,7 +84,7 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
             tdims = tuple(self.dataset.dims) + ("output",)
             data = data.transpose(*tdims)
 
-        return self.create_output_array(coordinates, data.data[coordinates_index])
+        return self.create_output_array(coordinates, data[coordinates_index])
 
     @common_doc(COMMON_DATA_DOC)
     def get_coordinates(self):
