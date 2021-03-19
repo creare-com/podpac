@@ -55,6 +55,12 @@ class TestDataset(object):
         np.testing.assert_array_equal(out, self.other)
         node.close_dataset()
 
+    def test_get_data_array_indexing(self):
+        node = Dataset(source=self.source, time_key="day", data_key="data")
+        out = node.eval(node.coordinates[:, [0, 2]])
+        np.testing.assert_array_equal(out, self.data[:, [0, 2]])
+        node.close_dataset()
+
     def test_get_data_multiple(self):
         node = Dataset(source=self.source, time_key="day", data_key=["data", "other"])
         out = node.eval(node.coordinates)
@@ -90,9 +96,13 @@ class TestDataset(object):
         np.testing.assert_array_equal(out.sel(output="other"), self.other)
         node.close_dataset()
 
-    def test_extra_dim(self):
+    def test_extra_dimension_selection(self):
         # default
-        node = Dataset(source=self.source)
-        assert node.extra_dim is None
+        node = Dataset(source=self.source, time_key="day", data_key="data")
+        assert node.selection is None
 
-        # TODO
+        # treat day as an "extra" dimension, and select the second day
+        node = Dataset(source=self.source, data_key="data", selection={"day": 1})
+        assert node.coordinates.dims == ("lat", "lon")
+        out = node.eval(node.coordinates)
+        np.testing.assert_array_equal(out, self.data[1])

@@ -119,6 +119,10 @@ class Interpolate(Node):
     def _cache_output_default(self):
         return settings["CACHE_NODE_OUTPUT_DEFAULT"]
 
+    @tl.default("units")
+    def _use_source_units(self):
+        return getattr(self.source, "units", None)
+
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------

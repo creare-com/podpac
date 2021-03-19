@@ -33,11 +33,13 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
         altitude key, default 'alt'
     crs : str
         Coordinate reference system of the coordinates
-    extra_dim : dict
-        In cases where the data contain dimensions other than ['lat', 'lon', 'time', 'alt'], these dimensions need to be selected.
-        For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim=dict(channel=1)`
+    selection : dict
+        Extra dimension(s) selection. Select one coordinate by index for each extra dimension.
+        This is necessary when the data contains dimensions other than 'lat', 'lon', 'time', and 'alt'.
+        For example, with dims `('lat', 'lon', 'channel')`, use `{{'channel': 1}}`.
     infer_podpac_coords: bool
-        Default is False. If True, it assumes the file was saved using PODPAC, and the coordinates definitions match PODPAC format
+        If True, load the coordinates from the dataset coords directly. Default is False.
+        This is particularly useful if the file was saved using PODPAC.
 
     See Also
     --------
@@ -45,12 +47,9 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
     """
 
     # dataset = tl.Instance(xr.Dataset).tag(readonly=True)
-    extra_dim = tl.Dict(allow_none=True).tag(attr=True)
+    selection = tl.Dict(allow_none=True, default_value=None).tag(attr=True)
     infer_podpac_coords = tl.Bool(False).tag(attr=True)
-
-    @tl.default("extra_dim")
-    def _default_extra_dim(self):
-        return None
+    coordinate_index_type = "xarray"
 
     # -------------------------------------------------------------------------
     # public api properties and methods
@@ -67,7 +66,7 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
     def dims(self):
         """dataset coordinate dims"""
         lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
-        return [lookup[dim] for dim in self.dataset.dims]
+        return [lookup[dim] for dim in self.dataset.dims if dim in lookup]
 
     @cached_property
     def keys(self):
@@ -78,14 +77,14 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
         """{get_data}"""
 
         if not isinstance(self.data_key, list):
-            data = self.dataset[self.data_key]
-            data = data.transpose(*self.dataset.dims)
+            data = self.dataset[self.data_key][self.selection or {}]
+            data = data.transpose(*[self._lookup_key(dim) for dim in self.dims])
         else:
-            data = self.dataset[self.data_key].to_array(dim="output")
+            data = self.dataset[self.data_key].to_array(dim="output")[self.selection or {}]
             tdims = tuple(self.dataset.dims) + ("output",)
             data = data.transpose(*tdims)
 
-        return self.create_output_array(coordinates, data.data[coordinates_index])
+        return self.create_output_array(coordinates, data[coordinates_index])
 
     @common_doc(COMMON_DATA_DOC)
     def get_coordinates(self):
