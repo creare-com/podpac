@@ -278,9 +278,9 @@ def is_json_serializable(obj, cls=json.JSONEncoder):
 
 
 def _get_param(params, key):
-    if isinstance(params[key], list):
+    if isinstance(params.get(key, None), list):
         return params[key][0]
-    return params[key]
+    return params.get(key, None)
 
 
 def _get_query_params_from_url(url):
