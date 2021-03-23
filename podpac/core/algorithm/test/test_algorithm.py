@@ -1,19 +1,11 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import warnings
-from collections import OrderedDict
-
 import pytest
 import traitlets as tl
 import numpy as np
 import xarray as xr
 
 import podpac
-from podpac.core.utils import NodeTrait
-from podpac.core.node import Node, NodeException
-from podpac.core.data.array_source import Array
-from podpac.core.algorithm.utility import Arange
-from podpac.core.algorithm.generic import Arithmetic
 from podpac.core.algorithm.algorithm import BaseAlgorithm, Algorithm, UnaryAlgorithm
 
 
@@ -26,25 +18,21 @@ class TestBaseAlgorithm(object):
 
     def test_inputs(self):
         class MyAlgorithm(BaseAlgorithm):
-            x = NodeTrait().tag(attr=True)
-            y = NodeTrait().tag(attr=True)
+            x = tl.Instance(podpac.Node).tag(attr=True)
+            y = tl.Instance(podpac.Node).tag(attr=True)
 
-        node = MyAlgorithm(
-            x=Array(coordinates=podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])),
-            y=Array(coordinates=podpac.Coordinates([[0, 1, 2], [110, 120]], dims=["lat", "lon"])),
-        )
-
+        node = MyAlgorithm(x=podpac.Node(), y=podpac.Node())
         assert "x" in node.inputs
         assert "y" in node.inputs
 
     def test_find_coordinates(self):
         class MyAlgorithm(BaseAlgorithm):
-            x = NodeTrait().tag(attr=True)
-            y = NodeTrait().tag(attr=True)
+            x = tl.Instance(podpac.Node).tag(attr=True)
+            y = tl.Instance(podpac.Node).tag(attr=True)
 
         node = MyAlgorithm(
-            x=Array(coordinates=podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])),
-            y=Array(coordinates=podpac.Coordinates([[0, 1, 2], [110, 120]], dims=["lat", "lon"])),
+            x=podpac.data.Array(coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"])),
+            y=podpac.data.Array(coordinates=podpac.Coordinates([[10, 11, 12], [100, 200]], dims=["lat", "lon"])),
         )
 
         l = node.find_coordinates()
@@ -61,8 +49,268 @@ class TestAlgorithm(object):
         with pytest.raises(NotImplementedError):
             node.eval(c)
 
-    def test_multi_threading(self):
+    def test_eval(self):
+        class MyAlgorithm(Algorithm):
+            def algorithm(self, inputs, coordinates):
+                data = np.arange(coordinates.size).reshape(coordinates.shape)
+                return self.create_output_array(coordinates, data=data)
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        node = MyAlgorithm()
+        output = node.eval(coords)
+        assert isinstance(output, podpac.UnitsDataArray)
+        assert output.dims == ("lat", "lon")
+        np.testing.assert_array_equal(output, np.arange(6).reshape(3, 2))
+
+    def test_eval_algorithm_returns_xarray(self):
+        class MyAlgorithm(Algorithm):
+            def algorithm(self, inputs, coordinates):
+                data = np.arange(coordinates.size).reshape(coordinates.shape)
+                return xr.DataArray(data, coords=coordinates.xcoords, dims=coordinates.dims)
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        node = MyAlgorithm()
+        output = node.eval(coords)
+        assert isinstance(output, podpac.UnitsDataArray)
+        assert output.dims == ("lat", "lon")
+        np.testing.assert_array_equal(output, np.arange(6).reshape(3, 2))
+
+    def test_eval_algorithm_returns_numpy_array(self):
+        class MyAlgorithm(Algorithm):
+            def algorithm(self, inputs, coordinates):
+                data = np.arange(coordinates.size).reshape(coordinates.shape)
+                return data
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        node = MyAlgorithm()
+        with pytest.raises(podpac.NodeException, match="algorithm returned unsupported type"):
+            output = node.eval(coords)
+
+    def test_eval_algorithm_drops_dimension(self):
+        class MyAlgorithm(Algorithm):
+            drop = tl.Unicode()
+
+            def algorithm(self, inputs, coordinates):
+                c = coordinates.drop(self.drop)
+                data = np.arange(c.size).reshape(c.shape)
+                return self.create_output_array(c, data=data)
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        node = MyAlgorithm(drop="lat")
+        output = node.eval(coords)
+        assert isinstance(output, podpac.UnitsDataArray)
+        assert output.dims == ("lon",)
+        np.testing.assert_array_equal(output, np.arange(2))
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        node = MyAlgorithm(drop="lon")
+        output = node.eval(coords)
+        assert isinstance(output, podpac.UnitsDataArray)
+        assert output.dims == ("lat",)
+        np.testing.assert_array_equal(output, np.arange(3))
+
+    def test_eval_algorithm_adds_dimension(self):
+        class MyAlgorithm(Algorithm):
+            def algorithm(self, inputs, coordinates):
+                c = podpac.Coordinates(
+                    [["2020-01-01", "2020-01-02"], coordinates["lat"], coordinates["lon"]], dims=["time", "lat", "lon"]
+                )
+                data = np.arange(c.size).reshape(c.shape)
+                return self.create_output_array(c, data=data)
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        node = MyAlgorithm()
+        output = node.eval(coords)
+        assert isinstance(output, podpac.UnitsDataArray)
+        assert output.dims == ("lat", "lon", "time")
+        np.testing.assert_array_equal(output, np.arange(12).reshape(2, 3, 2).transpose(1, 2, 0))
+
+    def test_eval_algorithm_transposes(self):
+        class MyAlgorithm(Algorithm):
+            def algorithm(self, inputs, coordinates):
+                c = coordinates.transpose("lon", "lat")
+                data = np.arange(c.size).reshape(c.shape)
+                return self.create_output_array(c, data=data)
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        node = MyAlgorithm()
+        output = node.eval(coords)
+        assert isinstance(output, podpac.UnitsDataArray)
+        assert output.dims == ("lat", "lon")
+        np.testing.assert_array_equal(output, np.arange(6).reshape(2, 3).T)
+
+    def test_eval_with_output(self):
+        class MyAlgorithm(Algorithm):
+            def algorithm(self, inputs, coordinates):
+                data = np.arange(coordinates.size).reshape(coordinates.shape)
+                return self.create_output_array(coordinates, data=data)
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        output = podpac.UnitsDataArray.create(coords)
+
+        node = MyAlgorithm()
+        node.eval(podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"]), output=output)
+        assert isinstance(output, podpac.UnitsDataArray)
+        assert output.dims == ("lat", "lon")
+        np.testing.assert_array_equal(output, np.arange(6).reshape(3, 2))
+
+    def test_eval_with_output_missing_dims(self):
+        class MyAlgorithm(Algorithm):
+            def algorithm(self, inputs, coordinates):
+                data = np.arange(coords.size).reshape(coords.shape)
+                return self.create_output_array(coords, data=data)
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        output = podpac.UnitsDataArray.create(coords.drop("lat"))
+
+        node = MyAlgorithm()
+        with pytest.raises(podpac.NodeException, match="provided output is missing dims"):
+            node.eval(coords, output=output)
+
+    def test_eval_with_output_transposed(self):
+        class MyAlgorithm(Algorithm):
+            def algorithm(self, inputs, coordinates):
+                data = np.arange(coordinates.size).reshape(coordinates.shape)
+                return self.create_output_array(coordinates, data=data)
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        output = podpac.UnitsDataArray.create(coords).transpose("lon", "lat")
+
+        node = MyAlgorithm()
+        node.eval(coords, output=output)
+        assert isinstance(output, podpac.UnitsDataArray)
+        assert output.dims == ("lon", "lat")
+        np.testing.assert_array_equal(output, np.arange(6).reshape(3, 2).T)
+
+    def test_eval_with_output_algorithm_returns_xarray(self):
+        class MyAlgorithm(Algorithm):
+            def algorithm(self, inputs, coordinates):
+                data = np.arange(coordinates.size).reshape(coordinates.shape)
+                return xr.DataArray(data, coords=coordinates.xcoords, dims=coordinates.dims)
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        output = podpac.UnitsDataArray.create(coords)
+
+        node = MyAlgorithm()
+        node.eval(coords, output=output)
+        assert isinstance(output, podpac.UnitsDataArray)
+        assert output.dims == ("lat", "lon")
+        np.testing.assert_array_equal(output, np.arange(6).reshape(3, 2))
+
+    def test_eval_with_output_algorithm_drops_dimension(self):
+        class MyAlgorithm(Algorithm):
+            drop = tl.Unicode().tag(attr=True)
+
+            def algorithm(self, inputs, coordinates):
+                c = coordinates.drop(self.drop)
+                data = np.arange(c.size).reshape(c.shape)
+                return self.create_output_array(c, data=data)
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+
+        output = podpac.UnitsDataArray.create(coords)
+        node = MyAlgorithm(drop="lat")
+        node.eval(coords, output=output)
+        assert isinstance(output, podpac.UnitsDataArray)
+        assert output.dims == ("lat", "lon")
+        np.testing.assert_array_equal(output, [np.arange(2), np.arange(2), np.arange(2)])
+
+        output = podpac.UnitsDataArray.create(coords)
+        node = MyAlgorithm(drop="lon")
+        node.eval(coords, output=output)
+        assert isinstance(output, podpac.UnitsDataArray)
+        assert output.dims == ("lat", "lon")
+        np.testing.assert_array_equal(output, np.array([np.arange(3), np.arange(3)]).T)
+
+    def test_eval_with_output_algorithm_adds_dimension(self):
+        class MyAlgorithm(Algorithm):
+            def algorithm(self, inputs, coordinates):
+                c = podpac.Coordinates(
+                    [["2020-01-01", "2020-01-02"], coordinates["lat"], coordinates["lon"]], dims=["time", "lat", "lon"]
+                )
+                data = np.arange(c.size).reshape(c.shape)
+                return self.create_output_array(c, data=data)
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+
+        output = podpac.UnitsDataArray.create(coords)
+        node = MyAlgorithm()
+        with pytest.raises(podpac.NodeException, match="provided output is missing dims"):
+            node.eval(coords, output=output)
+
+    def test_eval_with_output_algorithm_transposes(self):
+        class MyAlgorithm(Algorithm):
+            def algorithm(self, inputs, coordinates):
+                c = coordinates.transpose("lon", "lat")
+                data = np.arange(c.size).reshape(c.shape)
+                return self.create_output_array(c, data=data)
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        output = podpac.UnitsDataArray.create(coords)
+
+        node = MyAlgorithm()
+        node.eval(coords, output=output)
+        assert isinstance(output, podpac.UnitsDataArray)
+        assert output.dims == ("lat", "lon")
+        np.testing.assert_array_equal(output, np.arange(6).reshape(2, 3).T)
+
+    def test_eval_algorithm_inputs(self):
+        class MyAlgorithm(Algorithm):
+            x = tl.Instance(podpac.Node).tag(attr=True)
+
+            def algorithm(self, inputs, coordinates):
+                return inputs["x"]
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+
+        a = podpac.data.Array(source=np.arange(6).reshape(coords.shape), coordinates=coords)
+        node = MyAlgorithm(x=a)
+        output = node.eval(coords)
+        assert output.dims == ("lat", "lon")
+        np.testing.assert_array_equal(output.data, a.source)
+
+    def test_eval_multiple_outputs(self):
+        class MyAlgorithm(Algorithm):
+            x = tl.Instance(podpac.Node).tag(attr=True)
+            y = tl.Instance(podpac.Node).tag(attr=True)
+            outputs = ["sum", "prod", "diff"]
+
+            def algorithm(self, inputs, coordinates):
+                sum_ = inputs["x"] + inputs["y"]
+                prod = inputs["x"] * inputs["y"]
+                diff = inputs["x"] - inputs["y"]
+                coords = podpac.Coordinates.from_xarray(prod)
+                return self.create_output_array(coords, data=np.stack([sum_, prod, diff], -1))
+
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        x = podpac.data.Array(source=np.arange(coords.size).reshape(coords.shape), coordinates=coords)
+        y = podpac.data.Array(source=np.full(coords.shape, 2), coordinates=coords)
+
+        # all outputs
+        node = MyAlgorithm(x=x, y=y)
+        result = node.eval(coords)
+        assert result.dims == ("lat", "lon", "output")
+        np.testing.assert_array_equal(result["output"], ["sum", "prod", "diff"])
+        np.testing.assert_array_equal(result.sel(output="sum"), x.source + y.source)
+        np.testing.assert_array_equal(result.sel(output="prod"), x.source * y.source)
+        np.testing.assert_array_equal(result.sel(output="diff"), x.source - y.source)
+
+        # extract an output
+        node = MyAlgorithm(x=x, y=y, output="prod")
+        result = node.eval(coords)
+        assert result.dims == ("lat", "lon")
+        np.testing.assert_array_equal(result, x.source * y.source)
+
+    def test_eval_multi_threading(self):
+        class MySum(Algorithm):
+            A = tl.Instance(podpac.Node).tag(attr=True)
+            B = tl.Instance(podpac.Node).tag(attr=True)
+
+            def algorithm(self, inputs, coordinates):
+                return sum(o for o in inputs.values() if o is not None)
+
         coords = podpac.Coordinates([[1, 2, 3]], ["lat"])
+        array_node = podpac.data.Array(source=np.ones(coords.shape), coordinates=coords)
 
         with podpac.settings:
             podpac.settings.set_unsafe_eval(True)
@@ -70,24 +318,42 @@ class TestAlgorithm(object):
             podpac.settings["DEFAULT_CACHE"] = []
             podpac.settings["RAM_CACHE_ENABLED"] = False
 
-            node1 = Arithmetic(A=Arange(), B=Arange(), eqn="A+B")
-            node2 = Arithmetic(A=node1, B=Arange(), eqn="A+B")
+            node1 = MySum(A=array_node, B=array_node)
+            node2 = MySum(A=node1, B=array_node)
 
             # multithreaded
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 8
-
             omt = node2.eval(coords)
 
             # single threaded
             podpac.settings["MULTITHREADING"] = False
-
             ost = node2.eval(coords)
 
-        np.testing.assert_array_equal(omt, ost)
+            np.testing.assert_array_equal(omt, ost)
 
-    def test_multi_threading_cache_race(self):
+    def test_eval_multi_threading_cache_race(self):
+        class MyPow(Algorithm):
+            source = tl.Instance(podpac.Node).tag(attr=True)
+            exponent = tl.Float().tag(attr=True)
+
+            def algorithm(self, inputs, coordinates):
+                return inputs["source"] ** self.exponent
+
+        class MySum(Algorithm):
+            A = tl.Instance(podpac.Node).tag(attr=True)
+            B = tl.Instance(podpac.Node).tag(attr=True)
+            C = tl.Instance(podpac.Node).tag(attr=True)
+            D = tl.Instance(podpac.Node).tag(attr=True)
+            E = tl.Instance(podpac.Node).tag(attr=True)
+            F = tl.Instance(podpac.Node).tag(attr=True)
+
+            def algorithm(self, inputs, coordinates):
+                return sum(o for o in inputs.values() if o is not None)
+
         coords = podpac.Coordinates([np.linspace(0, 1, 1024)], ["lat"])
+        array_node = podpac.data.Array(source=np.ones(coords.shape), coordinates=coords)
+
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 3
@@ -95,33 +361,49 @@ class TestAlgorithm(object):
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
             podpac.settings["RAM_CACHE_ENABLED"] = True
             podpac.settings.set_unsafe_eval(True)
-            A = Arithmetic(A=Arange(), eqn="A**2")
-            B = Arithmetic(A=Arange(), eqn="A**2")
-            C = Arithmetic(A=Arange(), eqn="A**2")
-            D = Arithmetic(A=Arange(), eqn="A**2")
-            E = Arithmetic(A=Arange(), eqn="A**2")
-            F = Arithmetic(A=Arange(), eqn="A**2")
+            A = MyPow(source=array_node, exponent=2)
+            B = MyPow(source=array_node, exponent=2)
+            C = MyPow(source=array_node, exponent=2)
+            D = MyPow(source=array_node, exponent=2)
+            E = MyPow(source=array_node, exponent=2)
+            F = MyPow(source=array_node, exponent=2)
 
-            node2 = Arithmetic(A=A, B=B, C=C, D=D, E=E, F=F, eqn="A+B+C+D+E+F")
-
+            node2 = MySum(A=A, B=B, C=C, D=D, E=E, F=F)
             om = node2.eval(coords)
+            assert sum(n._from_cache for n in node2.inputs.values()) > 0
 
-            from_cache = [n._from_cache for n in node2.inputs.values()]
+    def test_eval_multi_threading_stress_nthreads(self):
+        class MyPow(Algorithm):
+            source = tl.Instance(podpac.Node).tag(attr=True)
+            exponent = tl.Float().tag(attr=True)
 
-            assert sum(from_cache) > 0
+            def algorithm(self, inputs, coordinates):
+                return inputs["source"] ** self.exponent
 
-    def test_multi_threading_stress_nthreads(self):
+        class MySum(Algorithm):
+            A = tl.Instance(podpac.Node).tag(attr=True)
+            B = tl.Instance(podpac.Node).tag(attr=True)
+            C = tl.Instance(podpac.Node).tag(attr=True)
+            D = tl.Instance(podpac.Node).tag(attr=True)
+            E = tl.Instance(podpac.Node).tag(attr=True)
+            F = tl.Instance(podpac.Node).tag(attr=True)
+            G = tl.Instance(podpac.Node, allow_none=True).tag(attr=True)
+
+            def algorithm(self, inputs, coordinates):
+                return sum(o for o in inputs.values() if o is not None)
+
         coords = podpac.Coordinates([np.linspace(0, 1, 4)], ["lat"])
+        array_node = podpac.data.Array(source=np.ones(coords.shape), coordinates=coords)
 
-        A = Arithmetic(A=Arange(), eqn="A**0")
-        B = Arithmetic(A=Arange(), eqn="A**1")
-        C = Arithmetic(A=Arange(), eqn="A**2")
-        D = Arithmetic(A=Arange(), eqn="A**3")
-        E = Arithmetic(A=Arange(), eqn="A**4")
-        F = Arithmetic(A=Arange(), eqn="A**5")
+        A = MyPow(source=array_node, exponent=0)
+        B = MyPow(source=array_node, exponent=1)
+        C = MyPow(source=array_node, exponent=2)
+        D = MyPow(source=array_node, exponent=3)
+        E = MyPow(source=array_node, exponent=4)
+        F = MyPow(source=array_node, exponent=5)
 
-        node2 = Arithmetic(A=A, B=B, C=C, D=D, E=E, F=F, eqn="A+B+C+D+E+F")
-        node3 = Arithmetic(A=A, B=B, C=C, D=D, E=E, F=F, G=node2, eqn="A+B+C+D+E+F+G")
+        node2 = MySum(A=A, B=B, C=C, D=D, E=E, F=F)
+        node3 = MySum(A=A, B=B, C=C, D=D, E=E, F=F, G=node2)
 
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = True
@@ -149,101 +431,11 @@ class TestAlgorithm(object):
         assert node3._multi_threaded
         assert node2._multi_threaded
 
-    def test_algorithm_return_types(self):
-        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
-
-        # numpy array
-        class ArrayAlgorithm(Algorithm):
-            def algorithm(self, inputs):
-                return np.ones(self._requested_coordinates.shape)
-
-        node = ArrayAlgorithm()
-        result = node.eval(coords)
-        np.testing.assert_array_equal(result, np.ones((3, 2)))
-
-        output = node.create_output_array(coords, data=0)
-        result = node.eval(coords, output=output)
-        np.testing.assert_array_equal(result, np.ones((3, 2)))
-        np.testing.assert_array_equal(output, np.ones((3, 2)))
-
-        # xarray DataArray
-        class DataArrayAlgorithm(Algorithm):
-            def algorithm(self, inputs):
-                data = np.ones(self._requested_coordinates.shape)
-                return self.create_output_array(self._requested_coordinates, data=data)
-
-        node = DataArrayAlgorithm()
-        result = node.eval(coords)
-        np.testing.assert_array_equal(result, np.ones((3, 2)))
-
-        output = node.create_output_array(coords, data=0)
-        result = node.eval(coords, output=output)
-        np.testing.assert_array_equal(result, np.ones((3, 2)))
-        np.testing.assert_array_equal(output, np.ones((3, 2)))
-
-        # podpac UnitsDataArray
-        class UnitsDataArrayAlgorithm(Algorithm):
-            def algorithm(self, inputs):
-                data = np.ones(self._requested_coordinates.shape)
-                return self.create_output_array(self._requested_coordinates, data=data)
-
-        node = UnitsDataArrayAlgorithm()
-        result = node.eval(coords)
-        np.testing.assert_array_equal(result, np.ones((3, 2)))
-
-        output = node.create_output_array(coords, data=0)
-        result = node.eval(coords, output=output)
-        np.testing.assert_array_equal(result, np.ones((3, 2)))
-        np.testing.assert_array_equal(output, np.ones((3, 2)))
-
-        # invalid
-        class InvalidAlgorithm(Algorithm):
-            def algorithm(self, inputs):
-                return None
-
-        node = InvalidAlgorithm()
-        with pytest.raises(NodeException):
-            node.eval(coords)
-
-    def test_multiple_outputs(self):
-        class MyAlgorithm(Algorithm):
-            x = NodeTrait().tag(attr=True)
-            y = NodeTrait().tag(attr=True)
-            outputs = ["sum", "prod", "diff"]
-
-            def algorithm(self, inputs):
-                sum_ = inputs["x"] + inputs["y"]
-                prod = inputs["x"] * inputs["y"]
-                diff = inputs["x"] - inputs["y"]
-                return np.stack([sum_, prod, diff], -1)
-
-        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
-        x = Arange()
-        y = Array(source=np.full(coords.shape, 2), coordinates=coords)
-        xout = np.arange(6).reshape(3, 2)
-
-        # all outputs
-        node = MyAlgorithm(x=x, y=y)
-        result = node.eval(coords)
-        assert result.dims == ("lat", "lon", "output")
-        np.testing.assert_array_equal(result["output"], ["sum", "prod", "diff"])
-        np.testing.assert_array_equal(result.sel(output="sum"), xout + 2)
-        np.testing.assert_array_equal(result.sel(output="prod"), xout * 2)
-        np.testing.assert_array_equal(result.sel(output="diff"), xout - 2)
-
-        # extract an output
-        node = MyAlgorithm(x=x, y=y, output="prod")
-        result = node.eval(coords)
-        assert result.dims == ("lat", "lon")
-        np.testing.assert_array_equal(result, xout * 2)
-
 
 class TestUnaryAlgorithm(object):
-    source = Array(coordinates=podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"]))
-
     def test_outputs(self):
-        node = UnaryAlgorithm(source=self.source)
+        node = UnaryAlgorithm(source=podpac.data.Array())
         assert node.outputs == None
 
-        node = UnaryAlgorithm(source=Array(outputs=["a", "b"]))
+        node = UnaryAlgorithm(source=podpac.data.Array(outputs=["a", "b"]))
         assert node.outputs == ["a", "b"]

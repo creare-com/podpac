@@ -385,11 +385,18 @@ class TestCoordinateCreation(object):
 
         # from xarray
         x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims)
+        c2 = Coordinates.from_xarray(x)
+        assert c2 == c
+
+        # from xarray coords
+        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims)
         c2 = Coordinates.from_xarray(x.coords)
         assert c2 == c
 
         # invalid
-        with pytest.raises(TypeError, match="Coordinates.from_xarray expects xarray DataArrayCoordinates"):
+        with pytest.raises(
+            TypeError, match="Coordinates.from_xarray expects an xarray DataArray or DataArrayCoordinates"
+        ):
             Coordinates.from_xarray([0, 10])
 
     def test_from_xarray_shaped(self):
@@ -400,7 +407,7 @@ class TestCoordinateCreation(object):
 
         # from xarray
         x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims)
-        c2 = Coordinates.from_xarray(x.coords)
+        c2 = Coordinates.from_xarray(x)
         assert c2 == c
 
     def test_from_xarray_with_outputs(self):
@@ -415,7 +422,7 @@ class TestCoordinateCreation(object):
         shape = c.shape + (2,)
 
         x = xr.DataArray(np.empty(c.shape + (2,)), coords=coords, dims=dims)
-        c2 = Coordinates.from_xarray(x.coords)
+        c2 = Coordinates.from_xarray(x)
         assert c2 == c
 
     def test_crs(self):

@@ -215,7 +215,7 @@ class Interpolate(Node):
         selector = self._interpolation.select_coordinates
 
         source_out = self._source_eval(self._evaluated_coordinates, selector)
-        source_coords = Coordinates.from_xarray(source_out.coords, crs=source_out.crs)
+        source_coords = Coordinates.from_xarray(source_out)
 
         # Drop extra coordinates
         extra_dims = [d for d in coordinates.udims if d not in source_coords.udims]

@@ -1077,7 +1077,7 @@ class DayOfYearWindow(Algorithm):
     scale_float = tl.List(default_value=None, allow_none=True).tag(attr=True)
     rescale = tl.Bool(False).tag(attr=True)
 
-    def algorithm(self, inputs):
+    def algorithm(self, inputs, coordinates):
         win = self.window // 2
         source = inputs["source"]
 
@@ -1103,12 +1103,12 @@ class DayOfYearWindow(Algorithm):
                 source.data[(source.data < 0) | (source.data > 1)] = np.nan
 
         # Make the output coordinates with day-of-year as time
-        coords = xr.Dataset({"time": self._requested_coordinates["time"].coordinates})
+        coords = xr.Dataset({"time": coordinates["time"].coordinates})
         dsdoy = np.sort(np.unique(coords.time.dt.dayofyear))
-        latlon_coords = self._requested_coordinates.drop("time")
+        latlon_coords = coordinates.drop("time")
         time_coords = podpac.Coordinates([dsdoy], ["time"])
         coords = podpac.coordinates.merge_dims([latlon_coords, time_coords])
-        coords = coords.transpose(*self._requested_coordinates.dims)
+        coords = coords.transpose(*coordinates.dims)
         output = self.create_output_array(coords)
 
         # if all-nan input, no need to calculate

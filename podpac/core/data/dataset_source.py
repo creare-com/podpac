@@ -90,7 +90,7 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
     def get_coordinates(self):
         """{get_coordinates}"""
         if self.infer_podpac_coords:
-            return Coordinates.from_xarray(self.dataset.coords)
+            return Coordinates.from_xarray(self.dataset, crs=self.crs)
         return super().get_coordinates()
 
 
