@@ -78,7 +78,7 @@ class RasterioRaw(LoadFileMixin, BaseFileSource):
 
     @cached_property
     def nan_vals(self):
-        return list(self.dataset.nodatavals)
+        return np.unique(np.array(self.dataset.nodatavals).astype(self.dtype)).tolist()
 
     def open_dataset(self, fp, **kwargs):
         if self.read_from_source:

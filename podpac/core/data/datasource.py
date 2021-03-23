@@ -152,6 +152,7 @@ class DataSource(Node):
     """
 
     nan_vals = tl.List().tag(attr=True)
+    nan_val = tl.Any(np.nan).tag(attr=True)
     boundary = tl.Dict().tag(attr=True)
 
     coordinate_index_type = tl.Enum(["slice", "numpy"], default_value="numpy")  # ,"list", "xarray", "pandas"],
@@ -266,7 +267,7 @@ class DataSource(Node):
             udata_array = udata_array.sel(output=self.output)
 
         # fill nan_vals in data array
-        udata_array.data[np.isin(udata_array.data, self.nan_vals)] = np.nan
+        udata_array.data[np.isin(udata_array.data, self.nan_vals)] = self.nan_val
 
         return udata_array
 
