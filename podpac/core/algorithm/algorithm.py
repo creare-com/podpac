@@ -63,7 +63,7 @@ class Algorithm(BaseAlgorithm):
         Arguments
         ----------
         inputs : dict
-            Evaluated outputs of the input nodes. The keys are the attribute names.
+            Evaluated outputs of the input nodes. The keys are the attribute names. Each item is a `UnitsDataArray`. 
         coordinates : podpac.Coordinates
             Requested coordinates.
             Note that the ``inputs`` may contain different coordinates than the requested coordinates
