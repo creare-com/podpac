@@ -66,7 +66,7 @@ class Algorithm(BaseAlgorithm):
             Evaluated outputs of the input nodes. The keys are the attribute names.
         coordinates : podpac.Coordinates
             Requested coordinates.
-            Note that the ``inputs`` may contain with different coordinates.
+            Note that the ``inputs`` may contain different coordinates than the requested coordinates
         """
 
         raise NotImplementedError
