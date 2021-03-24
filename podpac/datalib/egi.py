@@ -204,7 +204,7 @@ class EGI(InterpolationMixin, DataSource):
             _log.warning("No coordinates found in EGI source")
             return Coordinates([], dims=[])
 
-        return Coordinates.from_xarray(self.data.coords, crs=self.data.attrs["crs"])
+        return Coordinates.from_xarray(self.data)
 
     def get_data(self, coordinates, coordinates_index):
         if self.data is not None:

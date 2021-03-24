@@ -4,8 +4,18 @@ from podpac.style import Style
 from podpac.utils import NodeTrait
 
 
-def drought_style():
-    return Style(
+class DroughtMonitorCategory(Zarr):
+    style = Style(clim=[0, 0.6], colormap="gist_earth_r")
+
+
+class DroughtCategory(Algorithm):
+    soil_moisture = NodeTrait().tag(attr=True)
+    d0 = NodeTrait().tag(attr=True)
+    d1 = NodeTrait().tag(attr=True)
+    d2 = NodeTrait().tag(attr=True)
+    d3 = NodeTrait().tag(attr=True)
+    d4 = NodeTrait().tag(attr=True)
+    style = Style(
         clim=[0, 6],
         enumeration_colors=[
             [0.45098039, 0.0, 0.0, 1.0],
@@ -17,25 +27,7 @@ def drought_style():
         ],
     )
 
-
-def sm_style():
-    return Style(clim=[0, 0.6], colormap="gist_earth_r")
-
-
-class DroughtMonitorCategory(Zarr):
-    style = sm_style()
-
-
-class DroughtCategory(Algorithm):
-    soil_moisture = NodeTrait().tag(attr=True)
-    d0 = NodeTrait().tag(attr=True)
-    d1 = NodeTrait().tag(attr=True)
-    d2 = NodeTrait().tag(attr=True)
-    d3 = NodeTrait().tag(attr=True)
-    d4 = NodeTrait().tag(attr=True)
-    style = drought_style()
-
-    def algorithm(self, inputs):
+    def algorithm(self, inputs, coordinates):
         sm = inputs["soil_moisture"]
         d0 = inputs["d0"]
         d1 = inputs["d1"]

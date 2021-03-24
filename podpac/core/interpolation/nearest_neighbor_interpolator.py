@@ -80,8 +80,8 @@ class NearestNeighbor(Interpolator):
         def is_stacked(d):
             return "_" in d
 
-        if hasattr(source_data, "attrs"):
-            bounds = source_data.attrs.get("bounds", {d: None for d in source_coordinates.udims})
+        if hasattr(source_data, "attrs") and "bounds" in source_data.attrs:
+            bounds = source_data.attrs["bounds"]
             if "time" in bounds and bounds["time"]:
                 if "time" in eval_coordinates.udims:
                     bounds["time"] = [

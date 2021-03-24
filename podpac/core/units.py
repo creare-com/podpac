@@ -398,7 +398,7 @@ class UnitsDataArray(xr.DataArray):
         :class:`podpac.UnitsDataArray`
         """
         da = xr.open_dataarray(*args, **kwargs)
-        coords = Coordinates.from_xarray(da.coords, crs=da.attrs.get("crs"))
+        coords = Coordinates.from_xarray(da)
 
         # pass in kwargs to constructor
         uda_kwargs = {"attrs": da.attrs}

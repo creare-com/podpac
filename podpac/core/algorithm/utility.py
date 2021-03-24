@@ -16,21 +16,23 @@ from podpac.core.algorithm.algorithm import Algorithm
 class Arange(Algorithm):
     """A simple test node that gives each value in the output a number."""
 
-    def algorithm(self, inputs):
+    def algorithm(self, inputs, coordinates):
         """Uses np.arange to give each value in output a unique number
 
         Arguments
         ---------
         inputs : dict
             Unused, should be empty for this algorithm.
+        coordinates : podpac.Coordinates
+            Requested coordinates.
 
         Returns
         -------
         UnitsDataArray
             A row-majored numbered array of the requested size.
         """
-        data = np.arange(self._requested_coordinates.size).reshape(self._requested_coordinates.shape)
-        return self.create_output_array(self._requested_coordinates, data=data)
+        data = np.arange(coordinates.size).reshape(coordinates.shape)
+        return self.create_output_array(coordinates, data=data)
 
 
 class CoordData(Algorithm):
@@ -44,13 +46,16 @@ class CoordData(Algorithm):
 
     coord_name = tl.Unicode("").tag(attr=True)
 
-    def algorithm(self, inputs):
+    def algorithm(self, inputs, coordinates):
         """Extract coordinate from request and makes data available.
 
         Arguments
         ----------
         inputs : dict
             Unused, should be empty for this algorithm.
+        coordinates : podpac.Coordinates
+            Requested coordinates.
+            Note that the ``inputs`` may contain with different coordinates.
 
         Returns
         -------
@@ -58,10 +63,10 @@ class CoordData(Algorithm):
             The coordinates as data for the requested coordinate.
         """
 
-        if self.coord_name not in self._requested_coordinates.udims:
+        if self.coord_name not in coordinates.udims:
             raise ValueError("Coordinate name not in evaluated coordinates")
 
-        c = self._requested_coordinates[self.coord_name]
+        c = coordinates[self.coord_name]
         coords = Coordinates([c], validate_crs=False)
         return self.create_output_array(coords, data=c.coordinates)
 
@@ -69,20 +74,22 @@ class CoordData(Algorithm):
 class SinCoords(Algorithm):
     """A simple test node that creates a data based on coordinates and trigonometric (sin) functions."""
 
-    def algorithm(self, inputs):
+    def algorithm(self, inputs, coordinates):
         """Computes sinusoids of all the coordinates.
 
         Arguments
         ----------
         inputs : dict
             Unused, should be empty for this algorithm.
+        coordinates : podpac.Coordinates
+            Requested coordinates.
 
         Returns
         -------
         UnitsDataArray
             Sinusoids of a certain period for all of the requested coordinates
         """
-        out = self.create_output_array(self._requested_coordinates, data=1.0)
+        out = self.create_output_array(coordinates, data=1.0)
         crds = list(out.coords.values())
         try:
             i_time = list(out.coords.keys()).index("time")
