@@ -11,7 +11,6 @@ import itertools
 import json
 from collections import OrderedDict
 from hashlib import md5 as hash_alg
-import re
 
 import numpy as np
 import traitlets as tl
@@ -317,26 +316,32 @@ class Coordinates(tl.HasTraits):
             DataArray, Dataset, or xarray coordinates
         crs : str, optional
             Coordinate reference system. Supports any PROJ4 or PROJ6 compliant string (https://proj.org/).
+            If not provided, the crs will be loaded from ``x.attrs`` if possible.
 
         Returns
         -------
-        :class:`Coordinates`
+        coords : :class:`Coordinates`
             podpac Coordinates
         """
 
         if isinstance(x, (xr.DataArray, xr.Dataset)):
-            coords = x.coords
+            xcoords = x.coords
+            # only pull crs from the DataArray attrs if the crs is not specified
             if crs is None:
                 crs = x.attrs.get("crs")
         elif isinstance(x, (xarray.core.coordinates.DataArrayCoordinates, xarray.core.coordinates.DatasetCoordinates)):
-            coords = x
+            xcoords = x
         else:
             raise TypeError(
                 "Coordinates.from_xarray expects an xarray DataArray or DataArrayCoordinates, not '%s'" % type(x)
             )
 
+        # warn if crs is not provided as an argument OR in the data array
+        if crs is None:
+            warnings.warn("using default crs for podpac coordinates loaded from xarray because no crs was provided")
+
         d = OrderedDict()
-        for dim in coords.dims:
+        for dim in xcoords.dims:
             if dim in d:
                 continue
             if dim == "output":
@@ -345,16 +350,18 @@ class Coordinates(tl.HasTraits):
             if "-" in dim:
                 dim, _ = dim.split("-")
 
-            if dim in coords.indexes and isinstance(coords.indexes[dim], pd.MultiIndex):
+            if dim in xcoords.indexes and isinstance(xcoords.indexes[dim], pd.MultiIndex):
                 # 1d stacked
-                d[dim] = StackedCoordinates.from_xarray(coords[dim])
+                d[dim] = StackedCoordinates.from_xarray(xcoords[dim])
             elif "_" in dim:
                 # nd stacked
-                d[dim] = StackedCoordinates([coords[k] for k in dim.split("_")], name=dim)
+                d[dim] = StackedCoordinates([xcoords[k] for k in dim.split("_")], name=dim)
             else:
                 # unstacked
-                d[dim] = ArrayCoordinates1d.from_xarray(coords[dim])
-        return cls(list(d.values()), crs=crs)
+                d[dim] = ArrayCoordinates1d.from_xarray(xcoords[dim])
+
+        coords = cls(list(d.values()), crs=crs)
+        return coords
 
     @classmethod
     def from_json(cls, s):

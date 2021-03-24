@@ -66,7 +66,9 @@ class TestAlgorithm(object):
         class MyAlgorithm(Algorithm):
             def algorithm(self, inputs, coordinates):
                 data = np.arange(coordinates.size).reshape(coordinates.shape)
-                return xr.DataArray(data, coords=coordinates.xcoords, dims=coordinates.dims)
+                return xr.DataArray(
+                    data, coords=coordinates.xcoords, dims=coordinates.dims, attrs={"crs": coordinates.crs}
+                )
 
         coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
         node = MyAlgorithm()
@@ -186,7 +188,9 @@ class TestAlgorithm(object):
         class MyAlgorithm(Algorithm):
             def algorithm(self, inputs, coordinates):
                 data = np.arange(coordinates.size).reshape(coordinates.shape)
-                return xr.DataArray(data, coords=coordinates.xcoords, dims=coordinates.dims)
+                return xr.DataArray(
+                    data, coords=coordinates.xcoords, dims=coordinates.dims, attrs={"crs": coordinates.crs}
+                )
 
         coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
         output = podpac.UnitsDataArray.create(coords)
@@ -279,7 +283,7 @@ class TestAlgorithm(object):
                 sum_ = inputs["x"] + inputs["y"]
                 prod = inputs["x"] * inputs["y"]
                 diff = inputs["x"] - inputs["y"]
-                coords = podpac.Coordinates.from_xarray(prod)
+                coords = podpac.Coordinates.from_xarray(prod, crs=coordinates.crs)
                 return self.create_output_array(coords, data=np.stack([sum_, prod, diff], -1))
 
         coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])

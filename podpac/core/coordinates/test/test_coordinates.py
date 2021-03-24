@@ -380,33 +380,42 @@ class TestCoordinateCreation(object):
             [
                 StackedCoordinates([ArrayCoordinates1d(lat, name="lat"), ArrayCoordinates1d(lon, name="lon")]),
                 ArrayCoordinates1d(dates, name="time"),
-            ]
+            ],
+            crs="EPSG:2193",
         )
 
-        # from xarray
-        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims)
+        # from DataArray
+        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims, attrs={"crs": c.crs})
         c2 = Coordinates.from_xarray(x)
         assert c2 == c
+        assert c2.crs == "EPSG:2193"
 
-        # from xarray coords
-        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims)
-        c2 = Coordinates.from_xarray(x.coords)
-        assert c2 == c
+        # prefer crs argument over attrs.crs
+        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims, attrs={"crs": c.crs})
+        c3 = Coordinates.from_xarray(x, crs="EPSG:4326")
+        assert c3.crs == "EPSG:4326"
+
+        # from DataArrayCoords
+        c4 = Coordinates.from_xarray(x.coords, crs="EPSG:2193")
+        assert c4 == c
+        assert c4.crs == "EPSG:2193"
+
+        # crs warning
+        with pytest.warns(UserWarning, match="using default crs"):
+            c2 = Coordinates.from_xarray(x.coords)
 
         # invalid
-        with pytest.raises(
-            TypeError, match="Coordinates.from_xarray expects an xarray DataArray or DataArrayCoordinates"
-        ):
+        with pytest.raises(TypeError, match="Coordinates.from_xarray expects an xarray"):
             Coordinates.from_xarray([0, 10])
 
     def test_from_xarray_shaped(self):
         lat = np.linspace(0, 1, 12).reshape((3, 4))
         lon = np.linspace(10, 20, 12).reshape((3, 4))
         dates = [["2018-01-01", "2018-01-02", "2018-01-03"], ["2019-01-01", "2019-01-02", "2019-01-03"]]
-        c = Coordinates([[lat, lon], dates], dims=["lat_lon", "time"])
+        c = Coordinates([[lat, lon], dates], dims=["lat_lon", "time"], crs="EPSG:2193")
 
         # from xarray
-        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims)
+        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims, attrs={"crs": c.crs})
         c2 = Coordinates.from_xarray(x)
         assert c2 == c
 
@@ -414,14 +423,14 @@ class TestCoordinateCreation(object):
         lat = [0, 1, 2]
         lon = [10, 20, 30]
 
-        c = Coordinates([lat, lon], dims=["lat", "lon"])
+        c = Coordinates([lat, lon], dims=["lat", "lon"], crs="EPSG:2193")
 
         # from xarray
         dims = c.xdims + ("output",)
         coords = {"output": ["a", "b"], **c.xcoords}
         shape = c.shape + (2,)
 
-        x = xr.DataArray(np.empty(c.shape + (2,)), coords=coords, dims=dims)
+        x = xr.DataArray(np.empty(c.shape + (2,)), coords=coords, dims=dims, attrs={"crs": c.crs})
         c2 = Coordinates.from_xarray(x)
         assert c2 == c
 
