@@ -278,7 +278,11 @@ def is_json_serializable(obj, cls=json.JSONEncoder):
 
 
 def _get_param(params, key):
-    if isinstance(params.get(key, None), list):
+    if key not in params:
+        if key.upper() not in params:
+            return None
+        key = key.upper()
+    if isinstance(params[key], list):
         return params[key][0]
     return params.get(key, None)
 

@@ -772,7 +772,13 @@ class Node(tl.HasTraits):
             try:
                 module = importlib.import_module(module_name)
             except ImportError:
-                raise ValueError("Invalid definition for node '%s': no module found '%s'" % (name, module_name))
+                module_root = d.get("attrs").get("plugin")
+                node_string = "%s.%s" % (module_root, d.get("attrs").get("node"))
+                module_name, node_name = node_string.rsplit(".", 1)
+                try: 
+                    module = importlib.import_module(module_name)
+                except ImportError:
+                    raise ValueError("Invalid definition for node '%s': no module found '%s'" % (name, module_name))
             try:
                 node_class = getattr(module, node_name)
             except AttributeError:
