@@ -400,7 +400,7 @@ class NearestPreview(NearestNeighbor):
                     with np.errstate(invalid="ignore"):
                         src_delta = (src_stop - src_start) / (src_coords.size - 1)
 
-                ndelta = max(1, np.round(dst_delta / src_delta))
+                ndelta = max(1, np.round(np.abs(dst_delta / src_delta)))
                 if src_coords.size == 1:
                     c = src_coords.copy()
                 else:
