@@ -427,6 +427,7 @@ class Coordinates(tl.HasTraits):
             podpac Coordinates
         """
         params = _get_query_params_from_url(url)
+        coords = OrderedDict()
 
         # The ordering here is lat/lon or y/x for WMS 1.3.0
         # The ordering here is lon/lat or x/y for WMS 1.1
@@ -435,10 +436,22 @@ class Coordinates(tl.HasTraits):
 
         bbox = np.array(_get_param(params, "BBOX").split(","), float)
 
-        # I don't seem to need to reverse one of these... perhaps one of my test servers did not implement the spec?
+        # Note, version 1.1 used "SRS" and 1.3 uses 'CRS'
+        coords["crs"] = _get_param(params, "SRS")
+        if coords["crs"] is None:
+            coords["crs"] = _get_param(params, "CRS")
+
         if _get_param(params, "VERSION").startswith("1.1"):
             r = -1
         elif _get_param(params, "VERSION").startswith("1.3"):
+            r = 1
+            try:
+                crs = pyproj.CRS(coords["crs"])
+                if crs.axis_info[0].direction != 'north':
+                    r = -1
+            except:
+                pass
+        else:
             r = 1
 
         # Extract bounding box information and translate to PODPAC coordinates
@@ -446,12 +459,7 @@ class Coordinates(tl.HasTraits):
         stop = bbox[2::][::r]
         size = np.array([_get_param(params, "WIDTH"), _get_param(params, "HEIGHT")], int)[::r]
 
-        coords = OrderedDict()
 
-        # Note, version 1.1 used "SRS" and 1.3 uses 'CRS'
-        coords["crs"] = _get_param(params, "SRS")
-        if coords["crs"] is None:
-            coords["crs"] = _get_param(params, "CRS")
 
         coords["coords"] = [
             {"name": "lat", "start": start[0], "stop": stop[0], "size": size[0]},
