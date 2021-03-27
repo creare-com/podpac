@@ -87,7 +87,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         if step is not None:
             step = make_coord_delta(step)
-        elif isinstance(size, (int, np.long, np.integer)) and not isinstance(size, np.timedelta64):
+        elif isinstance(size, (int, np.compat.long, np.integer)) and not isinstance(size, np.timedelta64):
             step = divide_delta(stop - start, size - 1)
         else:
             raise TypeError("size must be an integer, not '%s'" % type(size))
