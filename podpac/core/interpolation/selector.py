@@ -139,11 +139,21 @@ class Selector(tl.HasTraits):
             return np.arange(source.size)
 
         index = (crds.coordinates - source.start) / source.step
-        stop_ind = int(np.round((source.stop - source.start) / source.step))
+        stop_ind = source.size - 1
         if len(self.method) > 1:
             flr_ceil = {-1: np.floor(index), 1: np.ceil(index)}
         else:
-            flr_ceil = {0: np.round(index)}
+            # In this case, floating point error really matters, so we have to do a test
+            up = np.round(index - 1e-6)
+            down = np.round(index + 1e-6)
+            # When up and down do not agree, use the index that will be kept.
+            index_mid = down  # arbitrarily default to down when both satisfy criteria
+            Iup = up != down
+            Iup[Iup] = (up[Iup] >= 0) & (up[Iup] <= stop_ind) & ((up[Iup] > down.max()) | (up[Iup] < down.min()))
+            index_mid[Iup] = up[Iup]
+            flr_ceil = {0: index_mid}
+            # flr_ceil = {0: index}
+
         inds = []
         for m in self.method:
             sign = np.sign(m)

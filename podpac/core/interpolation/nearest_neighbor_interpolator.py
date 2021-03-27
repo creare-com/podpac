@@ -404,7 +404,11 @@ class NearestPreview(NearestNeighbor):
                 if src_coords.size == 1:
                     c = src_coords.copy()
                 else:
-                    c = UniformCoordinates1d(src_start, src_stop, ndelta * src_delta, **src_coords.properties)
+                    c = UniformCoordinates1d(
+                        src_start,
+                        src_stop + ndelta * src_delta / 2,  # The delta/2 ensures the endpoint is included
+                        ndelta * src_delta,
+                        **src_coords.properties)
 
                 if isinstance(idx, slice):
                     idx = slice(idx.start, idx.stop, int(ndelta))
