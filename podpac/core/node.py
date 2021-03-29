@@ -131,7 +131,7 @@ class Node(tl.HasTraits):
     units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     style = tl.Instance(Style)
 
-    dtype = tl.Any(default_value=float)
+    dtype = tl.Enum([float], default_value=float)
     cache_output = tl.Bool()
     force_eval = tl.Bool(False)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)

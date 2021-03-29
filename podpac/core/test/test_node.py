@@ -236,6 +236,7 @@ class TestCreateOutputArray(object):
         assert output.crs == c.crs
         assert np.all(output == 0.0)
 
+    @pytest.mark.xfail(reason="not yet supported.")
     def test_create_output_array_dtype(self):
         c = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=["lat_lon", "time"])
         node = Node(dtype=bool)
