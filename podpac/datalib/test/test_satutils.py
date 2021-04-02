@@ -16,8 +16,12 @@ class TestLandsat8(object):
         time = ["2020-12-09", "2020-12-10"]
         c = podpac.Coordinates([lat, lon, time], dims=["lat", "lon", "time"])
 
-        node = podpac.datalib.satutils.Landsat8(stac_api_url=STAC_API_URL, asset="B01")
+        node = podpac.datalib.satutils.Landsat8(
+            stac_api_url=STAC_API_URL,
+            asset="B01",
+        )
         output = node.eval(c)
+        assert np.isfinite(output).sum() > 0
 
 
 @pytest.mark.skip(reason="requester pays")
@@ -31,5 +35,8 @@ class TestSentinel2(object):
 
         with podpac.settings:
             podpac.settings["AWS_REQUESTER_PAYS"] = True
-            node = podpac.datalib.satutils.Sentinel2(stac_api_url=STAC_API_URL, asset="B01")
+            node = podpac.datalib.satutils.Sentinel2(
+                stac_api_url=STAC_API_URL, asset="B01", aws_region_name="eu-central-1"
+            )
             output = node.eval(c)
+            assert np.isfinite(output).sum() > 0

@@ -13,6 +13,7 @@ import logging
 from lazy_import import lazy_module
 
 rasterio = lazy_module("rasterio")
+boto3 = lazy_module("boto3")
 
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.coordinates import UniformCoordinates1d, Coordinates
@@ -43,6 +44,10 @@ class RasterioRaw(LoadFileMixin, BaseFileSource):
     read_as_filename : bool, optional
         Default is False. If True, the file will be read using rasterio.open(self.source) instead of being automatically
         parsed to handle ftp, s3, in-memory files, etc.
+    read_from_source: bool
+        Default is False. If True, will directly send self.source to rasterio.open. Otherwise, PODPAC will try to handle FTP and other files
+    aws_https: bool
+        Default is True. If False, will not use https when reading from AWS. This is useful for debugging when SSL certificates are invalid.
 
     See Also
     --------
@@ -60,9 +65,16 @@ class RasterioRaw(LoadFileMixin, BaseFileSource):
     @cached_property
     def dataset(self):
         if self.source.startswith("s3://"):
-            _logger.info("Loading AWS resource: %s" % self.source)
-            with rasterio.env.Env(aws_unsigned=self.anon, AWS_HTTPS=self.aws_https) as env:
-                _logger.debug("Rasterio sees these AWS credentials:", env.options)
+            _logger.info("Loading AWS resource: {}".format(self.source))
+            session = rasterio.session.AWSSession(
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key,
+                region_name=self.aws_region_name,
+                requester_pays=self.aws_requester_pays,
+                aws_unsigned=self.anon,
+            )
+            with rasterio.env.Env(session=session, AWS_HTTPS=self.aws_https) as env:
+                _logger.debug("Rasterio sees these AWS credentials: {}".format(env.options))
                 dataset = rasterio.open(self.source)  # This should pull AWS credentials automatically
                 return dataset
         elif re.match(".*:.*:.*", self.source):

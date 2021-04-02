@@ -111,6 +111,12 @@ class SatUtils(S3Mixin, TileCompositor):
     anon = tl.Bool(default_value=False).tag(attr=True)
     min_bounds_span = tl.Dict(allow_none=True).tag(attr=True)
 
+    @tl.default("interpolation")
+    def _default_interpolation(self):
+        # this default interpolation enables NN interpolation without having to expand past the bounds of the query
+        # we're relying on satutils to give us the nearest neighboring tile here.
+        return {"method": "nearest", "params": {"respect_bounds": False}}
+
     @tl.default("stac_api_url")
     def _get_stac_api_url_from_env(self):
         if "STAC_API_URL" not in os.environ:
