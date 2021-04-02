@@ -408,7 +408,8 @@ class NearestPreview(NearestNeighbor):
                         src_start,
                         src_stop + ndelta * src_delta / 2,  # The delta/2 ensures the endpoint is included
                         ndelta * src_delta,
-                        **src_coords.properties)
+                        **src_coords.properties
+                    )
 
                 if isinstance(idx, slice):
                     idx = slice(idx.start, idx.stop, int(ndelta))

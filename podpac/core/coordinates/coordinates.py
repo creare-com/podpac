@@ -447,7 +447,7 @@ class Coordinates(tl.HasTraits):
             r = 1
             try:
                 crs = pyproj.CRS(coords["crs"])
-                if crs.axis_info[0].direction != 'north':
+                if crs.axis_info[0].direction != "north":
                     r = -1
             except:
                 pass
@@ -458,8 +458,6 @@ class Coordinates(tl.HasTraits):
         start = bbox[:2][::r]
         stop = bbox[2::][::r]
         size = np.array([_get_param(params, "WIDTH"), _get_param(params, "HEIGHT")], int)[::r]
-
-
 
         coords["coords"] = [
             {"name": "lat", "start": start[0], "stop": stop[0], "size": size[0]},

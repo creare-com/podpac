@@ -108,7 +108,7 @@ class SatUtils(S3Mixin, TileCompositor):
     collection = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     asset = tl.Unicode().tag(attr=True)
     query = tl.Dict(default_value=None, allow_none=True).tag(attr=True)
-
+    anon = tl.Bool(default_value=False).tag(attr=True)
     min_bounds_span = tl.Dict(allow_none=True).tag(attr=True)
 
     @tl.default("stac_api_url")
@@ -132,7 +132,7 @@ class SatUtils(S3Mixin, TileCompositor):
             return []
 
         return [
-            SatUtilsSource(source=_get_s3_url(item, self.asset), date=item.properties["datetime"])
+            SatUtilsSource(source=_get_s3_url(item, self.asset), date=item.properties["datetime"], anon=self.anon)
             for item in result.items()
         ]
 
@@ -255,6 +255,7 @@ class Landsat8(SatUtils):
     """
 
     collection = "landsat-8-l1-c1"
+    anon = True
 
 
 class Sentinel2(SatUtils):

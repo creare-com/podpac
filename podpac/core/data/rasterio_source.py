@@ -8,6 +8,7 @@ from six import string_types
 import traitlets as tl
 import numpy as np
 import pyproj
+import logging
 
 from lazy_import import lazy_module
 
@@ -18,6 +19,8 @@ from podpac.core.coordinates import UniformCoordinates1d, Coordinates
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, LoadFileMixin
 from podpac.core.interpolation.interpolation import InterpolationMixin
+
+_logger = logging.getLogger(__name__)
 
 
 @common_doc(COMMON_DATA_DOC)
@@ -52,10 +55,17 @@ class RasterioRaw(LoadFileMixin, BaseFileSource):
     driver = tl.Unicode(allow_none=True, default_value=None)
     read_from_source = tl.Bool(False).tag(attr=True)
     coordinate_index_type = "slice"
+    aws_https = tl.Bool(True)
 
     @cached_property
     def dataset(self):
-        if re.match(".*:.*:.*", self.source):
+        if self.source.startswith("s3://"):
+            _logger.info("Loading AWS resource: %s" % self.source)
+            with rasterio.env.Env(aws_unsigned=self.anon, AWS_HTTPS=self.aws_https) as env:
+                _logger.debug("Rasterio sees these AWS credentials:", env.options)
+                dataset = rasterio.open(self.source)  # This should pull AWS credentials automatically
+                return dataset
+        elif re.match(".*:.*:.*", self.source):
             # i.e. user supplied a non-file-looking string like 'HDF4_EOS:EOS_GRID:"MOD13Q1.A2013033.h08v05.006.2015256072248.hdf":MODIS_Grid_16DAY_250m_500m_VI:"250m 16 days NDVI"'
             # This also includes many subdatsets as part of GDAL data drivers; https://gdal.org/drivers/raster/index.html
             self.set_trait("read_from_source", True)
