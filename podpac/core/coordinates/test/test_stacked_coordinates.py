@@ -682,7 +682,7 @@ class TestStackedCoordinatesSelection(object):
         assert s == c[E0, E1]
 
 
-class TestDependentCoordinatesMethods(object):
+class TestStackedCoordinatesMethods(object):
     def test_transpose(self):
         lat = ArrayCoordinates1d([0, 1, 2], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30], name="lon")
