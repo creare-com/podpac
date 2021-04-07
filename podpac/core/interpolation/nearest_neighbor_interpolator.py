@@ -406,7 +406,8 @@ class NearestPreview(NearestNeighbor):
                 else:
                     c = UniformCoordinates1d(
                         src_start,
-                        src_stop + ndelta * src_delta / 2,  # The delta/2 ensures the endpoint is included
+                        # src_stop + ndelta * src_delta / 2,  # The delta/2 ensures the endpoint is included
+                        src_stop,
                         ndelta * src_delta,
                         **src_coords.properties
                     )

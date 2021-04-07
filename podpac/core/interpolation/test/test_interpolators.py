@@ -33,72 +33,58 @@ class MockArrayDataSource(InterpolationMixin, DataSource):
 
 class TestNearest(object):
     def test_nearest_preview_select(self):
+        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
+        srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
 
         # test straight ahead functionality
-        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
-        srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
-
         interp = InterpolationManager("nearest_preview")
-
         coords, cidx = interp.select_coordinates(srccoords, reqcoords)
-
-        assert len(coords) == len(srccoords) == len(cidx)
-        assert len(coords["lat"]) == len(reqcoords["lat"])
-        assert len(coords["lon"]) == len(reqcoords["lon"])
-        assert np.all(coords["lat"].coordinates == np.array([0, 2, 4]))
+        np.testing.assert_array_equal(coords["lat"].coordinates, [0, 2, 4])
+        np.testing.assert_array_equal(coords["lon"].coordinates, [0, 2, 4])
+        assert srccoords[cidx] == coords
 
         # test when selection is applied serially
-        # this is equivalent to above
-        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
-        srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
-
         interp = InterpolationManager(
             [{"method": "nearest_preview", "dims": ["lat"]}, {"method": "nearest_preview", "dims": ["lon"]}]
         )
 
         coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        np.testing.assert_array_equal(coords["lat"].coordinates, [0, 2, 4])
+        np.testing.assert_array_equal(coords["lon"].coordinates, [0, 2, 4])
+        assert srccoords[cidx] == coords
 
-        # test when coordinates are stacked and unstacked
-        # TODO: how to handle stacked/unstacked coordinate asynchrony?
-        # reqcoords = Coordinates([[-.5, 1.5, 3.5], [.5, 2.5, 4.5]], dims=['lat', 'lon'])
-        # srccoords = Coordinates([([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5])], dims=['lat_lon'])
+    # def test_nearest_preview_select_stacked(self):
+    #     # TODO: how to handle stacked/unstacked coordinate asynchrony?
+    #     reqcoords = Coordinates([[-.5, 1.5, 3.5], [.5, 2.5, 4.5]], dims=['lat', 'lon'])
+    #     srccoords = Coordinates([([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5])], dims=['lat_lon'])
 
-        # interp = InterpolationManager('nearest_preview')
+    #     interp = InterpolationManager('nearest_preview')
 
-        # srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_index=True)
-        # coords, cidx = interp.select_coordinates(reqcoords, srccoords, srccoords_index)
+    #     srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_index=True)
+    #     coords, cidx = interp.select_coordinates(reqcoords, srccoords, srccoords_index)
 
-        # assert len(coords) == len(srcoords) == len(cidx)
-        # assert len(coords['lat']) == len(reqcoords['lat'])
-        # assert len(coords['lon']) == len(reqcoords['lon'])
-        # assert np.all(coords['lat'].coordinates == np.array([0, 2, 4]))
+    #     assert len(coords) == len(srcoords) == len(cidx)
+    #     assert len(coords['lat']) == len(reqcoords['lat'])
+    #     assert len(coords['lon']) == len(reqcoords['lon'])
+    #     assert np.all(coords['lat'].coordinates == np.array([0, 2, 4]))
 
     def test_nearest_select_issue226(self):
         reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
         srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
 
+        # test straight ahead functionality
         interp = InterpolationManager("nearest")
-
         coords, cidx = interp.select_coordinates(srccoords, reqcoords)
-
-        assert len(coords) == len(srccoords) == len(cidx)
-        assert len(coords["lat"]) == len(reqcoords["lat"])
-        assert len(coords["lon"]) == len(reqcoords["lon"])
-        assert np.all(coords["lat"].coordinates == np.array([0, 2, 4]))
+        np.testing.assert_array_equal(coords["lat"].coordinates, [0, 2, 4])
+        np.testing.assert_array_equal(coords["lon"].coordinates, [0, 3, 5])
+        assert srccoords[cidx] == coords
 
         # test when selection is applied serially
-        # this is equivalent to above
-        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
-        srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
-
         interp = InterpolationManager([{"method": "nearest", "dims": ["lat"]}, {"method": "nearest", "dims": ["lon"]}])
-
         coords, cidx = interp.select_coordinates(srccoords, reqcoords)
-
-        assert len(coords) == len(srccoords) == len(cidx)
-        assert len(coords["lat"]) == len(reqcoords["lat"])
-        assert len(coords["lon"]) == len(reqcoords["lon"])
-        assert np.all(coords["lat"].coordinates == np.array([0, 2, 4]))
+        np.testing.assert_array_equal(coords["lat"].coordinates, [0, 2, 4])
+        np.testing.assert_array_equal(coords["lon"].coordinates, [0, 3, 5])
+        assert srccoords[cidx] == coords
 
     def test_nearest_select_issue445(self):
         sc = Coordinates([clinspace(-59.9, 89.9, 100, name="lat"), clinspace(-179.9, 179.9, 100, name="lon")])

@@ -481,7 +481,7 @@ class InterpolationManager(object):
                 selected_coords[d] = source_coordinates[d]
             # np.ix_ call doesn't work with slices, and fancy numpy indexing does not work well with mixed slice/index
             if isinstance(selected_coords_idx[d], slice) and index_type != "slice":
-                selected_coords_idx[d] = np.arange(selected_coords[d].size)
+                selected_coords_idx[d] = np.arange(source_coordinates[d].size)[selected_coords_idx[d]]
 
         selected_coords = Coordinates(
             [selected_coords[k] for k in source_coordinates.dims], source_coordinates.dims, crs=source_coordinates.crs
