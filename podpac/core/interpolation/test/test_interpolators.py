@@ -53,6 +53,42 @@ class TestNearest(object):
         np.testing.assert_array_equal(coords["lon"].coordinates, [0, 2, 4])
         assert srccoords[cidx] == coords
 
+        # Test reverse selection
+        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
+        srccoords = Coordinates([[0, 1, 2, 3, 4, 5][::-1], [0, 1, 2, 3, 4, 5][::-1]], dims=["lat", "lon"])
+
+        # test straight ahead functionality
+        interp = InterpolationManager("nearest_preview")
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        np.testing.assert_array_equal(coords["lat"].coordinates, [4, 2, 0])
+        np.testing.assert_array_equal(coords["lon"].coordinates, [5, 3, 1])  # Yes, this is expected behavior
+        assert srccoords[cidx] == coords
+
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        np.testing.assert_array_equal(coords["lat"].coordinates, [4, 2, 0])
+        np.testing.assert_array_equal(coords["lon"].coordinates, [5, 3, 1])
+        assert srccoords[cidx] == coords
+
+        # Test Case where rounding issues causes problem with endpoint
+        reqcoords = Coordinates([[0, 2, 4], [0, 2, 4]], dims=["lat", "lon"])
+        lat = np.arange(0, 6.1, 1.3333333333333334)
+        lon = np.arange(0, 6.1, 1.333333333333334)  # Notice one decimal less on this number
+        srccoords = Coordinates([lat, lon], dims=["lat", "lon"])
+
+        # test straight ahead functionality
+        interp = InterpolationManager("nearest_preview")
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        np.testing.assert_almost_equal(coords["lat"].coordinates, lat[::2])
+        np.testing.assert_array_equal(coords["lon"].coordinates, lon[:4])
+        np.testing.assert_almost_equal(list(srccoords[cidx].bounds.values()), list(coords.bounds.values()))
+        assert srccoords[cidx].shape == coords.shape
+
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        np.testing.assert_almost_equal(coords["lat"].coordinates, lat[::2])
+        np.testing.assert_array_equal(coords["lon"].coordinates, lon[:4])
+        np.testing.assert_almost_equal(list(srccoords[cidx].bounds.values()), list(coords.bounds.values()))
+        assert srccoords[cidx].shape == coords.shape
+
     # def test_nearest_preview_select_stacked(self):
     #     # TODO: how to handle stacked/unstacked coordinate asynchrony?
     #     reqcoords = Coordinates([[-.5, 1.5, 3.5], [.5, 2.5, 4.5]], dims=['lat', 'lon'])
