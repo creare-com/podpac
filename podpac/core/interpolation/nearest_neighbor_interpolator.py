@@ -401,20 +401,23 @@ class NearestPreview(NearestNeighbor):
                         src_delta = (src_stop - src_start) / (src_coords.size - 1)
 
                 ndelta = max(1, np.round(np.abs(dst_delta / src_delta)))
+                idx_offset = 0
                 if src_coords.size == 1:
                     c = src_coords.copy()
                 else:
-                    c = UniformCoordinates1d(
-                        src_start,
-                        src_stop + ndelta * src_delta / 2,  # The delta/2 ensures the endpoint is included
-                        ndelta * src_delta,
-                        **src_coords.properties
-                    )
+                    c_test = UniformCoordinates1d(src_start, src_stop, ndelta * src_delta, **src_coords.properties)
+                    bounds = source_coordinates[src_dim].bounds
+                    # The delta/2 ensures the endpoint is included when there is a floating point rounding error
+                    # the delta/2 is more than needed, but does guarantee.
+                    src_stop = np.clip(src_stop + ndelta * src_delta / 2, bounds[0], bounds[1])
+                    c = UniformCoordinates1d(src_start, src_stop, ndelta * src_delta, **src_coords.properties)
+                    if c.size > c_test.size:  # need to adjust the index as well
+                        idx_offset = int(ndelta)
 
                 if isinstance(idx, slice):
-                    idx = slice(idx.start, idx.stop, int(ndelta))
+                    idx = slice(idx.start, idx.stop + idx_offset, int(ndelta))
                 else:
-                    idx = slice(idx[0], idx[-1], int(ndelta))
+                    idx = slice(idx[0], idx[-1] + idx_offset, int(ndelta))
             else:
                 c = source_coords[src_dim]
 
