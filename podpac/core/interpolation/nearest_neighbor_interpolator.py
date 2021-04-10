@@ -414,10 +414,11 @@ class NearestPreview(NearestNeighbor):
                     if c.size > c_test.size:  # need to adjust the index as well
                         idx_offset = int(ndelta)
 
-                if isinstance(idx, slice):
-                    idx = slice(idx.start, idx.stop + idx_offset, int(ndelta))
-                else:
-                    idx = slice(idx[0], idx[-1] + idx_offset, int(ndelta))
+                idx_start = idx.start if isinstance(idx, slice) else idx[0]
+                idx_stop = idx.stop if isinstance(idx, slice) else idx[-1]
+                if idx_stop is not None:
+                    idx_stop += idx_offset
+                idx = slice(idx_start, idx_stop, int(ndelta))
             else:
                 c = source_coords[src_dim]
 
