@@ -68,6 +68,10 @@ class GFS(S3Mixin, DiskCacheMixin, TileCompositor):
     hour = tl.Unicode().tag(attr=True)
 
     @property
+    def _repr_keys(self):
+        return ["parameter", "level", "date", "hour"] + super()._repr_keys
+
+    @property
     def prefix(self):
         return "%s/%s/%s/%s/%s/" % (BUCKET, self.parameter, self.level, self.date, self.hour)
 
@@ -112,13 +116,18 @@ def GFSLatest(parameter=None, level=None, **kwargs):
         GFS node with the latest forecast data available for the given parameter and level.
     """
 
-    # date
-    date = datetime.datetime.now().strftime("%Y%m%d")
-
-    # hour
-    prefix = "%s/%s/%s/%s/" % (BUCKET, parameter, level, date)
     s3 = s3fs.S3FileSystem(anon=True)
-    hours = set([path.replace(prefix, "")[:4] for path in s3.find(prefix)])
+
+    # get latest date
+    prefix = "%s/%s/%s/" % (BUCKET, parameter, level)
+    dates = [path.replace(prefix, "") for path in s3.ls(prefix)]
+    if not dates:
+        raise RuntimeError("No data found at '%s'" % prefix)
+    date = max(dates)
+
+    # get latest hour
+    prefix = "%s/%s/%s/%s/" % (BUCKET, parameter, level, date)
+    hours = [path.replace(prefix, "") for path in s3.ls(prefix)]
     if not hours:
         raise RuntimeError("No data found at '%s'" % prefix)
     hour = max(hours)
