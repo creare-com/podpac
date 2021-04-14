@@ -12,9 +12,9 @@ import traitlets as tl
 
 # Internal dependencies
 from podpac.core.node import Node
-from podpac.core.coordinates.coordinates import Coordinates
+from podpac.core.coordinates.coordinates import Coordinates, merge_dims
 from podpac.core.interpolation.interpolation import Interpolate
-from podpac.core.utils import NodeTrait
+from podpac.core.utils import NodeTrait, cached_property
 
 
 class Reproject(Interpolate):
@@ -28,9 +28,12 @@ class Reproject(Interpolate):
         The source node. This node will use it's own, specified interpolation scheme
     interpolation : str
         Type of interpolation method to use for the interpolation
-    coordinates: Coordinates, Node, str, dict
+    coordinates : Coordinates, Node, str, dict
         Coordinates used to evaluate the source. These can be specified as a dictionary, json-formatted string,
         PODPAC Coordinates, or a PODPAC Node, where the node MUST implement the 'coordinates' attribute.
+    reproject_dims : list
+        Dimensions to reproject. The source will be evaluated with the reprojection coordinates in these dims
+        and the requested coordinates at in any other dims.
     """
 
     coordinates = tl.Union(
@@ -40,29 +43,44 @@ class Reproject(Interpolate):
                            the 'coordinates' attribute""",
     ).tag(attr=True)
 
+    reproject_dims = tl.List(trait=tl.Unicode(), allow_none=True, default_value=None).tag(attr=True)
+
     @tl.validate("coordinates")
     def _validate_coordinates(self, d):
-        if isinstance(d["value"], Node) and not hasattr(d["value"], "coordinates"):
-            raise ValueError(
-                "When specifying the coordinates as a PODPAC Node, this Node must have a 'coordinates' attribute"
-            )
-        return d["value"]
+        val = d["value"]
+        if isinstance(val, Node):
+            if not hasattr(val, "coordinates"):
+                raise ValueError(
+                    "When specifying the coordinates as a PODPAC Node, this Node must have a 'coordinates' attribute"
+                )
+        elif isinstance(val, dict):
+            Coordinates.from_definition(self.coordinates)
+        elif isinstance(val, string_types):
+            Coordinates.from_json(self.coordinates)
+        return val
 
-    @property
-    def _coordinates(self):
+    @cached_property
+    def reprojection_coordinates(self):
+        # get coordinates
         if isinstance(self.coordinates, Coordinates):
-            return self.coordinates
+            coordinates = self.coordinates
         elif isinstance(self.coordinates, Node):
-            return self.coordinates.coordinates
+            coordinates = self.coordinates.coordinates
         elif isinstance(self.coordinates, dict):
-            return Coordinates.from_definition(self.coordinates)
+            coordinates = Coordinates.from_definition(self.coordinates)
         elif isinstance(self.coordinates, string_types):
-            return Coordinates.from_json(self.coordinates)
-        else:
-            raise TypeError("The coordinates attribute is of the wrong type.")
+            coordinates = Coordinates.from_json(self.coordinates)
+
+        # drop non-reprojection dims
+        if self.reproject_dims is not None:
+            coordinates = coordinates.drop([dim for dim in coordinates if dim not in self.reproject_dims])
+
+        return coordinates
 
     def _source_eval(self, coordinates, selector, output=None):
-        return self.source.eval(self._coordinates, output=output, _selector=selector)
+        coords = self.reprojection_coordinates.intersect(coordinates, outer=True)
+        coords = merge_dims([coords, coordinates.drop(self.reproject_dims or self.reprojection_coordinates.dims)])
+        return self.source.eval(coords, output=output, _selector=selector)
 
     @property
     def base_ref(self):
