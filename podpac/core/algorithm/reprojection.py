@@ -33,7 +33,7 @@ class Reproject(Interpolate):
         PODPAC Coordinates, or a PODPAC Node, where the node MUST implement the 'coordinates' attribute.
     reproject_dims : list
         Dimensions to reproject. The source will be evaluated with the reprojection coordinates in these dims
-        and the requested coordinates at in any other dims.
+        and the requested coordinates for any other dims.
     """
 
     coordinates = tl.Union(
