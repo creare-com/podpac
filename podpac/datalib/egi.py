@@ -81,7 +81,7 @@ class EGI(InterpolationMixin, DataSource):
     token : str, optional
         EGI Token from authentication process.
         See https://wiki.earthdata.nasa.gov/display/CMR/Creating+a+Token+Common
-        If undefined, the node will look for a token under the setting key "token@EGI".
+        If undefined, the node will look for a token under the setting key "token@urs.earthdata.nasa.gov".
         If this setting is not defined, the node will attempt to generate a token using
         :attr:`self.username` and :attr:`self.password`
     username : str, optional
@@ -135,8 +135,8 @@ class EGI(InterpolationMixin, DataSource):
 
     @tl.default("username")
     def _username_default(self):
-        if "username@EGI" in settings:
-            return settings["username@EGI"]
+        if "username@urs.earthdata.nasa.gov" in settings:
+            return settings["username@urs.earthdata.nasa.gov"]
 
         return None
 
@@ -144,8 +144,8 @@ class EGI(InterpolationMixin, DataSource):
 
     @tl.default("password")
     def _password_default(self):
-        if "password@EGI" in settings:
-            return settings["password@EGI"]
+        if "password@urs.earthdata.nasa.gov" in settings:
+            return settings["password@urs.earthdata.nasa.gov"]
 
         return None
 
@@ -153,8 +153,8 @@ class EGI(InterpolationMixin, DataSource):
 
     @tl.default("token")
     def _token_default(self):
-        if "token@EGI" in settings:
-            return settings["token@EGI"]
+        if "token@urs.earthdata.nasa.gov" in settings:
+            return settings["token@urs.earthdata.nasa.gov"]
 
         return None
 
@@ -515,12 +515,12 @@ class EGI(InterpolationMixin, DataSource):
         url = "https://cmr.earthdata.nasa.gov/legacy-services/rest/tokens"
 
         if self.username is not None:
-            settings["username@EGI"] = self.username
+            settings["username@urs.earthdata.nasa.gov"] = self.username
         else:
             raise ValueError("No Earthdata username available to request EGI token")
 
         if self.password is not None:
-            settings["password@EGI"] = self.password
+            settings["password@urs.earthdata.nasa.gov"] = self.password
         else:
             raise ValueError("No Earthdata password available to request EGI token")
 
@@ -550,7 +550,7 @@ class EGI(InterpolationMixin, DataSource):
             _log.error("No token found in XML response from EGI: {}".format(r.text))
             return
 
-        settings["token@EGI"] = token
+        settings["token@urs.earthdata.nasa.gov"] = token
         self.token = token
 
     def _get_ip(self):

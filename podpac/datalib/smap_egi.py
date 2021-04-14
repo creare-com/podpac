@@ -38,6 +38,7 @@ if not hasattr(np, "isnat"):
 from podpac import Coordinates, UnitsDataArray, cached_property
 from podpac.datalib import EGI
 
+BASE_URL = "https://n5eil01u.ecs.nsidc.org/egi/request"
 
 SMAP_PRODUCT_DICT = {
     #'shortname':    ['lat_key', 'lon_key', '_data_key', 'quality_flag', 'default_verison']
@@ -93,18 +94,46 @@ SMAP_PRODUCTS = list(SMAP_PRODUCT_DICT.keys())
 
 class SMAP(EGI):
     """
+    SMAP Node. For more information about SMAP, see https://nsidc.org/data/smap
+
     SMAP interface using the EGI Data Portal
     https://developer.earthdata.nasa.gov/sdps/programmatic-access-docs
+    with the base URL: https://n5eil01u.ecs.nsidc.org/egi/request
+
+    To access data from this node, an Earthdata login is required. This can either be specified when
+    creating the node:
+    ```python
+    smap = SMAP(username="your_user_name", password="your_password")
+    ```
+    OR you can set the following PODPAC settings:
+    ```python
+    podpac.settings["username@urs.earthdata.nasa.gov"] = "your_user_name"
+    podpac.settings["password@urs.earthdata.nasa.gov"] = "your_password"
+    podpac.settings.save()  # To have this information persist
+    smap = SMAP()
+    ```
 
     Parameters
     ----------
     product : str
         One of the :list:`SMAP_PRODUCTS` strings
+    check_quality_flags : bool, optional
+        Default is True. If True, data will be filtered based on the SMAP data quality flag, and only
+        high quality data is returned.
+    data_key : str, optional
+        Default will return soil moisture and is set automatically based on the product selected. Other
+        possible data keys can be found
 
     Attributes
     ----------
     nan_vals : list
         Nan values in SMAP data
+    username : str, optional
+        Earthdata username (https://urs.earthdata.nasa.gov/)
+        If undefined, node will look for a username under setting key "username@urs.earthdata.nasa.gov"
+    password : str, optional
+        Earthdata password (https://urs.earthdata.nasa.gov/)
+        If undefined, node will look for a password under setting key "password@urs.earthdata.nasa.gov"
     """
 
     product = tl.Enum(SMAP_PRODUCTS, default_value="SPL4SMAU").tag(attr=True)
@@ -113,6 +142,7 @@ class SMAP(EGI):
     check_quality_flags = tl.Bool(True).tag(attr=True)
     quality_flag_key = tl.Unicode(allow_none=True).tag(attr=True)
     data_key = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+    base_url = tl.Unicode(default_value=BASE_URL).tag(attr=True)
 
     @property
     def short_name(self):
