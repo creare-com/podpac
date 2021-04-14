@@ -29,7 +29,6 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore
 from podpac.core.node import Node, NodeException, NodeDefinitionError
-from podpac.core.node import node_eval
 from podpac.core.node import NoCacheMixin, DiskCacheMixin
 
 
@@ -177,7 +176,7 @@ class TestNode(object):
 
     def test_eval_group(self):
         class MyNode(Node):
-            def eval(self, coordinates, output=None):
+            def eval(self, coordinates, output=None, selector=None):
                 return self.create_output_array(coordinates)
 
         c1 = podpac.Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])
@@ -203,10 +202,10 @@ class TestNode(object):
     def test_eval_not_implemented(self):
         node = Node()
         with pytest.raises(NotImplementedError):
-            node.eval(None)
+            node.eval(podpac.Coordinates([]))
 
         with pytest.raises(NotImplementedError):
-            node.eval(None, output=None)
+            node.eval(podpac.Coordinates([]), output=None)
 
     def test_find_coordinates_not_implemented(self):
         node = Node()
@@ -237,6 +236,7 @@ class TestCreateOutputArray(object):
         assert output.crs == c.crs
         assert np.all(output == 0.0)
 
+    @pytest.mark.xfail(reason="not yet supported.")
     def test_create_output_array_dtype(self):
         c = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=["lat_lon", "time"])
         node = Node(dtype=bool)
@@ -275,8 +275,7 @@ class TestNodeEval(object):
         class MyNode1(Node):
             outputs = ["a", "b", "c"]
 
-            @node_eval
-            def eval(self, coordinates, output=None):
+            def _eval(self, coordinates, output=None, selector=None):
                 return self.create_output_array(coordinates)
 
         # don't extract when no output field is requested
@@ -293,14 +292,93 @@ class TestNodeEval(object):
         class MyNode2(Node):
             outputs = ["a", "b", "c"]
 
-            @node_eval
-            def eval(self, coordinates, output=None):
+            def _eval(self, coordinates, output=None, selector=None):
                 out = self.create_output_array(coordinates)
                 return out.sel(output=self.output)
 
         node = MyNode2(output="b")
         out = node.eval(coords)
         assert out.shape == (4, 2)
+
+    def test_evaluate_transpose(self):
+        class MyNode(Node):
+            def _eval(self, coordinates, output=None, selector=None):
+                coords = coordinates.transpose("lat", "lon")
+                data = np.arange(coords.size).reshape(coords.shape)
+                a = self.create_output_array(coords, data=data)
+                if output is None:
+                    output = a
+                else:
+                    output[:] = a.transpose(*output.dims)
+                return output
+
+        coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
+
+        node = MyNode()
+        o1 = node.eval(coords)
+        o2 = node.eval(coords.transpose("lon", "lat"))
+
+        # returned output should match the requested coordinates and data should be transposed
+        assert o1.dims == ("lat", "lon")
+        assert o2.dims == ("lon", "lat")
+        np.testing.assert_array_equal(o2.transpose("lat", "lon").data, o1.data)
+
+        # with transposed output
+        o3 = node.create_output_array(coords.transpose("lon", "lat"))
+        o4 = node.eval(coords, output=o3)
+
+        assert o3.dims == ("lon", "lat")  # stay the same
+        assert o4.dims == ("lat", "lon")  # match requested coordinates
+        np.testing.assert_equal(o3.transpose("lat", "lon").data, o4.data)
+
+    def test_eval_get_cache(self):
+        podpac.settings["RAM_CACHE_ENABLED"] = True
+
+        class MyNode(Node):
+            def _eval(self, coordinates, output=None, selector=None):
+                coords = coordinates.transpose("lat", "lon")
+                data = np.arange(coords.size).reshape(coords.shape)
+                a = self.create_output_array(coords, data=data)
+                if output is None:
+                    output = a
+                else:
+                    output[:] = a.transpose(*output.dims)
+                return output
+
+        coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
+
+        node = MyNode(cache_output=True, cache_ctrl=CacheCtrl([RamCacheStore()]))
+
+        # first eval
+        o1 = node.eval(coords)
+        assert node._from_cache == False
+
+        # get from cache
+        o2 = node.eval(coords)
+        assert node._from_cache == True
+        np.testing.assert_array_equal(o2, o1)
+
+        # get from cache with output
+        o3 = node.eval(coords, output=o1)
+        assert node._from_cache == True
+        np.testing.assert_array_equal(o3, o1)
+
+        # get from cache with output transposed
+        o4 = node.eval(coords, output=o1.transpose("lon", "lat"))
+        assert node._from_cache == True
+        np.testing.assert_array_equal(o4, o1)
+
+        # get from cache with coords transposed
+        o5 = node.eval(coords.transpose("lon", "lat"))
+        assert node._from_cache == True
+        np.testing.assert_array_equal(o5, o1.transpose("lon", "lat"))
+
+    def test_eval_output_crs(self):
+        coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
+
+        node = Node()
+        with pytest.raises(ValueError, match="Output coordinate reference system .* does not match"):
+            node.eval(coords, output=node.create_output_array(coords.transform("EPSG:2193")))
 
 
 class TestCaching(object):
@@ -845,6 +923,22 @@ class TestSerialization(object):
                 params,
             ):
                 pipe = Node.from_url(url.format(service=service, layername=layername, layer=layer, params=param))
+
+    def test_from_url_with_plugin_style_params(self):
+        url0 = (
+            r"https://mobility-devel.crearecomputing.com/geowatch?&SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&"
+            r"LAYERS=Arange&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&HEIGHT=256&WIDTH=256"
+            r"&CRS=EPSG%3A3857&BBOX=-20037508.342789244,10018754.171394618,-10018754.171394622,20037508.34278071&"
+            r'PARAMS={"plugin": "podpac.algorithm"}'
+        )
+        url1 = (
+            r"https://mobility-devel.crearecomputing.com/geowatch?&SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&"
+            r"LAYERS=datalib.terraintiles.TerrainTiles&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&HEIGHT=256&WIDTH=256&"
+            r"TIME=2021-03-01T12%3A00%3A00.000Z&CRS=EPSG%3A3857&BBOX=-10018754.171394622,5009377.08569731,-9392582.035682458,5635549.221409475"
+            r'&PARAMS={"style": {"name": "Aspect (Composited 30-90 m)","units": "radians","colormap": "hsv","clim": [0,6.283185307179586]}}'
+        )
+        node = Node.from_url(url0)
+        node = Node.from_url(url1)
 
     def test_style(self):
         node = podpac.data.Array(

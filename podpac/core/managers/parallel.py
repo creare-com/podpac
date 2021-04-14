@@ -67,7 +67,8 @@ class Parallel(Node):
     errors = tl.List()
     start_i = tl.Int(0)
 
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, **kwargs):
+        output = kwargs.get("output")
         # Make a thread pool to manage queue
         pool = ThreadPool(processes=self.number_of_workers)
 
@@ -202,7 +203,7 @@ class ParallelAsync(Parallel):
         while not success:
             if self.check_worker_available():
                 try:
-                    o = source.eval(coordinates, out)
+                    o = source.eval(coordinates, output=out)
                     success = True
                 except self.async_exception:
                     # This exception is fine and constitutes a success
@@ -273,7 +274,8 @@ class ZarrOutputMixin(tl.HasTraits):
     aws_client_kwargs = tl.Dict()
     aws_config_kwargs = tl.Dict()
 
-    def eval(self, coordinates, output=None):
+    def eval(self, coordinates, **kwargs):
+        output = kwargs.get("output")
         if self.zarr_shape is None:
             self._shape = coordinates.shape
         else:
@@ -308,11 +310,11 @@ class ZarrOutputMixin(tl.HasTraits):
                 dk = dk[0]
             self._list_dir = self.zarr_node.list_dir(dk)
 
-        output = super(ZarrOutputMixin, self).eval(coordinates, output)
+        output = super(ZarrOutputMixin, self).eval(coordinates, output=output)
 
         # fill in the coordinates, this is guaranteed to be correct even if the user messed up.
         if output is not None:
-            self.set_zarr_coordinates(Coordinates.from_xarray(output.coords), data_key)
+            self.set_zarr_coordinates(Coordinates.from_xarray(output), data_key)
         else:
             return zf
 

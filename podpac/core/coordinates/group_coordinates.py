@@ -204,7 +204,7 @@ class GroupCoordinates(tl.HasTraits):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def intersect(self, other, outer=False, return_indices=False):
+    def intersect(self, other, outer=False, return_index=False):
         """
         Intersect each Coordinates in the group with the given coordinates.
 
@@ -214,7 +214,7 @@ class GroupCoordinates(tl.HasTraits):
             Coordinates to intersect with.
         outer : bool, optional
             If True, do an *outer* intersection. Default False.
-        return_indices : bool, optional
+        return_index : bool, optional
             If True, return slice or indices for the selection in addition to coordinates. Default False.
 
         Returns
@@ -222,13 +222,13 @@ class GroupCoordinates(tl.HasTraits):
         intersections : :class:`GroupCoordinates`
             Coordinates group consisting of the intersection of each :class:`Coordinates`.
         idx : list
-            List of lists of indices for each :class:`Coordinates` item, only if ``return_indices`` is True.
+            List of lists of indices for each :class:`Coordinates` item, only if ``return_index`` is True.
         """
 
-        intersections = [c.intersect(other, outer=outer, return_indices=True) for c in self._items]
+        intersections = [c.intersect(other, outer=outer, return_index=True) for c in self._items]
         g = [c for c, I in intersections]
 
-        if return_indices:
+        if return_index:
             return g, [I for c, I in intersections]
         else:
             return g

@@ -46,7 +46,7 @@ class ModifyCoordinates(UnaryAlgorithm):
         return self.source
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -55,6 +55,8 @@ class ModifyCoordinates(UnaryAlgorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
+        _selector: callable(coordinates, request_coordinates)
+            {eval_selector}
 
         Returns
         -------
@@ -77,15 +79,15 @@ class ModifyCoordinates(UnaryAlgorithm):
                 raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
 
         outputs = {}
-        outputs["source"] = self.source.eval(self._modified_coordinates, output=output)
+        outputs["source"] = self.source.eval(self._modified_coordinates, output=output, _selector=_selector)
 
         if self.substitute_eval_coords:
             dims = outputs["source"].dims
             coords = self._requested_coordinates
             extra_dims = [d for d in coords.dims if d not in dims]
-            coords = coords.drop(extra_dims).coords
+            coords = coords.drop(extra_dims)
 
-            outputs["source"] = outputs["source"].assign_coords(**coords)
+            outputs["source"] = outputs["source"].assign_coords(**coords.xcoords)
 
         if output is None:
             output = outputs["source"]

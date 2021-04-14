@@ -153,6 +153,11 @@ class TestMakeCoordArray(object):
         np.testing.assert_array_equal(make_coord_array(l), a)
         np.testing.assert_array_equal(make_coord_array(np.array(l)), a)
 
+    def test_numerical_ndarray(self):
+        a = [[0, 1], [5, 6]]
+        np.testing.assert_array_equal(make_coord_array(a), a)
+        np.testing.assert_array_equal(make_coord_array(np.array(a)), a)
+
     def test_date_singleton(self):
         a = np.array(["2018-01-01"]).astype(np.datetime64)
         s = "2018-01-01"
@@ -280,13 +285,6 @@ class TestMakeCoordArray(object):
     def test_invalid_time_string(self):
         with pytest.raises(ValueError, match="Error parsing datetime string"):
             make_coord_array(["invalid"])
-
-    def test_invalid_shape(self):
-        with pytest.raises(ValueError, match="Invalid coordinate values"):
-            make_coord_array([[0, 1], [5, 6]])
-
-        with pytest.raises(ValueError, match="Invalid coordinate values"):
-            make_coord_array(np.array([[0, 1], [5, 6]]))
 
 
 class TestMakeCoordDeltaArray(object):
@@ -489,3 +487,93 @@ def test_timedelta_divisible():
 def test_has_alt_units():
     assert has_alt_units(pyproj.CRS("+proj=merc")) is False
     assert has_alt_units(pyproj.CRS("+proj=merc +vunits=m")) is True
+
+
+def test_lower_precision_time_bounds():
+    a = [np.datetime64("2020-01-01"), np.datetime64("2020-01-02")]
+    b = [np.datetime64("2020-01-01T12:00"), np.datetime64("2020-01-01T14:00")]
+
+    with pytest.raises(TypeError, match="Input bounds should be of type np.datetime64"):
+        lower_precision_time_bounds(a, [10, 20], False)
+
+    with pytest.raises(TypeError, match="Native bounds should be of type np.datetime64"):
+        lower_precision_time_bounds([10, 20], b, False)
+
+    # outer True
+    a1, b1 = lower_precision_time_bounds(a, b, True)
+    assert a1 == [np.datetime64("2020-01-01"), np.datetime64("2020-01-02")]
+    assert a1[0].dtype == "<M8[D]"
+    assert a1[1].dtype == "<M8[D]"
+    assert b1 == [np.datetime64("2020-01-01"), np.datetime64("2020-01-01")]
+    assert b1[0].dtype == "<M8[D]"
+    assert b1[1].dtype == "<M8[D]"
+
+    b1, a1 = lower_precision_time_bounds(b, a, True)
+    assert b1 == [np.datetime64("2020-01-01"), np.datetime64("2020-01-01")]
+    assert b1[0].dtype == "<M8[D]"
+    assert b1[1].dtype == "<M8[D]"
+    assert a1 == [np.datetime64("2020-01-01"), np.datetime64("2020-01-02")]
+    assert a1[0].dtype == "<M8[D]"
+    assert a1[1].dtype == "<M8[D]"
+
+    # outer False
+    a1, b1 = lower_precision_time_bounds(a, b, False)
+    assert a1 == [np.datetime64("2020-01-01T00:00"), np.datetime64("2020-01-02T00:00")]
+    assert a1[0].dtype == "<M8[m]"
+    assert a1[1].dtype == "<M8[m]"
+    assert b1 == [np.datetime64("2020-01-01T12:00"), np.datetime64("2020-01-01T14:00")]
+    assert b1[0].dtype == "<M8[m]"
+    assert b1[1].dtype == "<M8[m]"
+
+    b1, a1 = lower_precision_time_bounds(b, a, False)
+    assert b1 == [np.datetime64("2020-01-01"), np.datetime64("2020-01-01")]
+    assert b1[0].dtype == "<M8[D]"
+    assert b1[1].dtype == "<M8[D]"
+    assert a1 == [np.datetime64("2020-01-01"), np.datetime64("2020-01-02")]
+    assert a1[0].dtype == "<M8[D]"
+    assert a1[1].dtype == "<M8[D]"
+
+
+def test_higher_precision_time_bounds():
+    a = [np.datetime64("2020-01-01"), np.datetime64("2020-01-02")]
+    b = [np.datetime64("2020-01-01T12:00"), np.datetime64("2020-01-01T14:00")]
+
+    with pytest.raises(TypeError, match="Input bounds should be of type np.datetime64"):
+        higher_precision_time_bounds(a, [10, 20], False)
+
+    with pytest.raises(TypeError, match="Native bounds should be of type np.datetime64"):
+        higher_precision_time_bounds([10, 20], b, False)
+
+    # outer True
+    a1, b1 = higher_precision_time_bounds(a, b, True)
+    assert a1 == [np.datetime64("2020-01-01T00:00"), np.datetime64("2020-01-02T00:00")]
+    assert a1[0].dtype == "<M8[m]"
+    assert a1[1].dtype == "<M8[m]"
+    assert b1 == [np.datetime64("2020-01-01T12:00"), np.datetime64("2020-01-01T14:00")]
+    assert b1[0].dtype == "<M8[m]"
+    assert b1[1].dtype == "<M8[m]"
+
+    b1, a1 = higher_precision_time_bounds(b, a, True)
+    assert b1 == [np.datetime64("2020-01-01T12:00"), np.datetime64("2020-01-01T14:00")]
+    assert b1[0].dtype == "<M8[m]"
+    assert b1[1].dtype == "<M8[m]"
+    assert a1 == [np.datetime64("2020-01-01T00:00"), np.datetime64("2020-01-02T23:59")]
+    assert a1[0].dtype == "<M8[m]"
+    assert a1[1].dtype == "<M8[m]"
+
+    # outer False
+    a1, b1 = higher_precision_time_bounds(a, b, False)
+    assert a1 == [np.datetime64("2020-01-01T00:00"), np.datetime64("2020-01-02T00:00")]
+    assert a1[0].dtype == "<M8[m]"
+    assert a1[1].dtype == "<M8[m]"
+    assert b1 == [np.datetime64("2020-01-01T12:00"), np.datetime64("2020-01-01T14:00")]
+    assert b1[0].dtype == "<M8[m]"
+    assert b1[1].dtype == "<M8[m]"
+
+    b1, a1 = higher_precision_time_bounds(b, a, False)
+    assert b1 == [np.datetime64("2020-01-01"), np.datetime64("2020-01-01")]
+    assert b1[0].dtype == "<M8[D]"
+    assert b1[1].dtype == "<M8[D]"
+    assert a1 == [np.datetime64("2020-01-01"), np.datetime64("2020-01-02")]
+    assert a1[0].dtype == "<M8[D]"
+    assert a1[1].dtype == "<M8[D]"

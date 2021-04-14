@@ -14,7 +14,7 @@ import traitlets as tl
 # Internal dependencies
 from podpac.core.coordinates import Coordinates, union
 from podpac.core.units import UnitsDataArray
-from podpac.core.node import Node, NodeException, node_eval, COMMON_NODE_DOC
+from podpac.core.node import Node, NodeException, COMMON_NODE_DOC
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.settings import settings
 from podpac.core.managers.multi_threading import thread_manager
@@ -58,23 +58,21 @@ class Algorithm(BaseAlgorithm):
     Developers of new Algorithm nodes need to implement the `algorithm` method.
     """
 
-    def algorithm(self, inputs):
+    def algorithm(self, inputs, coordinates):
         """
         Arguments
         ----------
         inputs : dict
-            Evaluated outputs of the input nodes. The keys are the attribute names.
-
-        Raises
-        ------
-        NotImplementedError
-            Description
+            Evaluated outputs of the input nodes. The keys are the attribute names. Each item is a `UnitsDataArray`.
+        coordinates : podpac.Coordinates
+            Requested coordinates.
+            Note that the ``inputs`` may contain different coordinates than the requested coordinates
         """
+
         raise NotImplementedError
 
     @common_doc(COMMON_DOC)
-    @node_eval
-    def eval(self, coordinates, output=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         """Evalutes this nodes using the supplied coordinates.
 
         Parameters
@@ -83,6 +81,8 @@ class Algorithm(BaseAlgorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
+        _selector: callable(coordinates, request_coordinates)
+            {eval_selector}
 
         Returns
         -------
@@ -103,7 +103,7 @@ class Algorithm(BaseAlgorithm):
         if settings["MULTITHREADING"] and n_threads > 1:
             # Create a function for each thread to execute asynchronously
             def f(node):
-                return node.eval(coordinates)
+                return node.eval(coordinates, _selector=_selector)
 
             # Create pool of size n_threads, note, this may be created from a sub-thread (i.e. not the main thread)
             pool = thread_manager.get_thread_pool(processes=n_threads)
@@ -124,36 +124,31 @@ class Algorithm(BaseAlgorithm):
         else:
             # Evaluate nodes in serial
             for key, node in self.inputs.items():
-                inputs[key] = node.eval(coordinates)
+                inputs[key] = node.eval(coordinates, output=output, _selector=_selector)
             self._multi_threaded = False
 
-        # accumulate output coordinates
-        coords_list = [Coordinates.from_xarray(a.coords, crs=a.attrs.get("crs")) for a in inputs.values()]
-        output_coordinates = union([coordinates] + coords_list)
+        result = self.algorithm(inputs, coordinates)
 
-        result = self.algorithm(inputs)
-        if isinstance(result, UnitsDataArray):
-            if output is None:
-                output = result
-            else:
-                output[:] = result.data[:]
-        elif isinstance(result, xr.DataArray):
-            if output is None:
-                output = self.create_output_array(
-                    Coordinates.from_xarray(result.coords, crs=result.attrs.get("crs")), data=result.data
-                )
-            else:
-                output[:] = result.data
-        elif isinstance(result, np.ndarray):
-            if output is None:
-                output = self.create_output_array(output_coordinates, data=result)
-            else:
-                output.data[:] = result
+        if not isinstance(result, xr.DataArray):
+            raise NodeException("algorithm returned unsupported type '%s'" % type(result))
+
+        if "output" in result.dims and self.output is not None:
+            result = result.sel(output=self.output)
+
+        if output is not None:
+            missing = [dim for dim in result.dims if dim not in output.dims]
+            if any(missing):
+                raise NodeException("provided output is missing dims %s" % missing)
+
+            output_dims = output.dims
+            output = output.transpose(..., *result.dims)
+            output[:] = result.data
+            output = output.transpose(*output_dims)
+        elif isinstance(result, UnitsDataArray):
+            output = result
         else:
-            raise NodeException
-
-        if "output" in output.dims and self.output is not None:
-            output = output.sel(output=self.output)
+            output_coordinates = Coordinates.from_xarray(result)
+            output = self.create_output_array(output_coordinates, data=result.data)
 
         return output
 

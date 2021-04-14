@@ -21,9 +21,12 @@ class TestArrayCoordinatesInit(object):
         a = np.array([], dtype=float)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [np.nan, np.nan])
+        with pytest.raises(RuntimeError):
+            c.argbounds
         assert c.size == 0
         assert c.shape == (0,)
         assert c.dtype is None
+        assert c.deltatype is None
         assert c.is_monotonic is None
         assert c.is_descending is None
         assert c.is_uniform is None
@@ -37,9 +40,12 @@ class TestArrayCoordinatesInit(object):
         c = ArrayCoordinates1d(10)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [10.0, 10.0])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 1
         assert c.shape == (1,)
         assert c.dtype == float
+        assert c.deltatype == float
         assert c.is_monotonic == True
         assert c.is_descending is None
         assert c.is_uniform is None
@@ -55,9 +61,12 @@ class TestArrayCoordinatesInit(object):
         c = ArrayCoordinates1d(a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0.0, 6.0])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == float
+        assert c.deltatype == float
         assert c.is_monotonic == False
         assert c.is_descending is False
         assert c.is_uniform == False
@@ -72,9 +81,12 @@ class TestArrayCoordinatesInit(object):
         c = ArrayCoordinates1d(values)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0.0, 6.0])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == float
+        assert c.deltatype == float
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == False
@@ -89,9 +101,12 @@ class TestArrayCoordinatesInit(object):
         c = ArrayCoordinates1d(values)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0.0, 6.0])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == float
+        assert c.deltatype == float
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == False
@@ -106,9 +121,12 @@ class TestArrayCoordinatesInit(object):
         c = ArrayCoordinates1d(values)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0.0, 6.0])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == float
+        assert c.deltatype == float
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == True
@@ -123,9 +141,12 @@ class TestArrayCoordinatesInit(object):
         c = ArrayCoordinates1d(values)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0.0, 6.0])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == float
+        assert c.deltatype == float
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == True
@@ -139,9 +160,12 @@ class TestArrayCoordinatesInit(object):
         c = ArrayCoordinates1d("2018-01-01")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(["2018-01-01", "2018-01-01"]).astype(np.datetime64))
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 1
         assert c.shape == (1,)
         assert c.dtype == np.datetime64
+        assert c.deltatype == np.timedelta64
         assert c.is_monotonic == True
         assert c.is_descending is None
         assert c.is_uniform is None
@@ -157,9 +181,12 @@ class TestArrayCoordinatesInit(object):
         c = ArrayCoordinates1d(values)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(["2017-01-01", "2019-01-01"]).astype(np.datetime64))
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == np.datetime64
+        assert c.deltatype == np.timedelta64
         assert c.is_monotonic == False
         assert c.is_descending == False
         assert c.is_uniform == False
@@ -174,9 +201,12 @@ class TestArrayCoordinatesInit(object):
         c = ArrayCoordinates1d(values)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(["2017-01-01", "2019-01-01"]).astype(np.datetime64))
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == np.datetime64
+        assert c.deltatype == np.timedelta64
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == False
@@ -191,9 +221,12 @@ class TestArrayCoordinatesInit(object):
         c = ArrayCoordinates1d(values)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(["2017-01-01", "2019-01-01"]).astype(np.datetime64))
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == np.datetime64
+        assert c.deltatype == np.timedelta64
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == False
@@ -208,9 +241,12 @@ class TestArrayCoordinatesInit(object):
         c = ArrayCoordinates1d(values)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(["2017-01-01", "2019-01-01"]).astype(np.datetime64))
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 3
         assert c.shape == (3,)
         assert c.dtype == np.datetime64
+        assert c.deltatype == np.timedelta64
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == True
@@ -225,9 +261,12 @@ class TestArrayCoordinatesInit(object):
         c = ArrayCoordinates1d(values)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(["2017-01-01", "2019-01-01"]).astype(np.datetime64))
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
         assert c.size == 3
         assert c.shape == (3,)
         assert c.dtype == np.datetime64
+        assert c.deltatype == np.timedelta64
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == True
@@ -236,12 +275,49 @@ class TestArrayCoordinatesInit(object):
         assert c.step == np.timedelta64(-365, "D")
         repr(c)
 
+    def test_numerical_shaped(self):
+        values = [[1.0, 2.0, 3.0], [11.0, 12.0, 13.0]]
+        c = ArrayCoordinates1d(values)
+        a = np.array(values, dtype=float)
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, [1.0, 13.0])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
+        assert c.size == 6
+        assert c.shape == (2, 3)
+        assert c.dtype is float
+        assert c.deltatype is float
+        assert c.is_monotonic is None
+        assert c.is_descending is None
+        assert c.is_uniform is None
+        assert c.start is None
+        assert c.stop is None
+        assert c.step is None
+        repr(c)
+
+    def test_datetime_shaped(self):
+        values = [["2017-01-01", "2018-01-01"], ["2019-01-01", "2020-01-01"]]
+        c = ArrayCoordinates1d(values)
+        a = np.array(values, dtype=np.datetime64)
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, [np.datetime64("2017-01-01"), np.datetime64("2020-01-01")])
+        assert c.coordinates[c.argbounds[0]] == c.bounds[0]
+        assert c.coordinates[c.argbounds[1]] == c.bounds[1]
+        assert c.size == 4
+        assert c.shape == (2, 2)
+        assert c.dtype is np.datetime64
+        assert c.deltatype is np.timedelta64
+        assert c.is_monotonic is None
+        assert c.is_descending is None
+        assert c.is_uniform is None
+        assert c.start is None
+        assert c.stop is None
+        assert c.step is None
+        repr(c)
+
     def test_invalid_coords(self):
         with pytest.raises(ValueError, match="Invalid coordinate values"):
             ArrayCoordinates1d([1, 2, "2018-01"])
-
-        with pytest.raises(ValueError, match="Invalid coordinate values"):
-            ArrayCoordinates1d([[1.0, 2.0], [3.0, 4.0]])
 
     def test_from_xarray(self):
         # numerical
@@ -325,6 +401,21 @@ class TestArrayCoordinatesEq(object):
         assert not c1 == c3
         assert not c1 == c4
 
+    def test_eq_coordinates_shaped(self):
+        c1 = ArrayCoordinates1d([0, 1, 3, 4])
+        c2 = ArrayCoordinates1d([0, 1, 3, 4])
+        c3 = ArrayCoordinates1d([[0, 1], [3, 4]])
+        c4 = ArrayCoordinates1d([[0, 1], [3, 4]])
+        c5 = ArrayCoordinates1d([[1, 0], [3, 4]])
+
+        assert c1 == c2
+        assert not c1 == c3
+        assert not c1 == c4
+        assert not c1 == c5
+
+        assert c3 == c4
+        assert not c3 == c5
+
     def test_ne(self):
         # this matters in python 2
         c1 = ArrayCoordinates1d([0, 1, 3])
@@ -381,23 +472,51 @@ class TestArrayCoordinatesSerialization(object):
         c2 = ArrayCoordinates1d.from_definition(d)  # test from_definition
         assert c2 == c
 
+    def test_definition_shaped(self):
+        # numerical
+        c = ArrayCoordinates1d([[0, 1, 2], [3, 4, 5]], name="lat")
+        d = c.definition
+        assert isinstance(d, dict)
+        assert set(d.keys()) == {"values", "name"}
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder)  # test serializable
+        c2 = ArrayCoordinates1d.from_definition(d)  # test from_definition
+        assert c2 == c
+
+        # datetimes
+        c = ArrayCoordinates1d([["2018-01-01", "2018-01-02"], ["2018-01-03", "2018-01-04"]])
+        d = c.definition
+        assert isinstance(d, dict)
+        assert set(d.keys()) == {"values"}
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder)  # test serializable
+        c2 = ArrayCoordinates1d.from_definition(d)  # test from_definition
+        assert c2 == c
+
 
 class TestArrayCoordinatesProperties(object):
     def test_dims(self):
         c = ArrayCoordinates1d([], name="lat")
         assert c.dims == ("lat",)
         assert c.udims == ("lat",)
-        assert c.idims == ("lat",)
 
         c = ArrayCoordinates1d([])
         with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
             c.dims
-
         with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
             c.udims
 
-        with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
-            c.idims
+    def test_xdims(self):
+        c = ArrayCoordinates1d([], name="lat")
+        assert isinstance(c.xdims, tuple)
+        assert c.xdims == ("lat",)
+
+        c = ArrayCoordinates1d([0, 1, 2], name="lat")
+        assert isinstance(c.xdims, tuple)
+        assert c.xdims == ("lat",)
+
+    def test_xdims_shaped(self):
+        c = ArrayCoordinates1d([[0, 1, 2], [10, 11, 12]], name="lat")
+        assert isinstance(c.xdims, tuple)
+        assert len(set(c.xdims)) == 2
 
     def test_properties(self):
         c = ArrayCoordinates1d([])
@@ -408,12 +527,20 @@ class TestArrayCoordinatesProperties(object):
         assert isinstance(c.properties, dict)
         assert set(c.properties) == {"name"}
 
-    def test_coords(self):
+    def test_xcoords(self):
         c = ArrayCoordinates1d([1, 2], name="lat")
-        coords = c.coords
-        assert isinstance(coords, dict)
-        assert set(coords) == {"lat"}
-        assert_equal(coords["lat"], c.coordinates)
+        x = xr.DataArray(np.empty(c.shape), dims=c.xdims, coords=c.xcoords)
+        np.testing.assert_array_equal(x["lat"].data, c.coordinates)
+
+    def test_xcoords_shaped(self):
+        c = ArrayCoordinates1d([[0, 1, 2], [10, 11, 12]], name="lat")
+        x = xr.DataArray(np.empty(c.shape), dims=c.xdims, coords=c.xcoords)
+        np.testing.assert_array_equal(x["lat"].data, c.coordinates)
+
+    def test_xcoords_unnamed(self):
+        c = ArrayCoordinates1d([1, 2])
+        with pytest.raises(ValueError, match="Cannot get xcoords"):
+            c.xcoords
 
 
 class TestArrayCoordinatesIndexing(object):
@@ -423,6 +550,10 @@ class TestArrayCoordinatesIndexing(object):
 
         c = ArrayCoordinates1d([0, 1, 2])
         assert len(c) == 3
+
+    def test_len_shaped(self):
+        c = ArrayCoordinates1d([[0, 1, 2], [3, 4, 5]])
+        assert len(c) == 2
 
     def test_index(self):
         c = ArrayCoordinates1d([20, 50, 60, 90, 40, 10], name="lat")
@@ -486,6 +617,36 @@ class TestArrayCoordinatesIndexing(object):
         with pytest.raises(IndexError):
             c[10]
 
+    def test_index_shaped(self):
+        c = ArrayCoordinates1d([[20, 50, 60], [90, 40, 10]], name="lat")
+
+        # multi-index
+        c2 = c[0, 2]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.ndim == 1
+        assert c2.shape == (1,)
+        assert_equal(c2.coordinates, [60])
+
+        # single-index
+        c2 = c[0]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.ndim == 1
+        assert c2.shape == (3,)
+        assert_equal(c2.coordinates, [20, 50, 60])
+
+        # boolean array
+        c2 = c[np.array([[True, True, True], [False, True, False]])]  # has to be a numpy array
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.ndim == 1
+        assert c2.shape == (4,)
+        assert_equal(c2.coordinates, [20, 50, 60, 40])
+
     def test_in(self):
         c = ArrayCoordinates1d([20, 50, 60, 90, 40, 10], name="lat")
         assert 20.0 in c
@@ -496,6 +657,23 @@ class TestArrayCoordinatesIndexing(object):
         assert "a" not in c
 
         c = ArrayCoordinates1d(["2020-01-01", "2020-01-05", "2020-01-04"], name="time")
+        assert np.datetime64("2020-01-01") in c
+        assert np.datetime64("2020-01-05") in c
+        assert "2020-01-01" in c
+        assert np.datetime64("2020-01-02") not in c
+        assert 10 not in c
+        assert "a" not in c
+
+    def test_in_shaped(self):
+        c = ArrayCoordinates1d([[20, 50, 60], [90, 40, 10]], name="lat")
+        assert 20.0 in c
+        assert 50.0 in c
+        assert 20 in c
+        assert 5.0 not in c
+        assert np.datetime64("2018") not in c
+        assert "a" not in c
+
+        c = ArrayCoordinates1d([["2020-01-01", "2020-01-05"], ["2020-01-04", "2020-01-03"]], name="time")
         assert np.datetime64("2020-01-01") in c
         assert np.datetime64("2020-01-05") in c
         assert "2020-01-01" in c
@@ -573,7 +751,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select(bounds)
         assert_equal(s.coordinates, [])
 
-        s, I = c.select(bounds, return_indices=True)
+        s, I = c.select(bounds, return_index=True)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
 
@@ -584,7 +762,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select(bounds)
         assert_equal(s.coordinates, c.coordinates)
 
-        s, I = c.select(bounds, return_indices=True)
+        s, I = c.select(bounds, return_index=True)
         assert_equal(s.coordinates, c.coordinates)
         assert_equal(c.coordinates[I], c.coordinates)
 
@@ -595,7 +773,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([100, 200])
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([100, 200], return_indices=True)
+        s, I = c.select([100, 200], return_index=True)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
 
@@ -603,7 +781,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([0, 5])
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([0, 5], return_indices=True)
+        s, I = c.select([0, 5], return_index=True)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
 
@@ -614,7 +792,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([30.0, 55.0])
         assert_equal(s.coordinates, [50.0, 40.0])
 
-        s, I = c.select([30.0, 55.0], return_indices=True)
+        s, I = c.select([30.0, 55.0], return_index=True)
         assert_equal(s.coordinates, [50.0, 40.0])
         assert_equal(c.coordinates[I], [50.0, 40.0])
 
@@ -622,7 +800,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([40.0, 60.0])
         assert_equal(s.coordinates, [50.0, 60.0, 40.0])
 
-        s, I = c.select([40.0, 60.0], return_indices=True)
+        s, I = c.select([40.0, 60.0], return_index=True)
         assert_equal(s.coordinates, [50.0, 60.0, 40.0])
         assert_equal(c.coordinates[I], [50.0, 60.0, 40.0])
 
@@ -630,7 +808,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([50, 100])
         assert_equal(s.coordinates, [50.0, 60.0, 90.0])
 
-        s, I = c.select([50, 100], return_indices=True)
+        s, I = c.select([50, 100], return_index=True)
         assert_equal(s.coordinates, [50.0, 60.0, 90.0])
         assert_equal(c.coordinates[I], [50.0, 60.0, 90.0])
 
@@ -638,7 +816,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([0, 50])
         assert_equal(s.coordinates, [20.0, 50.0, 40.0, 10.0])
 
-        s, I = c.select([0, 50], return_indices=True)
+        s, I = c.select([0, 50], return_index=True)
         assert_equal(s.coordinates, [20.0, 50.0, 40.0, 10.0])
         assert_equal(c.coordinates[I], [20.0, 50.0, 40.0, 10.0])
 
@@ -646,7 +824,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([52, 55])
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([52, 55], return_indices=True)
+        s, I = c.select([52, 55], return_index=True)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
 
@@ -654,7 +832,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([70, 30])
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([70, 30], return_indices=True)
+        s, I = c.select([70, 30], return_index=True)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
 
@@ -665,7 +843,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([30.0, 55.0], outer=True)
         assert_equal(s.coordinates, [20, 40.0, 50.0, 60.0])
 
-        s, I = c.select([30.0, 55.0], outer=True, return_indices=True)
+        s, I = c.select([30.0, 55.0], outer=True, return_index=True)
         assert_equal(s.coordinates, [20, 40.0, 50.0, 60.0])
         assert_equal(c.coordinates[I], [20, 40.0, 50.0, 60.0])
 
@@ -673,7 +851,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([40.0, 60.0], outer=True)
         assert_equal(s.coordinates, [40.0, 50.0, 60.0])
 
-        s, I = c.select([40.0, 60.0], outer=True, return_indices=True)
+        s, I = c.select([40.0, 60.0], outer=True, return_index=True)
         assert_equal(s.coordinates, [40.0, 50.0, 60.0])
         assert_equal(c.coordinates[I], [40.0, 50.0, 60.0])
 
@@ -681,7 +859,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([50, 100], outer=True)
         assert_equal(s.coordinates, [50.0, 60.0, 90.0])
 
-        s, I = c.select([50, 100], outer=True, return_indices=True)
+        s, I = c.select([50, 100], outer=True, return_index=True)
         assert_equal(s.coordinates, [50.0, 60.0, 90.0])
         assert_equal(c.coordinates[I], [50.0, 60.0, 90.0])
 
@@ -689,7 +867,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([0, 50], outer=True)
         assert_equal(s.coordinates, [10.0, 20.0, 40.0, 50.0])
 
-        s, I = c.select([0, 50], outer=True, return_indices=True)
+        s, I = c.select([0, 50], outer=True, return_index=True)
         assert_equal(s.coordinates, [10.0, 20.0, 40.0, 50.0])
         assert_equal(c.coordinates[I], [10.0, 20.0, 40.0, 50.0])
 
@@ -697,7 +875,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([52, 55], outer=True)
         assert_equal(s.coordinates, [50, 60])
 
-        s, I = c.select([52, 55], outer=True, return_indices=True)
+        s, I = c.select([52, 55], outer=True, return_index=True)
         assert_equal(s.coordinates, [50, 60])
         assert_equal(c.coordinates[I], [50, 60])
 
@@ -705,7 +883,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([70, 30], outer=True)
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([70, 30], outer=True, return_indices=True)
+        s, I = c.select([70, 30], outer=True, return_index=True)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
 
@@ -716,7 +894,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([30.0, 55.0], outer=True)
         assert_equal(s.coordinates, [60.0, 50.0, 40.0, 20.0])
 
-        s, I = c.select([30.0, 55.0], outer=True, return_indices=True)
+        s, I = c.select([30.0, 55.0], outer=True, return_index=True)
         assert_equal(s.coordinates, [60.0, 50.0, 40.0, 20.0])
         assert_equal(c.coordinates[I], [60.0, 50.0, 40.0, 20.0])
 
@@ -724,7 +902,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([40.0, 60.0], outer=True)
         assert_equal(s.coordinates, [60.0, 50.0, 40.0])
 
-        s, I = c.select([40.0, 60.0], outer=True, return_indices=True)
+        s, I = c.select([40.0, 60.0], outer=True, return_index=True)
         assert_equal(s.coordinates, [60.0, 50.0, 40.0])
         assert_equal(c.coordinates[I], [60.0, 50.0, 40.0])
 
@@ -732,7 +910,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([50, 100], outer=True)
         assert_equal(s.coordinates, [90.0, 60.0, 50.0])
 
-        s, I = c.select([50, 100], outer=True, return_indices=True)
+        s, I = c.select([50, 100], outer=True, return_index=True)
         assert_equal(s.coordinates, [90.0, 60.0, 50.0])
         assert_equal(c.coordinates[I], [90.0, 60.0, 50.0])
 
@@ -740,7 +918,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([0, 50], outer=True)
         assert_equal(s.coordinates, [50.0, 40.0, 20.0, 10.0])
 
-        s, I = c.select([0, 50], outer=True, return_indices=True)
+        s, I = c.select([0, 50], outer=True, return_index=True)
         assert_equal(s.coordinates, [50.0, 40.0, 20.0, 10.0])
         assert_equal(c.coordinates[I], [50.0, 40.0, 20.0, 10.0])
 
@@ -748,7 +926,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([52, 55], outer=True)
         assert_equal(s.coordinates, [60, 50])
 
-        s, I = c.select([52, 55], outer=True, return_indices=True)
+        s, I = c.select([52, 55], outer=True, return_index=True)
         assert_equal(s.coordinates, [60, 50])
         assert_equal(c.coordinates[I], [60, 50])
 
@@ -756,7 +934,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([70, 30], outer=True)
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([70, 30], outer=True, return_indices=True)
+        s, I = c.select([70, 30], outer=True, return_index=True)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
 
@@ -767,7 +945,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([30.0, 55.0], outer=True)
         assert_equal(s.coordinates, [20, 40.0, 60.0, 50.0])
 
-        s, I = c.select([30.0, 55.0], outer=True, return_indices=True)
+        s, I = c.select([30.0, 55.0], outer=True, return_index=True)
         assert_equal(s.coordinates, [20, 40.0, 60.0, 50.0])
         assert_equal(c.coordinates[I], [20, 40.0, 60.0, 50.0])
 
@@ -775,7 +953,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([40.0, 60.0], outer=True)
         assert_equal(s.coordinates, [40.0, 60.0, 50.0])
 
-        s, I = c.select([40.0, 60.0], outer=True, return_indices=True)
+        s, I = c.select([40.0, 60.0], outer=True, return_index=True)
         assert_equal(s.coordinates, [40.0, 60.0, 50.0])
         assert_equal(c.coordinates[I], [40.0, 60.0, 50.0])
 
@@ -783,7 +961,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([50, 100], outer=True)
         assert_equal(s.coordinates, [60.0, 90.0, 50.0])
 
-        s, I = c.select([50, 100], outer=True, return_indices=True)
+        s, I = c.select([50, 100], outer=True, return_index=True)
         assert_equal(s.coordinates, [60.0, 90.0, 50.0])
         assert_equal(c.coordinates[I], [60.0, 90.0, 50.0])
 
@@ -791,7 +969,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([0, 50], outer=True)
         assert_equal(s.coordinates, [20.0, 40.0, 10.0, 50.0])
 
-        s, I = c.select([0, 50], outer=True, return_indices=True)
+        s, I = c.select([0, 50], outer=True, return_index=True)
         assert_equal(s.coordinates, [20.0, 40.0, 10.0, 50.0])
         assert_equal(c.coordinates[I], [20.0, 40.0, 10.0, 50.0])
 
@@ -799,7 +977,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([52, 55], outer=True)
         assert_equal(s.coordinates, [60, 50])
 
-        s, I = c.select([52, 55], outer=True, return_indices=True)
+        s, I = c.select([52, 55], outer=True, return_index=True)
         assert_equal(s.coordinates, [60, 50])
         assert_equal(c.coordinates[I], [60, 50])
 
@@ -807,7 +985,7 @@ class TestArrayCoordinatesSelection(object):
         s = c.select([70, 30], outer=True)
         assert_equal(s.coordinates, [])
 
-        s, I = c.select([70, 30], outer=True, return_indices=True)
+        s, I = c.select([70, 30], outer=True, return_index=True)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
 
@@ -844,8 +1022,143 @@ class TestArrayCoordinatesSelection(object):
         with pytest.raises(TypeError):
             c.select({"time": [1, 10]})
 
+    def test_select_shaped(self):
+        c = ArrayCoordinates1d([[20.0, 50.0, 60.0], [90.0, 40.0, 10.0]])
+
+        # inner
+        s = c.select([30.0, 55.0])
+        assert_equal(s.coordinates, [50.0, 40.0])
+
+        s, I = c.select([30.0, 55.0], return_index=True)
+        assert_equal(s.coordinates, [50.0, 40.0])
+        assert_equal(c.coordinates[I], [50.0, 40.0])
+
+        # inner with aligned bounds
+        s = c.select([40.0, 60.0])
+        assert_equal(s.coordinates, [50.0, 60.0, 40.0])
+
+        s, I = c.select([40.0, 60.0], return_index=True)
+        assert_equal(s.coordinates, [50.0, 60.0, 40.0])
+        assert_equal(c.coordinates[I], [50.0, 60.0, 40.0])
+
+        # above
+        s = c.select([50, 100])
+        assert_equal(s.coordinates, [50.0, 60.0, 90.0])
+
+        s, I = c.select([50, 100], return_index=True)
+        assert_equal(s.coordinates, [50.0, 60.0, 90.0])
+        assert_equal(c.coordinates[I], [50.0, 60.0, 90.0])
+
+        # below
+        s = c.select([0, 50])
+        assert_equal(s.coordinates, [20.0, 50.0, 40.0, 10.0])
+
+        s, I = c.select([0, 50], return_index=True)
+        assert_equal(s.coordinates, [20.0, 50.0, 40.0, 10.0])
+        assert_equal(c.coordinates[I], [20.0, 50.0, 40.0, 10.0])
+
+        # between coordinates
+        s = c.select([52, 55])
+        assert_equal(s.coordinates, [])
+
+        s, I = c.select([52, 55], return_index=True)
+        assert_equal(s.coordinates, [])
+        assert_equal(c.coordinates[I], [])
+
+        # backwards bounds
+        s = c.select([70, 30])
+        assert_equal(s.coordinates, [])
+
+        s, I = c.select([70, 30], return_index=True)
+        assert_equal(s.coordinates, [])
+        assert_equal(c.coordinates[I], [])
+
+    def test_select_shaped_outer_nonmonotonic(self):
+        c = ArrayCoordinates1d([[20.0, 40.0, 60.0], [10.0, 90.0, 50.0]])
+
+        # inner
+        s = c.select([30.0, 55.0], outer=True)
+        assert_equal(s.coordinates, [20, 40.0, 60.0, 50.0])
+
+        s, I = c.select([30.0, 55.0], outer=True, return_index=True)
+        assert_equal(s.coordinates, [20, 40.0, 60.0, 50.0])
+        assert_equal(c.coordinates[I], [20, 40.0, 60.0, 50.0])
+
+        # inner with aligned bounds
+        s = c.select([40.0, 60.0], outer=True)
+        assert_equal(s.coordinates, [40.0, 60.0, 50.0])
+
+        s, I = c.select([40.0, 60.0], outer=True, return_index=True)
+        assert_equal(s.coordinates, [40.0, 60.0, 50.0])
+        assert_equal(c.coordinates[I], [40.0, 60.0, 50.0])
+
+        # above
+        s = c.select([50, 100], outer=True)
+        assert_equal(s.coordinates, [60.0, 90.0, 50.0])
+
+        s, I = c.select([50, 100], outer=True, return_index=True)
+        assert_equal(s.coordinates, [60.0, 90.0, 50.0])
+        assert_equal(c.coordinates[I], [60.0, 90.0, 50.0])
+
+        # below
+        s = c.select([0, 50], outer=True)
+        assert_equal(s.coordinates, [20.0, 40.0, 10.0, 50.0])
+
+        s, I = c.select([0, 50], outer=True, return_index=True)
+        assert_equal(s.coordinates, [20.0, 40.0, 10.0, 50.0])
+        assert_equal(c.coordinates[I], [20.0, 40.0, 10.0, 50.0])
+
+        # between coordinates
+        s = c.select([52, 55], outer=True)
+        assert_equal(s.coordinates, [60, 50])
+
+        s, I = c.select([52, 55], outer=True, return_index=True)
+        assert_equal(s.coordinates, [60, 50])
+        assert_equal(c.coordinates[I], [60, 50])
+
+        # backwards bounds
+        s = c.select([70, 30], outer=True)
+        assert_equal(s.coordinates, [])
+
+        s, I = c.select([70, 30], outer=True, return_index=True)
+        assert_equal(s.coordinates, [])
+        assert_equal(c.coordinates[I], [])
+
 
 class TestArrayCoordinatesMethods(object):
+    def test_unique(self):
+        c = ArrayCoordinates1d([1, 2, 3, 2])
+
+        u = c.unique()
+        assert u.shape == (3,)
+        assert_equal(u.coordinates, [1, 2, 3])
+
+        u, I = c.unique(return_index=True)
+        assert u == c[I]
+        assert_equal(u.coordinates, [1, 2, 3])
+
+    def test_unique_monotonic(self):
+        c = ArrayCoordinates1d([1, 2, 3, 5])
+
+        u = c.unique()
+        assert u == c
+
+        u, I = c.unique(return_index=True)
+        assert u == c
+        assert u == c[I]
+
+    def test_unique_shaped(self):
+        c = ArrayCoordinates1d([[1, 2], [3, 2]])
+
+        # also flattens
+        u = c.unique()
+        assert u.shape == (3,)
+        assert_equal(u.coordinates, [1, 2, 3])
+
+        u, I = c.unique(return_index=True)
+        assert u == c.flatten()[I]
+        assert_equal(u.coordinates, [1, 2, 3])
+
     def test_simplify(self):
         # convert to UniformCoordinates
         c = ArrayCoordinates1d([1, 2, 3, 4])
@@ -886,6 +1199,13 @@ class TestArrayCoordinatesMethods(object):
         # empty
         c = ArrayCoordinates1d([])
         c2 = c.simplify()
+        assert c2 == c
+
+    def test_simplify_shaped(self):
+        # don't simplify
+        c = ArrayCoordinates1d([[1, 2], [3, 4]])
+        c2 = c.simplify()
+        assert isinstance(c2, ArrayCoordinates1d)
         assert c2 == c
 
     def test_issubset(self):
@@ -953,3 +1273,43 @@ class TestArrayCoordinatesMethods(object):
         assert a.issubset(c1)
         assert not a.issubset(c2)
         assert not a.issubset(c3)
+
+    def test_issubset_shaped(self):
+        c1 = ArrayCoordinates1d([2, 1])
+        c2 = ArrayCoordinates1d([[1], [2]])
+        c3 = ArrayCoordinates1d([[1, 2], [3, 4]])
+
+        # self
+        assert c1.issubset(c1)
+        assert c2.issubset(c2)
+        assert c3.issubset(c3)
+
+        # subsets
+        assert c1.issubset(c2)
+        assert c1.issubset(c3)
+        assert c2.issubset(c1)
+        assert c2.issubset(c3)
+
+        # not subsets
+        assert not c3.issubset(c1)
+        assert not c3.issubset(c2)
+
+    def test_flatten(self):
+        c = ArrayCoordinates1d([1, 2, 3, 2])
+        c2 = ArrayCoordinates1d([[1, 2], [3, 2]])
+        assert c != c2
+        assert c2.flatten() == c
+        assert c.flatten() == c
+
+    def test_reshape(self):
+        c = ArrayCoordinates1d([1, 2, 3, 2])
+        c2 = ArrayCoordinates1d([[1, 2], [3, 2]])
+        assert c.reshape((2, 2)) == c2
+        assert c2.reshape((4,)) == c
+        assert c.reshape((4, 1)) == c2.reshape((4, 1))
+
+        with pytest.raises(ValueError, match="cannot reshape array"):
+            c.reshape((5, 4))
+
+        with pytest.raises(ValueError, match="cannot reshape array"):
+            c2.reshape((2, 1))

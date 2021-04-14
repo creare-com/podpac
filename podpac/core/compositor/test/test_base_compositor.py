@@ -78,10 +78,7 @@ class TestBaseCompositor(object):
             )
 
     def test_select_sources_default(self):
-        node = BaseCompositor(
-            sources=[DataSource(), DataSource(interpolation="nearest_preview"), podpac.algorithm.Arange()],
-            interpolation="bilinear",
-        )
+        node = BaseCompositor(sources=[DataSource(), DataSource(), podpac.algorithm.Arange()])
         sources = node.select_sources(podpac.Coordinates([[0, 10]], ["time"]))
 
         assert isinstance(sources, list)
@@ -113,23 +110,6 @@ class TestBaseCompositor(object):
         c = podpac.Coordinates([podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 100], ["lat", "lon", "time"])
         selected = node.select_sources(c)
         assert len(selected) == 0
-
-    def test_select_sources_set_interpolation(self):
-        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME], interpolation="nearest")
-        sources = node.select_sources(COORDS)
-        assert sources[0].interpolation == "nearest"
-        assert sources[1].interpolation == "nearest"
-        assert sources[2].interpolation == "nearest"
-        assert ARRAY_LAT.interpolation == "bilinear"
-        assert ARRAY_LON.interpolation == "bilinear"
-        assert ARRAY_TIME.interpolation == "bilinear"
-
-        # if no interpolation is provided, keep the source interpolation values
-        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
-        sources = node.select_sources(COORDS)
-        assert node.sources[0].interpolation == "bilinear"
-        assert node.sources[1].interpolation == "bilinear"
-        assert node.sources[2].interpolation == "bilinear"
 
     def test_iteroutputs_empty(self):
         node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])

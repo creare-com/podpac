@@ -19,6 +19,8 @@ from lazy_import import lazy_module, lazy_class
 from podpac.core import authentication
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
+from podpac.core.interpolation.interpolation import InterpolationMixin
+
 
 # Optional dependencies
 pydap = lazy_module("pydap")
@@ -30,7 +32,7 @@ _logger = logging.getLogger(__name__)
 
 
 @common_doc(COMMON_DATA_DOC)
-class PyDAP(authentication.RequestsSessionMixin, DataSource):
+class PyDAPRaw(authentication.RequestsSessionMixin, DataSource):
     """Create a DataSource from an OpenDAP server feed.
 
     Attributes
@@ -44,6 +46,10 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
         {coordinates}
     source : str
         URL of the OpenDAP server.
+
+    See Also
+    --------
+    PyDAP : Interpolated OpenDAP datasource for general use.
     """
 
     source = tl.Unicode().tag(attr=True)
@@ -54,7 +60,8 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
     server_throttle_retries = tl.Int(default_value=100, help="Number of retries for a throttled server.").tag(attr=True)
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
-    _repr_keys = ["source", "interpolation"]
+    _repr_keys = ["source"]
+    coordinate_index_type = "slice"
 
     # hostname for RequestsSession is source. Try parsing off netloc
     @tl.default("hostname")
@@ -127,3 +134,9 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
             The list of available keys from the OpenDAP dataset. Any of these keys can be set as self.data_key
         """
         return self.dataset.keys()
+
+
+class PyDAP(InterpolationMixin, PyDAPRaw):
+    """ OpenDAP datasource with interpolation. """
+
+    pass

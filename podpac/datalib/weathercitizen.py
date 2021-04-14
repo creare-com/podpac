@@ -17,8 +17,7 @@ Optionally:
 """
 
 import json
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 from copy import deepcopy
 
@@ -27,8 +26,8 @@ import pandas as pd
 import numpy as np
 import requests
 
-from podpac.data import DataSource
-from podpac.core.data.datasource import COMMON_DATA_DOC
+from podpac.interpolators import InterpolationMixin
+from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 
@@ -40,7 +39,7 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"  # always UTC  (ISO 8601 / RFC 3339 format
 _logger = logging.getLogger(__name__)
 
 
-class WeatherCitizen(DataSource):
+class WeatherCitizen(InterpolationMixin, DataSource):
     """DataSource to handle WeatherCitizen data
 
     Attributes
@@ -83,12 +82,13 @@ class WeatherCitizen(DataSource):
         projection = {"properties.time": 1, "geometry.coordinates": 1}
 
         # make sure data_key exists in dataset
-        query = {self.data_key: {"$exists": True}}
+        key = "properties.%s" % self.data_key
+        query = {key: {"$exists": True}}
 
         # handle if the user specifies and query and the data_key is already in that query
         if self.query is not None and self.data_key in self.query:
             query = deepcopy(self.query)
-            query[self.data_key]["$exists"] = True
+            query[key]["$exists"] = True
 
         # check the length of the matched items
         length = get(
@@ -126,7 +126,7 @@ class WeatherCitizen(DataSource):
         lon = [item["geometry"]["coordinates"][0] for item in items]
         time = [item["properties"]["time"] for item in items]
 
-        return Coordinates([[lat, lon, time]], dims=["lat,lon,time"])
+        return Coordinates([[lat, lon, time]], dims=["lat_lon_time"])
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -150,15 +150,16 @@ class WeatherCitizen(DataSource):
         box = [[lon_bounds[0], lat_bounds[0]], [lon_bounds[1], lat_bounds[1]]]
 
         # make sure data_key exists in dataset
-        query = {self.data_key: {"$exists": True}}
+        key = "properties.%s" % self.data_key
+        query = {key: {"$exists": True}}
 
         # handle if the user specifies and query and the data_key is already in that query
         if self.query is not None and self.data_key in self.query:
             query = deepcopy(self.query)
-            query[self.data_key]["$exists"] = True
+            query[key]["$exists"] = True
 
         # only project data key
-        projection = {self.data_key: 1}
+        projection = {key: 1}
 
         # check the length of the matched items
         length = get(
@@ -196,7 +197,7 @@ class WeatherCitizen(DataSource):
             verbose=self.verbose,
         )
 
-        data = np.array([item[self.data_key] for item in items])
+        data = np.array([item["properties"][self.data_key] for item in items])
 
         return self.create_output_array(coordinates, data=data)
 

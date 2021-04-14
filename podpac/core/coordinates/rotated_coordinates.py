@@ -9,14 +9,15 @@ import lazy_import
 rasterio = lazy_import.lazy_module("rasterio")
 
 from podpac.core.utils import ArrayTrait
-from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
+from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
+from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 
-class RotatedCoordinates(DependentCoordinates):
+class RotatedCoordinates(StackedCoordinates):
     """
     A grid of rotated latitude and longitude coordinates.
 
-    RotatedCoordinates are dependent spatial coordinates defined by a shape, rotation angle, upper left corner, and
+    RotatedCoordinates are parameterized spatial coordinates defined by a shape, rotation angle, upper left corner, and
     step size. The lower right corner can be specified instead of the step. RotatedCoordinates can also be converted
     to/from GDAL geotransform.
 
@@ -45,7 +46,7 @@ class RotatedCoordinates(DependentCoordinates):
     theta = tl.Float(read_only=True)
     origin = ArrayTrait(shape=(2,), dtype=float, read_only=True)
     step = ArrayTrait(shape=(2,), dtype=float, read_only=True)
-    ndims = 2
+    dims = tl.Tuple(tl.Unicode(), tl.Unicode(), read_only=True)
 
     def __init__(self, shape=None, theta=None, origin=None, step=None, corner=None, dims=None):
         """
@@ -81,10 +82,12 @@ class RotatedCoordinates(DependentCoordinates):
 
     @tl.validate("dims")
     def _validate_dims(self, d):
-        val = super(RotatedCoordinates, self)._validate_dims(d)
+        val = d["value"]
         for dim in val:
             if dim not in ["lat", "lon"]:
                 raise ValueError("RotatedCoordinates dims must be 'lat' or 'lon', not '%s'" % dim)
+        if val[0] == val[1]:
+            raise ValueError("Duplicate dimension '%s'" % val[0])
         return val
 
     @tl.validate("shape")
@@ -100,6 +103,12 @@ class RotatedCoordinates(DependentCoordinates):
         if val[0] == 0 or val[1] == 0:
             raise ValueError("Invalid step %s, step cannot be 0" % val)
         return val
+
+    def _set_name(self, value):
+        self._set_dims(value.split("_"))
+
+    def _set_dims(self, dims):
+        self.set_trait("dims", dims)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate Constructors
@@ -170,16 +179,14 @@ class RotatedCoordinates(DependentCoordinates):
         if not isinstance(other, RotatedCoordinates):
             return False
 
+        if self.dims != other.dims:
+            return False
+
         if self.shape != other.shape:
             return False
 
         if self.affine != other.affine:
             return False
-
-        # defined coordinate properties should match
-        for name in self._properties.union(other._properties):
-            if getattr(self, name) != getattr(other, name):
-                return False
 
         return True
 
@@ -193,14 +200,23 @@ class RotatedCoordinates(DependentCoordinates):
             origin = self.affine * [I[0], J[0]]
             step = self.step * [index[0].step or 1, index[1].step or 1]
             shape = I.size, J.size
-            return RotatedCoordinates(shape, self.theta, origin, step, **self.properties)
+            return RotatedCoordinates(shape, self.theta, origin, step, dims=self.dims)
 
         else:
-            return super(RotatedCoordinates, self).__getitem__(index)
+            # convert to raw StackedCoordinates (which creates the _coords attribute that the indexing requires)
+            return StackedCoordinates(self.coordinates, dims=self.dims).__getitem__(index)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
+
+    @property
+    def _coords(self):
+        raise RuntimeError("RotatedCoordinates do not have a _coords attribute.")
+
+    @property
+    def ndim(self):
+        return 2
 
     @property
     def deg(self):
@@ -243,19 +259,18 @@ class RotatedCoordinates(DependentCoordinates):
         return c1.T, c2.T
 
     @property
-    def properties(self):
-        """:dict: Dictionary of the coordinate properties. """
-        return {key: getattr(self, key) for key in self._properties}
-
-    def _get_definition(self, full=True):
+    def definition(self):
         d = OrderedDict()
         d["dims"] = self.dims
         d["shape"] = self.shape
         d["theta"] = self.theta
         d["origin"] = self.origin
         d["step"] = self.step
-        d.update(self._full_properties if full else self.properties)
         return d
+
+    @property
+    def full_definition(self):
+        return self.definition
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -270,7 +285,7 @@ class RotatedCoordinates(DependentCoordinates):
         :class:`RotatedCoordinates`
             Copy of the rotated coordinates.
         """
-        return RotatedCoordinates(self.shape, self.theta, self.origin, self.step, **self.properties)
+        return RotatedCoordinates(self.shape, self.theta, self.origin, self.step, dims=self.dims)
 
     def get_area_bounds(self, boundary):
         """Get coordinate area bounds, including boundary information, for each unstacked dimension.
@@ -290,7 +305,7 @@ class RotatedCoordinates(DependentCoordinates):
         warnings.warning("RotatedCoordinates area_bounds are not yet correctly implemented.")
         return super(RotatedCoordinates, self).get_area_bounds(boundary)
 
-    def select(self, bounds, outer=False, return_indices=False):
+    def select(self, bounds, outer=False, return_index=False):
         """
         Get the coordinate values that are within the given bounds in all dimensions.
 
@@ -302,19 +317,19 @@ class RotatedCoordinates(DependentCoordinates):
             dictionary of dim -> (low, high) selection bounds
         outer : bool, optional
             If True, do *outer* selections. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selections in addition to coordinates. Default False.
+        return_index : bool, optional
+            If True, return index for the selections in addition to coordinates. Default False.
 
         Returns
         -------
         selection : :class:`RotatedCoordinates`, :class:`DependentCoordinates`, :class:`StackedCoordinates`
             rotated, dependent, or stacked coordinates consisting of the selection in all dimensions.
-        I : slice or list
-            Slice or index for the selected coordinates, only if ``return_indices`` is True.
+        selection_index : list
+            index for the selected coordinates, only if ``return_index`` is True.
         """
 
         # TODO return RotatedCoordinates when possible
-        return super(RotatedCoordinates, self).select(bounds, outer=outer, return_indices=return_indices)
+        return super(RotatedCoordinates, self).select(bounds, outer=outer, return_index=return_index)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Debug

@@ -1,20 +1,19 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from six import string_types
-import traitlets as tl
 import re
-import numpy as np
-from dateutil import parser
-import requests
 import json
+import logging
+from six import string_types
+from dateutil import parser
+from io import StringIO
 
 try:
     import cPickle  # Python 2.7
 except:
     import _pickle as cPickle
-from io import StringIO
 
-from podpac.core.utils import _get_from_url
+import numpy as np
+import traitlets as tl
 
 # Optional dependencies
 from lazy_import import lazy_module
@@ -22,7 +21,12 @@ from lazy_import import lazy_module
 bs4 = lazy_module("bs4")
 
 import podpac
-from podpac.core.utils import cached_property
+from podpac.core.utils import _get_from_url, cached_property
+from podpac.data import DataSource
+from podpac.compositor import TileCompositorRaw
+from podpac.interpolators import InterpolationMixin
+
+_logger = logging.getLogger(__name__)
 
 
 def _convert_str_to_vals(properties):
@@ -43,19 +47,21 @@ def _convert_str_to_vals(properties):
     return properties
 
 
-class COSMOSStation(podpac.data.DataSource):
+class COSMOSStation(DataSource):
     _repr_keys = ["label", "network", "location"]
 
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/StationDat/")
     station_data = tl.Dict().tag(attr=True)
 
-    @tl.default("interpolation")
-    def _interpolation_default(self):
-        return {"method": "nearest", "params": {"spatial_tolerance": 1.1, "time_tolerance": np.timedelta64(1, "D")}}
-
     @cached_property
     def raw_data(self):
-        r = requests.get(self.station_data_url)
+        _logger.info("Downloading station data from {}".format(self.station_data_url))
+
+        r = _get_from_url(self.station_data_url)
+        if r is None:
+            raise ConnectionError(
+                "COSMOS data cannot be retrieved. Is the site {} down?".format(self.station_calibration_url)
+            )
         return r.text
 
     @cached_property
@@ -85,7 +91,7 @@ class COSMOSStation(podpac.data.DataSource):
         data[data > 100] = np.nan
         data[data < 0] = np.nan
         data /= 100.0  # Make it fractional
-        return self.create_output_array(coordinates, data=data[:, None, None])
+        return self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
 
     def get_coordinates(self):
         lat_lon = self.station_data["location"]
@@ -101,7 +107,7 @@ class COSMOSStation(podpac.data.DataSource):
             time = np.datetime64("NaT")
         else:
             time = np.array([t[0] + "T" + t[1] for t in time], np.datetime64)
-        c = podpac.Coordinates([time, lat_lon[0], lat_lon[1]], ["time", "lat", "lon"])
+        c = podpac.Coordinates([time, [lat_lon[0], lat_lon[1]]], ["time", ["lat", "lon"]])
         return c
 
     @property
@@ -118,13 +124,22 @@ class COSMOSStation(podpac.data.DataSource):
 
     @cached_property(use_cache_ctrl=True)
     def calibration_data(self):
-        cd = _get_from_url(self.station_calibration_url).json()
+        cd = _get_from_url(self.station_calibration_url)
+        if cd is None:
+            raise ConnectionError(
+                "COSMOS data cannot be retrieved. Is the site {} down?".format(self.station_calibration_url)
+            )
+        cd = cd.json()
         cd["items"] = [_convert_str_to_vals(i) for i in cd["items"]]
         return cd
 
     @cached_property(use_cache_ctrl=True)
     def site_properties(self):
         r = _get_from_url(self.station_properties_url)
+        if r is None:
+            raise ConnectionError(
+                "COSMOS data cannot be retrieved. Is the site {} down?".format(self.station_properties_url)
+            )
         soup = bs4.BeautifulSoup(r.text, "lxml")
         regex = re.compile("Soil Organic Carbon")
         loc = soup.body.findAll(text=regex)[0].parent.parent
@@ -137,16 +152,23 @@ class COSMOSStation(podpac.data.DataSource):
         return _convert_str_to_vals(properties)
 
 
-class COSMOSStations(podpac.compositor.OrderedCompositor):
+class COSMOSStationsRaw(TileCompositorRaw):
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/")
     stations_url = tl.Unicode("sitesNoLegend.js")
     dims = ["lat", "lon", "time"]
+
+    @tl.default("interpolation")
+    def _interpolation_default(self):
+        return {"method": "nearest", "params": {"use_selector": False, "remove_nan": False, "time_scale": "1,M"}}
 
     ## PROPERTIES
     @cached_property(use_cache_ctrl=True)
     def _stations_data_raw(self):
         url = self.url + self.stations_url
         r = _get_from_url(url)
+        if r is None:
+            raise ConnectionError("COSMOS data cannot be retrieved. Is the site {} down?".format(url))
+
         t = r.text
 
         # Fix the JSON
@@ -232,7 +254,7 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
             raise ValueError("The coordinates object must have a stacked 'lat_lon' dimension.")
 
         labels_map = {s["location"]: s["label"] for s in self.stations_data["items"]}
-        labels = [labels_map.get(ll, None) for ll in lat_lon.coords["lat_lon"]]
+        labels = [labels_map.get(ll, None) for ll in lat_lon.xcoords["lat_lon"]]
         return labels
 
     def latlon_from_label(self, label):
@@ -363,16 +385,36 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         return [self.stations_data["items"][i] for i in inds]
 
 
+class COSMOSStations(InterpolationMixin, COSMOSStationsRaw):
+    pass
+
+
 if __name__ == "__main__":
     bounds = {"lat": [40, 46], "lon": [-78, -68]}
-    cs = COSMOSStations(cache_ctrl=["ram", "disk"])
+    cs = COSMOSStations(
+        cache_ctrl=["ram", "disk"],
+        interpolation={"method": "nearest", "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M"}},
+    )
+    csr = COSMOSStationsRaw(
+        cache_ctrl=["ram", "disk"],
+        interpolation={"method": "nearest", "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M"}},
+    )
 
     sd = cs.stations_data
     ci = cs.source_coordinates.select(bounds)
     ce = podpac.coordinates.merge_dims(
         [podpac.Coordinates([podpac.crange("2018-05-01", "2018-06-01", "1,D", "time")]), ci]
     )
+    cg = podpac.Coordinates(
+        [
+            podpac.clinspace(ci["lat"].bounds[1], ci["lat"].bounds[0], 12, "lat"),
+            podpac.clinspace(ci["lon"].bounds[1], ci["lon"].bounds[0], 16, "lon"),
+            ce["time"],
+        ]
+    )
     o = cs.eval(ce)
+    o_r = csr.eval(ce)
+    og = cs.eval(cg)
 
     # Test helper functions
     labels = cs.stations_label
@@ -402,6 +444,7 @@ if __name__ == "__main__":
     ax = plt.gca()
     plt.ylim(0, 1)
     plt.legend(cs.label_from_latlon(ce))
+    # plt.plot(o_r.time, o_r.data, ".-")
     plt.ylabel("Soil Moisture ($m^3/m^3$)")
     plt.xlabel("Date")
     # plt.xticks(rotation=90)

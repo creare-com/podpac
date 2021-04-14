@@ -13,9 +13,10 @@ from podpac.core.authentication import S3Mixin
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin
+from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
-class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
+class ZarrRaw(S3Mixin, FileKeysMixin, BaseFileSource):
     """Create a DataSource node using zarr.
 
     Attributes
@@ -46,6 +47,10 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
         units, when decoding CF datetimes
     cf_calendar : str
         calendar, when decoding CF datetimes
+
+    See Also
+    --------
+    Zarr : Interpolated Zarr Datasource for general use.
     """
 
     file_mode = tl.Unicode(default_value="r").tag(readonly=True)
@@ -194,3 +199,9 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
             for key, name in zip(self.data_key, self.outputs):
                 data.sel(output=name)[:] = self.dataset[key][coordinates_index]
         return data
+
+
+class Zarr(InterpolationMixin, ZarrRaw):
+    """ Zarr Datasource with Interpolation. """
+
+    pass

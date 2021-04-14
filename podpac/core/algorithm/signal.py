@@ -1,11 +1,5 @@
 """
 Signal Summary
-
-NOTE: another option for the convolution kernel input would be to accept an
-    xarray and add and transpose dimensions as necessary.
-
-NOTE: At the moment this module is quite brittle... it makes assumptions about
-    the input node (i.e. alt coordinates would likely break this)
 """
 
 import podpac
@@ -22,7 +16,7 @@ from podpac.core.coordinates import add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import UnaryAlgorithm
 from podpac.core.utils import common_doc, ArrayTrait, NodeTrait
-from podpac.core.node import COMMON_NODE_DOC, node_eval
+from podpac.core.node import COMMON_NODE_DOC
 
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
@@ -64,7 +58,8 @@ class Convolution(UnaryAlgorithm):
     source : podpac.Node
         Source node on which convolution will be performed.
     kernel : np.ndarray, optional
-        The convolution kernel. This kernel must have the same number of dimensions as the source data outputs
+        The convolution kernel. This kernel must include the dimensions of source node outputs. The dimensions for this
+        array are labelled by `kernel_dims`. Any dimensions not in the soucr nodes outputs will be summed over.
     kernel_dims : list, optional
         A list of the dimensions for the kernel axes. The dimensions in this list must match the
         coordinates in the source, or contain additional dimensions, and the order does not need to match.
@@ -105,8 +100,7 @@ class Convolution(UnaryAlgorithm):
         return super(Convolution, self)._first_init(**kwargs)
 
     @common_doc(COMMON_DOC)
-    @node_eval
-    def eval(self, coordinates, output=None):
+    def _eval(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -115,6 +109,8 @@ class Convolution(UnaryAlgorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
+        _selector: callable(coordinates, request_coordinates)
+            {eval_selector}
 
         Returns
         -------
@@ -165,7 +161,7 @@ class Convolution(UnaryAlgorithm):
             self._expanded_coordinates = expanded_coordinates
 
         # evaluate source using expanded coordinates, convolve, and then slice out original coordinates
-        source = self.source.eval(expanded_coordinates)
+        source = self.source.eval(expanded_coordinates, _selector=_selector)
 
         # Check dimensions
         if any([d not in kernel_dims for d in source.dims if d != "output"]):

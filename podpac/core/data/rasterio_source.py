@@ -8,19 +8,25 @@ from six import string_types
 import traitlets as tl
 import numpy as np
 import pyproj
+import logging
 
 from lazy_import import lazy_module
 
 rasterio = lazy_module("rasterio")
+boto3 = lazy_module("boto3")
 
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.coordinates import UniformCoordinates1d, Coordinates
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
-from podpac.core.data.file_source import BaseFileSource, LoadFileMixin
+from podpac.core.data.file_source import BaseFileSource
+from podpac.core.authentication import S3Mixin
+from podpac.core.interpolation.interpolation import InterpolationMixin
+
+_logger = logging.getLogger(__name__)
 
 
 @common_doc(COMMON_DATA_DOC)
-class Rasterio(LoadFileMixin, BaseFileSource):
+class RasterioRaw(S3Mixin, BaseFileSource):
     """Create a DataSource using rasterio.
 
     Attributes
@@ -33,29 +39,40 @@ class Rasterio(LoadFileMixin, BaseFileSource):
         {coordinates}
     band : int
         The 'band' or index for the variable being accessed in files such as GeoTIFFs. Use None for all bounds.
-     crs : str, optional
+    crs : str, optional
         The coordinate reference system. Normally this will come directly from the file, but this allows users to
         specify the crs in case this information is missing from the file.
-    read_as_filename : bool, optional
-        Default is False. If True, the file will be read using rasterio.open(self.source) instead of being automatically
-        parsed to handle ftp, s3, in-memory files, etc.
+    aws_https: bool
+        Default is True. If False, will not use https when reading from AWS. This is useful for debugging when SSL certificates are invalid.
+
+    See Also
+    --------
+    Rasterio : Interpolated rasterio datasource for general use.
     """
 
-    # dataset = tl.Instance(rasterio.DatasetReader).tag(readonly=True)
     band = tl.CInt(allow_none=True).tag(attr=True)
     crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+
     driver = tl.Unicode(allow_none=True, default_value=None)
-    read_from_source = tl.Bool(False).tag(attr=True)
+    coordinate_index_type = "slice"
+    aws_https = tl.Bool(True)
 
     @cached_property
     def dataset(self):
-        if re.match(".*:.*:.*", self.source):
-            # i.e. user supplied a non-file-looking string like 'HDF4_EOS:EOS_GRID:"MOD13Q1.A2013033.h08v05.006.2015256072248.hdf":MODIS_Grid_16DAY_250m_500m_VI:"250m 16 days NDVI"'
-            # This also includes many subdatsets as part of GDAL data drivers; https://gdal.org/drivers/raster/index.html
-            self.set_trait("read_from_source", True)
+        envargs = {}
+
+        if self.source.startswith("s3://"):
+            envargs["session"] = rasterio.session.AWSSession(
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key,
+                region_name=self.aws_region_name,
+                requester_pays=self.aws_requester_pays,
+                aws_unsigned=self.anon,
+            )
+
+        with rasterio.env.Env(**envargs) as env:
+            _logger.debug("Rasterio environment options: {}".format(env.options))
             return rasterio.open(self.source)
-        else:
-            return super(Rasterio, self).dataset
 
     @tl.default("band")
     def _band_default(self):
@@ -72,15 +89,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
 
     @cached_property
     def nan_vals(self):
-        return list(self.dataset.nodatavals)
-
-    def open_dataset(self, fp, **kwargs):
-        if self.read_from_source:
-            return rasterio.open(self.source)
-
-        with rasterio.MemoryFile() as mf:
-            mf.write(fp.read())
-            return mf.open(driver=self.driver)
+        return np.unique(np.array(self.dataset.nodatavals).astype(self.dtype)).tolist()
 
     def close_dataset(self):
         """Closes the file for the datasource"""
@@ -125,7 +134,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
             raster_data = self.dataset.read(out_shape=(len(self.outputs),) + tuple(coordinates.shape), window=window)
             raster_data = np.moveaxis(raster_data, 0, 2)
         else:  # read the requested band
-            raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
+            raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape)[:2], window=window)
 
         # set raster data to output array
         data.data.ravel()[:] = raster_data.ravel()
@@ -203,3 +212,9 @@ class Rasterio(LoadFileMixin, BaseFileSource):
         matches = np.where(match)[0] + 1
 
         return matches
+
+
+class Rasterio(InterpolationMixin, RasterioRaw):
+    """ Rasterio datasource with interpolation. """
+
+    pass

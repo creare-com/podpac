@@ -10,7 +10,7 @@ from numpy.testing import assert_equal, assert_allclose
 
 import podpac
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
-from podpac.core.coordinates.dependent_coordinates import DependentCoordinates, ArrayCoordinatesNd
+from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.polar_coordinates import PolarCoordinates
 from podpac.core.coordinates.cfunctions import clinspace
 
@@ -25,8 +25,8 @@ class TestPolarCoordinatesCreation(object):
         assert_equal(c.radius.coordinates, [1, 2, 4, 5])
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
-        assert c.idims == ("r", "t")
-        assert c.name == "lat,lon"
+        assert c.xdims == ("r", "t")
+        assert c.name == "lat_lon"
         assert c.shape == (4, 8)
         repr(c)
 
@@ -36,8 +36,8 @@ class TestPolarCoordinatesCreation(object):
         assert c.theta.size == 8
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
-        assert c.idims == ("r", "t")
-        assert c.name == "lat,lon"
+        assert c.xdims == ("r", "t")
+        assert c.name == "lat_lon"
         assert c.shape == (4, 8)
         repr(c)
 
@@ -54,9 +54,6 @@ class TestPolarCoordinatesCreation(object):
         with pytest.raises(ValueError, match="PolarCoordinates dims"):
             PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "time"])
 
-        with pytest.raises(ValueError, match="dims and coordinates size mismatch"):
-            PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat"])
-
         with pytest.raises(ValueError, match="Duplicate dimension"):
             PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lat"])
 
@@ -67,7 +64,7 @@ class TestPolarCoordinatesCreation(object):
         assert c2 == c
 
 
-class TestDependentCoordinatesStandardMethods(object):
+class TestPolarCoordinatesStandardMethods(object):
     def test_eq_type(self):
         c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
         assert c != []
@@ -179,14 +176,14 @@ class TestPolarCoordinatesIndexing(object):
 
         lat = c["lat"]
         lon = c["lon"]
-        assert isinstance(lat, ArrayCoordinatesNd)
-        assert isinstance(lon, ArrayCoordinatesNd)
+        assert isinstance(lat, ArrayCoordinates1d)
+        assert isinstance(lon, ArrayCoordinates1d)
         assert lat.name == "lat"
         assert lon.name == "lon"
         assert_equal(lat.coordinates, c.coordinates[0])
         assert_equal(lon.coordinates, c.coordinates[1])
 
-        with pytest.raises(KeyError, match="Cannot get dimension"):
+        with pytest.raises(KeyError, match="Dimension .* not found"):
             c["other"]
 
     def test_get_index_slices(self):
@@ -246,7 +243,7 @@ class TestPolarCoordinatesIndexing(object):
 
         # int/slice/indices
         c2 = c[Ra, Th]
-        assert isinstance(c2, DependentCoordinates)
+        assert isinstance(c2, StackedCoordinates)
         assert c2.shape == (2, 3)
         assert c2.dims == c.dims
         assert_equal(c2["lat"].coordinates, lat[Ra, Th])

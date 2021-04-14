@@ -100,10 +100,11 @@ Classes to manage interpolation
     :toctree: api/
     :template: class.rst
 
+    podpac.interpolation.Interpolation
     podpac.interpolators.Interpolator
     podpac.interpolators.NearestNeighbor
     podpac.interpolators.NearestPreview
-    podpac.interpolators.Rasterio
+    podpac.interpolators.RasterioInterpolator
     podpac.interpolators.ScipyGrid
     podpac.interpolators.ScipyPoint
 

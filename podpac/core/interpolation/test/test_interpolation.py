@@ -5,466 +5,170 @@ Test interpolation methods
 """
 # pylint: disable=C0111,W0212,R0903
 
-from collections import OrderedDict
-from copy import deepcopy
+
+import warnings
 
 import pytest
 import traitlets as tl
 import numpy as np
+from numpy.testing import assert_array_equal
 
 import podpac
 from podpac.core.units import UnitsDataArray
+from podpac.core.node import Node
 from podpac.core.coordinates import Coordinates
-from podpac.core.interpolation.interpolation import Interpolation, InterpolationException
-from podpac.core.interpolation.interpolation import (
-    INTERPOLATION_METHODS,
-    INTERPOLATION_DEFAULT,
-    INTERPOLATION_METHODS_DICT,
-)
-from podpac.core.interpolation.interpolator import Interpolator, InterpolatorException
-from podpac.core.interpolation.interpolators import NearestNeighbor, NearestPreview
+from podpac.core.interpolation.interpolation_manager import InterpolationException
+from podpac.core.interpolation.interpolation import Interpolate, InterpolationMixin
+from podpac.core.data.array_source import Array, ArrayRaw
+from podpac.core.compositor.tile_compositor import TileCompositorRaw
+from podpac.core.interpolation.scipy_interpolator import ScipyGrid
+
+
+class TestInterpolationMixin(object):
+    def test_interpolation_mixin(self):
+        class InterpArray(InterpolationMixin, ArrayRaw):
+            pass
+
+        data = np.random.rand(4, 5)
+        native_coords = Coordinates([np.linspace(0, 3, 4), np.linspace(0, 4, 5)], ["lat", "lon"])
+        coords = Coordinates([np.linspace(0, 3, 7), np.linspace(0, 4, 9)], ["lat", "lon"])
+
+        iarr_src = InterpArray(source=data, coordinates=native_coords, interpolation="bilinear")
+        arr_src = Array(source=data, coordinates=native_coords, interpolation="bilinear")
+        arrb_src = ArrayRaw(source=data, coordinates=native_coords)
+
+        iaso = iarr_src.eval(coords)
+        aso = arr_src.eval(coords)
+        abso = arrb_src.eval(coords)
+
+        np.testing.assert_array_equal(iaso.data, aso.data)
+        np.testing.assert_array_equal(abso.data, data)
 
 
 class TestInterpolation(object):
-    """ Test interpolation class and support methods"""
-
-    def test_allow_missing_modules(self):
-        """TODO: Allow user to be missing rasterio and scipy"""
-        pass
-
-    def test_interpolation_methods(self):
-        assert len(set(INTERPOLATION_METHODS) & set(INTERPOLATION_METHODS_DICT.keys())) == len(INTERPOLATION_METHODS)
-
-    def test_interpolator_init_type(self):
-        """test constructor"""
-
-        # should throw an error if definition is not str, dict, or Interpolator
-        with pytest.raises(TypeError):
-            Interpolation(5)
-
-    def test_str_definition(self):
-        # should throw an error if string input is not one of the INTERPOLATION_METHODS
-        with pytest.raises(InterpolationException):
-            Interpolation("test")
-
-        interp = Interpolation("nearest")
-        assert interp.config[("default",)]
-        assert isinstance(interp.config[("default",)], dict)
-        assert interp.config[("default",)]["method"] == "nearest"
-        assert isinstance(interp.config[("default",)]["interpolators"][0], Interpolator)
-
-    def test_dict_definition(self):
-
-        # should handle a default definition without any dimensions
-        interp = Interpolation({"method": "nearest", "params": {"spatial_tolerance": 1}})
-        assert isinstance(interp.config[("default",)], dict)
-        assert interp.config[("default",)]["method"] == "nearest"
-        assert isinstance(interp.config[("default",)]["interpolators"][0], Interpolator)
-        assert interp.config[("default",)]["params"] == {"spatial_tolerance": 1}
-
-        # handle string methods
-        interp = Interpolation({"method": "nearest", "dims": ["lat", "lon"]})
-        print(interp.config)
-        assert isinstance(interp.config[("lat", "lon")], dict)
-        assert interp.config[("lat", "lon")]["method"] == "nearest"
-        assert isinstance(interp.config[("default",)]["interpolators"][0], Interpolator)
-        assert interp.config[("default",)]["params"] == {}
-
-        # handle dict methods
-
-        # should throw an error if method is not in dict
-        with pytest.raises(InterpolationException):
-            Interpolation([{"test": "test", "dims": ["lat", "lon"]}])
-
-        # should throw an error if method is not a string
-        with pytest.raises(InterpolationException):
-            Interpolation([{"method": 5, "dims": ["lat", "lon"]}])
-
-        # should throw an error if method is not one of the INTERPOLATION_METHODS and no interpolators defined
-        with pytest.raises(InterpolationException):
-            Interpolation([{"method": "myinter", "dims": ["lat", "lon"]}])
-
-        # should throw an error if params is not a dict
-        with pytest.raises(TypeError):
-            Interpolation([{"method": "nearest", "dims": ["lat", "lon"], "params": "test"}])
-
-        # should throw an error if interpolators is not a list
-        with pytest.raises(TypeError):
-            Interpolation([{"method": "nearest", "interpolators": "test", "dims": ["lat", "lon"]}])
-
-        # should throw an error if interpolators are not Interpolator classes
-        with pytest.raises(TypeError):
-            Interpolation([{"method": "nearest", "interpolators": [NearestNeighbor, "test"], "dims": ["lat", "lon"]}])
-
-        # should throw an error if dimension is defined twice
-        with pytest.raises(InterpolationException):
-            Interpolation([{"method": "nearest", "dims": ["lat", "lon"]}, {"method": "bilinear", "dims": ["lat"]}])
-
-        # should throw an error if dimension is not a list
-        with pytest.raises(TypeError):
-            Interpolation([{"method": "nearest", "dims": "lat"}])
-
-        # should handle standard INTEPROLATION_SHORTCUTS
-        interp = Interpolation([{"method": "nearest", "dims": ["lat", "lon"]}])
-        assert isinstance(interp.config[("lat", "lon")], dict)
-        assert interp.config[("lat", "lon")]["method"] == "nearest"
-        assert isinstance(interp.config[("lat", "lon")]["interpolators"][0], Interpolator)
-        assert interp.config[("lat", "lon")]["params"] == {}
-
-        # should not allow custom methods if interpolators can't support
-        with pytest.raises(InterpolatorException):
-            interp = Interpolation(
-                [{"method": "myinter", "interpolators": [NearestNeighbor, NearestPreview], "dims": ["lat", "lon"]}]
-            )
-
-        # should allow custom methods if interpolators can support
-        class MyInterp(Interpolator):
-            methods_supported = ["myinter"]
-
-        interp = Interpolation([{"method": "myinter", "interpolators": [MyInterp], "dims": ["lat", "lon"]}])
-        assert interp.config[("lat", "lon")]["method"] == "myinter"
-        assert isinstance(interp.config[("lat", "lon")]["interpolators"][0], MyInterp)
-
-        # should allow params to be set
-        interp = Interpolation(
-            [
-                {
-                    "method": "myinter",
-                    "interpolators": [MyInterp],
-                    "params": {"spatial_tolerance": 5},
-                    "dims": ["lat", "lon"],
-                }
-            ]
-        )
-
-        assert interp.config[("lat", "lon")]["params"] == {"spatial_tolerance": 5}
-
-        # set default equal to empty tuple
-        interp = Interpolation([{"method": "bilinear", "dims": ["lat"]}])
-        assert interp.config[("default",)]["method"] == INTERPOLATION_DEFAULT
-
-        # use default with override if not all dimensions are supplied
-        interp = Interpolation([{"method": "bilinear", "dims": ["lat"]}, "nearest"])
-        assert interp.config[("default",)]["method"] == "nearest"
-
-        # make sure default is always the last key in the ordered config dict
-        interp = Interpolation(["nearest", {"method": "bilinear", "dims": ["lat"]}])
-        assert list(interp.config.keys())[-1] == ("default",)
-
-        # should sort the dims keys
-        interp = Interpolation(["nearest", {"method": "bilinear", "dims": ["lon", "lat"]}])
-        assert interp.config[("lat", "lon")]["method"] == "bilinear"
-
-    def test_init_interpolators(self):
-
-        # should set method
-        interp = Interpolation("nearest")
-        assert interp.config[("default",)]["interpolators"][0].method == "nearest"
-
-        # Interpolation init should init all interpolators in the list
-        interp = Interpolation([{"method": "nearest", "params": {"spatial_tolerance": 1}}])
-        assert interp.config[("default",)]["interpolators"][0].spatial_tolerance == 1
-
-        # should throw TraitErrors defined by Interpolator
-        with pytest.raises(tl.TraitError):
-            Interpolation([{"method": "nearest", "params": {"spatial_tolerance": "tol"}}])
-
-        # should not allow undefined params
-        with pytest.warns(DeprecationWarning):  # eventually, Traitlets will raise an exception here
-            interp = Interpolation([{"method": "nearest", "params": {"myarg": 1}}])
-        with pytest.raises(AttributeError):
-            assert interp.config[("default",)]["interpolators"][0].myarg == "tol"
-
-    def test_select_interpolator_queue(self):
-
-        reqcoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"])
-        srccoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"])
-
-        # create a few dummy interpolators that handle certain dimensions
-        # (can_select is defined by default to look at dims_supported)
-        class TimeLat(Interpolator):
-            methods_supported = ["myinterp"]
-            dims_supported = ["time", "lat"]
-
-            def can_select(self, udims, source_coordinates, eval_coordinates):
-                return self._filter_udims_supported(udims)
-
-            def can_interpolate(self, udims, source_coordinates, eval_coordinates):
-                return self._filter_udims_supported(udims)
-
-        class LatLon(Interpolator):
-            methods_supported = ["myinterp"]
-            dims_supported = ["lat", "lon"]
-
-            def can_select(self, udims, source_coordinates, eval_coordinates):
-                return self._filter_udims_supported(udims)
-
-            def can_interpolate(self, udims, source_coordinates, eval_coordinates):
-                return self._filter_udims_supported(udims)
-
-        class Lon(Interpolator):
-            methods_supported = ["myinterp"]
-            dims_supported = ["lon"]
-
-            def can_select(self, udims, source_coordinates, eval_coordinates):
-                return self._filter_udims_supported(udims)
-
-            def can_interpolate(self, udims, source_coordinates, eval_coordinates):
-                return self._filter_udims_supported(udims)
-
-        # set up a strange interpolation definition
-        # we want to interpolate (lat, lon) first, then after (time, alt)
-        interp = Interpolation(
-            [
-                {"method": "myinterp", "interpolators": [LatLon, TimeLat], "dims": ["lat", "lon"]},
-                {"method": "myinterp", "interpolators": [TimeLat, Lon], "dims": ["time", "alt"]},
-            ]
-        )
-
-        # default = 'nearest', which will return NearestPreview for can_select
-        interpolator_queue = interp._select_interpolator_queue(srccoords, reqcoords, "can_select")
-        assert isinstance(interpolator_queue, OrderedDict)
-        assert isinstance(interpolator_queue[("lat", "lon")], LatLon)
-        assert ("time", "alt") not in interpolator_queue and ("alt", "time") not in interpolator_queue
-
-        # should throw an error if strict is set and not all dimensions can be handled
-        with pytest.raises(InterpolationException):
-            interp_copy = deepcopy(interp)
-            del interp_copy.config[("default",)]
-            interpolator_queue = interp_copy._select_interpolator_queue(srccoords, reqcoords, "can_select", strict=True)
-
-        # default = Nearest, which can handle all dims for can_interpolate
-        interpolator_queue = interp._select_interpolator_queue(srccoords, reqcoords, "can_interpolate")
-        assert isinstance(interpolator_queue, OrderedDict)
-        assert isinstance(interpolator_queue[("lat", "lon")], LatLon)
-
-        if ("alt", "time") in interpolator_queue:
-            assert isinstance(interpolator_queue[("alt", "time")], NearestNeighbor)
-        else:
-            assert isinstance(interpolator_queue[("time", "alt")], NearestNeighbor)
-
-    def test_select_coordinates(self):
-
-        reqcoords = Coordinates(
-            [[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"], crs="+proj=merc +vunits=m"
-        )
-        srccoords = Coordinates(
-            [[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"], crs="+proj=merc +vunits=m"
-        )
-
-        # create a few dummy interpolators that handle certain dimensions
-        # (can_select is defined by default to look at dims_supported)
-        class TimeLat(Interpolator):
-            methods_supported = ["myinterp"]
-            dims_supported = ["time", "lat"]
-
-            def select_coordinates(self, udims, srccoords, srccoords_idx, reqcoords):
-                return srccoords, srccoords_idx
-
-        class LatLon(Interpolator):
-            methods_supported = ["myinterp"]
-            dims_supported = ["lat", "lon"]
-
-            def select_coordinates(self, udims, srccoords, srccoords_idx, reqcoords):
-                return srccoords, srccoords_idx
-
-        class Lon(Interpolator):
-            methods_supported = ["myinterp"]
-            dims_supported = ["lon"]
-
-            def select_coordinates(self, udims, srccoords, srccoords_idx, reqcoords):
-                return srccoords, srccoords_idx
-
-        # set up a strange interpolation definition
-        # we want to interpolate (lat, lon) first, then after (time, alt)
-        interp = Interpolation(
-            [
-                {"method": "myinterp", "interpolators": [LatLon, TimeLat], "dims": ["lat", "lon"]},
-                {"method": "myinterp", "interpolators": [TimeLat, Lon], "dims": ["time", "alt"]},
-            ]
-        )
-
-        coords, cidx = interp.select_coordinates(srccoords, [], reqcoords)
-
-        assert len(coords) == len(srccoords)
-        assert len(coords["lat"]) == len(srccoords["lat"])
-        assert cidx == ()
-
-    def test_interpolate(self):
-        class TestInterp(Interpolator):
-            dims_supported = ["lat", "lon"]
-
-            def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
-                output_data = source_data
-                return output_data
-
-        # test basic functionality
-        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
-        srccoords = Coordinates([[0, 2, 4], [0, 3, 4]], dims=["lat", "lon"])
-        srcdata = UnitsDataArray(
-            np.random.rand(3, 3), coords=[srccoords[c].coordinates for c in srccoords], dims=srccoords.dims
-        )
-        outdata = UnitsDataArray(
-            np.zeros(srcdata.shape), coords=[reqcoords[c].coordinates for c in reqcoords], dims=reqcoords.dims
-        )
-
-        interp = Interpolation({"method": "myinterp", "interpolators": [TestInterp], "dims": ["lat", "lon"]})
-        outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
-
-        assert np.all(outdata == srcdata)
-
-        # test if data is size 1
-        class TestFakeInterp(Interpolator):
-            dims_supported = ["lat"]
-
-            def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
-                return None
-
-        reqcoords = Coordinates([[1]], dims=["lat"])
-        srccoords = Coordinates([[1]], dims=["lat"])
-        srcdata = UnitsDataArray(
-            np.random.rand(1), coords=[srccoords[c].coordinates for c in srccoords], dims=srccoords.dims
-        )
-        outdata = UnitsDataArray(
-            np.zeros(srcdata.shape), coords=[reqcoords[c].coordinates for c in reqcoords], dims=reqcoords.dims
-        )
-
-        interp = Interpolation({"method": "myinterp", "interpolators": [TestFakeInterp], "dims": ["lat", "lon"]})
-        outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
-
-        assert np.all(outdata == srcdata)
-
-
-class TestHeterogenousInterpolation(object):
-    DATA = np.arange(64).reshape((4, 4, 4))
-    COORDS = Coordinates(
-        [[0, 1, 2, 3], [0, 1, 2, 3], ["2020-01-01", "2020-01-05", "2020-01-09", "2020-01-13"]],
-        dims=["lat", "lon", "time"],
+    s1 = ArrayRaw(
+        source=np.random.rand(9, 15),
+        coordinates=Coordinates([np.linspace(0, 8, 9), np.linspace(0, 14, 15)], ["lat", "lon"]),
     )
-    C1 = Coordinates([1.0, 1.0, "2020-01-05"], dims=["lat", "lon", "time"])
-    C2 = Coordinates([1.2, 1.3, "2020-01-05"], dims=["lat", "lon", "time"])
-    C3 = Coordinates([1.0, 1.0, "2020-01-06"], dims=["lat", "lon", "time"])
-    C4 = Coordinates([1.2, 1.3, "2020-01-06"], dims=["lat", "lon", "time"])
-    C = Coordinates([[1.0, 1.2], [1.0, 1.3], ["2020-01-05", "2020-01-06"]], dims=["lat", "lon", "time"])
-
-    S1 = Coordinates([[1.0, 1.0], "2020-01-05"], dims=["lat_lon", "time"])
-    S2 = Coordinates([[1.2, 1.3], "2020-01-05"], dims=["lat_lon", "time"])
-    S3 = Coordinates([[1.0, 1.0], "2020-01-06"], dims=["lat_lon", "time"])
-    S4 = Coordinates([[1.2, 1.3], "2020-01-06"], dims=["lat_lon", "time"])
-    S = Coordinates(
-        [[[1.0, 1.2, 1.0, 1.2], [1.0, 1.3, 1.0, 1.3]], ["2020-01-05", "2020-01-06"]], dims=["lat_lon", "time"]
+    s2 = ArrayRaw(
+        source=np.random.rand(9, 15),
+        coordinates=Coordinates([np.linspace(9, 17, 9), np.linspace(0, 14, 15)], ["lat", "lon"]),
     )
+    interp = Interpolate(source=s1, interpolation="nearest")
+    coords = Coordinates([np.linspace(0, 8, 17), np.linspace(0, 14, 29)], ["lat", "lon"])
+    coords2 = Coordinates([np.linspace(0, 17, 18), np.linspace(0, 14, 15)], ["lat", "lon"])
+    coords2c = Coordinates([np.linspace(0.1, 16.8, 5), np.linspace(0.1, 13.8, 3)], ["lat", "lon"])
 
-    def test_nearest(self):
-        interpolation = "nearest"
-        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+    def test_basic_interpolation(self):
+        # This JUST tests the interface, tests for the actual value of the interpolation is left
+        # to the test_interpolation_manager.py file
 
-        assert node.eval(self.C1)[0, 0, 0] == 21.0
-        assert node.eval(self.C2)[0, 0, 0] == 21.0
-        assert node.eval(self.C3)[0, 0, 0] == 21.0
-        assert node.eval(self.C4)[0, 0, 0] == 21.0
-        assert np.all(node.eval(self.C) == 21.0)
+        o = self.interp.eval(self.coords)
 
-        assert node.eval(self.S1)[0, 0] == 21.0
-        assert node.eval(self.S2)[0, 0] == 21.0
-        assert node.eval(self.S3)[0, 0] == 21.0
-        assert node.eval(self.S4)[0, 0] == 21.0
-        np.testing.assert_array_equal(node.eval(self.S), [[21, 21], [21, 21], [21, 21], [21, 21]])
+        assert o.shape == (17, 29)
 
-    def test_mixed(self):
-        interpolation = [{"method": "nearest", "dims": ["time"]}, {"method": "bilinear", "dims": ["lat", "lon"]}]
-        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+    def test_interpolation_definition(self):
+        node = Node.from_json(self.interp.json)
+        o1 = node.eval(self.coords)
+        o2 = self.interp.eval(self.coords)
+        np.testing.assert_array_equal(o1.data, o2.data)
+        assert node.json == self.interp.json
 
-        assert node.eval(self.C1)[0, 0, 0] == 21.0
-        assert node.eval(self.C2)[0, 0, 0] == 25.4
-        assert node.eval(self.C3)[0, 0, 0] == 21.0
-        assert node.eval(self.C4)[0, 0, 0] == 25.4
-        np.testing.assert_array_equal(node.eval(self.C), [[[21, 21], [22.2, 22.2]], [[24.2, 24.2], [25.4, 25.4]]])
+    def test_compositor_chain(self):
+        dc = TileCompositorRaw(sources=[self.s2, self.s1])
+        node = Interpolate(source=dc, interpolation="nearest")
+        o = node.eval(self.coords2)
 
-        assert node.eval(self.S1)[0, 0] == 21.0
-        assert node.eval(self.S2)[0, 0] == 25.4
-        assert node.eval(self.S3)[0, 0] == 21.0
-        assert node.eval(self.S4)[0, 0] == 25.4
-        np.testing.assert_array_equal(node.eval(self.S), [[21, 21], [25.4, 25.4], [21, 21], [25.4, 25.4]])
+        np.testing.assert_array_equal(o.data, np.concatenate([self.s1.source, self.s2.source], axis=0))
 
-        # other order
-        interpolation = [{"method": "bilinear", "dims": ["lat", "lon"]}, {"method": "nearest", "dims": ["time"]}]
-        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
 
-        assert node.eval(self.C1)[0, 0, 0] == 21.0
-        assert node.eval(self.C2)[0, 0, 0] == 25.4
-        assert node.eval(self.C3)[0, 0, 0] == 21.0
-        assert node.eval(self.C4)[0, 0, 0] == 25.4
-        np.testing.assert_array_equal(node.eval(self.C), [[[21, 21], [22.2, 22.2]], [[24.2, 24.2], [25.4, 25.4]]])
+class TestInterpolationBehavior(object):
+    def test_linear_1D_issue411and413(self):
+        data = [0, 1, 2]
+        raw_coords = data.copy()
+        raw_e_coords = [0, 0.5, 1, 1.5, 2]
 
-        assert node.eval(self.S1)[0, 0] == 21.0
-        assert node.eval(self.S2)[0, 0] == 25.4
-        assert node.eval(self.S3)[0, 0] == 21.0
-        assert node.eval(self.S4)[0, 0] == 25.4
-        np.testing.assert_array_equal(node.eval(self.S), [[21, 21], [25.4, 25.4], [21, 21], [25.4, 25.4]])
+        for dim in ["lat", "lon", "alt", "time"]:
+            ec = Coordinates([raw_e_coords], [dim])
 
-    @pytest.mark.xfail
-    def test_mixed_linear_time(self):
-        interpolation = [{"method": "bilinear", "dims": ["time"]}, {"method": "nearest", "dims": ["lat", "lon"]}]
-        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+            arrb = ArrayRaw(source=data, coordinates=Coordinates([raw_coords], [dim]))
+            node = Interpolate(source=arrb, interpolation="linear")
+            o = node.eval(ec)
 
-        assert node.eval(self.C1)[0, 0, 0] == 21.0
-        assert node.eval(self.C2)[0, 0, 0] == 21.0
-        assert node.eval(self.C3)[0, 0, 0] == 21.25
-        assert node.eval(self.C4)[0, 0, 0] == 21.25
-        # TODO np.testing.assert_array_equal(node.eval(self.C), [[[21, 21], [22.2, 22.2]], [[24.2, 24.2], [25.4, 25.4]]])
+            np.testing.assert_array_equal(o.data, raw_e_coords, err_msg="dim {} failed to interpolate".format(dim))
 
-        assert node.eval(self.S1)[0, 0] == 21.0
-        assert node.eval(self.S2)[0, 0] == 21.0
-        assert node.eval(self.S3)[0, 0] == 21.25
-        assert node.eval(self.S4)[0, 0] == 21.25
-        # TODO np.testing.assert_array_equal(node.eval(self.S), [[21, 21], [25.4, 25.4], [21, 21], [25.4, 25.4]])
+        # Do time interpolation explicitly
+        raw_coords = ["2020-11-01", "2020-11-03", "2020-11-05"]
+        raw_et_coords = ["2020-11-01", "2020-11-02", "2020-11-03", "2020-11-04", "2020-11-05"]
+        ec = Coordinates([raw_et_coords], ["time"])
 
-    def test_multiple_outputs_nearest(self):
-        interpolation = "nearest"
-        node = podpac.data.Array(
-            source=np.transpose([self.DATA, 2 * self.DATA], [1, 2, 3, 0]),
-            coordinates=self.COORDS,
-            interpolation=interpolation,
-            outputs=["a", "b"],
-        )
+        arrb = ArrayRaw(source=data, coordinates=Coordinates([raw_coords], ["time"]))
+        node = Interpolate(source=arrb, interpolation="linear")
+        o = node.eval(ec)
 
-        np.testing.assert_array_equal(node.eval(self.C1)[0, 0, 0], [21.0, 2 * 21.0])
-        np.testing.assert_array_equal(node.eval(self.C2)[0, 0, 0], [21.0, 2 * 21.0])
-        np.testing.assert_array_equal(node.eval(self.C3)[0, 0, 0], [21.0, 2 * 21.0])
-        np.testing.assert_array_equal(node.eval(self.C4)[0, 0, 0], [21.0, 2 * 21.0])
-
-        np.testing.assert_array_equal(node.eval(self.S1)[0, 0], [21.0, 2 * 21.0])
-        np.testing.assert_array_equal(node.eval(self.S2)[0, 0], [21.0, 2 * 21.0])
-        np.testing.assert_array_equal(node.eval(self.S3)[0, 0], [21.0, 2 * 21.0])
-        np.testing.assert_array_equal(node.eval(self.S4)[0, 0], [21.0, 2 * 21.0])
-
-    def test_multiple_outputs(self):
-        interpolation = [{"method": "nearest", "dims": ["time"]}, {"method": "bilinear", "dims": ["lat", "lon"]}]
-        node = podpac.data.Array(
-            source=np.transpose([self.DATA, 2 * self.DATA], [1, 2, 3, 0]),
-            coordinates=self.COORDS,
-            interpolation=interpolation,
-            outputs=["a", "b"],
-        )
-
-        np.testing.assert_array_equal(node.eval(self.C1)[0, 0, 0], [21.0, 2 * 21.0])
-        np.testing.assert_array_equal(node.eval(self.C2)[0, 0, 0], [25.4, 2 * 25.4])
-        np.testing.assert_array_equal(node.eval(self.C3)[0, 0, 0], [21.0, 2 * 21.0])
-        np.testing.assert_array_equal(node.eval(self.C4)[0, 0, 0], [25.4, 2 * 25.4])
         np.testing.assert_array_equal(
-            node.eval(self.C),
-            [
-                [[[21, 42], [21, 42]], [[22.2, 44.4], [22.2, 44.4]]],
-                [[[24.2, 48.4], [24.2, 48.4]], [[25.4, 50.8], [25.4, 50.8]]],
-            ],
+            o.data, raw_e_coords, err_msg="dim time failed to interpolate with datetime64 coords"
         )
 
-        np.testing.assert_array_equal(node.eval(self.S1)[0, 0], [21.0, 2 * 21.0])
-        np.testing.assert_array_equal(node.eval(self.S2)[0, 0], [25.4, 2 * 25.4])
-        np.testing.assert_array_equal(node.eval(self.S3)[0, 0], [21.0, 2 * 21.0])
-        np.testing.assert_array_equal(node.eval(self.S4)[0, 0], [25.4, 2 * 25.4])
-        np.testing.assert_array_equal(
-            node.eval(self.S),
-            [[[21, 42], [21, 42]], [[25.4, 50.8], [25.4, 50.8]], [[21, 42], [21, 42]], [[25.4, 50.8], [25.4, 50.8]]],
+    def test_stacked_coords_with_partial_dims_issue123(self):
+        node = Array(
+            source=[0, 1, 2],
+            coordinates=Coordinates(
+                [[[0, 2, 1], [10, 12, 11], ["2018-01-01", "2018-01-02", "2018-01-03"]]], dims=["lat_lon_time"]
+            ),
+            interpolation="nearest",
         )
+
+        # unstacked or and stacked requests without time
+        o1 = node.eval(Coordinates([[0.5, 1.5], [10.5, 11.5]], dims=["lat", "lon"]))
+        o2 = node.eval(Coordinates([[[0.5, 1.5], [10.5, 11.5]]], dims=["lat_lon"]))
+
+        assert_array_equal(o1.data, [[0, 2], [2, 1]])
+        assert_array_equal(o2.data, [0, 1])
+
+        # request without lat or lon
+        o3 = node.eval(Coordinates(["2018-01-01"], dims=["time"]))
+        assert o3.data[0] == 0
+
+    def test_ignored_interpolation_params_issue340(self, caplog):
+        node = Array(
+            source=[0, 1, 2],
+            coordinates=Coordinates([[0, 2, 1]], dims=["time"]),
+            interpolation={"method": "nearest", "params": {"fake_param": 1.1, "spatial_tolerance": 1}},
+        )
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            node.eval(Coordinates([[0.5, 1.5]], ["time"]))
+        assert "interpolation parameter 'fake_param' was ignored" in caplog.text
+        assert "interpolation parameter 'spatial_tolerance' was ignored" not in caplog.text
+
+    def test_silent_nearest_neighbor_interp_bug_issue412(self):
+        node = podpac.data.Array(
+            source=[0, 1, 2],
+            coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),
+            interpolation=[{"method": "bilinear", "dims": ["lat"], "interpolators": [ScipyGrid]}],
+        )
+        with pytest.raises(InterpolationException, match="can't be handled"):
+            o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
+
+        node = podpac.data.Array(
+            source=[0, 1, 2],
+            coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),
+            interpolation=[{"method": "bilinear", "dims": ["lat"]}],
+        )
+        o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
+        assert_array_equal(o.data, np.linspace(0, 2, 9))
+
+    def test_selection_crs(self):
+        base = podpac.core.data.array_source.ArrayRaw(
+            source=[0, 1, 2],
+            coordinates=podpac.Coordinates(
+                [[1, 5, 9]], dims=["time"], crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m"
+            ),
+        )
+        node = podpac.interpolators.Interpolate(source=base, interpolation="linear")
+        tocrds = podpac.Coordinates([podpac.crange(1, 9, 1, "time")], crs="EPSG:4326")
+        o = node.eval(tocrds)
+        assert o.crs == tocrds.crs
+        assert_array_equal(o.data, np.linspace(0, 2, 9))
