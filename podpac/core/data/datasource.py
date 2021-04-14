@@ -33,7 +33,7 @@ DATA_DOC = {
         When data source nodes are evaluated, this method is called with request coordinates and coordinate indexes.
         The implementing method can choose which input provides the most efficient method of getting data
         (i.e via coordinates or via the index of the coordinates).
-        
+
         Coordinates and coordinate indexes may be strided or subsets of the
         source data, but all coordinates and coordinate indexes will match 1:1 with the subset data.
 
@@ -45,7 +45,7 @@ DATA_DOC = {
         The inherited Node method `create_output_array` can be used to generate the template UnitsDataArray
         in your DataSource.
         See :meth:`podpac.Node.create_output_array` for more details.
-        
+
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
@@ -55,7 +55,7 @@ DATA_DOC = {
             A list of slices or a boolean array that give the indices of the data that needs to be retrieved from
             the data source. The values in the coordinate_index will vary depending on the `coordinate_index_type`
             defined for the data source.
-            
+
         Returns
         --------
         np.ndarray, xr.DataArray, :class:`podpac.UnitsDataArray`
@@ -105,8 +105,8 @@ DATA_DOC = {
         :class:`podpac.interpolators.Interpolator` classes to use in order of uages.
         The dictionary may contain an option ``'params'`` key which contains a dict of parameters to pass along to
         the :class:`podpac.interpolators.Interpolator` classes associated with the interpolation method.
-        
-        The dict may contain the key ``'dims'`` which specifies dimension names (i.e. ``'time'`` or ``('lat', 'lon')`` ). 
+
+        The dict may contain the key ``'dims'`` which specifies dimension names (i.e. ``'time'`` or ``('lat', 'lon')`` ).
         If the dictionary does not contain a key for all unstacked dimensions of the source coordinates, the
         :attr:`podpac.data.INTERPOLATION_DEFAULT` value will be used.
         All dimension keys must be unstacked even if the underlying coordinate dimensions are stacked.
@@ -155,7 +155,7 @@ class DataSource(Node):
     nan_val = tl.Any(np.nan).tag(attr=True)
     boundary = tl.Dict().tag(attr=True)
 
-    coordinate_index_type = tl.Enum(["slice", "numpy"], default_value="numpy")  # ,"list", "xarray", "pandas"],
+    coordinate_index_type = tl.Enum(["slice", "numpy", "xarray"], default_value="numpy")
     cache_coordinates = tl.Bool(False)
     cache_output = tl.Bool()
 

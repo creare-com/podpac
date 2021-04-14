@@ -494,6 +494,7 @@ class SoilSCAPENode(podpac.core.data.dataset_source.DatasetRaw):
     node = tl.Int().tag(attr=True)
     cache_dataset = tl.Bool(True)
     rescale = tl.Float(0.01)
+    coordinate_index_type = "numpy"
 
     _repr_keys = ["site", "node"]
 
