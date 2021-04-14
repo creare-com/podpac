@@ -10,15 +10,32 @@ from lazy_import import lazy_module
 s3fs = lazy_module("s3fs")
 
 # Internal imports
-from podpac.data import DataSource, Rasterio
-from podpac.coordinates import Coordinates, merge_dims
-from podpac.utils import cached_property, DiskCacheMixin
+from podpac.core.data.rasterio_source import RasterioRaw
 from podpac.core.authentication import S3Mixin
+from podpac.coordinates import Coordinates
+from podpac.utils import cached_property, DiskCacheMixin
+from podpac.compositor import TileCompositor
 
 BUCKET = "noaa-gfs-pds"
 
 
-class GFSSource(DiskCacheMixin, Rasterio):
+class GFSSourceRaw(DiskCacheMixin, RasterioRaw):
+    """Raw GFS data from S3
+
+    Attributes
+    ----------
+    parameter : str
+        parameter, e.g. 'SOIM'.
+    level : str
+        depth, e.g. "0-10 m DPTH"
+    date : str
+        source date in '%Y%m%d' format, e.g. '20200130'
+    hour : str
+        source hour, e.g. '1200'
+    forecast : str
+        forecast time in hours from the source date and hour, e.g. '003'
+    """
+
     parameter = tl.Unicode().tag(attr=True)
     level = tl.Unicode().tag(attr=True)
     date = tl.Unicode().tag(attr=True)
@@ -30,14 +47,29 @@ class GFSSource(DiskCacheMixin, Rasterio):
         return "s3://%s/%s/%s/%s/%s/%s" % (BUCKET, self.parameter, self.level, self.date, self.hour, self.forecast)
 
 
-# TODO time interpolation
-class GFS(S3Mixin, DiskCacheMixin, DataSource):
+class GFS(S3Mixin, DiskCacheMixin, TileCompositor):
+    """Composited and interpolated GFS data from S3
+
+    Attributes
+    ----------
+    parameter : str
+        parameter, e.g. 'SOIM'.
+    level : str
+        source depth, e.g. "0-10 m DPTH"
+    date : str
+        source date in '%Y%m%d' format, e.g. '20200130'
+    hour : str
+        source hour, e.g. '1200'
+    """
+
     parameter = tl.Unicode().tag(attr=True)
     level = tl.Unicode().tag(attr=True)
     date = tl.Unicode().tag(attr=True)
     hour = tl.Unicode().tag(attr=True)
 
-    cache_coordinates = tl.Bool(True)
+    @property
+    def _repr_keys(self):
+        return ["parameter", "level", "date", "hour"] + super()._repr_keys
 
     @property
     def prefix(self):
@@ -55,98 +87,50 @@ class GFS(S3Mixin, DiskCacheMixin, DataSource):
             "date": self.date,
             "hour": self.hour,
             "cache_ctrl": self.cache_ctrl,
-            "s3": self.s3,
         }
-        return np.array([GFSSource(forecast=forecast, **params) for forecast in self.forecasts])
+        return np.array([GFSSourceRaw(forecast=forecast, **params) for forecast in self.forecasts])
 
-    def get_coordinates(self):
-        nc = self.sources[0].coordinates
+    @cached_property
+    def source_coordinates(self):
         base_time = datetime.datetime.strptime("%s %s" % (self.date, self.hour), "%Y%m%d %H%M")
         forecast_times = [base_time + datetime.timedelta(hours=int(h)) for h in self.forecasts]
-        tc = Coordinates(
-            [[dt.strftime("%Y-%m-%d %H:%M") for dt in forecast_times]], dims=["time"], crs=nc.crs, validate_crs=False
+        return Coordinates(
+            [[dt.strftime("%Y-%m-%d %H:%M") for dt in forecast_times]], dims=["time"], validate_crs=False
         )
-        return merge_dims([nc, tc])
-
-    def get_data(self, coordinates, coordinates_index):
-        data = self.create_output_array(coordinates)
-        for i, source in enumerate(self.sources[coordinates_index[2]]):
-            data[:, :, i] = source.eval(coordinates.drop("time"))
-        return data
 
 
 def GFSLatest(parameter=None, level=None, **kwargs):
-    # date
-    date = datetime.datetime.now().strftime("%Y%m%d")
+    """
+    The latest composited and interpolated GFS data from S3
 
-    # hour
-    prefix = "%s/%s/%s/%s/" % (BUCKET, parameter, level, date)
+    Arguments
+    ---------
+    parameter : str
+        parameter, e.g. 'SOIM'.
+    level : str
+        source depth, e.g. "0-10 m DPTH"
+
+    Returns
+    -------
+    node : GFS
+        GFS node with the latest forecast data available for the given parameter and level.
+    """
+
     s3 = s3fs.S3FileSystem(anon=True)
-    hours = set([path.replace(prefix, "")[:4] for path in s3.find(prefix)])
+
+    # get latest date
+    prefix = "%s/%s/%s/" % (BUCKET, parameter, level)
+    dates = [path.replace(prefix, "") for path in s3.ls(prefix)]
+    if not dates:
+        raise RuntimeError("No data found at '%s'" % prefix)
+    date = max(dates)
+
+    # get latest hour
+    prefix = "%s/%s/%s/%s/" % (BUCKET, parameter, level, date)
+    hours = [path.replace(prefix, "") for path in s3.ls(prefix)]
     if not hours:
         raise RuntimeError("No data found at '%s'" % prefix)
     hour = max(hours)
 
     # node
     return GFS(parameter=parameter, level=level, date=date, hour=hour, **kwargs)
-
-
-if __name__ == "__main__":
-    import datetime
-    import podpac
-
-    # switch to 'disk' cache to cache s3 data
-    cache_ctrl = ["ram"]
-    # cache_ctrl = ['ram', 'disk']
-
-    parameter = "SOIM"
-    level = "0-10 m DPTH"
-
-    now = datetime.datetime.now()
-    yesterday = now - datetime.timedelta(1)
-    tomorrow = now + datetime.timedelta(1)
-
-    # GFSSource (specify source date/time and forecast)
-    print("GFSSource node (parameter, level, date, hour)")
-    gfs_soim = GFSSource(
-        parameter=parameter,
-        level=level,
-        date=yesterday.strftime("%Y%m%d"),
-        hour="1200",
-        forecast="003",
-        cache_ctrl=cache_ctrl,
-        anon=True,
-    )
-
-    o = gfs_soim.eval(gfs_soim.coordinates)
-    print(o)
-
-    # GFS (specify source date/time, select forecast at evaluation)
-    print("GFS node (parameter, level, date, hour)")
-    gfs_soim = GFS(
-        parameter=parameter,
-        level=level,
-        date=yesterday.strftime("%Y%m%d"),
-        hour="1200",
-        cache_ctrl=cache_ctrl,
-        anon=True,
-    )
-
-    # whole world forecast at this time tomorrow
-    c = Coordinates([gfs_soim.coordinates["lat"], gfs_soim.coordinates["lon"], tomorrow], dims=["lat", "lon", "time"])
-    o = gfs_soim.eval(c)
-    print(o)
-
-    # time series: get the forecast at lat=42, lon=275 every hour for the next 6 hours
-    start = now
-    stop = now + datetime.timedelta(hours=6)
-    c = Coordinates([42, 282, podpac.crange(start, stop, "1,h")], dims=["lat", "lon", "time"])
-    o = gfs_soim.eval(c)
-    print(o)
-
-    # latest (get latest source, select forecast at evaluation)
-    print("GFSLatest node (parameter, level)")
-    gfs_soim = GFSLatest(parameter=parameter, level=level, cache_ctrl=cache_ctrl, anon=True)
-    c = Coordinates([gfs_soim.coordinates["lat"], gfs_soim.coordinates["lon"], tomorrow], dims=["lat", "lon", "time"])
-    o = gfs_soim.eval(c)
-    print(o)

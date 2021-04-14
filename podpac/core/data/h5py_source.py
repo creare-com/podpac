@@ -11,7 +11,7 @@ from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 @common_doc(COMMON_DATA_DOC)
-class H5PYBase(FileKeysMixin, BaseFileSource):
+class H5PYRaw(FileKeysMixin, BaseFileSource):
     """Create a DataSource node using h5py.
 
     Attributes
@@ -44,6 +44,10 @@ class H5PYBase(FileKeysMixin, BaseFileSource):
         units, when decoding CF datetimes
     cf_calendar : str
         calendar, when decoding CF datetimes
+
+    See Also
+    --------
+    H5PY : Interpolated h5py datasource for general use.
     """
 
     file_mode = tl.Unicode(default_value="r").tag(readonly=True)
@@ -55,7 +59,7 @@ class H5PYBase(FileKeysMixin, BaseFileSource):
 
     def close_dataset(self):
         """Closes the file. """
-        super(H5PYBase, self).close_dataset()
+        super(H5PYRaw, self).close_dataset()
         self.dataset.close()
 
     # -------------------------------------------------------------------------
@@ -118,5 +122,7 @@ class H5PYBase(FileKeysMixin, BaseFileSource):
         return keys
 
 
-class H5PY(InterpolationMixin, H5PYBase):
+class H5PY(InterpolationMixin, H5PYRaw):
+    """ h5py datasource with interpolation. """
+
     pass

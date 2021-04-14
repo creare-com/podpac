@@ -58,18 +58,17 @@ class Algorithm(BaseAlgorithm):
     Developers of new Algorithm nodes need to implement the `algorithm` method.
     """
 
-    def algorithm(self, inputs):
+    def algorithm(self, inputs, coordinates):
         """
         Arguments
         ----------
         inputs : dict
-            Evaluated outputs of the input nodes. The keys are the attribute names.
-
-        Raises
-        ------
-        NotImplementedError
-            Description
+            Evaluated outputs of the input nodes. The keys are the attribute names. Each item is a `UnitsDataArray`.
+        coordinates : podpac.Coordinates
+            Requested coordinates.
+            Note that the ``inputs`` may contain different coordinates than the requested coordinates
         """
+
         raise NotImplementedError
 
     @common_doc(COMMON_DOC)
@@ -128,33 +127,28 @@ class Algorithm(BaseAlgorithm):
                 inputs[key] = node.eval(coordinates, output=output, _selector=_selector)
             self._multi_threaded = False
 
-        # accumulate output coordinates
-        coords_list = [Coordinates.from_xarray(a.coords, crs=a.attrs.get("crs")) for a in inputs.values()]
-        output_coordinates = union([coordinates] + coords_list)
+        result = self.algorithm(inputs, coordinates)
 
-        result = self.algorithm(inputs)
-        if isinstance(result, UnitsDataArray):
-            if output is None:
-                output = result
-            else:
-                output[:] = result.data[:]
-        elif isinstance(result, xr.DataArray):
-            if output is None:
-                output = self.create_output_array(
-                    Coordinates.from_xarray(result.coords, crs=result.attrs.get("crs")), data=result.data
-                )
-            else:
-                output[:] = result.data
-        elif isinstance(result, np.ndarray):
-            if output is None:
-                output = self.create_output_array(output_coordinates, data=result)
-            else:
-                output.data[:] = result
+        if not isinstance(result, xr.DataArray):
+            raise NodeException("algorithm returned unsupported type '%s'" % type(result))
+
+        if "output" in result.dims and self.output is not None:
+            result = result.sel(output=self.output)
+
+        if output is not None:
+            missing = [dim for dim in result.dims if dim not in output.dims]
+            if any(missing):
+                raise NodeException("provided output is missing dims %s" % missing)
+
+            output_dims = output.dims
+            output = output.transpose(..., *result.dims)
+            output[:] = result.data
+            output = output.transpose(*output_dims)
+        elif isinstance(result, UnitsDataArray):
+            output = result
         else:
-            raise NodeException
-
-        if "output" in output.dims and self.output is not None:
-            output = output.sel(output=self.output)
+            output_coordinates = Coordinates.from_xarray(result)
+            output = self.create_output_array(output_coordinates, data=result.data)
 
         return output
 

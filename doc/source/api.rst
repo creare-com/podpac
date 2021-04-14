@@ -104,7 +104,7 @@ Classes to manage interpolation
     podpac.interpolators.Interpolator
     podpac.interpolators.NearestNeighbor
     podpac.interpolators.NearestPreview
-    podpac.interpolators.Rasterio
+    podpac.interpolators.RasterioInterpolator
     podpac.interpolators.ScipyGrid
     podpac.interpolators.ScipyPoint
 

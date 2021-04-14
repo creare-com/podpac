@@ -380,42 +380,58 @@ class TestCoordinateCreation(object):
             [
                 StackedCoordinates([ArrayCoordinates1d(lat, name="lat"), ArrayCoordinates1d(lon, name="lon")]),
                 ArrayCoordinates1d(dates, name="time"),
-            ]
+            ],
+            crs="EPSG:2193",
         )
 
-        # from xarray
-        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims)
-        c2 = Coordinates.from_xarray(x.coords)
+        # from DataArray
+        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims, attrs={"crs": c.crs})
+        c2 = Coordinates.from_xarray(x)
         assert c2 == c
+        assert c2.crs == "EPSG:2193"
+
+        # prefer crs argument over attrs.crs
+        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims, attrs={"crs": c.crs})
+        c3 = Coordinates.from_xarray(x, crs="EPSG:4326")
+        assert c3.crs == "EPSG:4326"
+
+        # from DataArrayCoords
+        c4 = Coordinates.from_xarray(x.coords, crs="EPSG:2193")
+        assert c4 == c
+        assert c4.crs == "EPSG:2193"
+
+        # crs warning
+        with pytest.warns(UserWarning, match="using default crs"):
+            c2 = Coordinates.from_xarray(x.coords)
 
         # invalid
-        with pytest.raises(TypeError, match="Coordinates.from_xarray expects xarray DataArrayCoordinates"):
+        with pytest.raises(TypeError, match="Coordinates.from_xarray expects an xarray"):
             Coordinates.from_xarray([0, 10])
 
     def test_from_xarray_shaped(self):
         lat = np.linspace(0, 1, 12).reshape((3, 4))
         lon = np.linspace(10, 20, 12).reshape((3, 4))
         dates = [["2018-01-01", "2018-01-02", "2018-01-03"], ["2019-01-01", "2019-01-02", "2019-01-03"]]
-        c = Coordinates([[lat, lon], dates], dims=["lat_lon", "time"])
+        c = Coordinates([[lat, lon], dates], dims=["lat_lon", "time"], crs="EPSG:2193")
 
         # from xarray
-        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims)
-        c2 = Coordinates.from_xarray(x.coords)
+        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.xdims, attrs={"crs": c.crs})
+        c2 = Coordinates.from_xarray(x)
         assert c2 == c
 
     def test_from_xarray_with_outputs(self):
         lat = [0, 1, 2]
         lon = [10, 20, 30]
 
-        c = Coordinates([lat, lon], dims=["lat", "lon"])
+        c = Coordinates([lat, lon], dims=["lat", "lon"], crs="EPSG:2193")
 
         # from xarray
         dims = c.xdims + ("output",)
         coords = {"output": ["a", "b"], **c.xcoords}
         shape = c.shape + (2,)
 
-        x = xr.DataArray(np.empty(c.shape + (2,)), coords=coords, dims=dims)
-        c2 = Coordinates.from_xarray(x.coords)
+        x = xr.DataArray(np.empty(c.shape + (2,)), coords=coords, dims=dims, attrs={"crs": c.crs})
+        c2 = Coordinates.from_xarray(x)
         assert c2 == c
 
     def test_crs(self):
@@ -480,10 +496,9 @@ class TestCoordinateCreation(object):
         assert c.alt_units is None
 
         c = Coordinates([alt], crs="+proj=merc +vunits=us-ft")
-        assert c.alt_units in [
-            "us-ft",  # pyproj < 3.0
-            "US survey foot",  # pyproj >= 3.0
-        ]
+
+        with pytest.warns(UserWarning):
+            assert c.alt_units in ["us-ft", "US survey foot"]  # pyproj < 3.0  # pyproj >= 3.0
 
 
 class TestCoordinatesSerialization(object):
@@ -578,36 +593,59 @@ class TestCoordinatesSerialization(object):
         )
 
         # version 1.1.1
-        for cc, epsg in zip([crds, crds2], ["3857", "4326"]):
-            c = Coordinates.from_url(
-                url.format(
-                    min(crds2.bounds["lon"]),
-                    min(crds2.bounds["lat"]),
-                    max(crds2.bounds["lon"]),
-                    max(crds2.bounds["lat"]),
-                    crds2.bounds["time"][0],
-                    version="1.1.1",
-                    epsg=epsg,
-                )
+        c = Coordinates.from_url(
+            url.format(
+                min(crds2.bounds["lon"]),
+                min(crds2.bounds["lat"]),
+                max(crds2.bounds["lon"]),
+                max(crds2.bounds["lat"]),
+                crds2.bounds["time"][0],
+                version="1.1.1",
+                epsg="3857",
             )
+        )
+        assert c.bounds == crds2.bounds
 
-            assert c.bounds == crds2.bounds
+        c = Coordinates.from_url(
+            url.format(
+                min(crds.bounds["lon"]),
+                min(crds.bounds["lat"]),
+                max(crds.bounds["lon"]),
+                max(crds.bounds["lat"]),
+                crds.bounds["time"][0],
+                version="1.1.1",
+                epsg="4326",
+            )
+        )
+        assert c.bounds == crds.bounds
 
         # version 1.3
-        for cc, epsg in zip([crds, crds2], ["3857", "4326"]):
-            c = Coordinates.from_url(
-                url.format(
-                    min(crds2.bounds["lat"]),
-                    min(crds2.bounds["lon"]),
-                    max(crds2.bounds["lat"]),
-                    max(crds2.bounds["lon"]),
-                    crds2.bounds["time"][0],
-                    version="1.3",
-                    epsg=epsg,
-                )
+        c = Coordinates.from_url(
+            url.format(
+                min(crds2.bounds["lon"]),
+                min(crds2.bounds["lat"]),
+                max(crds2.bounds["lon"]),
+                max(crds2.bounds["lat"]),
+                crds2.bounds["time"][0],
+                version="1.3",
+                epsg="3857",
             )
+        )
+        assert c.bounds == crds2.bounds
 
-            assert c.bounds == crds2.bounds
+        c = Coordinates.from_url(
+            url.format(
+                min(crds.bounds["lat"]),
+                min(crds.bounds["lon"]),
+                max(crds.bounds["lat"]),
+                max(crds.bounds["lon"]),
+                crds.bounds["time"][0],
+                version="1.3",
+                epsg="4326",
+            )
+        )
+
+        assert c.bounds == crds.bounds
 
 
 class TestCoordinatesProperties(object):
@@ -1891,7 +1929,6 @@ class TestCoordinatesMethodTransform(object):
         np.testing.assert_array_almost_equal(t["lat"].coordinates, c["lat"].coordinates)
         np.testing.assert_array_almost_equal(t["lon"].coordinates, c["lon"].coordinates)
 
-    @pytest.mark.skip("TODO")
     def test_transform_uniform_to_array(self):
         c = Coordinates([clinspace(-45, 45, 5, "lat"), clinspace(-180, 180, 11, "lon")])
 
@@ -1900,6 +1937,25 @@ class TestCoordinatesMethodTransform(object):
 
         assert isinstance(t["lat"], ArrayCoordinates1d)
         assert isinstance(t["lon"], UniformCoordinates1d)
+        assert t["lon"].is_descending == c["lon"].is_descending
+        assert t["lat"].is_descending == c["lat"].is_descending
+
+        t2 = t.transform(c.crs)
+
+        for d in ["lon", "lat"]:
+            for a in ["start", "stop", "step"]:
+                np.testing.assert_almost_equal(getattr(c[d], a), getattr(t2[d], a))
+
+        # Reverse the order of the coordinates
+        c = Coordinates([clinspace(45, -45, 5, "lat"), clinspace(180, -180, 11, "lon")])
+
+        # Ok for array coordinates
+        t = c.transform("EPSG:3395")
+
+        assert isinstance(t["lat"], ArrayCoordinates1d)
+        assert isinstance(t["lon"], UniformCoordinates1d)
+        assert t["lon"].is_descending == c["lon"].is_descending
+        assert t["lat"].is_descending == c["lat"].is_descending
 
         t2 = t.transform(c.crs)
 

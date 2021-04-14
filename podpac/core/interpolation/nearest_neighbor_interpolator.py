@@ -80,8 +80,8 @@ class NearestNeighbor(Interpolator):
         def is_stacked(d):
             return "_" in d
 
-        if hasattr(source_data, "attrs"):
-            bounds = source_data.attrs.get("bounds", {d: None for d in source_coordinates.dims})
+        if hasattr(source_data, "attrs") and "bounds" in source_data.attrs:
+            bounds = source_data.attrs["bounds"]
             if "time" in bounds and bounds["time"]:
                 if "time" in eval_coordinates.udims:
                     bounds["time"] = [
@@ -277,7 +277,7 @@ class NearestNeighbor(Interpolator):
         if self.respect_bounds:
             rindex[(rindex < 0) | (rindex >= stop_ind)] = -1
         else:
-            rindex = np.clip(rindex, 0, stop_ind)
+            rindex = np.clip(rindex, 0, stop_ind - 1)
         if tol and tol != np.inf:
             if dim == "time":
                 step = self._time_to_float(source.step, source, request)
@@ -291,36 +291,42 @@ class NearestNeighbor(Interpolator):
         tol = self._get_tol(dim, source, request)
 
         src, req = _higher_precision_time_coords1d(source, request)
-        ckdtree_source = cKDTree(src[:, None])
-        dist, index = ckdtree_source.query(req[:, None], k=1)
+        ckdtree_source = cKDTree(src.reshape(-1, 1))
+        dist, index = ckdtree_source.query(req[:].reshape(-1, 1), k=1)
         index[index == source.coordinates.size] = -1
 
         if self.respect_bounds:
             if bounds is None:
                 bounds = [src.min(), src.max()]
-            index[(req > bounds[1]) | (req < bounds[0])] = -1
+            index[(req.ravel() > bounds[1]) | (req.ravel() < bounds[0])] = -1
         if tol and tol != np.inf:
             index[dist > tol] = -1
 
         return index
 
     def _resize_unstacked_index(self, index, source_dim, request):
-        reshape = np.ones(len(request.dims), int)
-        i = [i for i in range(len(request.dims)) if source_dim in request.dims[i]]
-        reshape[i] = -1
+        # When the request is stacked, and the stacked dimensions are n-dimensions where n > 1,
+        # Then len(request.shape) != len(request.dims), so it take s a little bit of footwork
+        # to get the correct shape for the index
+        reshape = np.array(request.shape)
+        i = 0
+        for dim in request.dims:
+            addnext = len(request[dim].shape)
+            if source_dim not in dim:
+                reshape[i : i + addnext] = 1
+            i += addnext
         return index.reshape(*reshape)
 
     def _resize_stacked_index(self, index, source_dim, request):
-        reshape = list(request.shape)
-
-        for i, dim in enumerate(request.dims):
+        reshape = np.array(request.shape)
+        i = 0
+        for dim in request.dims:
+            addnext = len(request[dim].shape)
             d = dim.split("_")
-            if any([dd in source_dim for dd in d]):
-                continue
-            reshape[i] = 1
-
-        index = index.reshape(*reshape)
-        return index
+            if not any([dd in source_dim for dd in d]):
+                reshape[i : i + addnext] = 1
+            i += addnext
+        return index.reshape(*reshape)
 
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)
@@ -360,6 +366,9 @@ class NearestPreview(NearestNeighbor):
             eval_coordinates, outer=True, return_index=True
         )
 
+        if source_coords.size == 0:
+            return source_coords, source_coords_index
+
         # iterate over the source coordinate dims in case they are stacked
         for src_dim, idx in zip(source_coords, source_coords_index):
 
@@ -391,16 +400,25 @@ class NearestPreview(NearestNeighbor):
                     with np.errstate(invalid="ignore"):
                         src_delta = (src_stop - src_start) / (src_coords.size - 1)
 
-                ndelta = max(1, np.round(dst_delta / src_delta))
+                ndelta = max(1, np.round(np.abs(dst_delta / src_delta)))
+                idx_offset = 0
                 if src_coords.size == 1:
                     c = src_coords.copy()
                 else:
+                    c_test = UniformCoordinates1d(src_start, src_stop, ndelta * src_delta, **src_coords.properties)
+                    bounds = source_coordinates[src_dim].bounds
+                    # The delta/2 ensures the endpoint is included when there is a floating point rounding error
+                    # the delta/2 is more than needed, but does guarantee.
+                    src_stop = np.clip(src_stop + ndelta * src_delta / 2, bounds[0], bounds[1])
                     c = UniformCoordinates1d(src_start, src_stop, ndelta * src_delta, **src_coords.properties)
+                    if c.size > c_test.size:  # need to adjust the index as well
+                        idx_offset = int(ndelta)
 
-                if isinstance(idx, slice):
-                    idx = slice(idx.start, idx.stop, int(ndelta))
-                else:
-                    idx = slice(idx[0], idx[-1], int(ndelta))
+                idx_start = idx.start if isinstance(idx, slice) else idx[0]
+                idx_stop = idx.stop if isinstance(idx, slice) else idx[-1]
+                if idx_stop is not None:
+                    idx_stop += idx_offset
+                idx = slice(idx_start, idx_stop, int(ndelta))
             else:
                 c = source_coords[src_dim]
 

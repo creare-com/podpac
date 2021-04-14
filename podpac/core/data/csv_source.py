@@ -9,7 +9,7 @@ from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 @common_doc(COMMON_DATA_DOC)
-class CSVBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
+class CSVRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
     """Create a DataSource from a .csv file.
 
     This class assumes that the data has a storage format such as:
@@ -39,6 +39,10 @@ class CSVBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
         altitude column number or column title, default 'alt'
     crs : str
         Coordinate reference system of the coordinates
+
+    See Also
+    --------
+    CSV : Interpolated CSV file datasource for general use.
     """
 
     header = tl.Any(default_value=0).tag(attr=True)
@@ -50,7 +54,7 @@ class CSVBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     @tl.default("data_key")
     def _default_data_key(self):
-        return super(CSVBase, self)._default_data_key()
+        return super(CSVRaw, self)._default_data_key()
 
     @tl.validate("data_key")
     def _validate_data_key(self, d):
@@ -120,7 +124,7 @@ class CSVBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
         Note: CSV files have StackedCoordinates.
         """
 
-        coords = super(CSVBase, self).get_coordinates()
+        coords = super(CSVRaw, self).get_coordinates()
         if len(coords) == 1:
             return coords
         stacked = StackedCoordinates(list(coords.values()))
@@ -152,5 +156,7 @@ class CSVBase(FileKeysMixin, LoadFileMixin, BaseFileSource):
         return key if isinstance(key, int) else self.dataset.columns.get_loc(key)
 
 
-class CSV(InterpolationMixin, CSVBase):
+class CSV(InterpolationMixin, CSVRaw):
+    """ CSV datasource with interpolation. """
+
     pass

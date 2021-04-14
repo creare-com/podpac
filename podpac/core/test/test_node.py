@@ -236,6 +236,7 @@ class TestCreateOutputArray(object):
         assert output.crs == c.crs
         assert np.all(output == 0.0)
 
+    @pytest.mark.xfail(reason="not yet supported.")
     def test_create_output_array_dtype(self):
         c = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=["lat_lon", "time"])
         node = Node(dtype=bool)
@@ -922,6 +923,22 @@ class TestSerialization(object):
                 params,
             ):
                 pipe = Node.from_url(url.format(service=service, layername=layername, layer=layer, params=param))
+
+    def test_from_url_with_plugin_style_params(self):
+        url0 = (
+            r"https://mobility-devel.crearecomputing.com/geowatch?&SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&"
+            r"LAYERS=Arange&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&HEIGHT=256&WIDTH=256"
+            r"&CRS=EPSG%3A3857&BBOX=-20037508.342789244,10018754.171394618,-10018754.171394622,20037508.34278071&"
+            r'PARAMS={"plugin": "podpac.algorithm"}'
+        )
+        url1 = (
+            r"https://mobility-devel.crearecomputing.com/geowatch?&SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&"
+            r"LAYERS=datalib.terraintiles.TerrainTiles&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&HEIGHT=256&WIDTH=256&"
+            r"TIME=2021-03-01T12%3A00%3A00.000Z&CRS=EPSG%3A3857&BBOX=-10018754.171394622,5009377.08569731,-9392582.035682458,5635549.221409475"
+            r'&PARAMS={"style": {"name": "Aspect (Composited 30-90 m)","units": "radians","colormap": "hsv","clim": [0,6.283185307179586]}}'
+        )
+        node = Node.from_url(url0)
+        node = Node.from_url(url1)
 
     def test_style(self):
         node = podpac.data.Array(

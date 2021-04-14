@@ -12,7 +12,7 @@ from podpac.core.coordinates import merge_dims, Coordinates
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 from podpac.core.interpolation.interpolator import Interpolator
 from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
-from podpac.core.interpolation.rasterio_interpolator import Rasterio
+from podpac.core.interpolation.rasterio_interpolator import RasterioInterpolator
 from podpac.core.interpolation.scipy_interpolator import ScipyPoint, ScipyGrid
 from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
 
@@ -22,7 +22,7 @@ _logger = logging.getLogger(__name__)
 INTERPOLATION_DEFAULT = "nearest"
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
 
-INTERPOLATORS = [NearestNeighbor, XarrayInterpolator, Rasterio, ScipyPoint, ScipyGrid, NearestPreview]
+INTERPOLATORS = [NearestNeighbor, XarrayInterpolator, RasterioInterpolator, ScipyPoint, ScipyGrid, NearestPreview]
 """list : list of available interpolator classes"""
 
 INTERPOLATORS_DICT = {}
@@ -57,7 +57,7 @@ INTERPOLATION_METHODS = [
 
 INTERPOLATION_METHODS_DICT = {}
 """dict: Dictionary of string interpolation methods and associated interpolator classes
-   (i.e. ``'nearest': [NearestNeighbor, Rasterio, Scipy]``) """
+   (i.e. ``'nearest': [NearestNeighbor, RasterioInterpolator, ScipyGrid]``) """
 
 
 def load_interpolators():
@@ -481,13 +481,17 @@ class InterpolationManager(object):
                 selected_coords[d] = source_coordinates[d]
             # np.ix_ call doesn't work with slices, and fancy numpy indexing does not work well with mixed slice/index
             if isinstance(selected_coords_idx[d], slice) and index_type != "slice":
-                selected_coords_idx[d] = np.arange(selected_coords[d].size)
+                selected_coords_idx[d] = np.arange(source_coordinates[d].size)[selected_coords_idx[d]]
 
-        selected_coords = Coordinates([selected_coords[k] for k in source_coordinates.dims], source_coordinates.dims)
-        if index_type != "slice":
-            selected_coords_idx2 = np.ix_(*[selected_coords_idx[k].ravel() for k in source_coordinates.dims])
-        else:
+        selected_coords = Coordinates(
+            [selected_coords[k] for k in source_coordinates.dims], source_coordinates.dims, crs=source_coordinates.crs
+        )
+        if index_type == "numpy":
+            selected_coords_idx2 = np.ix_(*[np.ravel(selected_coords_idx[k]) for k in source_coordinates.dims])
+        elif index_type in ["slice", "xarray"]:
             selected_coords_idx2 = tuple([selected_coords_idx[d] for d in source_coordinates.dims])
+        else:
+            raise ValueError("Unknown index_type '%s'" % index_type)
         return selected_coords, tuple(selected_coords_idx2)
 
     def interpolate(self, source_coordinates, source_data, eval_coordinates, output_data):
@@ -532,14 +536,15 @@ class InterpolationManager(object):
         # source_data = source_data.drop("output")
         # output_data = output_data.drop("output")
 
-        # TODO does this allow undesired extrapolation?
         # short circuit if the source data and requested coordinates are of shape == 1
         if source_data.size == 1 and eval_coordinates.size == 1:
             output_data.data[:] = source_data.data.flatten()[0]
             return output_data
 
         # short circuit if source_coordinates contains eval_coordinates
-        if eval_coordinates.issubset(source_coordinates):
+        # TODO handle stacked issubset of unstacked case
+        #      this case is currently skipped because of the set(eval_coordinates) == set(source_coordinates)))
+        if eval_coordinates.issubset(source_coordinates) and set(eval_coordinates) == set(source_coordinates):
             try:
                 output_data.data[:] = source_data.interp(output_data.coords, method="nearest").transpose(
                     *output_data.dims
@@ -574,14 +579,16 @@ class InterpolationManager(object):
             # interp_coordinates are essentially intermediate eval_coordinates
             interp_dims = [dim for dim, c in source_coordinates.items() if set(c.dims).issubset(udims)]
             other_dims = [dim for dim, c in eval_coordinates.items() if not set(c.dims).issubset(udims)]
-            interp_coordinates = merge_dims([source_coordinates.drop(interp_dims), eval_coordinates.drop(other_dims)])
+            interp_coordinates = merge_dims(
+                [source_coordinates.drop(interp_dims), eval_coordinates.drop(other_dims)], validate_crs=False
+            )
             interp_data = UnitsDataArray.create(interp_coordinates, dtype=dtype)
             interp_data = interpolator.interpolate(
                 udims, source_coordinates, source_data, interp_coordinates, interp_data
             )
 
             # prepare for the next iteration
-            source_data = interp_data.transpose(*interp_coordinates.dims)
+            source_data = interp_data.transpose(*interp_coordinates.xdims)
             source_data.attrs = attrs
             source_coordinates = interp_coordinates
 

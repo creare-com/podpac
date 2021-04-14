@@ -314,7 +314,7 @@ class ZarrOutputMixin(tl.HasTraits):
 
         # fill in the coordinates, this is guaranteed to be correct even if the user messed up.
         if output is not None:
-            self.set_zarr_coordinates(Coordinates.from_xarray(output.coords), data_key)
+            self.set_zarr_coordinates(Coordinates.from_xarray(output), data_key)
         else:
             return zf
 

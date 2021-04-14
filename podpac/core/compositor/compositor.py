@@ -17,7 +17,7 @@ from podpac.core.coordinates.utils import Dimension
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
-from podpac.core.interpolation.interpolation import InterpolationTrait
+from podpac.core.interpolation import InterpolationTrait
 from podpac.core.managers.multi_threading import thread_manager
 
 COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
@@ -50,7 +50,6 @@ class BaseCompositor(Node):
     """
 
     sources = tl.List(trait=NodeTrait()).tag(attr=True)
-    interpolation = InterpolationTrait(allow_none=True, default_value=None).tag(attr=True)
     source_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
 
     dims = tl.List(trait=Dimension()).tag(attr=True)
@@ -116,13 +115,15 @@ class BaseCompositor(Node):
 
         return outputs
 
-    def select_sources(self, coordinates):
+    def select_sources(self, coordinates, _selector=None):
         """Select and prepare sources based on requested coordinates.
 
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
             Coordinates to evaluate at compositor sources
+        _selector : :class:`podpac.core.interpolation.selectors.Selector`
+            Selector used to sub-select sources based on the interpolation scheme
 
         Returns
         -------
@@ -132,7 +133,6 @@ class BaseCompositor(Node):
         Notes
         -----
          * If :attr:`source_coordinates` is defined, only sources that intersect the requested coordinates are selected.
-         * Sets sources :attr:`interpolation`.
         """
 
         # select intersecting sources, if possible
@@ -140,20 +140,15 @@ class BaseCompositor(Node):
             sources = self.sources
         else:
             try:
-                _, I = self.source_coordinates.intersect(coordinates, outer=True, return_index=True)
+                if _selector is not None:
+                    _, I = _selector(self.source_coordinates, coordinates, index_type="numpy")
+                else:
+                    _, I = self.source_coordinates.intersect(coordinates, outer=True, return_index=True)
             except:
                 # Likely non-monotonic coordinates
                 _, I = self.source_coordinates.intersect(coordinates, outer=False, return_index=True)
             i = I[0]
             sources = np.array(self.sources)[i].tolist()
-
-        # set the interpolation properties for sources
-        if self.trait_is_defined("interpolation") and self.interpolation is not None:
-            for s in sources:
-                if s.has_trait("interpolation"):
-                    s.set_trait("interpolation", self.interpolation)
-                    if hasattr(s, "_podpac_cached_property_definition"):
-                        del s._podpac_cached_property_definition
 
         return sources
 
@@ -191,7 +186,7 @@ class BaseCompositor(Node):
         """
 
         # get sources, potentially downselected
-        sources = self.select_sources(coordinates)
+        sources = self.select_sources(coordinates, _selector)
 
         if settings["DEBUG"]:
             self._eval_sources = sources

@@ -62,7 +62,7 @@ The first item in the list will be interpolated first. In this case, `lat`/`lon`
 The list of available interpolators are as follows:
 * `NearestNeighbor`: A custom implementation based on `scipy.cKDtree`, which handles nearly any combination of source and destination coordinates
 * `XarrayInterpolator`: A light-weight wrapper around `xarray`'s `DataArray.interp` method, which is itself a wrapper around `scipy` interpolation functions, but with a clean `xarray` interface
-* `Rasterio`: A wrapper around `rasterio`'s interpolation/reprojection routines. Appropriate for grid-to-grid interpolation.
+* `RasterioInterpolator`: A wrapper around `rasterio`'s interpolation/reprojection routines. Appropriate for grid-to-grid interpolation.
 * `ScipyGrid`: An optimized implementation for `grid` sources that uses `scipy`'s `RegularGridInterpolator`, or `RectBivariateSplit` interpolator depending on the method. 
 * `ScipyPoint`: An implementation based on `scipy.KDtree` capable of `nearest` interpolation for `point` sources
 * `NearestPreview`: An approximate nearest-neighbor interpolator useful for rapidly viewing large files

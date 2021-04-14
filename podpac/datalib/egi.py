@@ -27,6 +27,7 @@ h5py = lazy_module("h5py")
 from podpac import Coordinates, Node
 from podpac.compositor import OrderedCompositor
 from podpac.data import DataSource
+from podpac.interpolators import InterpolationMixin
 from podpac import authentication
 from podpac import settings
 from podpac import cached_property
@@ -41,7 +42,7 @@ _log = logging.getLogger(__name__)
 BASE_URL = "https://n5eil01u.ecs.nsidc.org/egi/request"
 
 
-class EGI(DataSource):
+class EGI(InterpolationMixin, DataSource):
     """
     PODPAC DataSource node to access the NASA EGI Programmatic Interface
     https://developer.earthdata.nasa.gov/sdps/programmatic-access-docs#cmrparameters
@@ -80,7 +81,7 @@ class EGI(DataSource):
     token : str, optional
         EGI Token from authentication process.
         See https://wiki.earthdata.nasa.gov/display/CMR/Creating+a+Token+Common
-        If undefined, the node will look for a token under the setting key "token@EGI".
+        If undefined, the node will look for a token under the setting key "token@urs.earthdata.nasa.gov".
         If this setting is not defined, the node will attempt to generate a token using
         :attr:`self.username` and :attr:`self.password`
     username : str, optional
@@ -134,8 +135,8 @@ class EGI(DataSource):
 
     @tl.default("username")
     def _username_default(self):
-        if "username@EGI" in settings:
-            return settings["username@EGI"]
+        if "username@urs.earthdata.nasa.gov" in settings:
+            return settings["username@urs.earthdata.nasa.gov"]
 
         return None
 
@@ -143,8 +144,8 @@ class EGI(DataSource):
 
     @tl.default("password")
     def _password_default(self):
-        if "password@EGI" in settings:
-            return settings["password@EGI"]
+        if "password@urs.earthdata.nasa.gov" in settings:
+            return settings["password@urs.earthdata.nasa.gov"]
 
         return None
 
@@ -152,8 +153,8 @@ class EGI(DataSource):
 
     @tl.default("token")
     def _token_default(self):
-        if "token@EGI" in settings:
-            return settings["token@EGI"]
+        if "token@urs.earthdata.nasa.gov" in settings:
+            return settings["token@urs.earthdata.nasa.gov"]
 
         return None
 
@@ -203,11 +204,11 @@ class EGI(DataSource):
             _log.warning("No coordinates found in EGI source")
             return Coordinates([], dims=[])
 
-        return Coordinates.from_xarray(self.data.coords, crs=self.data.attrs["crs"])
+        return Coordinates.from_xarray(self.data)
 
     def get_data(self, coordinates, coordinates_index):
         if self.data is not None:
-            da = self.data[coordinates_index]
+            da = self.data.data[coordinates_index]
             return da
         else:
             _log.warning("No data found in EGI source")
@@ -436,6 +437,10 @@ class EGI(DataSource):
 
         for zip_file in zip_files:
             for name in zip_file.namelist():
+                if name.endswith("json"):
+                    _log.debug("Ignoring file: {}".format(name))
+                    continue
+
                 _log.debug("Reading file: {}".format(name))
 
                 # BytesIO
@@ -510,12 +515,12 @@ class EGI(DataSource):
         url = "https://cmr.earthdata.nasa.gov/legacy-services/rest/tokens"
 
         if self.username is not None:
-            settings["username@EGI"] = self.username
+            settings["username@urs.earthdata.nasa.gov"] = self.username
         else:
             raise ValueError("No Earthdata username available to request EGI token")
 
         if self.password is not None:
-            settings["password@EGI"] = self.password
+            settings["password@urs.earthdata.nasa.gov"] = self.password
         else:
             raise ValueError("No Earthdata password available to request EGI token")
 
@@ -545,7 +550,7 @@ class EGI(DataSource):
             _log.error("No token found in XML response from EGI: {}".format(r.text))
             return
 
-        settings["token@EGI"] = token
+        settings["token@urs.earthdata.nasa.gov"] = token
         self.token = token
 
     def _get_ip(self):

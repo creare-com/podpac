@@ -25,25 +25,29 @@ class TestReprojectedSource(object):
     def test_init(self):
         """test basic init of class"""
 
-        node = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates)
+        with pytest.warns(DeprecationWarning):
+            node = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates)
         assert isinstance(node, ReprojectedSource)
 
     def test_coordinates(self):
         """test coordinates"""
 
         # source has no coordinates, just use reprojected_coordinates
-        node = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates)
+        with pytest.warns(DeprecationWarning):
+            node = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates)
         assert node.coordinates == self.reprojected_coordinates
 
         # source has coordinates
         source = Array(coordinates=self.coordinates)
-        node = ReprojectedSource(source=source, reprojected_coordinates=self.reprojected_coordinates)
+        with pytest.warns(DeprecationWarning):
+            node = ReprojectedSource(source=source, reprojected_coordinates=self.reprojected_coordinates)
         assert node.coordinates == self.reprojected_coordinates
 
     def test_get_data(self):
         """test get data from reprojected source"""
         source = Array(source=self.data, coordinates=self.coordinates)
-        node = ReprojectedSource(source=source, reprojected_coordinates=source.coordinates)
+        with pytest.warns(DeprecationWarning):
+            node = ReprojectedSource(source=source, reprojected_coordinates=source.coordinates)
         output = node.eval(node.coordinates)
 
     def test_source_interpolation(self):
@@ -51,7 +55,8 @@ class TestReprojectedSource(object):
 
         # no source_interpolation
         source = Array(source=self.data, coordinates=self.coordinates, interpolation="nearest")
-        node = ReprojectedSource(source=source, reprojected_coordinates=self.reprojected_coordinates)
+        with pytest.warns(DeprecationWarning):
+            node = ReprojectedSource(source=source, reprojected_coordinates=self.reprojected_coordinates)
         assert source.interpolation == "nearest"
         assert node.source.interpolation == "nearest"
         assert node.eval_source.interpolation == "nearest"
@@ -60,9 +65,10 @@ class TestReprojectedSource(object):
 
         # matching source_interpolation
         source = Array(source=self.data, coordinates=self.coordinates, interpolation="nearest")
-        node = ReprojectedSource(
-            source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="nearest"
-        )
+        with pytest.warns(DeprecationWarning):
+            node = ReprojectedSource(
+                source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="nearest"
+            )
         assert source.interpolation == "nearest"
         assert node.source.interpolation == "nearest"
         assert node.eval_source.interpolation == "nearest"
@@ -71,9 +77,10 @@ class TestReprojectedSource(object):
 
         # non-matching source_interpolation
         source = Array(source=self.data, coordinates=self.coordinates, interpolation="nearest")
-        node = ReprojectedSource(
-            source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="bilinear"
-        )
+        with pytest.warns(DeprecationWarning):
+            node = ReprojectedSource(
+                source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="bilinear"
+            )
         assert source.interpolation == "nearest"
         assert node.source.interpolation == "nearest"
         assert node.eval_source.interpolation == "bilinear"
@@ -82,24 +89,30 @@ class TestReprojectedSource(object):
 
         # no source.interpolation to set (trigger logger warning)
         source = Node()
-        node = ReprojectedSource(
-            source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="bilinear"
-        )
+        with pytest.warns(DeprecationWarning):
+            node = ReprojectedSource(
+                source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="bilinear"
+            )
 
     def test_interpolation_warning(self):
-        node = ReprojectedSource(source=Arange(), reprojected_coordinates=self.coordinates)
+        with pytest.warns(DeprecationWarning):
+            node = ReprojectedSource(source=Arange(), reprojected_coordinates=self.coordinates)
         output = node.eval(node.coordinates)
 
     def test_base_ref(self):
         """test base ref"""
 
-        node = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates)
+        with pytest.warns(DeprecationWarning):
+            node = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates)
         assert "_reprojected" in node.base_ref
 
     def test_deserialize_reprojected_coordinates(self):
-        node1 = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates)
-        node2 = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates.definition)
-        node3 = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates.json)
+        with pytest.warns(DeprecationWarning):
+            node1 = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates)
+        with pytest.warns(DeprecationWarning):
+            node2 = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates.definition)
+        with pytest.warns(DeprecationWarning):
+            node3 = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates.json)
 
         assert node1.reprojected_coordinates == self.reprojected_coordinates
         assert node2.reprojected_coordinates == self.reprojected_coordinates

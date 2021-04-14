@@ -16,7 +16,7 @@ from podpac.core.data.file_source import BaseFileSource, FileKeysMixin
 from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
-class ZarrBase(S3Mixin, FileKeysMixin, BaseFileSource):
+class ZarrRaw(S3Mixin, FileKeysMixin, BaseFileSource):
     """Create a DataSource node using zarr.
 
     Attributes
@@ -47,6 +47,10 @@ class ZarrBase(S3Mixin, FileKeysMixin, BaseFileSource):
         units, when decoding CF datetimes
     cf_calendar : str
         calendar, when decoding CF datetimes
+
+    See Also
+    --------
+    Zarr : Interpolated Zarr Datasource for general use.
     """
 
     file_mode = tl.Unicode(default_value="r").tag(readonly=True)
@@ -197,5 +201,7 @@ class ZarrBase(S3Mixin, FileKeysMixin, BaseFileSource):
         return data
 
 
-class Zarr(InterpolationMixin, ZarrBase):
+class Zarr(InterpolationMixin, ZarrRaw):
+    """ Zarr Datasource with Interpolation. """
+
     pass

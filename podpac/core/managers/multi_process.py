@@ -21,7 +21,7 @@ def _f(definition, coords, q, outputkw):
         n = Node.from_json(definition)
         c = Coordinates.from_json(coords)
         o = n.eval(c)
-        o.serialize()
+        o._pp_serialize()
         _log.debug("o.shape: {}, output_format: {}".format(o.shape, outputkw))
         if outputkw:
             _log.debug("Saving output results to output format {}".format(outputkw))
@@ -66,7 +66,7 @@ class Process(Node):
             raise Exception(o)
         if o is None:
             return
-        o.deserialize()
+        o._pp_deserialize()
         if output is not None:
             output[:] = o.data[:]
         else:

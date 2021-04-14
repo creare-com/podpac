@@ -152,7 +152,7 @@ else:
 class ArrayTrait(tl.TraitType):
     """ A coercing numpy array trait. """
 
-    def __init__(self, ndim=None, shape=None, dtype=None, dtypes=None, *args, **kwargs):
+    def __init__(self, ndim=None, shape=None, dtype=None, dtypes=None, default_value=None, *args, **kwargs):
         if ndim is not None and shape is not None and len(shape) != ndim:
             raise ValueError("Incompatible ndim and shape (ndim=%d, shape=%s)" % (ndim, shape))
         if dtype is not None and not isinstance(dtype, type):
@@ -162,7 +162,7 @@ class ArrayTrait(tl.TraitType):
         self.ndim = ndim
         self.shape = shape
         self.dtype = dtype
-        super(ArrayTrait, self).__init__(*args, **kwargs)
+        super(ArrayTrait, self).__init__(default_value=default_value, *args, **kwargs)
 
     def validate(self, obj, value):
         # coerce type
@@ -220,11 +220,13 @@ class NodeTrait(tl.Instance):
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
         # podpac objects with definitions
-        if isinstance(obj, (podpac.Coordinates, podpac.Node, podpac.data.Interpolate, podpac.core.style.Style)):
+        if isinstance(
+            obj, (podpac.Coordinates, podpac.Node, podpac.interpolators.Interpolate, podpac.core.style.Style)
+        ):
             return obj.definition
 
         # podpac Interpolator type
-        if isinstance(obj, type) and obj in podpac.data.INTERPOLATORS:
+        if isinstance(obj, type) and obj in podpac.core.interpolation.INTERPOLATORS:
             return obj().definition
 
         # pint Units
@@ -276,9 +278,13 @@ def is_json_serializable(obj, cls=json.JSONEncoder):
 
 
 def _get_param(params, key):
+    if key not in params:
+        if key.upper() not in params:
+            return None
+        key = key.upper()
     if isinstance(params[key], list):
         return params[key][0]
-    return params[key]
+    return params.get(key, None)
 
 
 def _get_query_params_from_url(url):

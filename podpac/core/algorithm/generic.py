@@ -16,8 +16,8 @@ from lazy_import import lazy_module
 
 ne = lazy_module("numexpr")
 
-# Internal dependencies
 from podpac import settings
+from podpac import Coordinates
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
 from podpac.core.algorithm.algorithm import Algorithm
@@ -81,18 +81,21 @@ class Arithmetic(GenericInputs):
 
         super(Arithmetic, self).init()
 
-    def algorithm(self, inputs):
+    def algorithm(self, inputs, coordinates):
         """Compute the algorithms equation
 
         Attributes
         ----------
         inputs : dict
             Evaluated outputs of the input nodes. The keys are the attribute names.
+        coordinates : podpac.Coordinates
+            Requested coordinates.
+            Note that the ``inputs`` may contain with different coordinates.
 
         Returns
         -------
-        UnitsDataArray
-            Description
+        result : UnitsDataArray
+            Algorithm result.
         """
 
         if not settings.allow_unsafe_eval:
@@ -154,7 +157,24 @@ class Generic(GenericInputs):
             )
         super(Generic, self).init()
 
-    def algorithm(self, inputs):
+    def algorithm(self, inputs, coordinates):
+        """
+        Run the generic code.
+
+        Attributes
+        ----------
+        inputs : dict
+            Evaluated outputs of the input nodes. The keys are the attribute names.
+        coordinates : podpac.Coordinates
+            Requested coordinates.
+            Note that the ``inputs`` may contain with different coordinates.
+
+        Returns
+        -------
+        result : UnitsDataArray
+            Algorithm result.
+        """
+
         if not settings.allow_unsafe_eval:
             raise PermissionError(
                 "Insecure evaluation of Python code using Generic node has not been allowed. If this "
@@ -167,7 +187,10 @@ class Generic(GenericInputs):
 
 
 class Mask(Algorithm):
-    """Masks the `source` based on a boolean expression involving the `mask` (i.e. source[mask <bool_op> <bool_val> ] = <masked_val>). For a normal boolean mask input, default values for `bool_op`, `bool_val` and `masked_val` can be used.
+    """
+    Masks the `source` based on a boolean expression involving the `mask`
+    (i.e. source[mask <bool_op> <bool_val> ] = <masked_val>).
+    For a normal boolean mask input, default values for `bool_op`, `bool_val` and `masked_val` can be used.
 
     Attributes
     ----------
@@ -213,8 +236,24 @@ class Mask(Algorithm):
 
     _repr_keys = ["source", "mask"]
 
-    def algorithm(self, inputs):
-        """Sets the values in inputs['source'] to self.masked_val using (inputs['mask'] <self.bool_op> <self.bool_val>)"""
+    def algorithm(self, inputs, coordinates):
+        """
+        Sets the values in inputs['source'] to self.masked_val using (inputs['mask'] <self.bool_op> <self.bool_val>)
+
+        Attributes
+        ----------
+        inputs : dict
+            Evaluated outputs of the input nodes. The keys are the attribute names.
+        coordinates : podpac.Coordinates
+            Requested coordinates.
+            Note that the ``inputs`` may contain with different coordinates.
+
+        Returns
+        -------
+        result : UnitsDataArray
+            Algorithm result.
+        """
+
         # shorter names
         mask = inputs["mask"]
         source = inputs["source"]
@@ -257,5 +296,10 @@ class Combine(GenericInputs):
         input_keys = list(self.inputs.keys())
         return input_keys
 
-    def algorithm(self, inputs):
-        return np.stack([inputs[key] for key in self.inputs], axis=-1)
+    def algorithm(self, inputs, coordinates):
+        cs = [Coordinates.from_xarray(x) for x in inputs.values()]
+        if any(c != cs[0] for c in cs):
+            raise NodeException("Cannot combine inputs with different coordinates")
+
+        data = np.stack([inputs[key] for key in self.inputs], axis=-1)
+        return self.create_output_array(cs[0], data=data)

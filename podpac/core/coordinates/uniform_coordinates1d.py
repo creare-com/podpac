@@ -87,7 +87,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         if step is not None:
             step = make_coord_delta(step)
-        elif isinstance(size, (int, np.long, np.integer)) and not isinstance(size, np.timedelta64):
+        elif isinstance(size, (int, np.compat.long, np.integer)) and not isinstance(size, np.timedelta64):
             step = divide_delta(stop - start, size - 1)
         else:
             raise TypeError("size must be an integer, not '%s'" % type(size))
@@ -240,7 +240,9 @@ class UniformCoordinates1d(Coordinates1d):
                 start, stop = stop, start
 
         # empty slice
-        if start > stop and step > 0:
+        if ((start > stop) and np.array(step).astype(float) > 0) or (
+            (start < stop) and np.array(step).astype(float) < 0
+        ):
             return ArrayCoordinates1d([], **self.properties)
         return UniformCoordinates1d(start, stop, step, **self.properties)
 

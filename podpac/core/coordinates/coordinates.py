@@ -11,7 +11,6 @@ import itertools
 import json
 from collections import OrderedDict
 from hashlib import md5 as hash_alg
-import re
 
 import numpy as np
 import traitlets as tl
@@ -307,28 +306,42 @@ class Coordinates(tl.HasTraits):
         return cls([stacked], crs=crs)
 
     @classmethod
-    def from_xarray(cls, xcoord, crs=None):
+    def from_xarray(cls, x, crs=None):
         """
         Create podpac Coordinates from xarray coords.
 
         Arguments
         ---------
-        xcoord : xarray.core.coordinates.DataArrayCoordinates
-            xarray coords
+        x : DataArray, Dataset, DataArrayCoordinates, DatasetCoordinates
+            DataArray, Dataset, or xarray coordinates
         crs : str, optional
             Coordinate reference system. Supports any PROJ4 or PROJ6 compliant string (https://proj.org/).
+            If not provided, the crs will be loaded from ``x.attrs`` if possible.
 
         Returns
         -------
-        :class:`Coordinates`
+        coords : :class:`Coordinates`
             podpac Coordinates
         """
 
-        if not isinstance(xcoord, xarray.core.coordinates.DataArrayCoordinates):
-            raise TypeError("Coordinates.from_xarray expects xarray DataArrayCoordinates, not '%s'" % type(xcoord))
+        if isinstance(x, (xr.DataArray, xr.Dataset)):
+            xcoords = x.coords
+            # only pull crs from the DataArray attrs if the crs is not specified
+            if crs is None:
+                crs = x.attrs.get("crs")
+        elif isinstance(x, (xarray.core.coordinates.DataArrayCoordinates, xarray.core.coordinates.DatasetCoordinates)):
+            xcoords = x
+        else:
+            raise TypeError(
+                "Coordinates.from_xarray expects an xarray DataArray or DataArrayCoordinates, not '%s'" % type(x)
+            )
+
+        # warn if crs is not provided as an argument OR in the data array
+        if crs is None:
+            warnings.warn("using default crs for podpac coordinates loaded from xarray because no crs was provided")
 
         d = OrderedDict()
-        for dim in xcoord.dims:
+        for dim in xcoords.dims:
             if dim in d:
                 continue
             if dim == "output":
@@ -337,16 +350,18 @@ class Coordinates(tl.HasTraits):
             if "-" in dim:
                 dim, _ = dim.split("-")
 
-            if dim in xcoord.indexes and isinstance(xcoord.indexes[dim], pd.MultiIndex):
+            if dim in xcoords.indexes and isinstance(xcoords.indexes[dim], pd.MultiIndex):
                 # 1d stacked
-                d[dim] = StackedCoordinates.from_xarray(xcoord[dim])
+                d[dim] = StackedCoordinates.from_xarray(xcoords[dim])
             elif "_" in dim:
                 # nd stacked
-                d[dim] = StackedCoordinates([xcoord[k] for k in dim.split("_")], name=dim)
+                d[dim] = StackedCoordinates([xcoords[k] for k in dim.split("_")], name=dim)
             else:
                 # unstacked
-                d[dim] = ArrayCoordinates1d.from_xarray(xcoord[dim])
-        return cls(list(d.values()), crs=crs)
+                d[dim] = ArrayCoordinates1d.from_xarray(xcoords[dim])
+
+        coords = cls(list(d.values()), crs=crs)
+        return coords
 
     @classmethod
     def from_json(cls, s):
@@ -412,6 +427,7 @@ class Coordinates(tl.HasTraits):
             podpac Coordinates
         """
         params = _get_query_params_from_url(url)
+        coords = OrderedDict()
 
         # The ordering here is lat/lon or y/x for WMS 1.3.0
         # The ordering here is lon/lat or x/y for WMS 1.1
@@ -420,23 +436,28 @@ class Coordinates(tl.HasTraits):
 
         bbox = np.array(_get_param(params, "BBOX").split(","), float)
 
-        # I don't seem to need to reverse one of these... perhaps one of my test servers did not implement the spec?
+        # Note, version 1.1 used "SRS" and 1.3 uses 'CRS'
+        coords["crs"] = _get_param(params, "SRS")
+        if coords["crs"] is None:
+            coords["crs"] = _get_param(params, "CRS")
+
         if _get_param(params, "VERSION").startswith("1.1"):
             r = -1
         elif _get_param(params, "VERSION").startswith("1.3"):
+            r = 1
+            try:
+                crs = pyproj.CRS(coords["crs"])
+                if crs.axis_info[0].direction != "north":
+                    r = -1
+            except:
+                pass
+        else:
             r = 1
 
         # Extract bounding box information and translate to PODPAC coordinates
         start = bbox[:2][::r]
         stop = bbox[2::][::r]
         size = np.array([_get_param(params, "WIDTH"), _get_param(params, "HEIGHT")], int)[::r]
-
-        coords = OrderedDict()
-
-        # Note, version 1.1 used "SRS" and 1.3 uses 'CRS'
-        coords["crs"] = _get_param(params, "SRS")
-        if coords["crs"] is None:
-            coords["crs"] = _get_param(params, "CRS")
 
         coords["coords"] = [
             {"name": "lat", "start": start[0], "stop": stop[0], "size": size[0]},
@@ -1364,17 +1385,12 @@ class Coordinates(tl.HasTraits):
         cs = [c for c in self.values()]
 
         if "lat" in self.dims and "lon" in self.dims:
-            lat_sample = np.linspace(self["lat"].bounds[0], self["lat"].bounds[1], 5)
-            lon_sample = np.linspace(self["lon"].bounds[0], self["lon"].bounds[1], 5)
-            sample = StackedCoordinates(np.meshgrid(lat_sample, lon_sample, indexing="ij"), dims=["lat", "lon"])
-            t = sample._transform(transformer)
+            st = self._simplified_transform(transformer, cs)
 
-            if not isinstance(t, StackedCoordinates):
-                cs[self.dims.index("lat")] = self["lat"].simplify()
-                cs[self.dims.index("lon")] = self["lon"].simplify()
-
+            if st:  # We could do the shortcut, and we have the result already
+                cs = st
             # otherwise, replace lat and lon coordinates with a single stacked lat_lon:
-            else:
+            else:  # Have to convert every coordinate
                 ilat = self.dims.index("lat")
                 ilon = self.dims.index("lon")
                 if ilat == ilon - 1:
@@ -1394,7 +1410,7 @@ class Coordinates(tl.HasTraits):
                 cs.pop(i)
                 cs.insert(i, c)
 
-        # transform
+        # transform the altitude if needed
         ts = []
         for c in cs:
             tc = c._transform(transformer)
@@ -1404,6 +1420,35 @@ class Coordinates(tl.HasTraits):
                 ts.append(tc)
 
         return Coordinates(ts, crs=crs, validate_crs=False)
+
+    def _simplified_transform(self, transformer, cs):
+        lat_sample = np.linspace(self["lat"].bounds[0], self["lat"].bounds[1], 5)
+        lon_sample = np.linspace(self["lon"].bounds[0], self["lon"].bounds[1], 5)
+        sample = StackedCoordinates(np.meshgrid(lat_sample, lon_sample, indexing="ij"), dims=["lat", "lon"])
+        t = sample._transform(transformer)
+
+        if isinstance(t, StackedCoordinates):  # Need to transform ALL the coordinates
+            return
+        # Then we can do a faster transform, either already done or just the diagonal
+        for i, j in zip([0, 1], [1, 0]):
+            if isinstance(t[i], UniformCoordinates1d):  # already done
+                start = t[i].start
+                stop = t[i].stop
+                if self[t[i].name].is_descending:
+                    start, stop = stop, start
+                cs[self.dims.index(t[i].name)] = clinspace(start, stop, self[t[i].name].size, name=t[i].name)
+                continue
+            # Transform all of the points for this dimension (either lat or lon) and record result
+            this = self[t[i].name]
+            that = self[t[j].name]
+            if this.size > 1:
+                other = clinspace(that.bounds[0], that.bounds[1], this.size)
+            else:
+                other = that.coordinates
+            diagonal = StackedCoordinates([this.coordinates, other], dims=[this.name, that.name])
+            t_diagonal = diagonal._transform(transformer)
+            cs[self.dims.index(this.name)] = t_diagonal[this.name]
+        return cs
 
     def simplify(self):
         """Simplify coordinates in each dimension.
@@ -1465,7 +1510,7 @@ class Coordinates(tl.HasTraits):
         return rep
 
 
-def merge_dims(coords_list):
+def merge_dims(coords_list, validate_crs=True):
     """
     Merge the coordinates.
 
@@ -1473,6 +1518,10 @@ def merge_dims(coords_list):
     ---------
     coords_list : list
         List of :class:`Coordinates` with unique dimensions.
+
+    validate_crs : bool, optional
+        Default is True. If False, the coordinates will not be checked for a common crs,
+        and the crs of the first item in the list will be used.
 
     Returns
     -------
@@ -1495,7 +1544,7 @@ def merge_dims(coords_list):
 
     # check crs
     crs = coords_list[0].crs
-    if not all(coords.crs == crs for coords in coords_list):
+    if validate_crs and not all(coords.crs == crs for coords in coords_list):
         raise ValueError("Cannot merge Coordinates, crs mismatch")
 
     # merge

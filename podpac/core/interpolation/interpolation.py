@@ -23,6 +23,10 @@ class InterpolationMixin(tl.HasTraits):
     interpolation = InterpolationTrait().tag(attr=True)
     _interp_node = None
 
+    @property
+    def _repr_keys(self):
+        return super()._repr_keys + ["interpolation"]
+
     def _eval(self, coordinates, output=None, _selector=None):
         node = Interpolate(interpolation=self.interpolation)
         node._set_interpolation()
@@ -114,6 +118,10 @@ class Interpolate(Node):
     @tl.default("cache_output")
     def _cache_output_default(self):
         return settings["CACHE_NODE_OUTPUT_DEFAULT"]
+
+    @tl.default("units")
+    def _use_source_units(self):
+        return getattr(self.source, "units", None)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -207,7 +215,7 @@ class Interpolate(Node):
         selector = self._interpolation.select_coordinates
 
         source_out = self._source_eval(self._evaluated_coordinates, selector)
-        source_coords = Coordinates.from_xarray(source_out.coords, crs=source_out.crs)
+        source_coords = Coordinates.from_xarray(source_out)
 
         # Drop extra coordinates
         extra_dims = [d for d in coordinates.udims if d not in source_coords.udims]

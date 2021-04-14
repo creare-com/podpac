@@ -5,6 +5,8 @@ import traitlets as tl
 import numpy as np
 
 import podpac
+from podpac.core.utils import cached_property
+from podpac.interpolators import InterpolationMixin
 
 _logger = logging.getLogger(__name__)
 
@@ -471,11 +473,52 @@ def get_site_coordinates(site, time=None, depth=None):
     return podpac.Coordinates([[lats, lons], time, depth], dims=["lat_lon", "time", "alt"], crs=CRS)
 
 
-class SoilSCAPEFile(podpac.data.Dataset):
-    """ SoilSCAPE datasource from file. """
+class SoilSCAPENode(podpac.core.data.dataset_source.DatasetRaw):
+    """SoilSCAPE 20min soil moisture for a particular node.
 
-    data_key = ["soil_moisture", "moisture_flag"]
+    Data is loaded from the THREDDS https fileserver.
+
+    Attributes
+    ----------
+    site : str
+        SoilSCAPE site, e.g. 'Canton_OK'.
+    node : int
+        SoilSCAPE node id.
+    rescale : float
+        Default is 0.01. The soilscape soil moisture is multiplied by this number.
+        Soilscape soil moisture by default is absolute volumetric percentage, so we can rescale that to absolute volumetric fraction.
+    """
+
     alt_key = "depth"
+    site = tl.Enum(list(NODES)).tag(attr=True)
+    node = tl.Int().tag(attr=True)
+    cache_dataset = tl.Bool(True)
+    rescale = tl.Float(0.01)
+    coordinate_index_type = "numpy"
+
+    _repr_keys = ["site", "node"]
+
+    @cached_property
+    def dims(self):
+        """dataset coordinate dims"""
+        lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
+        return [lookup[dim] for dim in self.dataset.dims] + ["lat", "lon"]
+
+    def get_data(self, coordinates, coordinates_index):
+        """{get_data}"""
+
+        if not isinstance(self.data_key, list):
+            data = self.dataset[self.data_key]
+            data = data.transpose(*self.dataset.dims)
+        else:
+            data = self.dataset[self.data_key].to_array(dim="output")
+            tdims = tuple(self.dataset.dims) + ("output",)
+            data = data.transpose(*tdims)
+
+        # add dims for lat and lon
+        data = data.data.reshape(data.shape + (1, 1))
+
+        return self.create_output_array(coordinates, data[coordinates_index] * self.rescale)
 
     @property
     def lat(self):
@@ -491,29 +534,9 @@ class SoilSCAPEFile(podpac.data.Dataset):
         return self.dataset.physicalid.item()
 
     def get_coordinates(self):
-        coordinates = super(SoilSCAPEFile, self).get_coordinates()
+        coordinates = super(SoilSCAPENode, self).get_coordinates()
         coordinates.set_trait("crs", CRS)
         return coordinates
-
-
-class SoilSCAPENode(SoilSCAPEFile):
-    """SoilSCAPE 20min soil moisture for a particular node.
-
-    Data is loaded from the THREDDS https fileserver.
-
-    Attributes
-    ----------
-    site : str
-        SoilSCAPE site, e.g. 'Canton_OK'.
-    node : int
-        SoilSCAPE node id.
-    """
-
-    site = tl.Enum(list(NODES)).tag(attr=True)
-    node = tl.Int().tag(attr=True)
-    cache_dataset = tl.Bool(True)
-
-    _repr_keys = ["site", "node"]
 
     @tl.validate("node")
     def _validate_node(self, d):
@@ -531,8 +554,8 @@ class SoilSCAPENode(SoilSCAPEFile):
         return "soil_moist_20min_{site}_n{node}".format(site=self.site, node=self.node)
 
 
-class SoilSCAPE20min(podpac.core.compositor.compositor.BaseCompositor):
-    """SoilSCAPE 20min soil moisture data for an entire site.
+class SoilSCAPE20minRaw(podpac.compositor.TileCompositorRaw):
+    """Raw SoilSCAPE 20min soil moisture data for an entire site.
 
     Data is loaded from the THREDDS https fileserver.
 
@@ -554,6 +577,7 @@ class SoilSCAPE20min(podpac.core.compositor.compositor.BaseCompositor):
     site = tl.Enum(list(NODES), allow_none=True, default_value=None).tag(attr=True)
     exclude = tl.List([1, 2, 3, 4]).tag(attr=True)
     dataset_expires = tl.Any()
+    data_key = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
 
     @tl.validate("dataset_expires")
     def _validate_dataset_expires(self, d):
@@ -572,31 +596,25 @@ class SoilSCAPE20min(podpac.core.compositor.compositor.BaseCompositor):
         if self.site is not None:
             return [(self.site, node) for node in NODES[self.site]]
         else:
-            return [(site, node) for site in NODES for node in NODES[node]]
+            return [(site, node) for site in NODES for node in NODES[site]]
+
+    @podpac.cached_property
+    def source_coordinates(self):
+        latlons = np.array([NODE_LOCATIONS[node[1]] for node in self.nodes])
+        return podpac.Coordinates([latlons.T.tolist()], ["lat_lon"])
 
     @podpac.cached_property
     def sources(self):
         return [self._make_source(site, node) for site, node in self.nodes]
 
     def _make_source(self, site, node):
-        return SoilSCAPENode(site=site, node=node, cache_ctrl=self.cache_ctrl, dataset_expires=self.dataset_expires)
-
-    def select_sources(self, coordinates):
-        return [source for source in self.sources if (source.lat, source.lon) in coordinates["lat_lon"]]
-
-    def composite(self, coordinates, data_arrays, result=None):
-        if result is None:
-            result = self.create_output_array(coordinates)
-
-        flag = self.create_output_array(coordinates)
-        for source, data in zip(self.select_sources(coordinates), data_arrays):
-            loc = {"alt": data.alt, "time": data.time, "lat_lon": (source.lat, source.lon)}
-            result.loc[loc] = data.sel(output="soil_moisture", drop=True)
-            flag.loc[loc] = data.sel(output="moisture_flag", drop=True)
-
-        b = flag.isin(self.exclude)
-        result.data[b.data] = np.nan
-        return result
+        return SoilSCAPENode(
+            site=site,
+            node=node,
+            cache_ctrl=self.cache_ctrl,
+            dataset_expires=self.dataset_expires,
+            data_key=self.data_key,
+        )
 
     def make_coordinates(self, time=None, depth=None):
         """
@@ -622,40 +640,7 @@ class SoilSCAPE20min(podpac.core.compositor.compositor.BaseCompositor):
         return list(NODES.keys())
 
 
-def test_soilscape():
-    # 20m local file
-    node = SoilSCAPEFile(source="/home/jmilloy/Creare/Pipeline/SoilSCAPE_1339/data/soil_moist_20min_Canton_OK_n101.nc")
-    coords_source = podpac.Coordinates([node.coordinates["alt"], node.coordinates["time"][:5]], crs=CRS)
-    coords_interp_time = podpac.Coordinates(
-        [node.coordinates["alt"], "2012-01-01T12:00:00"], dims=["alt", "time"], crs=CRS
-    )
-    coords_interp_alt = podpac.Coordinates([5, node.coordinates["time"][:5]], dims=["alt", "time"], crs=CRS)
+class SoilSCAPE20min(InterpolationMixin, SoilSCAPE20minRaw):
+    """SoilSCAPE 20min soil moisture data for an entire site, with interpolation."""
 
-    o1 = node.eval(coords_source)
-    o2 = node.eval(coords_interp_time)
-    o3 = node.eval(coords_interp_alt)
-
-    # 20m url https url
-    node = SoilSCAPEFile(
-        source="https://thredds.daac.ornl.gov/thredds/fileServer/ornldaac/1339/soil_moist_20min_Canton_OK_n101.nc"
-    )
-    node.coordinates
-    o1 = node.eval(coords_source)
-    o2 = node.eval(coords_interp_time)
-    o3 = node.eval(coords_interp_alt)
-
-    # 20m site and node
-    node = SoilSCAPENode(site="Canton_OK", node=101, cache_ctrl=["disk"])
-    node.coordinates
-    o1 = node.eval(coords_source)
-    o2 = node.eval(coords_interp_time)
-    o3 = node.eval(coords_interp_alt)
-
-    # 20m site (composite), with filtering
-    sm = SoilSCAPE20min(site="Canton_OK", cache_ctrl=["disk"])
-    coords_source = sm.make_coordinates(time=sm.sources[0].coordinates["time"][:5])
-    coords_interp_time = sm.make_coordinates(time="2016-01-01")
-    coords_interp_alt = sm.make_coordinates(time=sm.sources[0].coordinates["time"][:5], depth=5)
-    o1 = sm.eval(coords_source)
-    o2 = sm.eval(coords_interp_time)
-    o3 = sm.eval(coords_interp_alt)
+    pass

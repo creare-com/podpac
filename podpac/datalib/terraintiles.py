@@ -42,10 +42,10 @@ import traitlets as tl
 import numpy as np
 
 import podpac
-from podpac.data import Rasterio
-from podpac.compositor import OrderedCompositor, TileCompositor
-from podpac.interpolators import Rasterio as RasterioInterpolator, ScipyGrid, ScipyPoint
-from podpac.data import InterpolationTrait
+from podpac.core.data.rasterio_source import RasterioRaw
+from podpac.compositor import TileCompositorRaw
+from podpac.interpolators import InterpolationMixin
+from podpac.interpolators import RasterioInterpolator, ScipyGrid, ScipyPoint
 from podpac.utils import cached_property
 from podpac.authentication import S3Mixin
 
@@ -55,9 +55,26 @@ from podpac.authentication import S3Mixin
 
 # create log for module
 _logger = logging.getLogger(__name__)
+ZOOM_SIZES = [
+    8271.5169531233,
+    39135.75848200978,
+    19567.87924100587,
+    9783.939620502935,
+    4891.969810250487,
+    2445.9849051252454,
+    1222.9924525636013,
+    611.4962262818025,
+    305.7481131408976,
+    152.8740565714275,
+    76.43702828571375,
+    38.218514142856876,
+    19.109257072407146,
+    9.554628536203573,
+    4.777314268103609,
+]
 
 
-class TerrainTilesSource(Rasterio):
+class TerrainTilesSourceRaw(RasterioRaw):
     """DataSource to handle individual TerrainTiles raster files
 
     Parameters
@@ -72,10 +89,6 @@ class TerrainTilesSource(Rasterio):
     """
 
     anon = tl.Bool(True)
-    # attributes
-    interpolation = InterpolationTrait(
-        default_value={"method": "nearest", "interpolators": [RasterioInterpolator, ScipyGrid, ScipyPoint]}
-    ).tag(attr=True)
 
     @tl.default("crs")
     def _default_crs(self):
@@ -112,7 +125,7 @@ class TerrainTilesSource(Rasterio):
 
     # this is a little crazy, but I get floating point issues with indexing if i don't round to 7 decimal digits
     def get_coordinates(self):
-        coordinates = super(TerrainTilesSource, self).get_coordinates()
+        coordinates = super(TerrainTilesSourceRaw, self).get_coordinates()
 
         for dim in coordinates:
             coordinates[dim] = np.round(coordinates[dim].coordinates, 6)
@@ -120,31 +133,132 @@ class TerrainTilesSource(Rasterio):
         return coordinates
 
 
-class TerrainTilesComposite(S3Mixin, TileCompositor):
-    urls = tl.List(trait=tl.Unicode()).tag(attr=True)
+class TerrainTilesComposite(TileCompositorRaw):
+    """Terrain Tiles gridded elevation tiles data library
+
+    Hosted on AWS S3
+    https://registry.opendata.aws/terrain-tiles/
+
+    Description
+        Gridded elevation tiles
+    Resource type
+        S3 Bucket
+    Amazon Resource Name (ARN)
+        arn:aws:s3:::elevation-tiles-prod
+    AWS Region
+        us-east-1
+
+    Documentation: https://mapzen.com/documentation/terrain-tiles/
+
+    Parameters
+    ----------
+    zoom : int
+        Zoom level of tiles, in [0, ..., 14]. Defaults to 7. A value of "-1" will automatically determine the zoom level.
+        WARNING: When automatic zoom is used, evaluating points (stacked lat,lon) uses the maximum zoom level (level 14)
+    tile_format : str
+        One of ['geotiff', 'terrarium', 'normal']. Defaults to 'geotiff'
+        PODPAC node can only evaluate 'geotiff' formats.
+        Other tile_formats can be specified for :meth:`download`
+        No support for 'skadi' formats at this time.
+    bucket : str
+        Bucket of the terrain tiles.
+        Defaults to 'elevation-tiles-prod'
+    """
+
+    # parameters
+    zoom = tl.Int(default_value=-1).tag(attr=True)
+    tile_format = tl.Enum(["geotiff", "terrarium", "normal"], default_value="geotiff").tag(attr=True)
+    bucket = tl.Unicode(default_value="elevation-tiles-prod").tag(attr=True)
+    sources = []  # these are loaded as needed
+    urls = tl.List(trait=tl.Unicode()).tag(attr=True)  # Maps directly to sources
+    dims = ["lat", "lon"]
     anon = tl.Bool(True)
 
-    _repr_keys = ["urls"]
+    def _zoom(self, coordinates):
+        if self.zoom >= 0:
+            return self.zoom
+        crds = coordinates.transform("EPSG:3857")
+        if coordinates.is_stacked("lat") or coordinates.is_stacked("lon"):
+            return len(ZOOM_SIZES) - 1
+        steps = []
+        for crd in crds.values():
+            if crd.name not in ["lat", "lon"]:
+                continue
+            if crd.size == 1:
+                continue
+            if isinstance(crd, podpac.coordinates.UniformCoordinates1d):
+                steps.append(np.abs(crd.step))
+            elif isinstance(crd, podpac.coordinates.ArrayCoordinates1d):
+                steps.append(np.abs(np.diff(crd.coordinates)).min())
+            else:
+                continue
+        if not steps:
+            return len(ZOOM_SIZES) - 1
 
-    @cached_property
-    def sources(self):
-        return [self._create_source(url) for url in self.urls]
+        step = min(steps) / 2
+        zoom = 0
+        for z, zs in enumerate(ZOOM_SIZES):
+            zoom = z
+            if zs < step:
+                break
+        return zoom
 
-    def get_coordinates(self):
-        return podpac.coordinates.union([source.coordinates for source in self.sources])
+    def select_sources(self, coordinates, _selector=None):
+        # get all the tile sources for the requested zoom level and coordinates
+        sources = get_tile_urls(self.tile_format, self._zoom(coordinates), coordinates)
+        urls = ["s3://{}/{}".format(self.bucket, s) for s in sources]
 
-    def _create_source(self, url):
-        return TerrainTilesSource(
-            source=url,
+        # create TerrainTilesSourceRaw classes for each url source
+        self.sources = self._create_composite(urls)
+        if self.trait_is_defined("interpolation") and self.interpolation is not None:
+            for s in self.sources:
+                if s.has_trait("interpolation"):
+                    s.set_trait("interpolation", self.interpolation)
+        return self.sources
+
+    def find_coordinates(self):
+        return [podpac.coordinates.union([source.coordinates for source in self.sources])]
+
+    def download(self, path="terraintiles"):
+        """
+        Download active terrain tile source files to local directory
+
+        Parameters
+        ----------
+        path : str
+            Subdirectory to put files. Defaults to 'terraintiles'.
+            Within this directory, the tile files will retain the same directory structure as on S3.
+        """
+
+        try:
+            for source in self.sources[0].sources:
+                source.download(path)
+        except tl.TraitError as e:
+            raise ValueError("No terrain tile sources selected. Evaluate node at coordinates to select sources.") from e
+
+    def _create_composite(self, urls):
+        # Share the s3 connection
+        sample_source = TerrainTilesSourceRaw(
+            source=urls[0],
             cache_ctrl=self.cache_ctrl,
             force_eval=self.force_eval,
             cache_output=self.cache_output,
             cache_dataset=True,
-            s3=self.s3,
         )
+        return [
+            TerrainTilesSourceRaw(
+                source=url,
+                s3=sample_source.s3,
+                cache_ctrl=self.cache_ctrl,
+                force_eval=self.force_eval,
+                cache_output=self.cache_output,
+                cache_dataset=True,
+            )
+            for url in urls
+        ]
 
 
-class TerrainTiles(S3Mixin, OrderedCompositor):
+class TerrainTiles(InterpolationMixin, TerrainTilesComposite):
     """Terrain Tiles gridded elevation tiles data library
 
     Hosted on AWS S3
@@ -175,55 +289,7 @@ class TerrainTiles(S3Mixin, OrderedCompositor):
         Defaults to 'elevation-tiles-prod'
     """
 
-    # parameters
-    zoom = tl.Int(default_value=6).tag(attr=True)
-    tile_format = tl.Enum(["geotiff", "terrarium", "normal"], default_value="geotiff").tag(attr=True)
-    bucket = tl.Unicode(default_value="elevation-tiles-prod").tag(attr=True)
-    sources = None  # these are loaded as needed
-    dims = ["lat", "lon"]
-    anon = tl.Bool(True)
-
-    def select_sources(self, coordinates):
-        # get all the tile sources for the requested zoom level and coordinates
-        sources = get_tile_urls(self.tile_format, self.zoom, coordinates)
-        urls = ["s3://{}/{}".format(self.bucket, s) for s in sources]
-
-        # create TerrainTilesSource classes for each url source
-        self.sources = self._create_composite(urls)
-        if self.trait_is_defined("interpolation") and self.interpolation is not None:
-            for s in self.sources:
-                if s.has_trait("interpolation"):
-                    s.set_trait("interpolation", self.interpolation)
-        return self.sources
-
-    def download(self, path="terraintiles"):
-        """
-        Download active terrain tile source files to local directory
-
-        Parameters
-        ----------
-        path : str
-            Subdirectory to put files. Defaults to 'terraintiles'.
-            Within this directory, the tile files will retain the same directory structure as on S3.
-        """
-
-        try:
-            for source in self.sources[0].sources:
-                source.download(path)
-        except tl.TraitError as e:
-            raise ValueError("No terrain tile sources selected. Evaluate node at coordinates to select sources.")
-
-    def _create_composite(self, urls):
-        return [
-            TerrainTilesComposite(
-                urls=urls,
-                cache_ctrl=self.cache_ctrl,
-                force_eval=self.force_eval,
-                cache_output=self.cache_output,
-                cache_dataset=True,
-                s3=self.s3,
-            )
-        ]
+    pass
 
 
 ############
@@ -292,7 +358,7 @@ def _get_tile_tuples(zoom, coordinates=None):
     else:
         _logger.debug("Getting tiles for coordinates {}".format(coordinates))
 
-        if "lat" not in coordinates or "lon" not in coordinates:
+        if "lat" not in coordinates.udims or "lon" not in coordinates.udims:
             raise TypeError("input coordinates must have lat and lon dimensions to get tiles")
 
         # transform to WGS84 (epsg:4326) to use the mapzen example for transforming coordinates to tilespace

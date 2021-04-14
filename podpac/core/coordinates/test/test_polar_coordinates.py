@@ -64,7 +64,7 @@ class TestPolarCoordinatesCreation(object):
         assert c2 == c
 
 
-class TestDependentCoordinatesStandardMethods(object):
+class TestPolarCoordinatesStandardMethods(object):
     def test_eq_type(self):
         c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
         assert c != []

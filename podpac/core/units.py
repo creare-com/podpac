@@ -52,7 +52,7 @@ class UnitsDataArray(xr.DataArray):
 
     def __init__(self, *args, **kwargs):
         super(UnitsDataArray, self).__init__(*args, **kwargs)
-        self.deserialize()
+        self = self._pp_deserialize()
 
     def __array_wrap__(self, obj, context=None):
         new_var = super(UnitsDataArray, self).__array_wrap__(obj, context)
@@ -138,9 +138,9 @@ class UnitsDataArray(xr.DataArray):
         for d in self.dims:
             if "_" in d and "dim" not in d:  # This it is stacked
                 o = o.reset_index(d)
-        o.serialize()
+        o._pp_serialize()
         r = super(UnitsDataArray, o).to_netcdf(*args, **kwargs)
-        self.deserialize()
+        self._pp_deserialize()
         return r
 
     def to_format(self, format, *args, **kwargs):
@@ -170,7 +170,7 @@ class UnitsDataArray(xr.DataArray):
             * png, jpg, jpeg
             * tiff (GEOtiff)
         """
-        self.serialize()
+        self._pp_serialize()
         if format in ["netcdf", "nc", "hdf5", "hdf"]:
             r = self.to_netcdf(*args, **kwargs)
         elif format in ["json", "dict"]:
@@ -210,7 +210,7 @@ class UnitsDataArray(xr.DataArray):
                 getattr(self, "to_" + format)(*args, **kwargs)
             except:
                 raise NotImplementedError("Format {} is not implemented.".format(format))
-        self.deserialize()
+        self._pp_deserialize()
         return r
 
     def to_image(self, format="png", vmin=None, vmax=None, return_base64=False):
@@ -241,13 +241,26 @@ class UnitsDataArray(xr.DataArray):
         """
         to_geotiff(fp, self, geotransform=geotransform, crs=crs, **kwargs)
 
-    def serialize(self):
+    def _pp_serialize(self):
         if self.attrs.get("units"):
             self.attrs["units"] = str(self.attrs["units"])
         if self.attrs.get("layer_style") and not isinstance(self.attrs["layer_style"], string_types):
             self.attrs["layer_style"] = self.attrs["layer_style"].json
+        if self.attrs.get("bounds"):
+            if isinstance(self.attrs["bounds"], dict) and "time" in self.attrs["bounds"]:
+                time_bounds = self.attrs["bounds"]["time"]
+                new_bounds = []
+                for tb in time_bounds:
+                    if isinstance(tb, np.datetime64):
+                        new_bounds.append(str(tb))
+                    else:
+                        new_bounds.append(tb)
+                self.attrs["bounds"]["time"] = tuple(new_bounds)
+            self.attrs["bounds"] = json.dumps(self.attrs["bounds"])
+        if self.attrs.get("boundary_data") is not None and not isinstance(self.attrs["boundary_data"], string_types):
+            self.attrs["boundary_data"] = json.dumps(self.attrs["boundary_data"])
 
-    def deserialize(self):
+    def _pp_deserialize(self):
         # Deserialize units
         if self.attrs.get("units") and isinstance(self.attrs["units"], string_types):
             self.attrs["units"] = ureg(self.attrs["units"]).u
@@ -255,6 +268,30 @@ class UnitsDataArray(xr.DataArray):
         # Deserialize layer_stylers
         if self.attrs.get("layer_style") and isinstance(self.attrs["layer_style"], string_types):
             self.attrs["layer_style"] = podpac.core.style.Style.from_json(self.attrs["layer_style"])
+
+        if self.attrs.get("bounds") and isinstance(self.attrs["bounds"], string_types):
+            self.attrs["bounds"] = json.loads(self.attrs["bounds"])
+            if "time" in self.attrs["bounds"]:
+                time_bounds = self.attrs["bounds"]["time"]
+                new_bounds = []
+                for tb in time_bounds:
+                    if isinstance(tb, string_types):
+                        new_bounds.append(np.datetime64(tb))
+                    else:
+                        new_bounds.append(tb)
+                self.attrs["bounds"]["time"] = tuple(new_bounds)
+        if self.attrs.get("boundary_data") and isinstance(self.attrs["boundary_data"], string_types):
+            self.attrs["boundary_data"] = json.loads(self.attrs["boundary_data"])
+
+        # Deserialize the multi-index
+        for dim in self.dims:
+            if dim in self.coords or "-" in dim:  # The "-" is for multi-dimensional stacked coordinates
+                continue
+            try:
+                self = self.set_index(**{dim: dim.split("-")[0].split("_")})
+            except ValueError as e:
+                _logger.warning("Tried to rebuild stacked coordinates but failed with error: {}".format(e))
+        return self
 
     def __getitem__(self, key):
         # special cases when key is also a DataArray
@@ -361,7 +398,7 @@ class UnitsDataArray(xr.DataArray):
         :class:`podpac.UnitsDataArray`
         """
         da = xr.open_dataarray(*args, **kwargs)
-        coords = Coordinates.from_xarray(da.coords, crs=da.attrs.get("crs"))
+        coords = Coordinates.from_xarray(da)
 
         # pass in kwargs to constructor
         uda_kwargs = {"attrs": da.attrs}

@@ -72,10 +72,33 @@ class Selector(tl.HasTraits):
             self.method = method
 
     def select(self, source_coords, request_coords, index_type="numpy"):
+        """Sub-selects the source_coords based on the request_coords
+
+        Parameters
+        ------------
+        source_coords: :class:`podpac.Coordinates`
+            The coordinates of the source data
+        request_coords: :class:`podpac.Coordinates`
+            The coordinates of the request (user eval)
+        index_type: str, optional
+            Default is 'numpy'. Either "numpy", "xarray", or "slice". The returned index will be compatible with,
+            either "numpy" (default) or "xarray" objects, or any
+            object that works with tuples of slices ("slice")
+
+        Returns
+        --------
+        :class:`podpac.Coordinates`:
+            The sub-selected source coordinates
+        tuple(indices):
+            The indices that can be used to sub-select the source coordinates to produce the sub-selected coordinates.
+            This is useful for directly indexing into the data type.
+        """
+        if source_coords.crs.lower() != request_coords.crs.lower():
+            request_coords = request_coords.transform(source_coords.crs)
         coords = []
         coords_inds = []
         for coord1d in source_coords._coords.values():
-            c, ci = self.select1d(coord1d, request_coords, index_type)
+            c, ci = self._select1d(coord1d, request_coords, index_type)
             ci = np.sort(np.unique(ci))
             if index_type == "slice":
                 ci = _index2slice(ci)
@@ -84,22 +107,24 @@ class Selector(tl.HasTraits):
             coords_inds.append(ci)
         coords = Coordinates(coords)
         if index_type == "numpy":
-            coords_inds = self.merge_indices(coords_inds, source_coords.dims, request_coords.dims)
+            coords_inds = self._merge_indices(coords_inds, source_coords.dims, request_coords.dims)
+        elif index_type == "xarray":
+            pass  # unlike numpy, xarray assumes indexes are orthogonal by default, so the 1d coordinates are already correct
         return coords, tuple(coords_inds)
 
-    def select1d(self, source, request, index_type):
+    def _select1d(self, source, request, index_type):
         if isinstance(source, StackedCoordinates):
-            ci = self.select_stacked(source, request, index_type)
+            ci = self._select_stacked(source, request, index_type)
         elif source.is_uniform:
-            ci = self.select_uniform(source, request, index_type)
+            ci = self._select_uniform(source, request, index_type)
         else:
-            ci = self.select_nonuniform(source, request, index_type)
+            ci = self._select_nonuniform(source, request, index_type)
         # else:
         # _logger.info("Coordinates are not subselected for source {} with request {}".format(source, request))
         # return source, slice(0, None)
         return source, ci
 
-    def merge_indices(self, indices, source_dims, request_dims):
+    def _merge_indices(self, indices, source_dims, request_dims):
         # For numpy to broadcast correctly, we have to reshape each of the indices
         reshape = np.ones(len(indices), int)
         for i in range(len(indices)):
@@ -108,17 +133,27 @@ class Selector(tl.HasTraits):
             indices[i] = indices[i].reshape(*reshape)
         return tuple(indices)
 
-    def select_uniform(self, source, request, index_type):
+    def _select_uniform(self, source, request, index_type):
         crds = request[source.name]
         if crds.is_uniform and crds.step < source.step and not request.is_stacked(source.name):
             return np.arange(source.size)
 
         index = (crds.coordinates - source.start) / source.step
-        stop_ind = int(np.round((source.stop - source.start) / source.step))
+        stop_ind = source.size - 1
         if len(self.method) > 1:
             flr_ceil = {-1: np.floor(index), 1: np.ceil(index)}
         else:
-            flr_ceil = {0: np.round(index)}
+            # In this case, floating point error really matters, so we have to do a test
+            up = np.round(index - 1e-6)
+            down = np.round(index + 1e-6)
+            # When up and down do not agree, use the index that will be kept.
+            index_mid = down  # arbitrarily default to down when both satisfy criteria
+            Iup = up != down
+            Iup[Iup] = (up[Iup] >= 0) & (up[Iup] <= stop_ind) & ((up[Iup] > down.max()) | (up[Iup] < down.min()))
+            index_mid[Iup] = up[Iup]
+            flr_ceil = {0: index_mid}
+            # flr_ceil = {0: index}
+
         inds = []
         for m in self.method:
             sign = np.sign(m)
@@ -129,14 +164,14 @@ class Selector(tl.HasTraits):
         inds = inds[(inds >= 0) & (inds <= stop_ind)]
         return inds
 
-    def select_nonuniform(self, source, request, index_type):
+    def _select_nonuniform(self, source, request, index_type):
         src, req = _higher_precision_time_coords1d(source, request[source.name])
         ckdtree_source = cKDTree(src[:, None])
         _, inds = ckdtree_source.query(req[:, None], k=len(self.method))
         inds = inds[inds < source.coordinates.size]
         return inds.ravel()
 
-    def select_stacked(self, source, request, index_type):
+    def _select_stacked(self, source, request, index_type):
         udims = [ud for ud in source.udims if ud in request.udims]
 
         # if the udims are all stacked in the same stack as part of the request coordinates, then we can take a shortcut.

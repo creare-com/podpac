@@ -9,6 +9,7 @@ import pytest
 import traitlets as tl
 import numpy as np
 
+import podpac
 from podpac.core.utils import ArrayTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, clinspace
@@ -16,7 +17,7 @@ from podpac.core.data.rasterio_source import rasterio
 from podpac.core.data.datasource import DataSource
 from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationException
 from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
-from podpac.core.interpolation.rasterio_interpolator import Rasterio
+from podpac.core.interpolation.rasterio_interpolator import RasterioInterpolator
 from podpac.core.interpolation.scipy_interpolator import ScipyGrid, ScipyPoint
 from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
 from podpac.core.interpolation.interpolation import InterpolationMixin
@@ -32,72 +33,104 @@ class MockArrayDataSource(InterpolationMixin, DataSource):
 
 class TestNearest(object):
     def test_nearest_preview_select(self):
+        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
+        srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
 
         # test straight ahead functionality
-        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
-        srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
-
         interp = InterpolationManager("nearest_preview")
-
         coords, cidx = interp.select_coordinates(srccoords, reqcoords)
-
-        assert len(coords) == len(srccoords) == len(cidx)
-        assert len(coords["lat"]) == len(reqcoords["lat"])
-        assert len(coords["lon"]) == len(reqcoords["lon"])
-        assert np.all(coords["lat"].coordinates == np.array([0, 2, 4]))
+        np.testing.assert_array_equal(coords["lat"].coordinates, [0, 2, 4])
+        np.testing.assert_array_equal(coords["lon"].coordinates, [0, 2, 4])
+        assert srccoords[cidx] == coords
 
         # test when selection is applied serially
-        # this is equivalent to above
-        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
-        srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
-
         interp = InterpolationManager(
             [{"method": "nearest_preview", "dims": ["lat"]}, {"method": "nearest_preview", "dims": ["lon"]}]
         )
 
         coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        np.testing.assert_array_equal(coords["lat"].coordinates, [0, 2, 4])
+        np.testing.assert_array_equal(coords["lon"].coordinates, [0, 2, 4])
+        assert srccoords[cidx] == coords
 
-        # test when coordinates are stacked and unstacked
-        # TODO: how to handle stacked/unstacked coordinate asynchrony?
-        # reqcoords = Coordinates([[-.5, 1.5, 3.5], [.5, 2.5, 4.5]], dims=['lat', 'lon'])
-        # srccoords = Coordinates([([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5])], dims=['lat_lon'])
+        # Test reverse selection
+        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
+        srccoords = Coordinates([[0, 1, 2, 3, 4, 5][::-1], [0, 1, 2, 3, 4, 5][::-1]], dims=["lat", "lon"])
 
-        # interp = InterpolationManager('nearest_preview')
+        # test straight ahead functionality
+        interp = InterpolationManager("nearest_preview")
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        np.testing.assert_array_equal(coords["lat"].coordinates, [4, 2, 0])
+        np.testing.assert_array_equal(coords["lon"].coordinates, [5, 3, 1])  # Yes, this is expected behavior
+        assert srccoords[cidx] == coords
 
-        # srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_index=True)
-        # coords, cidx = interp.select_coordinates(reqcoords, srccoords, srccoords_index)
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        np.testing.assert_array_equal(coords["lat"].coordinates, [4, 2, 0])
+        np.testing.assert_array_equal(coords["lon"].coordinates, [5, 3, 1])
+        assert srccoords[cidx] == coords
 
-        # assert len(coords) == len(srcoords) == len(cidx)
-        # assert len(coords['lat']) == len(reqcoords['lat'])
-        # assert len(coords['lon']) == len(reqcoords['lon'])
-        # assert np.all(coords['lat'].coordinates == np.array([0, 2, 4]))
+        # Test Case where rounding issues causes problem with endpoint
+        reqcoords = Coordinates([[0, 2, 4], [0, 2, 4]], dims=["lat", "lon"])
+        lat = np.arange(0, 6.1, 1.3333333333333334)
+        lon = np.arange(0, 6.1, 1.333333333333334)  # Notice one decimal less on this number
+        srccoords = Coordinates([lat, lon], dims=["lat", "lon"])
+
+        # test straight ahead functionality
+        interp = InterpolationManager("nearest_preview")
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        np.testing.assert_almost_equal(coords["lat"].coordinates, lat[::2])
+        np.testing.assert_array_equal(coords["lon"].coordinates, lon[:4])
+        np.testing.assert_almost_equal(list(srccoords[cidx].bounds.values()), list(coords.bounds.values()))
+        assert srccoords[cidx].shape == coords.shape
+
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        np.testing.assert_almost_equal(coords["lat"].coordinates, lat[::2])
+        np.testing.assert_array_equal(coords["lon"].coordinates, lon[:4])
+        np.testing.assert_almost_equal(list(srccoords[cidx].bounds.values()), list(coords.bounds.values()))
+        assert srccoords[cidx].shape == coords.shape
+
+    # def test_nearest_preview_select_stacked(self):
+    #     # TODO: how to handle stacked/unstacked coordinate asynchrony?
+    #     reqcoords = Coordinates([[-.5, 1.5, 3.5], [.5, 2.5, 4.5]], dims=['lat', 'lon'])
+    #     srccoords = Coordinates([([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5])], dims=['lat_lon'])
+
+    #     interp = InterpolationManager('nearest_preview')
+
+    #     srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_index=True)
+    #     coords, cidx = interp.select_coordinates(reqcoords, srccoords, srccoords_index)
+
+    #     assert len(coords) == len(srcoords) == len(cidx)
+    #     assert len(coords['lat']) == len(reqcoords['lat'])
+    #     assert len(coords['lon']) == len(reqcoords['lon'])
+    #     assert np.all(coords['lat'].coordinates == np.array([0, 2, 4]))
 
     def test_nearest_select_issue226(self):
         reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
         srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
 
+        # test straight ahead functionality
         interp = InterpolationManager("nearest")
-
         coords, cidx = interp.select_coordinates(srccoords, reqcoords)
-
-        assert len(coords) == len(srccoords) == len(cidx)
-        assert len(coords["lat"]) == len(reqcoords["lat"])
-        assert len(coords["lon"]) == len(reqcoords["lon"])
-        assert np.all(coords["lat"].coordinates == np.array([0, 2, 4]))
+        np.testing.assert_array_equal(coords["lat"].coordinates, [0, 2, 4])
+        np.testing.assert_array_equal(coords["lon"].coordinates, [0, 3, 5])
+        assert srccoords[cidx] == coords
 
         # test when selection is applied serially
-        # this is equivalent to above
-        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
-        srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
-
         interp = InterpolationManager([{"method": "nearest", "dims": ["lat"]}, {"method": "nearest", "dims": ["lon"]}])
-
         coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        np.testing.assert_array_equal(coords["lat"].coordinates, [0, 2, 4])
+        np.testing.assert_array_equal(coords["lon"].coordinates, [0, 3, 5])
+        assert srccoords[cidx] == coords
 
-        assert len(coords) == len(srccoords) == len(cidx)
-        assert len(coords["lat"]) == len(reqcoords["lat"])
-        assert len(coords["lon"]) == len(reqcoords["lon"])
-        assert np.all(coords["lat"].coordinates == np.array([0, 2, 4]))
+    def test_nearest_select_issue445(self):
+        sc = Coordinates([clinspace(-59.9, 89.9, 100, name="lat"), clinspace(-179.9, 179.9, 100, name="lon")])
+        node = podpac.data.Array(
+            interpolation="nearest_preview", source=np.arange(sc.size).reshape(sc.shape), coordinates=sc
+        )
+        coords = Coordinates([-61, 72], dims=["lat", "lon"])
+        out = node.eval(coords)
+        assert out.shape == (1, 1)
+        assert np.isnan(out.data[0, 0])
 
     def test_interpolation(self):
 
@@ -278,9 +311,7 @@ class TestNearest(object):
             [[np.linspace(0, 10, 5), clinspace("2018-01-01", "2018-01-09", 5)]], dims=[["lat", "time"]]
         )
         node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
+            data=source, coordinates=coords_src, interpolation={"method": "nearest", "interpolators": [NearestNeighbor]}
         )
 
         coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9], clinspace("2018-01-01", "2018-01-09", 3)], dims=["lat", "time"])
@@ -434,7 +465,7 @@ class TestNearest(object):
         assert np.isnan(output.data[0])
 
 
-class TestInterpolateRasterio(object):
+class TestInterpolateRasterioInterpolator(object):
     """test interpolation functions"""
 
     def test_interpolate_rasterio(self):
@@ -450,7 +481,9 @@ class TestInterpolateRasterio(object):
 
         # try one specific rasterio case to measure output
         node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "min", "interpolators": [Rasterio]}
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "min", "interpolators": [RasterioInterpolator]},
         )
         output = node.eval(coords_dst)
 
@@ -460,7 +493,9 @@ class TestInterpolateRasterio(object):
         assert output.data[0, 4] == 4.0
 
         node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "max", "interpolators": [Rasterio]}
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "max", "interpolators": [RasterioInterpolator]},
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
@@ -472,7 +507,7 @@ class TestInterpolateRasterio(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "bilinear", "interpolators": [Rasterio]},
+            interpolation={"method": "bilinear", "interpolators": [RasterioInterpolator]},
             boundary={"lat": 2.5, "lon": 1.25},
         )
         output = node.eval(coords_dst)
@@ -490,7 +525,9 @@ class TestInterpolateRasterio(object):
         coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
         node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "nearest", "interpolators": [Rasterio]}
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "nearest", "interpolators": [RasterioInterpolator]},
         )
         output = node.eval(coords_dst)
 

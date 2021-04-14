@@ -1,20 +1,19 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from six import string_types
-import traitlets as tl
 import re
-import numpy as np
-from dateutil import parser
-import requests
 import json
+import logging
+from six import string_types
+from dateutil import parser
+from io import StringIO
 
 try:
     import cPickle  # Python 2.7
 except:
     import _pickle as cPickle
-from io import StringIO
 
-from podpac.core.utils import _get_from_url
+import numpy as np
+import traitlets as tl
 
 # Optional dependencies
 from lazy_import import lazy_module
@@ -22,8 +21,12 @@ from lazy_import import lazy_module
 bs4 = lazy_module("bs4")
 
 import podpac
-from podpac.core.utils import cached_property
-from podpac.core.compositor.data_compositor import InterpDataCompositor
+from podpac.core.utils import _get_from_url, cached_property
+from podpac.data import DataSource
+from podpac.compositor import TileCompositorRaw
+from podpac.interpolators import InterpolationMixin
+
+_logger = logging.getLogger(__name__)
 
 
 def _convert_str_to_vals(properties):
@@ -44,7 +47,7 @@ def _convert_str_to_vals(properties):
     return properties
 
 
-class COSMOSStation(podpac.data.DataSource):
+class COSMOSStation(DataSource):
     _repr_keys = ["label", "network", "location"]
 
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/StationDat/")
@@ -52,7 +55,13 @@ class COSMOSStation(podpac.data.DataSource):
 
     @cached_property
     def raw_data(self):
-        r = requests.get(self.station_data_url)
+        _logger.info("Downloading station data from {}".format(self.station_data_url))
+
+        r = _get_from_url(self.station_data_url)
+        if r is None:
+            raise ConnectionError(
+                "COSMOS data cannot be retrieved. Is the site {} down?".format(self.station_calibration_url)
+            )
         return r.text
 
     @cached_property
@@ -115,13 +124,22 @@ class COSMOSStation(podpac.data.DataSource):
 
     @cached_property(use_cache_ctrl=True)
     def calibration_data(self):
-        cd = _get_from_url(self.station_calibration_url).json()
+        cd = _get_from_url(self.station_calibration_url)
+        if cd is None:
+            raise ConnectionError(
+                "COSMOS data cannot be retrieved. Is the site {} down?".format(self.station_calibration_url)
+            )
+        cd = cd.json()
         cd["items"] = [_convert_str_to_vals(i) for i in cd["items"]]
         return cd
 
     @cached_property(use_cache_ctrl=True)
     def site_properties(self):
         r = _get_from_url(self.station_properties_url)
+        if r is None:
+            raise ConnectionError(
+                "COSMOS data cannot be retrieved. Is the site {} down?".format(self.station_properties_url)
+            )
         soup = bs4.BeautifulSoup(r.text, "lxml")
         regex = re.compile("Soil Organic Carbon")
         loc = soup.body.findAll(text=regex)[0].parent.parent
@@ -134,7 +152,7 @@ class COSMOSStation(podpac.data.DataSource):
         return _convert_str_to_vals(properties)
 
 
-class COSMOSStations(InterpDataCompositor):
+class COSMOSStationsRaw(TileCompositorRaw):
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/")
     stations_url = tl.Unicode("sitesNoLegend.js")
     dims = ["lat", "lon", "time"]
@@ -148,6 +166,9 @@ class COSMOSStations(InterpDataCompositor):
     def _stations_data_raw(self):
         url = self.url + self.stations_url
         r = _get_from_url(url)
+        if r is None:
+            raise ConnectionError("COSMOS data cannot be retrieved. Is the site {} down?".format(url))
+
         t = r.text
 
         # Fix the JSON
@@ -364,9 +385,17 @@ class COSMOSStations(InterpDataCompositor):
         return [self.stations_data["items"][i] for i in inds]
 
 
+class COSMOSStations(InterpolationMixin, COSMOSStationsRaw):
+    pass
+
+
 if __name__ == "__main__":
     bounds = {"lat": [40, 46], "lon": [-78, -68]}
     cs = COSMOSStations(
+        cache_ctrl=["ram", "disk"],
+        interpolation={"method": "nearest", "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M"}},
+    )
+    csr = COSMOSStationsRaw(
         cache_ctrl=["ram", "disk"],
         interpolation={"method": "nearest", "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M"}},
     )
@@ -384,6 +413,7 @@ if __name__ == "__main__":
         ]
     )
     o = cs.eval(ce)
+    o_r = csr.eval(ce)
     og = cs.eval(cg)
 
     # Test helper functions
@@ -414,6 +444,7 @@ if __name__ == "__main__":
     ax = plt.gca()
     plt.ylim(0, 1)
     plt.legend(cs.label_from_latlon(ce))
+    # plt.plot(o_r.time, o_r.data, ".-")
     plt.ylabel("Soil Moisture ($m^3/m^3$)")
     plt.xlabel("Date")
     # plt.xticks(rotation=90)

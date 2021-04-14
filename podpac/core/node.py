@@ -37,8 +37,8 @@ COMMON_NODE_DOC = {
     "eval_output": """Default is None. Optional input array used to store the output data. When supplied, the node will not
             allocate its own memory for the output array. This array needs to have the correct dimensions,
             coordinates, and coordinate reference system.""",
-    "eval_selector": """The selector function is an optimization that enables nodes to only select data needed by an interpolator. 
-            It returns a new Coordinates object, and an index object that indexes into the `coordinates` parameter 
+    "eval_selector": """The selector function is an optimization that enables nodes to only select data needed by an interpolator.
+            It returns a new Coordinates object, and an index object that indexes into the `coordinates` parameter
             If not provided, the Coordinates.intersect() method will be used instead.""",
     "eval_return": """
         :class:`podpac.UnitsDataArray`
@@ -131,7 +131,7 @@ class Node(tl.HasTraits):
     units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     style = tl.Instance(Style)
 
-    dtype = tl.Any(default_value=float)
+    dtype = tl.Enum([float], default_value=float)
     cache_output = tl.Bool()
     force_eval = tl.Bool(False)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
@@ -878,12 +878,12 @@ class Node(tl.HasTraits):
         * By pointing at the JSON definition retrievable from an S3 bucket that the user has access to:
           e.g by setting LAYER/COVERAGE value to s3://my-bucket-name/pipeline_definition.json
         """
-        params = _get_query_params_from_url(url)
+        query_params = _get_query_params_from_url(url)
 
-        if _get_param(params, "SERVICE") == "WMS":
-            layer = _get_param(params, "LAYERS")
-        elif _get_param(params, "SERVICE") == "WCS":
-            layer = _get_param(params, "COVERAGE")
+        if _get_param(query_params, "SERVICE") == "WMS":
+            layer = _get_param(query_params, "LAYERS")
+        elif _get_param(query_params, "SERVICE") == "WCS":
+            layer = _get_param(query_params, "COVERAGE")
 
         d = None
         if layer.startswith("https://"):
@@ -895,12 +895,20 @@ class Node(tl.HasTraits):
             s3 = S3CacheStore(s3_bucket=bucket)
             s = s3._load(key)
         elif layer == "%PARAMS%":
-            s = _get_param(params, "PARAMS")
+            s = _get_param(query_params, "PARAMS")
         else:
-            p = _get_param(params, "PARAMS")
+            p = _get_param(query_params, "PARAMS")
             if p is None:
                 p = "{}"
-            d = OrderedDict({layer.replace(".", "-"): {"node": layer, "attrs": json.loads(p)}})
+            p = json.loads(p)
+            definition = {}
+            # If one of the special names are in the params list, then add params to the root layer
+            if "node" in p or "plugin" in p or "style" in p or "attrs" in p:
+                definition.update(p)
+            else:
+                definition["attrs"] = p
+            definition.update({"node": layer})  # The user-specified node name ALWAYS takes precidence.
+            d = OrderedDict({layer.replace(".", "-"): definition})
 
         if d is None:
             d = json.loads(s, object_pairs_hook=OrderedDict)
