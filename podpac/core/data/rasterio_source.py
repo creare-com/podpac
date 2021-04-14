@@ -59,7 +59,7 @@ class RasterioRaw(S3Mixin, BaseFileSource):
 
     @cached_property
     def dataset(self):
-        envargs = {}
+        envargs = {"AWS_HTTPS": self.aws_https}
 
         if self.source.startswith("s3://"):
             envargs["session"] = rasterio.session.AWSSession(
