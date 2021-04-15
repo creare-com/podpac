@@ -441,9 +441,9 @@ class Coordinates(tl.HasTraits):
         if coords["crs"] is None:
             coords["crs"] = _get_param(params, "CRS")
 
-        if _get_param(params, "VERSION").startswith("1.1"):
+        if _get_param(params, "VERSION").startswith("1.1") and _get_param(params, "SERVICE") == "WMS":
             r = -1
-        elif _get_param(params, "VERSION").startswith("1.3"):
+        elif _get_param(params, "VERSION").startswith("1.3") or _get_param(params, "SERVICE") == "WCS":
             r = 1
             try:
                 crs = pyproj.CRS(coords["crs"])
