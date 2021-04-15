@@ -371,6 +371,108 @@ class TestCoordinateCreation(object):
         else:
             Coordinates.grid(lat=lat, lon=lon, time=dates)
 
+    def test_from_url(self):
+        crds = Coordinates([[41, 40], [-71, -70], "2018-05-19"], dims=["lat", "lon", "time"])
+        crds2 = crds.transform("EPSG:3857")
+
+        url = (
+            r"http://testwms/?map=map&&service=WMS&request=GetMap&layers=layer&styles=&format=image%2Fpng"
+            r"&transparent=true&version={version}&transparency=true&width=256&height=256&srs=EPSG%3A{epsg}"
+            r"&bbox={},{},{},{}&time={}"
+        )
+
+        # version 1.1.1
+        c = Coordinates.from_url(
+            url.format(
+                min(crds2.bounds["lon"]),
+                min(crds2.bounds["lat"]),
+                max(crds2.bounds["lon"]),
+                max(crds2.bounds["lat"]),
+                crds2.bounds["time"][0],
+                version="1.1.1",
+                epsg="3857",
+            )
+        )
+        assert c.bounds == crds2.bounds
+
+        c = Coordinates.from_url(
+            url.format(
+                min(crds.bounds["lon"]),
+                min(crds.bounds["lat"]),
+                max(crds.bounds["lon"]),
+                max(crds.bounds["lat"]),
+                crds.bounds["time"][0],
+                version="1.1.1",
+                epsg="4326",
+            )
+        )
+        assert c.bounds == crds.bounds
+
+        # version 1.3
+        c = Coordinates.from_url(
+            url.format(
+                min(crds2.bounds["lon"]),
+                min(crds2.bounds["lat"]),
+                max(crds2.bounds["lon"]),
+                max(crds2.bounds["lat"]),
+                crds2.bounds["time"][0],
+                version="1.3",
+                epsg="3857",
+            )
+        )
+        assert c.bounds == crds2.bounds
+
+        c = Coordinates.from_url(
+            url.format(
+                min(crds.bounds["lat"]),
+                min(crds.bounds["lon"]),
+                max(crds.bounds["lat"]),
+                max(crds.bounds["lon"]),
+                crds.bounds["time"][0],
+                version="1.3",
+                epsg="4326",
+            )
+        )
+
+        assert c.bounds == crds.bounds
+
+        # WCS version
+        crds = Coordinates([[41, 40], [-71, -70], "2018-05-19"], dims=["lat", "lon", "time"])
+        crds2 = crds.transform("EPSG:3857")
+
+        url = (
+            r"http://testwms/?map=map&&service=WCS&request=GetMap&layers=layer&styles=&format=image%2Fpng"
+            r"&transparent=true&version={version}&transparency=true&width=256&height=256&srs=EPSG%3A{epsg}"
+            r"&bbox={},{},{},{}&time={}"
+        )
+
+        c = Coordinates.from_url(
+            url.format(
+                min(crds2.bounds["lon"]),
+                min(crds2.bounds["lat"]),
+                max(crds2.bounds["lon"]),
+                max(crds2.bounds["lat"]),
+                crds2.bounds["time"][0],
+                version="1.1",
+                epsg="3857",
+            )
+        )
+        assert c.bounds == crds2.bounds
+
+        c = Coordinates.from_url(
+            url.format(
+                min(crds.bounds["lat"]),
+                min(crds.bounds["lon"]),
+                max(crds.bounds["lat"]),
+                max(crds.bounds["lon"]),
+                crds.bounds["time"][0],
+                version="1.1",
+                epsg="4326",
+            )
+        )
+
+        assert c.bounds == crds.bounds
+
     def test_from_xarray(self):
         lat = [0, 1, 2]
         lon = [10, 20, 30]
@@ -581,71 +683,6 @@ class TestCoordinatesSerialization(object):
 
         c2 = Coordinates.from_json(s)
         assert c2 == c
-
-    def test_from_url(self):
-        crds = Coordinates([[41, 40], [-71, -70], "2018-05-19"], dims=["lat", "lon", "time"])
-        crds2 = crds.transform("EPSG:3857")
-
-        url = (
-            r"http://testwms/?map=map&&service=WMS&request=GetMap&layers=layer&styles=&format=image%2Fpng"
-            r"&transparent=true&version={version}&transparency=true&width=256&height=256&srs=EPSG%3A{epsg}"
-            r"&bbox={},{},{},{}&time={}"
-        )
-
-        # version 1.1.1
-        c = Coordinates.from_url(
-            url.format(
-                min(crds2.bounds["lon"]),
-                min(crds2.bounds["lat"]),
-                max(crds2.bounds["lon"]),
-                max(crds2.bounds["lat"]),
-                crds2.bounds["time"][0],
-                version="1.1.1",
-                epsg="3857",
-            )
-        )
-        assert c.bounds == crds2.bounds
-
-        c = Coordinates.from_url(
-            url.format(
-                min(crds.bounds["lon"]),
-                min(crds.bounds["lat"]),
-                max(crds.bounds["lon"]),
-                max(crds.bounds["lat"]),
-                crds.bounds["time"][0],
-                version="1.1.1",
-                epsg="4326",
-            )
-        )
-        assert c.bounds == crds.bounds
-
-        # version 1.3
-        c = Coordinates.from_url(
-            url.format(
-                min(crds2.bounds["lon"]),
-                min(crds2.bounds["lat"]),
-                max(crds2.bounds["lon"]),
-                max(crds2.bounds["lat"]),
-                crds2.bounds["time"][0],
-                version="1.3",
-                epsg="3857",
-            )
-        )
-        assert c.bounds == crds2.bounds
-
-        c = Coordinates.from_url(
-            url.format(
-                min(crds.bounds["lat"]),
-                min(crds.bounds["lon"]),
-                max(crds.bounds["lat"]),
-                max(crds.bounds["lon"]),
-                crds.bounds["time"][0],
-                version="1.3",
-                epsg="4326",
-            )
-        )
-
-        assert c.bounds == crds.bounds
 
 
 class TestCoordinatesProperties(object):
