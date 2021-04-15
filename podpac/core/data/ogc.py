@@ -23,10 +23,98 @@ from lazy_import import lazy_module, lazy_class
 bs4 = lazy_module("bs4")
 lxml = lazy_module("lxml")  # used by bs4 so want to check if it's available
 owslib_wcs = lazy_module("owslib.wcs")
+owslib_util = lazy_module("owslib.util")
 rasterio = lazy_module("rasterio")
 
 
 logger = logging.getLogger(__name__)
+
+
+class MockWCSClient(tl.HasTraits):
+    source = tl.Unicode()
+    version = tl.Enum(["1.0.0"], default_value="1.0.0")
+    headers = None
+    cookies = None
+    auth = tl.Any()
+
+    def getCoverage(
+        self,
+        identifier=None,
+        bbox=None,
+        time=None,
+        format=None,
+        crs=None,
+        width=None,
+        height=None,
+        resx=None,
+        resy=None,
+        resz=None,
+        parameter=None,
+        method="Get",
+        timeout=30,
+        **kwargs
+    ):
+        """Request and return a coverage from the WCS as a file-like object
+        note: additional **kwargs helps with multi-version implementation
+        core keyword arguments should be supported cross version
+        example:
+        cvg=wcs.getCoverage(identifier=['TuMYrRQ4'], timeSequence=['2792-06-01T00:00:00.0'], bbox=(-112,36,-106,41),
+                            format='cf-netcdf')
+        is equivalent to:
+        http://myhost/mywcs?SERVICE=WCS&REQUEST=GetCoverage&IDENTIFIER=TuMYrRQ4&VERSION=1.1.0&BOUNDINGBOX=-180,-90,180,90&TIME=2792-06-01T00:00:00.0&FORMAT=cf-netcdf
+        """
+        from owslib.util import makeString
+        from urllib.parse import urlencode
+        from owslib.util import openURL
+
+        if logger.isEnabledFor(logging.DEBUG):
+            msg = "WCS 1.0.0 DEBUG: Parameters passed to GetCoverage: identifier={}, bbox={}, time={}, format={}, crs={}, width={}, height={}, resx={}, resy={}, resz={}, parameter={}, method={}, other_arguments={}"  # noqa
+            logger.debug(
+                msg.format(
+                    identifier, bbox, time, format, crs, width, height, resx, resy, resz, parameter, method, str(kwargs)
+                )
+            )
+
+        base_url = self.source
+
+        logger.debug("WCS 1.0.0 DEBUG: base url of server: %s" % base_url)
+
+        # process kwargs
+        request = {"version": self.version, "request": "GetCoverage", "service": "WCS"}
+        assert len(identifier) > 0
+        request["Coverage"] = identifier
+        # request['identifier'] = ','.join(identifier)
+        if bbox:
+            request["BBox"] = ",".join([makeString(x) for x in bbox])
+        else:
+            request["BBox"] = None
+        if time:
+            request["time"] = ",".join(time)
+        if crs:
+            request["crs"] = crs
+        request["format"] = format
+        if width:
+            request["width"] = width
+        if height:
+            request["height"] = height
+        if resx:
+            request["resx"] = resx
+        if resy:
+            request["resy"] = resy
+        if resz:
+            request["resz"] = resz
+
+        # anything else e.g. vendor specific parameters must go through kwargs
+        if kwargs:
+            for kw in kwargs:
+                request[kw] = kwargs[kw]
+
+        # encode and request
+        data = urlencode(request)
+        logger.debug("WCS 1.0.0 DEBUG: Second part of URL: %s" % data)
+
+        u = openURL(base_url, data, method, self.cookies, auth=self.auth, timeout=timeout, headers=self.headers)
+        return u
 
 
 class WCSError(NodeException):
@@ -54,6 +142,13 @@ class WCSRaw(DataSource):
     max_size : int
         maximum request size, optional.
         If provided, the coordinates will be tiled into multiple requests.
+    allow_mock_client : bool
+        Default is False. If True, a mock client will be used to make WCS requests. This allows returns
+        from servers with only partial WCS implementations.
+    username : str
+        Username for servers that require authentication
+    password : str
+        Password for servers that require authentication
 
     See Also
     --------
@@ -64,6 +159,9 @@ class WCSRaw(DataSource):
     layer = tl.Unicode().tag(attr=True)
     version = tl.Unicode(default_value="1.0.0").tag(attr=True)
     interpolation = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
+    allow_mock_client = tl.Bool(False).tag(attr=True)
+    username = tl.Unicode(allow_none=True)
+    password = tl.Unicode(allow_none=True)
 
     format = tl.CaselessStrEnum(["geotiff", "geotiff_byte"], default_value="geotiff")
     crs = tl.Unicode(default_value="EPSG:4326")
@@ -75,9 +173,25 @@ class WCSRaw(DataSource):
     _evaluated_coordinates = tl.Instance(Coordinates)
     coordinate_index_type = "slice"
 
+    @property
+    def auth(self):
+        if self.username and self.password:
+            return owslib_util.Authentication(username=self.username, password=self.password)
+        return None
+
     @cached_property
     def client(self):
-        return owslib_wcs.WebCoverageService(self.source, version=self.version)
+        try:
+            return owslib_wcs.WebCoverageService(self.source, version=self.version, auth=self.auth)
+        except Exception as e:
+            if self.allow_mock_client:
+                logger.warning(
+                    "The OWSLIB Client could not be used. Server endpoint likely does not implement GetCapabilities"
+                    "requests. Using Mock client instead. Error was {}".format(e)
+                )
+                return MockWCSClient(source=self.source, version=self.version, auth=self.auth)
+            else:
+                raise e
 
     def get_coordinates(self):
         """
@@ -134,6 +248,11 @@ class WCSRaw(DataSource):
         ValueError
             Cannot evaluate these coordinates
         """
+        # The mock client cannot figure out the real coordinates, so just duplicate the requested coordinates
+        if isinstance(self.client, MockWCSClient):
+            self.set_trait("_coordinates", coordinates)
+            self.set_trait("crs", coordinates.crs)
+
         # remove extra dimensions
         extra = [
             c.name
