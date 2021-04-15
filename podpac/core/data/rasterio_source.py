@@ -55,7 +55,7 @@ class RasterioRaw(S3Mixin, BaseFileSource):
 
     driver = tl.Unicode(allow_none=True, default_value=None)
     coordinate_index_type = "slice"
-    aws_https = tl.Bool(True)
+    aws_https = tl.Bool(True).tag(attr=True)
 
     @cached_property
     def dataset(self):
