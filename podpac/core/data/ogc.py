@@ -9,6 +9,7 @@ from operator import mul
 from functools import reduce
 
 import traitlets as tl
+import pyproj
 
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import DataSource
@@ -250,6 +251,10 @@ class WCSRaw(DataSource):
         """
         # The mock client cannot figure out the real coordinates, so just duplicate the requested coordinates
         if isinstance(self.client, MockWCSClient):
+            if not coordinates["lat"].is_uniform or not coordinates["lon"].is_uniform:
+                raise NotImplementedError(
+                    "When using the Mock WCS client, the requested coordinates need to be uniform."
+                )
             self.set_trait("_coordinates", coordinates)
             self.set_trait("crs", coordinates.crs)
 
@@ -366,9 +371,14 @@ class WCSRaw(DataSource):
             % (self.source, self.layer, (w, n, e, s), (width, height))
         )
 
+        crs = pyproj.CRS(self.crs)
+        bbox = (min(w, e), min(s, n), max(e, w), max(n, s))
+        if crs.axis_info[0].direction == "north":
+            bbox = (min(s, n), min(w, e), max(n, s), max(e, w))
+
         response = self.client.getCoverage(
             identifier=self.layer,
-            bbox=(w, n, e, s),
+            bbox=bbox,
             width=width,
             height=height,
             crs=self.crs,
@@ -395,6 +405,13 @@ class WCSRaw(DataSource):
             raise NotImplementedError("TODO")
 
         data = dataset.read(1).astype(float)
+
+        # Need to fix the data order. The request and response order is always the same in WCS, but not in PODPAC
+        if n < s:
+            data = data[::-1]
+        if e < w:
+            data = data[:, ::-1]
+
         return data
 
     @classmethod
