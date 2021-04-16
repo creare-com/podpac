@@ -441,9 +441,11 @@ class Coordinates(tl.HasTraits):
         if coords["crs"] is None:
             coords["crs"] = _get_param(params, "CRS")
 
-        if _get_param(params, "VERSION").startswith("1.1") and _get_param(params, "SERVICE") == "WMS":
+        if _get_param(params, "SERVICE") == "WCS":
             r = -1
-        elif _get_param(params, "VERSION").startswith("1.3") or _get_param(params, "SERVICE") == "WCS":
+        elif _get_param(params, "VERSION").startswith("1.1"):
+            r = -1
+        elif _get_param(params, "VERSION").startswith("1.3"):
             r = 1
             try:
                 crs = pyproj.CRS(coords["crs"])
@@ -460,7 +462,7 @@ class Coordinates(tl.HasTraits):
         size = np.array([_get_param(params, "WIDTH"), _get_param(params, "HEIGHT")], int)[::r]
 
         coords["coords"] = [
-            {"name": "lat", "start": start[0], "stop": stop[0], "size": size[0]},
+            {"name": "lat", "start": stop[0], "stop": start[0], "size": size[0]},
             {"name": "lon", "start": start[1], "stop": stop[1], "size": size[1]},
         ]
 

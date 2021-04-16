@@ -459,12 +459,26 @@ class TestCoordinateCreation(object):
         )
         assert c.bounds == crds2.bounds
 
+        # Based on all the documentation I've read, this should be correct, but
+        # based on the server's I've checked, this does not seem correct
+        # c = Coordinates.from_url(
+        #     url.format(
+        #         min(crds.bounds["lat"]),
+        #         min(crds.bounds["lon"]),
+        #         max(crds.bounds["lat"]),
+        #         max(crds.bounds["lon"]),
+        #         crds.bounds["time"][0],
+        #         version="1.1",
+        #         epsg="4326",
+        #     )
+        # )
+
         c = Coordinates.from_url(
             url.format(
-                min(crds.bounds["lat"]),
                 min(crds.bounds["lon"]),
-                max(crds.bounds["lat"]),
+                min(crds.bounds["lat"]),
                 max(crds.bounds["lon"]),
+                max(crds.bounds["lat"]),
                 crds.bounds["time"][0],
                 version="1.1",
                 epsg="4326",

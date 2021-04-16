@@ -26,6 +26,7 @@ import traitlets as tl
 import numpy as np
 import xarray as xr
 import pandas as pd  # Core dependency of xarray
+import pyproj
 
 # Optional Imports
 requests = lazy_import.lazy_module("requests")
@@ -459,3 +460,18 @@ def _ind2slice(I):
 
     # non-stepped slice
     return slice(I.min(), I.max() + 1)
+
+
+def resolve_bbox_order(bbox, crs, size):
+    """
+    Utility that puts the OGC WMS/WCS BBox in the order specified by the CRS.
+    """
+    crs = pyproj.CRS(crs)
+    r = 1
+    if crs.axis_info[0].direction != "north":
+        r = -1
+    lat_start, lon_start = bbox[:2][::r]
+    lat_stop, lon_stop = bbox[2::][::r]
+    size = size[::r]
+
+    return {"lat": [lat_start, lat_stop, size[0]], "lon": [lon_start, lon_stop, size[1]]}

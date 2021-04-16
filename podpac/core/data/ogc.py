@@ -11,7 +11,7 @@ from functools import reduce
 import traitlets as tl
 import pyproj
 
-from podpac.core.utils import common_doc, cached_property
+from podpac.core.utils import common_doc, cached_property, resolve_bbox_order
 from podpac.core.data.datasource import DataSource
 from podpac.core.interpolation.interpolation import InterpolationMixin
 from podpac.core.node import NodeException
@@ -201,18 +201,26 @@ class WCSRaw(DataSource):
 
         metadata = self.client.contents[self.layer]
 
-        # TODO select correct boundingbox by crs
-
         # coordinates
-        w, s, e, n = metadata.boundingBoxWGS84
+        bbox = metadata.boundingBoxWGS84
+        crs = "EPSG:4326"
+        logging.debug("WCS available boundingboxes: {}".format(metadata.boundingboxes))
+        for bboxes in metadata.boundingboxes:
+            if bboxes["nativeSrs"] == self.crs:
+                bbox = bboxes["bbox"]
+                crs = self.crs
+                break
+
         low = metadata.grid.lowlimits
         high = metadata.grid.highlimits
         xsize = int(high[0]) - int(low[0])
         ysize = int(high[1]) - int(low[1])
 
+        rbbox = resolve_bbox_order(bbox, crs, (xsize, ysize))
+
         coords = []
-        coords.append(UniformCoordinates1d(s, n, size=ysize, name="lat"))
-        coords.append(UniformCoordinates1d(w, e, size=xsize, name="lon"))
+        coords.append(UniformCoordinates1d(rbbox["lat"][0], rbbox["lat"][1], size=rbbox["lat"][2], name="lat"))
+        coords.append(UniformCoordinates1d(rbbox["lon"][0], rbbox["lon"][1], size=rbbox["lon"][2], name="lon"))
 
         if metadata.timepositions:
             coords.append(ArrayCoordinates1d(metadata.timepositions, name="time"))
@@ -220,7 +228,7 @@ class WCSRaw(DataSource):
         if metadata.timelimits:
             raise NotImplementedError("TODO")
 
-        return Coordinates(coords, crs=self.crs)
+        return Coordinates(coords, crs=crs)
 
     def _eval(self, coordinates, output=None, _selector=None):
         """Evaluates this node using the supplied coordinates.
@@ -371,10 +379,12 @@ class WCSRaw(DataSource):
             % (self.source, self.layer, (w, n, e, s), (width, height))
         )
 
-        crs = pyproj.CRS(self.crs)
+        crs = pyproj.CRS(coordinates.crs)
         bbox = (min(w, e), min(s, n), max(e, w), max(n, s))
-        if crs.axis_info[0].direction == "north":
-            bbox = (min(s, n), min(w, e), max(n, s), max(e, w))
+        # Based on the spec I need the following line, but
+        # all my tests on other servers suggests I don't need this...
+        # if crs.axis_info[0].direction == "north":
+        #     bbox = (min(s, n), min(w, e), max(n, s), max(e, w))
 
         response = self.client.getCoverage(
             identifier=self.layer,
@@ -407,7 +417,7 @@ class WCSRaw(DataSource):
         data = dataset.read(1).astype(float)
 
         # Need to fix the data order. The request and response order is always the same in WCS, but not in PODPAC
-        if n < s:
+        if n > s:  # By default it returns the data upside down, so this is backwards
             data = data[::-1]
         if e < w:
             data = data[:, ::-1]
