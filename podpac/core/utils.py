@@ -475,3 +475,70 @@ def resolve_bbox_order(bbox, crs, size):
     size = size[::r]
 
     return {"lat": [lat_start, lat_stop, size[0]], "lon": [lon_start, lon_stop, size[1]]}
+
+
+def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
+    """"""
+
+    def partial_definition(key, definition):
+        new_def = OrderedDict()
+        for k in definition:
+            new_def[k] = definition[k]
+            if k == key:
+                return new_def
+
+    def flatten_list(l):
+        nl = []
+        for ll in l:
+            if isinstance(ll, list):
+                lll = flatten_list(ll)
+                nl.extend(lll)
+            else:
+                nl.append(ll)
+        return nl
+
+    c = [(v, d) for v, d in zip([lat, lon, time, alt], ["lat", "lon", "time", "alt"]) if v is not None]
+    coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c])
+    with podpac.settings:
+        podpac.settings["DEFAULT_CACHE"] = ["ram"]
+        podpac.settings["CACHE_DATASOURCE_OUTPUT_DEFAULT"] = True
+        podpac.settings["RAM_CACHE_ENABLED"] = True
+        podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = True
+        podpac.utils.clear_cache("ram")
+        v = float(node.eval(coords))
+        definition = node.definition
+        out = OrderedDict()
+        for key in definition:
+            if key == "podpac_version":
+                continue
+            d = partial_definition(key, definition)
+            n = podpac.Node.from_definition(d)
+            value = float(n.eval(coords))
+            inputs = flatten_list(list(d[key].get("inputs", {}).values()))
+            active = n._from_cache or (
+                isinstance(n, podpac.data.DataSource) and isinstance(n, podpac.core.node.NoCacheMixin)
+            )
+            out[key] = {
+                "active": active,
+                "value": value,
+                "inputs": inputs,
+                "name": n.style.name if n.style.name else key,
+                "node_hash": n.hash,
+            }
+    if not nested:
+        return out
+
+    def get_entry(key, out, definition):
+        # We have to rearrange the outputs
+        entry = OrderedDict()
+        entry["name"] = out[key]["name"]
+        entry["value"] = out[key]["value"]
+        entry["active"] = out[key]["active"]
+        entry["node_id"] = out[key]["node_hash"]
+        entry["params"] = {}
+        entry["inputs"] = {"inputs": [get_entry(inp, out, definition) for inp in out[key]["inputs"]]}
+        if len(entry["inputs"]["inputs"]) == 0:
+            entry["inputs"] = {}
+        return entry
+
+    return get_entry(list(out.keys())[-1], out, definition)
