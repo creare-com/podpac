@@ -478,9 +478,41 @@ def resolve_bbox_order(bbox, crs, size):
 
 
 def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
-    """"""
+    """Evaluates every part of a node / pipeline at a point and records
+    which nodes are actively being used.
+
+    Parameters
+    ------------
+    node : podpac.Node
+        A PODPAC Node instance
+    lat : float, optional
+        Default is None. The latitude location
+    lon : float, optional
+        Default is None. The longitude location
+    time : float, np.datetime64, optional
+        Default is None. The time
+    alt : float, optional
+        Default is None. The altitude location
+    nested : bool, optional
+        Default is False. If True, will return a nested version of the
+        output dictionary isntead
+
+    Returns
+    dict
+        A dictionary that contains the following for each node:
+        ```
+        {
+            "active": bool,   # If the node is being used or not
+            "value": float,   # The value of the node evaluated at that point
+            "inputs": list,   # List of names of input nodes (based on definition)
+            "name": str,      # node.style.name
+            "node_hash": str, # The node's hash or node.base_ref
+        }
+        ```
+    """
 
     def partial_definition(key, definition):
+        """ Needed to build partial node definitions """
         new_def = OrderedDict()
         for k in definition:
             new_def[k] = definition[k]
@@ -488,6 +520,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
                 return new_def
 
     def flatten_list(l):
+        """ Needed to flatten the inputs list for all the dependencies """
         nl = []
         for ll in l:
             if isinstance(ll, list):
@@ -497,38 +530,8 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
                 nl.append(ll)
         return nl
 
-    c = [(v, d) for v, d in zip([lat, lon, time, alt], ["lat", "lon", "time", "alt"]) if v is not None]
-    coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c])
-    with podpac.settings:
-        podpac.settings["DEFAULT_CACHE"] = ["ram"]
-        podpac.settings["CACHE_DATASOURCE_OUTPUT_DEFAULT"] = True
-        podpac.settings["RAM_CACHE_ENABLED"] = True
-        podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = True
-        podpac.utils.clear_cache("ram")
-        v = float(node.eval(coords))
-        definition = node.definition
-        out = OrderedDict()
-        for key in definition:
-            if key == "podpac_version":
-                continue
-            d = partial_definition(key, definition)
-            n = podpac.Node.from_definition(d)
-            value = float(n.eval(coords))
-            inputs = flatten_list(list(d[key].get("inputs", {}).values()))
-            active = n._from_cache or (
-                isinstance(n, podpac.data.DataSource) and isinstance(n, podpac.core.node.NoCacheMixin)
-            )
-            out[key] = {
-                "active": active,
-                "value": value,
-                "inputs": inputs,
-                "name": n.style.name if n.style.name else key,
-                "node_hash": n.hash,
-            }
-    if not nested:
-        return out
-
     def get_entry(key, out, definition):
+        """ Needed for the nested version of the pipeline """
         # We have to rearrange the outputs
         entry = OrderedDict()
         entry["name"] = out[key]["name"]
@@ -541,4 +544,33 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
             entry["inputs"] = {}
         return entry
 
-    return get_entry(list(out.keys())[-1], out, definition)
+    c = [(v, d) for v, d in zip([lat, lon, time, alt], ["lat", "lon", "time", "alt"]) if v is not None]
+    coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c])
+    v = float(node.eval(coords))
+    definition = node.definition
+    out = OrderedDict()
+    for key in definition:
+        if key == "podpac_version":
+            continue
+        d = partial_definition(key, definition)
+        n = podpac.Node.from_definition(d)
+        value = float(n.eval(coords))
+        inputs = flatten_list(list(d[key].get("inputs", {}).values()))
+        active = True
+        out[key] = {
+            "active": active,
+            "value": value,
+            "inputs": inputs,
+            "name": n.style.name if n.style.name else key,
+            "node_hash": n.hash,
+        }
+        # Fix sources for Compositors
+        if isinstance(n, podpac.compositor.OrderedCompositor):
+            for inp in inputs:
+                out[inp]["active"] = False
+                if out[inp]["value"] == out[key]["value"] and np.isfinite(out[inp]["value"]):
+                    out[inp]["active"] = True
+
+    if nested:
+        out = get_entry(list(out.keys())[-1], out, definition)
+    return out

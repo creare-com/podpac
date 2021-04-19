@@ -26,6 +26,7 @@ from podpac.core.utils import JSONEncoder
 from podpac.core.utils import cached_property
 from podpac.core.utils import trait_is_defined
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
+from podpac.core.utils import probe_node
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl, S3CacheStore, DiskCacheStore
@@ -385,6 +386,36 @@ class Node(tl.HasTraits):
 
     def trait_is_defined(self, name):
         return trait_is_defined(self, name)
+
+    def probe(self, lat=None, lon=None, time=None, alt=None):
+        """Evaluates every part of a node / pipeline at a point and records
+        which nodes are actively being used.
+
+        Parameters
+        ------------
+        lat : float, optional
+            Default is None. The latitude location
+        lon : float, optional
+            Default is None. The longitude location
+        time : float, np.datetime64, optional
+            Default is None. The time
+        alt : float, optional
+            Default is None. The altitude location
+
+        Returns
+        dict
+            A dictionary that contains the following for each node:
+            ```
+            {
+                "active": bool,   # If the node is being used or not
+                "value": float,   # The value of the node evaluated at that point
+                "inputs": list,   # List of names of input nodes (based on definition)
+                "name": str,      # node.style.name or self.base_ref if the style name is empty
+                "node_hash": str, # The node's hash
+            }
+            ```
+        """
+        return probe_node(self, lat, lon, time, alt)
 
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization

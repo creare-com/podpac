@@ -476,7 +476,7 @@ class TestNodeProber(object):
     one = podpac.data.Array(source=np.ones((3, 3)), coordinates=coords, style=podpac.style.Style(name="one_style"))
     two = podpac.data.Array(source=np.ones((3, 3)) * 2, coordinates=coords, style=podpac.style.Style(name="two_style"))
     arange = podpac.algorithm.Arange()
-    three = podpac.data.Array(source=np.ones((3, 3)) * 3, coordinates=coords)
+    nan = podpac.data.Array(source=np.ones((3, 3)) * np.nan, coordinates=coords)
 
     def test_single_prober(self):
         expected = {
@@ -548,6 +548,24 @@ class TestNodeProber(object):
             },
         }
         out = probe_node(a, lat=1, lon=1)
+        assert out == expected
+
+        a = podpac.compositor.OrderedCompositor(sources=[self.nan, self.two])
+        expected = {
+            "Array": {"active": False, "value": "nan", "inputs": [], "name": "Array", "node_hash": self.nan.hash},
+            "Array_1": {"active": True, "value": 2.0, "inputs": [], "name": "two_style", "node_hash": self.two.hash},
+            "OrderedCompositor": {
+                "active": True,
+                "value": 2.0,
+                "inputs": ["Array", "Array_1"],
+                "name": "OrderedCompositor",
+                "node_hash": a.hash,
+            },
+        }
+        out = probe_node(a, lat=1, lon=1)
+        for k in out:
+            if np.isnan(out[k]["value"]):
+                out[k]["value"] = "nan"
         assert out == expected
 
     def test_composited_prober_nested(self):
