@@ -1,5 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 import logging
+
 import warnings
 from copy import deepcopy
 from collections import OrderedDict
@@ -7,6 +8,7 @@ from six import string_types
 import numpy as np
 import traitlets as tl
 
+from podpac.core.node import Node
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims, Coordinates
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
@@ -15,6 +17,7 @@ from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeigh
 from podpac.core.interpolation.rasterio_interpolator import RasterioInterpolator
 from podpac.core.interpolation.scipy_interpolator import ScipyPoint, ScipyGrid
 from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
+from podpac.core.interpolation.none_interpolator import NoneInterpolator
 
 _logger = logging.getLogger(__name__)
 
@@ -22,13 +25,22 @@ _logger = logging.getLogger(__name__)
 INTERPOLATION_DEFAULT = "nearest"
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
 
-INTERPOLATORS = [NearestNeighbor, XarrayInterpolator, RasterioInterpolator, ScipyPoint, ScipyGrid, NearestPreview]
+INTERPOLATORS = [
+    NoneInterpolator,
+    NearestNeighbor,
+    XarrayInterpolator,
+    RasterioInterpolator,
+    ScipyPoint,
+    ScipyGrid,
+    NearestPreview,
+]
 """list : list of available interpolator classes"""
 
 INTERPOLATORS_DICT = {}
 """dict : Dictionary of a string interpolator name and associated interpolator class"""
 
 INTERPOLATION_METHODS = [
+    "none",
     "nearest_preview",
     "nearest",
     "linear",
@@ -465,7 +477,7 @@ class InterpolationManager(object):
         for udims in interpolator_queue:
             interpolator = interpolator_queue[udims]
             extra_dims = [d for d in source_coordinates.udims if d not in udims]
-            sc = source_coordinates.drop(extra_dims)
+            sc = source_coordinates.udrop(extra_dims)
             # run interpolation. mutates selected coordinates and selected coordinates index
             sel_coords, sel_coords_idx = interpolator.select_coordinates(
                 udims, sc, eval_coordinates, index_type=index_type
@@ -556,6 +568,12 @@ class InterpolationManager(object):
         interpolator_queue = self._select_interpolator_queue(
             source_coordinates, eval_coordinates, "can_interpolate", strict=True
         )
+        if any([isinstance(interpolator_queue[k], NoneInterpolator) for k in interpolator_queue]):
+            # Then we likely need to fix the output, since the shape of output will
+            # not match the input coordinates in most cases
+            output_data, eval_coordinates = self._fix_none_output_size(
+                interpolator_queue, eval_coordinates, source_coordinates, output_data
+            )
 
         # for debugging purposes, save the last defined interpolator queue
         self._last_interpolator_queue = interpolator_queue
@@ -601,6 +619,35 @@ class InterpolationManager(object):
             _logger.warning("The interpolation parameter '{}' was ignored during interpolation.".format(k))
 
         return output_data
+
+    def _fix_none_output_size(self, interpolator_queue, eval_coordinates, source_coordinates, output_data):
+        new_dims = []
+        new_coords = []
+        covered_udims = []
+        for k in interpolator_queue:
+            if not isinstance(interpolator_queue[k], NoneInterpolator):
+                # Keep the eval_coordinates for these dimensions
+                for d in eval_coordinates.dims:
+                    ud = d.split("_")
+                    for u in ud:
+                        if u in k:
+                            new_dims.append(d)
+                            new_coords.append(eval_coordinates[d])
+                            covered_udims.extend(ud)
+                            break
+            else:
+                for d in source_coordinates.dims:
+                    ud = d.split("_")
+                    for u in ud:
+                        if u in k:
+                            new_dims.append(d)
+                            new_coords.append(source_coordinates[d])
+                            covered_udims.extend(ud)
+                            break
+        new_coordinates = Coordinates(new_coords, new_dims)
+        new_output_data = Node().create_output_array(new_coordinates)
+        new_output_data.attrs = output_data.attrs
+        return new_output_data, new_coordinates
 
 
 class InterpolationTrait(tl.Union):
