@@ -568,12 +568,6 @@ class InterpolationManager(object):
         interpolator_queue = self._select_interpolator_queue(
             source_coordinates, eval_coordinates, "can_interpolate", strict=True
         )
-        if any([isinstance(interpolator_queue[k], NoneInterpolator) for k in interpolator_queue]):
-            # Then we likely need to fix the output, since the shape of output will
-            # not match the input coordinates in most cases
-            output_data, eval_coordinates = self._fix_none_output_size(
-                interpolator_queue, eval_coordinates, source_coordinates, output_data
-            )
 
         # for debugging purposes, save the last defined interpolator queue
         self._last_interpolator_queue = interpolator_queue
@@ -620,7 +614,16 @@ class InterpolationManager(object):
 
         return output_data
 
-    def _fix_none_output_size(self, interpolator_queue, eval_coordinates, source_coordinates, output_data):
+    def _fix_coordinates_for_none_interp(self, eval_coordinates, source_coordinates):
+        interpolator_queue = self._select_interpolator_queue(
+            source_coordinates, eval_coordinates, "can_interpolate", strict=True
+        )
+        if not any([isinstance(interpolator_queue[k], NoneInterpolator) for k in interpolator_queue]):
+            # Nothing to do, just return eval_coordinates
+            return eval_coordinates
+
+        # Likely need to fix the output, since the shape of output will
+        # not match the eval coordinates in most cases
         new_dims = []
         new_coords = []
         covered_udims = []
@@ -645,9 +648,7 @@ class InterpolationManager(object):
                             covered_udims.extend(ud)
                             break
         new_coordinates = Coordinates(new_coords, new_dims)
-        new_output_data = Node().create_output_array(new_coordinates)
-        new_output_data.attrs = output_data.attrs
-        return new_output_data, new_coordinates
+        return new_coordinates
 
 
 class InterpolationTrait(tl.Union):

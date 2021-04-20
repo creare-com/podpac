@@ -225,6 +225,9 @@ class Interpolate(Node):
         if source_coords.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(source_coords.crs)
 
+        # Fix source coordinates in the case where some dimension are not being interpolated
+        coordinates = self._interpolation._fix_coordinates_for_none_interp(coordinates, source_coords)
+
         if output is None:
             if "output" in source_out.dims:
                 self.set_trait("outputs", source_out.coords["output"].data.tolist())
