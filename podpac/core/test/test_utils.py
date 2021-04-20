@@ -568,11 +568,11 @@ class TestNodeProber(object):
                 out[k]["value"] = "nan"
         assert out == expected
 
-        a = podpac.compositor.OrderedCompositor(sources=[self.nan, self.one, self.two])
+        a = podpac.compositor.OrderedCompositor(sources=[self.nan, self.one, self.one])
         expected = {
             "Array": {"active": False, "value": "nan", "inputs": [], "name": "Array", "node_hash": self.nan.hash},
             "Array_1": {"active": True, "value": 1.0, "inputs": [], "name": "one_style", "node_hash": self.one.hash},
-            "Array_2": {"active": False, "value": 2.0, "inputs": [], "name": "two_style", "node_hash": self.two.hash},
+            "Array_2": {"active": False, "value": 1.0, "inputs": [], "name": "two_style", "node_hash": self.one.hash},
             "OrderedCompositor": {
                 "active": True,
                 "value": 1.0,
