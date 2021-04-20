@@ -471,12 +471,18 @@ class TestInd2Slice(object):
         assert ind2slice([1, 3, 5]) == slice(1, 7, 2)
 
 
+class AnotherOne(podpac.algorithm.Algorithm):
+    def algorithm(self, inputs, coordinates):
+        return self.create_output_array(coordinates, data=1)
+
+
 class TestNodeProber(object):
     coords = podpac.Coordinates([podpac.clinspace(0, 2, 3, "lat"), podpac.clinspace(0, 2, 3, "lon")])
     one = podpac.data.Array(source=np.ones((3, 3)), coordinates=coords, style=podpac.style.Style(name="one_style"))
     two = podpac.data.Array(source=np.ones((3, 3)) * 2, coordinates=coords, style=podpac.style.Style(name="two_style"))
     arange = podpac.algorithm.Arange()
     nan = podpac.data.Array(source=np.ones((3, 3)) * np.nan, coordinates=coords)
+    another_one = AnotherOne()
 
     def test_single_prober(self):
         expected = {
@@ -568,15 +574,21 @@ class TestNodeProber(object):
                 out[k]["value"] = "nan"
         assert out == expected
 
-        a = podpac.compositor.OrderedCompositor(sources=[self.nan, self.one, self.one])
+        a = podpac.compositor.OrderedCompositor(sources=[self.nan, self.one, self.another_one])
         expected = {
             "Array": {"active": False, "value": "nan", "inputs": [], "name": "Array", "node_hash": self.nan.hash},
             "Array_1": {"active": True, "value": 1.0, "inputs": [], "name": "one_style", "node_hash": self.one.hash},
-            "Array_2": {"active": False, "value": 1.0, "inputs": [], "name": "two_style", "node_hash": self.one.hash},
+            "AnotherOne": {
+                "active": False,
+                "value": 1.0,
+                "inputs": [],
+                "name": "AnotherOne",
+                "node_hash": self.another_one.hash,
+            },
             "OrderedCompositor": {
                 "active": True,
                 "value": 1.0,
-                "inputs": ["Array", "Array_1", "Array_2"],
+                "inputs": ["Array", "Array_1", "AnotherOne"],
                 "name": "OrderedCompositor",
                 "node_hash": a.hash,
             },
