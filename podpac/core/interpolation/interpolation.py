@@ -28,12 +28,15 @@ class InterpolationMixin(tl.HasTraits):
         return super()._repr_keys + ["interpolation"]
 
     def _eval(self, coordinates, output=None, _selector=None):
-        node = Interpolate(interpolation=self.interpolation)
+        node = Interpolate(interpolation=self.interpolation, source_id=self.hash)
         node._set_interpolation()
         selector = node._interpolation.select_coordinates
         node._source_xr = super()._eval(coordinates, _selector=selector)
         self._interp_node = node
-        return node.eval(coordinates, output=output)
+        r = node.eval(coordinates, output=output)
+        # Helpful for debugging
+        self._from_cache = node._from_cache
+        return r
 
 
 class Interpolate(Node):
@@ -95,6 +98,7 @@ class Interpolate(Node):
     """
 
     source = NodeTrait(allow_none=True).tag(attr=True)
+    source_id = tl.Unicode(allow_none=True).tag(attr=True)
     _source_xr = tl.Instance(UnitsDataArray, allow_none=True)  # This is needed for the Interpolation Mixin
 
     interpolation = InterpolationTrait().tag(attr=True)

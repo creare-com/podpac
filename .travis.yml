@@ -1,6 +1,6 @@
 # Travis CI Podpac Build
 # Builds for python 2.x and python 3.x
-# 
+#
 # Useful links:
 # https://docs.travis-ci.com/user/languages/python/
 # https://conda.io/docs/user-guide/tasks/use-conda-with-travis-ci.html
@@ -28,18 +28,18 @@ install:
   # install setup.py and dev extras
   - pip install coverage==4.5.4
   - pip install .[devall]
-  
+
   # Allow Python exec and eval functions for unit tests
   - mkdir /home/travis/.podpac
   - touch /home/travis/.podpac/ALLOW_PYTHON_EVAL_EXEC
-  
+
 # cache pip dependencies for faster builds
 cache: pip
 
 # run unit tests
-script: 
-  - pytest --ci --cov=podpac podpac        # run unit tests with coverage
-  - pytest --ci -m integration podpac      # run integration tests
+script:
+  - pytest --ci --cov=podpac podpac -v --color=yes -m "not integration"       # run unit tests with coverage
+  # - pytest --ci -m integration podpac      # run integration tests
 
   # run doctest
   - cd doc && ./test-docs.sh && cd ..
