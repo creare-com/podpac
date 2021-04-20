@@ -1,4 +1,5 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
+from podpac.core.cache import cache_ctrl
 
 import traitlets as tl
 from copy import deepcopy
@@ -15,6 +16,7 @@ from podpac.core.utils import NodeTrait, common_doc
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims, Coordinates
 from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationTrait
+from podpac.core.cache.cache_ctrl import CacheCtrl
 
 _logger = logging.getLogger(__name__)
 
@@ -28,7 +30,9 @@ class InterpolationMixin(tl.HasTraits):
         return super()._repr_keys + ["interpolation"]
 
     def _eval(self, coordinates, output=None, _selector=None):
-        node = Interpolate(interpolation=self.interpolation, source_id=self.hash)
+        node = Interpolate(
+            interpolation=self.interpolation, source_id=self.hash, force_eval=True, cache_ctrl=CacheCtrl([])
+        )
         node._set_interpolation()
         selector = node._interpolation.select_coordinates
         node._source_xr = super()._eval(coordinates, _selector=selector)
