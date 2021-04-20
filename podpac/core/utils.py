@@ -566,10 +566,12 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
         }
         # Fix sources for Compositors
         if isinstance(n, podpac.compositor.OrderedCompositor):
+            searching_for_active = True
             for inp in inputs:
                 out[inp]["active"] = False
-                if out[inp]["value"] == out[key]["value"] and np.isfinite(out[inp]["value"]):
+                if out[inp]["value"] == out[key]["value"] and np.isfinite(out[inp]["value"]) and searching_for_active:
                     out[inp]["active"] = True
+                    searching_for_active = False
 
     if nested:
         out = get_entry(list(out.keys())[-1], out, definition)
