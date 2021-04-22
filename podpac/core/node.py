@@ -939,7 +939,8 @@ class Node(tl.HasTraits):
             p = _get_param(query_params, "PARAMS")
             if p is None:
                 p = "{}"
-            p = json.loads(p)
+            if not isinstance(p, dict):
+                p = json.loads(p)
             definition = {}
             # If one of the special names are in the params list, then add params to the root layer
             if "node" in p or "plugin" in p or "style" in p or "attrs" in p:
