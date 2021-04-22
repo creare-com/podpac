@@ -478,15 +478,26 @@ class AnotherOne(podpac.algorithm.Algorithm):
 
 class TestNodeProber(object):
     coords = podpac.Coordinates([podpac.clinspace(0, 2, 3, "lat"), podpac.clinspace(0, 2, 3, "lon")])
-    one = podpac.data.Array(source=np.ones((3, 3)), coordinates=coords, style=podpac.style.Style(name="one_style"))
-    two = podpac.data.Array(source=np.ones((3, 3)) * 2, coordinates=coords, style=podpac.style.Style(name="two_style"))
+    one = podpac.data.Array(
+        source=np.ones((3, 3)), coordinates=coords, style=podpac.style.Style(name="one_style", units="o")
+    )
+    two = podpac.data.Array(
+        source=np.ones((3, 3)) * 2, coordinates=coords, style=podpac.style.Style(name="two_style", units="t")
+    )
     arange = podpac.algorithm.Arange()
     nan = podpac.data.Array(source=np.ones((3, 3)) * np.nan, coordinates=coords)
     another_one = AnotherOne()
 
     def test_single_prober(self):
         expected = {
-            "Array": {"active": True, "value": 1, "inputs": [], "name": "one_style", "node_hash": self.one.hash}
+            "Array": {
+                "active": True,
+                "value": 1,
+                "units": "o",
+                "inputs": [],
+                "name": "one_style",
+                "node_hash": self.one.hash,
+            }
         }
         out = probe_node(self.one, lat=1, lon=1)
         assert out == expected
@@ -495,12 +506,20 @@ class TestNodeProber(object):
         with podpac.settings:
             podpac.settings.set_unsafe_eval(True)
             a = podpac.algorithm.Arithmetic(one=self.one, eqn="one * 2")
-            b = podpac.algorithm.Arithmetic(a=a, eqn="a*3", style=podpac.style.Style(name="six_style"))
+            b = podpac.algorithm.Arithmetic(a=a, eqn="a*3", style=podpac.style.Style(name="six_style", units="m"))
             expected = {
-                "Array": {"active": True, "value": 1.0, "inputs": [], "name": "one_style", "node_hash": self.one.hash},
+                "Array": {
+                    "active": True,
+                    "value": 1.0,
+                    "units": "o",
+                    "inputs": [],
+                    "name": "one_style",
+                    "node_hash": self.one.hash,
+                },
                 "Arithmetic": {
                     "active": True,
                     "value": 2.0,
+                    "units": "",
                     "inputs": ["Array"],
                     "name": "Arithmetic",
                     "node_hash": a.hash,
@@ -508,6 +527,7 @@ class TestNodeProber(object):
                 "Arithmetic_1": {
                     "active": True,
                     "value": 6.0,
+                    "units": "m",
                     "inputs": ["Arithmetic"],
                     "name": "six_style",
                     "node_hash": b.hash,
@@ -521,10 +541,18 @@ class TestNodeProber(object):
             podpac.settings.set_unsafe_eval(True)
             a = podpac.algorithm.Arithmetic(one=self.one, two=self.two, eqn="one * two")
             expected = {
-                "Array": {"active": True, "value": 1.0, "inputs": [], "name": "one_style", "node_hash": self.one.hash},
+                "Array": {
+                    "active": True,
+                    "value": 1.0,
+                    "units": "o",
+                    "inputs": [],
+                    "name": "one_style",
+                    "node_hash": self.one.hash,
+                },
                 "Array_1": {
                     "active": True,
                     "value": 2.0,
+                    "units": "t",
                     "inputs": [],
                     "name": "two_style",
                     "node_hash": self.two.hash,
@@ -532,6 +560,7 @@ class TestNodeProber(object):
                 "Arithmetic": {
                     "active": True,
                     "value": 2.0,
+                    "units": "",
                     "inputs": ["Array", "Array_1"],
                     "name": "Arithmetic",
                     "node_hash": a.hash,
@@ -543,11 +572,26 @@ class TestNodeProber(object):
     def test_composited_prober(self):
         a = podpac.compositor.OrderedCompositor(sources=[self.one, self.arange])
         expected = {
-            "Array": {"active": True, "value": 1.0, "inputs": [], "name": "one_style", "node_hash": self.one.hash},
-            "Arange": {"active": False, "value": 0.0, "inputs": [], "name": "Arange", "node_hash": self.arange.hash},
+            "Array": {
+                "active": True,
+                "value": 1.0,
+                "units": "o",
+                "inputs": [],
+                "name": "one_style",
+                "node_hash": self.one.hash,
+            },
+            "Arange": {
+                "active": False,
+                "value": 0.0,
+                "units": "",
+                "inputs": [],
+                "name": "Arange",
+                "node_hash": self.arange.hash,
+            },
             "OrderedCompositor": {
                 "active": True,
                 "value": 1.0,
+                "units": "",
                 "inputs": ["Array", "Arange"],
                 "name": "OrderedCompositor",
                 "node_hash": a.hash,
@@ -558,11 +602,26 @@ class TestNodeProber(object):
 
         a = podpac.compositor.OrderedCompositor(sources=[self.nan, self.two])
         expected = {
-            "Array": {"active": False, "value": "nan", "inputs": [], "name": "Array", "node_hash": self.nan.hash},
-            "Array_1": {"active": True, "value": 2.0, "inputs": [], "name": "two_style", "node_hash": self.two.hash},
+            "Array": {
+                "active": False,
+                "value": "nan",
+                "units": "",
+                "inputs": [],
+                "name": "Array",
+                "node_hash": self.nan.hash,
+            },
+            "Array_1": {
+                "active": True,
+                "value": 2.0,
+                "units": "t",
+                "inputs": [],
+                "name": "two_style",
+                "node_hash": self.two.hash,
+            },
             "OrderedCompositor": {
                 "active": True,
                 "value": 2.0,
+                "units": "",
                 "inputs": ["Array", "Array_1"],
                 "name": "OrderedCompositor",
                 "node_hash": a.hash,
@@ -576,11 +635,26 @@ class TestNodeProber(object):
 
         a = podpac.compositor.OrderedCompositor(sources=[self.nan, self.one, self.another_one])
         expected = {
-            "Array": {"active": False, "value": "nan", "inputs": [], "name": "Array", "node_hash": self.nan.hash},
-            "Array_1": {"active": True, "value": 1.0, "inputs": [], "name": "one_style", "node_hash": self.one.hash},
+            "Array": {
+                "active": False,
+                "value": "nan",
+                "units": "",
+                "inputs": [],
+                "name": "Array",
+                "node_hash": self.nan.hash,
+            },
+            "Array_1": {
+                "active": True,
+                "value": 1.0,
+                "units": "o",
+                "inputs": [],
+                "name": "one_style",
+                "node_hash": self.one.hash,
+            },
             "AnotherOne": {
                 "active": False,
                 "value": 1.0,
+                "units": "",
                 "inputs": [],
                 "name": "AnotherOne",
                 "node_hash": self.another_one.hash,
@@ -588,6 +662,7 @@ class TestNodeProber(object):
             "OrderedCompositor": {
                 "active": True,
                 "value": 1.0,
+                "units": "",
                 "inputs": ["Array", "Array_1", "AnotherOne"],
                 "name": "OrderedCompositor",
                 "node_hash": a.hash,
@@ -600,10 +675,12 @@ class TestNodeProber(object):
         assert out == expected
 
     def test_composited_prober_nested(self):
-        a = podpac.compositor.OrderedCompositor(sources=[self.one, self.arange])
+        a = podpac.compositor.OrderedCompositor(
+            sources=[self.one, self.arange], style=podpac.style.Style(name="composited", units="c")
+        )
         expected = {
-            "name": "OrderedCompositor",
-            "value": 1,
+            "name": "composited",
+            "value": "1.0 c",
             "active": True,
             "node_id": a.hash,
             "params": {},
@@ -611,7 +688,7 @@ class TestNodeProber(object):
                 "inputs": [
                     {
                         "name": "one_style",
-                        "value": 1,
+                        "value": "1.0 o",
                         "active": True,
                         "node_id": self.one.hash,
                         "params": {},
@@ -619,7 +696,7 @@ class TestNodeProber(object):
                     },
                     {
                         "name": "Arange",
-                        "value": 0,
+                        "value": "0.0",
                         "active": False,
                         "node_id": self.arange.hash,
                         "params": {},

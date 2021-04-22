@@ -535,7 +535,9 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
         # We have to rearrange the outputs
         entry = OrderedDict()
         entry["name"] = out[key]["name"]
-        entry["value"] = out[key]["value"]
+        entry["value"] = str(out[key]["value"])
+        if out[key]["units"] not in [None, ""]:
+            entry["value"] = entry["value"] + " " + str(out[key]["units"])
         entry["active"] = out[key]["active"]
         entry["node_id"] = out[key]["node_hash"]
         entry["params"] = {}
@@ -560,6 +562,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
         out[key] = {
             "active": active,
             "value": value,
+            "units": n.style.units,
             "inputs": inputs,
             "name": n.style.name if n.style.name else key,
             "node_hash": n.hash,
