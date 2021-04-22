@@ -7,6 +7,7 @@ import json
 from copy import deepcopy
 import errno
 import uuid
+import logging
 
 from podpac import version
 
@@ -15,6 +16,8 @@ try:
     from json import JSONDecodeError
 except ImportError:
     JSONDecodeError = ValueError
+
+_logger = logging.getLogger(__name__)
 
 # Settings Defaults
 DEFAULT_SETTINGS = {
@@ -371,6 +374,12 @@ class PodpacSettings(dict):
         return "PODPAC_UNSAFE_EVAL" in os.environ and os.environ["PODPAC_UNSAFE_EVAL"] == self["UNSAFE_EVAL_HASH"]
 
     def set_unsafe_eval(self, allow=False):
+        _logger.warning(
+            "DEPRECATION WARNING: The `set_unsafe_eval` method has been deprecated and will be removed in future versions of PODPAC. Use `allow_unrestricted_code_execuation` instead. "
+        )
+        self.allow_unrestricted_code_execution(allow)
+
+    def allow_unrestricted_code_execution(self, allow=False):
         """Allow unsafe evaluation for this podpac environment
 
         Parameters
@@ -380,6 +389,9 @@ class PodpacSettings(dict):
         """
         if allow:
             os.environ["PODPAC_UNSAFE_EVAL"] = self["UNSAFE_EVAL_HASH"]
+            _logger.warning(
+                "Setting unrestricted code execution can results in vulnerabilities on publically accessible servers. Use with caution."
+            )
         else:
             if "PODPAC_UNSAFE_EVAL" in os.environ:
                 os.environ.pop("PODPAC_UNSAFE_EVAL")
