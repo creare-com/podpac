@@ -24,12 +24,32 @@ class TestStyle(object):
         style = Style(colormap="cividis")
         assert style.cmap.name == "cividis"
 
-        style = Style(enumeration_colors=("c", "k"))
+        style = Style(enumeration_colors=({0: "c", 1: "k"}))
         assert style.cmap.name == "from_list"
         assert style.cmap.colors == ("c", "k")
 
         with pytest.raises(TypeError, match="Style can have a colormap or enumeration_colors"):
-            style = Style(colormap="cividis", enumeration_colors=("c", "k"))
+            style = Style(colormap="cividis", enumeration_colors=({0: "c", 1: "k"}))
+
+    def test_enumeration(self):
+        # matplotlib enumeration tuples
+        style = Style(
+            enumeration_colors={1: "r", 3: "o"},
+            enumeration_legend={1: "apples", 3: "oranges"},
+            default_enumeration_color="k",
+        )
+        assert style.full_enumeration_colors == ("k", "r", "k", "o")
+        assert style.full_enumeration_legend == ("unknown", "apples", "unknown", "oranges")
+
+        # invalid
+        with pytest.raises(ValueError, match="Style enumeration_legend keys must match enumeration_colors keys"):
+            style = Style(enumeration_colors={1: "r", 3: "o"}, enumeration_legend={1: "apples"})
+
+        with pytest.raises(ValueError, match="Style enumeration_colors keys cannot be negative"):
+            style = Style(enumeration_colors={-1: "r", 3: "o"}, enumeration_legend={-1: "apples", 3: "oranges"})
+
+        with pytest.raises(TypeError, match="Style enumeration_legend requires enumeration_colors"):
+            style = Style(enumeration_legend={-1: "apples", 3: "oranges"})
 
     def test_serialization(self):
         # default
@@ -58,12 +78,12 @@ class TestStyle(object):
         assert s.clim == style.clim
 
         # enumeration traits
-        style = Style(enumeration_legend=("apples", "oranges"), enumeration_colors=["r", "o"])
+        style = Style(enumeration_legend=({0: "apples", 1: "oranges"}), enumeration_colors=({0: "r", 1: "o"}))
         d = style.definition
         assert isinstance(d, OrderedDict)
         assert set(d.keys()) == {"enumeration_legend", "enumeration_colors"}
-        assert d["enumeration_legend"] == ("apples", "oranges")
-        assert d["enumeration_colors"] == ("r", "o")
+        assert d["enumeration_legend"] == {0: "apples", 1: "oranges"}
+        assert d["enumeration_colors"] == {0: "r", 1: "o"}
 
         s = Style.from_json(style.json)
         assert s.enumeration_legend == style.enumeration_legend
