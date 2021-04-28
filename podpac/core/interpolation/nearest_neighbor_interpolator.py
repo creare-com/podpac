@@ -283,7 +283,7 @@ class NearestNeighbor(Interpolator):
                 step = self._time_to_float(source.step, source, request)
             else:
                 step = source.step
-            rindex[np.abs(index - rindex) * step > tol] = -1
+            rindex[np.abs(index - rindex) * np.abs(step) > tol] = -1
 
         return rindex
 
