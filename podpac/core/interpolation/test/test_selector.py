@@ -149,6 +149,13 @@ class TestSelector(object):
                     ),
                 )
 
+    def test_bilinear_selector_negative_step(self):
+        selector = Selector("bilinear")
+        request = Coordinates([clinspace(0,-2 ,10)], ['lat'])
+        source = Coordinates([clinspace(-2,0,100)], ['lat'])
+        c, ci = selector.select(source, request)
+        assert len(c['lat']) == 15
+
     def test_nn_selector(self):
         selector = Selector("nearest")
         for request in self.coords:
