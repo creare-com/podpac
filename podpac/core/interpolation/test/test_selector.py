@@ -149,6 +149,81 @@ class TestSelector(object):
                     ),
                 )
 
+    def test_bilinear_selector_negative_step(self):
+        selector = Selector("bilinear")
+        request1 = Coordinates([clinspace(-0.5, -1, 11)], ["lat"])
+        request2 = Coordinates([clinspace(-1, -0.5, 11)], ["lat"])
+        source1 = Coordinates([clinspace(-2, 0, 100)], ["lat"])
+        source2 = Coordinates([clinspace(0, -2, 100)], ["lat"])
+        c11, ci11 = selector.select(source1, request1)
+        assert len(c11["lat"]) == 22
+        assert len(ci11[0]) == 22
+
+        c12, ci12 = selector.select(source1, request2)
+        assert len(c12["lat"]) == 22
+        assert len(ci12[0]) == 22
+
+        c21, ci21 = selector.select(source2, request1)
+        assert len(c21["lat"]) == 22
+        assert len(ci21[0]) == 22
+
+        c22, ci22 = selector.select(source2, request2)
+        assert len(c22["lat"]) == 22
+        assert len(ci22[0]) == 22
+
+        np.testing.assert_equal(ci11[0], ci12[0])
+        np.testing.assert_equal(ci21[0], ci22[0])
+
+    def test_nearest_selector_negative_step(self):
+        selector = Selector("nearest")
+        request1 = Coordinates([clinspace(-0.5, -1, 11)], ["lat"])
+        request2 = Coordinates([clinspace(-1, -0.5, 11)], ["lat"])
+        source1 = Coordinates([clinspace(-2, 0, 100)], ["lat"])
+        source2 = Coordinates([clinspace(0, -2, 100)], ["lat"])
+        c11, ci11 = selector.select(source1, request1)
+        assert len(c11["lat"]) == 11
+        assert len(ci11[0]) == 11
+
+        c12, ci12 = selector.select(source1, request2)
+        assert len(c12["lat"]) == 11
+        assert len(ci12[0]) == 11
+
+        c21, ci21 = selector.select(source2, request1)
+        assert len(c21["lat"]) == 11
+        assert len(ci21[0]) == 11
+
+        c22, ci22 = selector.select(source2, request2)
+        assert len(c22["lat"]) == 11
+        assert len(ci22[0]) == 11
+
+        np.testing.assert_equal(ci11[0], ci12[0])
+        np.testing.assert_equal(ci21[0], ci22[0])
+
+    def test_nearest_selector_negative_time_step(self):
+        selector = Selector("nearest")
+        request1 = Coordinates([clinspace("2020-01-01", "2020-01-11", 11)], ["time"])
+        request2 = Coordinates([clinspace("2020-01-11", "2020-01-01", 11)], ["time"])
+        source1 = Coordinates([clinspace("2020-01-22T00", "2020-01-01T00", 126)], ["time"])
+        source2 = Coordinates([clinspace("2020-01-01T00", "2020-01-22T00", 126)], ["time"])
+        c11, ci11 = selector.select(source1, request1)
+        assert len(c11["time"]) == 11
+        assert len(ci11[0]) == 11
+
+        c12, ci12 = selector.select(source1, request2)
+        assert len(c12["time"]) == 11
+        assert len(ci12[0]) == 11
+
+        c21, ci21 = selector.select(source2, request1)
+        assert len(c21["time"]) == 11
+        assert len(ci21[0]) == 11
+
+        c22, ci22 = selector.select(source2, request2)
+        assert len(c22["time"]) == 11
+        assert len(ci22[0]) == 11
+
+        np.testing.assert_equal(ci11[0], ci12[0])
+        np.testing.assert_equal(ci21[0], ci22[0])
+
     def test_nn_selector(self):
         selector = Selector("nearest")
         for request in self.coords:
