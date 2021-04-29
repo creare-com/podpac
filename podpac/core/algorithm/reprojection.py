@@ -1,5 +1,5 @@
 """
-Reprojection Algorithm Node 
+Reprojection Algorithm Node
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
@@ -79,7 +79,11 @@ class Reproject(Interpolate):
 
     def _source_eval(self, coordinates, selector, output=None):
         coords = self.reprojection_coordinates.intersect(coordinates, outer=True)
-        coords = merge_dims([coords, coordinates.drop(self.reproject_dims or self.reprojection_coordinates.dims)])
+        my_coords = coordinates.drop(self.reproject_dims or self.reprojection_coordinates.dims)
+        if coords.crs != coordinates.crs:
+            # Better to evaluate in reproject coordinate crs than eval crs for next step of interpolation
+            my_coords = my_coords.transform(coords.crs)
+        coords = merge_dims([coords, my_coords])
         return self.source.eval(coords, output=output, _selector=selector)
 
     @property
