@@ -971,7 +971,6 @@ class Coordinates(tl.HasTraits):
             [c for c in self._coords.values() if c.name not in dims], validate_crs=False, **self.properties
         )
 
-    # do we ever need this?
     def udrop(self, dims, ignore_missing=False):
         """
         Remove the given individual dimensions from the Coordinates `udims`.
