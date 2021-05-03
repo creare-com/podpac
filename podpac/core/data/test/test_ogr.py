@@ -4,7 +4,7 @@ import podpac
 from podpac.core.data.ogr import OGR
 
 
-@pytest.mark.skip("No test file available yet")
+@pytest.mark.skip(reason="No test file available yet")
 class TestOGR(object):
     source = "TODO"
     driver = "ESRI Shapefile"
