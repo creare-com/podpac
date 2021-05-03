@@ -58,13 +58,29 @@ class OGR(Node):
         requested_coordinates = coordinates
         coordinates = coordinates.udrop(["time", "alt"], ignore_missing=True)
 
-        data = self._get_data(coordinates)
+        if coordinates.size == 1 or "lat_lon" in coordinates or "lon_lat" in coordinates:
+            # point or points
+            eps = 1e-6
+            data = np.empty(coordinates.size)
+            for i, (lat, lon) in enumerate(zip(coordinates["lat"].coordinates, coordinates["lon"].coordinates)):
+                geotransform = [lon - eps / 2.0, eps, 0.0, lat - eps / 2.0, 0.0, -1.0 * eps]
+                data[i] = self._get_data(1, 1, geotransform)
+            data = data.reshape(coordinates.shape)
+
+        elif coordinates["lat"].is_uniform and coordinates["lon"].is_uniform:
+            # uniform grid
+            data = self._get_data(coordinates["lon"].size, coordinates["lat"].size, coordinates.geotransform)
+
+        else:
+            # non-uniform grid
+            raise RuntimeError("OGR source cannot evaluate non-uniform grid coordinates")
 
         if output is None:
             output = self.create_output_array(coordinates, data=data)
         else:
             output.data[:] = data
 
+        # nan values
         output.data[np.isin(output.data, self.nan_vals)] = self.nan_val
 
         if settings["DEBUG"]:
@@ -73,13 +89,13 @@ class OGR(Node):
 
         return output
 
-    def _get_data(self, coordinates):
+    def _get_data(self, xsize, ysize, geotransform):
         nan_val = 0
 
         # create target datasource
         driver = gdal.GetDriverByName("MEM")
-        target = driver.Create("", coordinates["lon"].size, coordinates["lat"].size, gdal.GDT_Float64)
-        target.SetGeoTransform(coordinates.geotransform)
+        target = driver.Create("", xsize, ysize, gdal.GDT_Float64)
+        target.SetGeoTransform(geotransform)
         band = target.GetRasterBand(1)
         band.SetNoDataValue(nan_val)
         band.Fill(nan_val)
@@ -90,22 +106,4 @@ class OGR(Node):
 
         data = band.ReadAsArray(buf_type=gdal.GDT_Float64).copy()
         data[data == nan_val] = np.nan
-        return nan_val
-
-    def _get_data_at_points(self, points):
-        """
-        Read vector data at specified points into a numpy array
-
-        :param points: list of Point objects
-        """
-        vector = np.full((len(points),), np.nan)
-        eps = 1e-6
-
-        # Rasterize each point individually
-        for (i, p) in enumerate(points):
-            geotransform_i = np.array([p.lon - eps / 2.0, eps, 0.0, p.lat - eps / 2.0, 0.0, -1.0 * eps])
-            gc_i = GridCoordinates(geotransform=geotransform_i, y_size=1, x_size=1)
-
-            vector[i] = self._get_data_at_gridcoordinates(gc_i)[0, 0]
-
-        return vector
+        return data
