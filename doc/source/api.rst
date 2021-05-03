@@ -72,6 +72,7 @@ Generic data source wrappers
     podpac.data.CSV
     podpac.data.Dataset
     podpac.data.H5PY
+    podpac.data.OGR
     podpac.data.PyDAP
     podpac.data.Rasterio
     podpac.data.WCS
