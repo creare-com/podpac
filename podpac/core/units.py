@@ -680,12 +680,15 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
         # if isinstance(data, xr.DataArray) and data.dims.index('lat') > data.dims.index('lon'):
         # geotransform = geotransform[3:] + geotransform[:3]
     if geotransform is None:
-        raise ValueError(
-            "The `geotransform` of the data needs to be provided to save as GeoTIFF. If the geotransform attribute "
-            "wasn't automatically populated as part of the dataset, it means that the data is in a non-uniform "
-            "coordinate system. This can sometimes happen when the data is transformed to a different CRS than the "
-            "native CRS, which can cause the coordinates to seems non-uniform due to floating point precision. "
-        )
+        try:
+            geotransform = Coordinates.from_xarray(data).geotransform
+        except (TypeError, AttributeError):
+            raise ValueError(
+                "The `geotransform` of the data needs to be provided to save as GeoTIFF. If the geotransform attribute "
+                "wasn't automatically populated as part of the dataset, it means that the data is in a non-uniform "
+                "coordinate system. This can sometimes happen when the data is transformed to a different CRS than the "
+                "native CRS, which can cause the coordinates to seems non-uniform due to floating point precision. "
+            )
 
     # Make all types into a numpy array
     if isinstance(data, xr.DataArray):
