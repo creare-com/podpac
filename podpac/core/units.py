@@ -475,7 +475,9 @@ for tp in ("mul", "matmul", "truediv", "div"):
     def make_func(meth, tp):
         def func(self, other):
             x = getattr(super(UnitsDataArray, self), meth)(other)
-            return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+            x2.attrs = self.attrs
+            return x2
 
         return func
 
@@ -491,7 +493,9 @@ for tp in ("add", "sub", "mod", "floordiv"):  # , "divmod", ):
         def func(self, other):
             multiplier = self._get_unit_multiplier(other)
             x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-            return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+            x2.attrs = self.attrs
+            return x2
 
         return func
 
