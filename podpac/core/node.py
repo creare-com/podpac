@@ -304,10 +304,15 @@ class Node(tl.HasTraits):
             order.append("output")
         data = data.part_transpose(order)
 
-        self._set_output_array_attrs(data, coordinates)
-
         if settings["DEBUG"]:
             self._output = data
+
+        # Add style information
+        data.attrs["layer_style"] = self.style
+
+        # Add crs if it is missing
+        if "crs" not in data.attrs:
+            data.attrs["crs"] = coordinates.crs
 
         return data
 
@@ -354,8 +359,6 @@ class Node(tl.HasTraits):
             {arr_coords}
         data : None, number, or array-like (optional)
             {arr_init_type}
-        attrs : dict (optional)
-            additional output array attributes
         **kwargs
             {arr_kwargs}
 
@@ -364,29 +367,22 @@ class Node(tl.HasTraits):
         {arr_return}
         """
 
-        output = UnitsDataArray.create(coords, data=data, outputs=self.outputs, dtype=self.dtype, **kwargs)
-        self._set_output_array_attrs(output, coords, attrs=attrs)
-        return output
+        if attrs is None:
+            attrs = {}
 
-    def _set_output_array_attrs(self, x, coords, attrs=None):
-        # user-specified attributes
-        if attrs is not None:
-            x.update(attrs)
-
-        # node attributes
-        if "layer_style" not in x.attrs:
-            x.attrs["layer_style"] = self.style
-        if "units" not in x.attrs and self.units is not None:
-            x.attrs["units"] = ureg.Unit(self.units)
-
-        # coordinates attributes
-        if "crs" not in x.attrs:
-            x.attrs["crs"] = coords.crs
-        if "geotransform" not in x.attrs:
+        if "layer_style" not in attrs:
+            attrs["layer_style"] = self.style
+        if "crs" not in attrs:
+            attrs["crs"] = coords.crs
+        if "units" not in attrs and self.units is not None:
+            attrs["units"] = ureg.Unit(self.units)
+        if "geotransform" not in attrs:
             try:
-                x.attrs["geotransform"] = coords.geotransform
+                attrs["geotransform"] = coords.geotransform
             except (TypeError, AttributeError):
                 pass
+
+        return UnitsDataArray.create(coords, data=data, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs)
 
     def trait_is_defined(self, name):
         return trait_is_defined(self, name)
