@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 from collections import OrderedDict
 import io
+from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 import re
 
 from six import string_types
@@ -44,6 +45,9 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         specify the crs in case this information is missing from the file.
     aws_https: bool
         Default is True. If False, will not use https when reading from AWS. This is useful for debugging when SSL certificates are invalid.
+    prefer_overviews: bool, optional
+        Default is False. If True, will pull data from an overview with the closest resolution (step size) matching the smallest resolution
+        in the request.
 
     See Also
     --------
@@ -54,8 +58,16 @@ class RasterioRaw(S3Mixin, BaseFileSource):
     crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
 
     driver = tl.Unicode(allow_none=True, default_value=None)
-    coordinate_index_type = "slice"
+    coordinate_index_type = tl.Unicode()
     aws_https = tl.Bool(True).tag(attr=True)
+    prefer_overviews = tl.Bool(False).tag(attr=True)
+
+    @tl.default("coordinate_index_type")
+    def _default_coordinate_index_type(self):
+        if self.prefer_overviews:
+            return "numpy"
+        else:
+            return "slice"
 
     @cached_property
     def dataset(self):
@@ -124,6 +136,9 @@ class RasterioRaw(S3Mixin, BaseFileSource):
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}"""
+        if self.prefer_overviews:
+            return self.get_data_overviews(coordinates, coordinates_index)
+
         data = self.create_output_array(coordinates)
         slc = coordinates_index
 
@@ -140,9 +155,58 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         data.data.ravel()[:] = raster_data.ravel()
         return data
 
+    def get_data_overviews(self, coordinates, coordinates_index):
+        reduction_factor = np.inf
+        for c in ["lat", "lon"]:
+            crd = coordinates[c]
+            if isinstance(crd, UniformCoordinates1d):
+                min_delta = crd.step
+            elif isinstance(crd, ArrayCoordinates1d) and crd.is_monotonic:
+                min_delta = crd.deltas.min()
+            else:
+                raise NotImplementedError(
+                    "The Rasterio node with prefer_overviews=True currently does not support request coordinates type {}".format(
+                        coordinates
+                    )
+                )
+            reduction_factor = min(
+                reduction_factor, np.abs(min_delta / self.coordinates[c].step)  # self.coordinates is always uniform
+            )
+        # Find the overview that's closest to this reduction factor
+        diffs = reduction_factor - np.array(self.overviews)
+        diffs[diffs < 0] = np.inf
+        overview = self.overviews[np.argmin(diffs)]
+
+        # Now read the data
+        inds = coordinates_index
+
+        # read data within coordinates_index window
+        window = (
+            ((inds[0].min() // overview) * overview, int(np.ceil(inds[0].max() / overview)) * overview),
+            ((inds[1].min() // overview) * overview, int(np.ceil(inds[1].max() / overview)) * overview),
+        )
+        slc = (slice(window[0][0], window[0][1], overview), slice(window[1][0], window[1][1], overview))
+        new_coords = self.coordinates[slc]
+        coordinates_shape = new_coords.shape
+
+        if self.outputs is not None:  # read all the bands
+            raster_data = self.dataset.read(out_shape=(len(self.outputs),) + coordinates_shape, window=window)
+            raster_data = np.moveaxis(raster_data, 0, 2)
+        else:  # read the requested band
+            raster_data = self.dataset.read(self.band, out_shape=coordinates_shape, window=window)
+
+        # set raster data to output array
+        data = self.create_output_array(new_coords, data=raster_data)
+
+        return data
+
     # -------------------------------------------------------------------------
     # additional methods and properties
     # -------------------------------------------------------------------------
+
+    @property
+    def overviews(self):
+        return self.dataset.overviews(self.band)
 
     @property
     def tags(self):
