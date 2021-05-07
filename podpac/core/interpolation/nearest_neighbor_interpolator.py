@@ -210,12 +210,6 @@ class NearestNeighbor(Interpolator):
         # The udims are in the order of the request so that the meshgrid calls will be in the right order
         udims = [ud for ud in request.udims if ud in source.udims]
 
-        # Subselect bounds if needed
-        if np.any([d not in udims for d in dim.split("_")]):
-            dims = dim.split("_")
-            cols = np.array([d in udims for d in dims], dtype=bool)
-            bounds = bounds[:, cols]
-
         time_source = time_request = None
         if "time" in udims:
             time_source = source["time"]
