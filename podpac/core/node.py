@@ -374,16 +374,19 @@ class Node(tl.HasTraits):
             x.update(attrs)
 
         # node attributes
-        x.attrs["layer_style"] = self.style
-        if self.units is not None:
+        if "layer_style" not in x.attrs:
+            x.attrs["layer_style"] = self.style
+        if "units" not in x.attrs and self.units is not None:
             x.attrs["units"] = ureg.Unit(self.units)
 
         # coordinates attributes
-        x.attrs["crs"] = coords.crs
-        try:
-            x.attrs["geotransform"] = coords.geotransform
-        except (TypeError, AttributeError):
-            pass
+        if "crs" not in x.attrs:
+            x.attrs["crs"] = coords.crs
+        if "geotransform" not in x.attrs:
+            try:
+                x.attrs["geotransform"] = coords.geotransform
+            except (TypeError, AttributeError):
+                pass
 
     def trait_is_defined(self, name):
         return trait_is_defined(self, name)
