@@ -160,6 +160,9 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         reduction_factor = np.inf
         for c in ["lat", "lon"]:
             crd = coordinates[c]
+            if crd.size == 1:
+                reduction_factor = 0
+                break
             if isinstance(crd, UniformCoordinates1d):
                 min_delta = crd.step
             elif isinstance(crd, ArrayCoordinates1d) and crd.is_monotonic:
