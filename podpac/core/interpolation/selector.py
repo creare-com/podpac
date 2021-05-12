@@ -136,7 +136,11 @@ class Selector(tl.HasTraits):
     def _select_uniform(self, source, request, index_type):
         crds = request[source.name]
         if crds.is_uniform and abs(crds.step) < abs(source.step) and not request.is_stacked(source.name):
-            return np.arange(source.size)
+            start_ind = np.clip((crds.start - source.start) / source.step, 0, source.size)
+            end_ind = np.clip((crds.stop - source.start) / source.step, 0, source.size)
+            start = int(np.floor(max(0, min(start_ind, end_ind) - min(self.method))))
+            stop = int(np.ceil(min(source.size, max(start_ind, end_ind) + max(self.method) + 1)))
+            return np.arange(start, stop)
 
         index = (crds.coordinates - source.start) / source.step
         stop_ind = source.size - 1
