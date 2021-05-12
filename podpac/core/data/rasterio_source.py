@@ -156,6 +156,7 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         return data
 
     def get_data_overviews(self, coordinates, coordinates_index):
+        # Figure out how much coarser the request is than the actual data
         reduction_factor = np.inf
         for c in ["lat", "lon"]:
             crd = coordinates[c]
@@ -173,14 +174,18 @@ class RasterioRaw(S3Mixin, BaseFileSource):
                 reduction_factor, np.abs(min_delta / self.coordinates[c].step)  # self.coordinates is always uniform
             )
         # Find the overview that's closest to this reduction factor
-        diffs = reduction_factor - np.array(self.overviews)
-        diffs[diffs < 0] = np.inf
-        overview = self.overviews[np.argmin(diffs)]
+        if reduction_factor < 2:  # Then we shouldn't use an overview
+            overview = 1
+        else:
+            diffs = reduction_factor - np.array(self.overviews)
+            diffs[diffs < 0] = np.inf
+            overview = self.overviews[np.argmin(diffs)]
 
         # Now read the data
         inds = coordinates_index
 
-        # read data within coordinates_index window
+        # read data within coordinates_index window at the resolution of the overview
+        # Rasterio will then automatically pull from the overview
         window = (
             ((inds[0].min() // overview) * overview, int(np.ceil(inds[0].max() / overview)) * overview),
             ((inds[1].min() // overview) * overview, int(np.ceil(inds[1].max() / overview)) * overview),
@@ -189,6 +194,7 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         new_coords = self.coordinates[slc]
         coordinates_shape = new_coords.shape
 
+        # The following lines are *nearly* copied/pasted from get_data
         if self.outputs is not None:  # read all the bands
             raster_data = self.dataset.read(out_shape=(len(self.outputs),) + coordinates_shape, window=window)
             raster_data = np.moveaxis(raster_data, 0, 2)
