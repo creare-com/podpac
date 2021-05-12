@@ -137,7 +137,7 @@ class DataSource(Node):
     nan_vals : List, optional
         List of values from source data that should be interpreted as 'no data' or 'nans'
     coordinate_index_type : str, optional
-        Type of index to use for data source. Possible values are ``['slice', 'numpy']``
+        Type of index to use for data source. Possible values are ``['slice', 'numpy', 'xarray']``
         Default is 'numpy', which allows a tuple of integer indices.
     cache_coordinates : bool
         Whether to cache coordinates using the podpac ``cache_ctrl``. Default False.
@@ -372,7 +372,11 @@ class DataSource(Node):
         data = rsd
         if output is None:
             if requested_coordinates.crs.lower() != coordinates.crs.lower():
-                data = self.create_output_array(rsc, data=data.data)
+                if rsc.shape == data.shape:
+                    data = self.create_output_array(rsc, data=data.data)
+                else:
+                    crds = Coordinates.from_xarray(data, crs=data.attrs.get("crs", None))
+                    data = self.create_output_array(crds.transform(rsc.crs), data=data.data)
             output = data
         else:
             output.data[:] = data.data
