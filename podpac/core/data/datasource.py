@@ -376,6 +376,7 @@ class DataSource(Node):
                     data = self.create_output_array(rsc, data=data.data)
                 else:
                     crds = Coordinates.from_xarray(data, crs=data.attrs.get("crs", None))
+                    data = self.create_output_array(crds.transform(rsc.crs), data=data.data)
             output = data
         else:
             output.data[:] = data.data
