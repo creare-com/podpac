@@ -138,8 +138,8 @@ class Selector(tl.HasTraits):
         if crds.is_uniform and abs(crds.step) < abs(source.step) and not request.is_stacked(source.name):
             start_ind = np.clip((crds.start - source.start) / source.step, 0, source.size)
             end_ind = np.clip((crds.stop - source.start) / source.step, 0, source.size)
-            start = int(np.floor(max(0, min(start_ind, end_ind) + min(self.method))))
-            stop = int(np.ceil(min(source.size, max(start_ind, end_ind) + max(self.method) + 1)))
+            start = int(np.floor(max(0, min(start_ind, end_ind) + min(self.method) - 1e-6)))
+            stop = int(np.ceil(min(source.size, max(start_ind, end_ind) + max(self.method) + 1 + 1e-6)))
             return np.arange(start, stop)
 
         index = (crds.coordinates - source.start) / source.step
@@ -150,13 +150,12 @@ class Selector(tl.HasTraits):
             # In this case, floating point error really matters, so we have to do a test
             up = np.round(index - 1e-6)
             down = np.round(index + 1e-6)
-            # When up and down do not agree, use the index that will be kept.
+            # When up and down do not agree, make sure both the indices that will be kept.
             index_mid = down  # arbitrarily default to down when both satisfy criteria
             Iup = up != down
             Iup[Iup] = (up[Iup] >= 0) & (up[Iup] <= stop_ind) & ((up[Iup] > down.max()) | (up[Iup] < down.min()))
             index_mid[Iup] = up[Iup]
             flr_ceil = {0: index_mid}
-            # flr_ceil = {0: index}
 
         inds = []
         for m in self.method:
