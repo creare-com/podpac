@@ -476,9 +476,10 @@ for tp in ("mul", "matmul", "truediv", "div"):
         def func(self, other):
             x = getattr(super(UnitsDataArray, self), meth)(other)
             x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
-            units = x2.attrs["units"]
+            units = x2.attrs.get("units")
             x2.attrs = self.attrs
-            x2.attrs["units"] = units
+            if units is not None:
+                x2.attrs["units"] = units
             return x2
 
         return func
