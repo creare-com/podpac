@@ -138,7 +138,7 @@ class Selector(tl.HasTraits):
         if crds.is_uniform and abs(crds.step) < abs(source.step) and not request.is_stacked(source.name):
             start_ind = np.clip((crds.start - source.start) / source.step, 0, source.size)
             end_ind = np.clip((crds.stop - source.start) / source.step, 0, source.size)
-            start = int(np.floor(max(0, min(start_ind, end_ind) - min(self.method))))
+            start = int(np.floor(max(0, min(start_ind, end_ind) + min(self.method))))
             stop = int(np.ceil(min(source.size, max(start_ind, end_ind) + max(self.method) + 1)))
             return np.arange(start, stop)
 
