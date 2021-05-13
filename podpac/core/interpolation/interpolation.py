@@ -52,7 +52,7 @@ class Interpolate(Node):
         The source node which will be interpolated
     interpolation : str, dict, optional
         Interpolation definition for the data source.
-        By default, the interpolation method is set to ``'nearest'`` for all dimensions.
+        By default, the interpolation method is set to `podpac.settings["DEFAULT_INTERPOLATION"]` which defaults to ``'nearest'`` for all dimensions.
 
          If input is a string, it must match one of the interpolation shortcuts defined in
         :attr:`podpac.data.INTERPOLATION_SHORTCUTS`. The interpolation method associated

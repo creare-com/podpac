@@ -7,6 +7,7 @@ from six import string_types
 import numpy as np
 import traitlets as tl
 
+from podpac.core import settings
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims, Coordinates
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
@@ -19,7 +20,7 @@ from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
 _logger = logging.getLogger(__name__)
 
 
-INTERPOLATION_DEFAULT = "nearest"
+INTERPOLATION_DEFAULT = settings.settings.get("DEFAULT_INTERPOLATION", "nearest")
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
 
 INTERPOLATORS = [NearestNeighbor, XarrayInterpolator, RasterioInterpolator, ScipyPoint, ScipyGrid, NearestPreview]

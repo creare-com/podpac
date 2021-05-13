@@ -20,8 +20,6 @@ class OrderedCompositor(BaseCompositor):
         Source nodes, in order of preference. Later sources are only used where earlier sources do not provide data.
     source_coordinates : :class:`podpac.Coordinates`
         Coordinates that make each source unique. Must the same size as ``sources`` and single-dimensional. Optional.
-    interpolation : str, dict, optional
-        {interpolation}
     """
 
     @common_doc(COMMON_COMPOSITOR_DOC)

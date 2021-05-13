@@ -88,7 +88,7 @@ DATA_DOC = {
         """,
     "interpolation": """
         Interpolation definition for the data source.
-        By default, the interpolation method is set to ``'nearest'`` for all dimensions.
+        By default, the interpolation method is set to `podpac.settings["DEFAULT_INTERPOLATION"]` which defaults to 'nearest'` for all dimensions.
         """,
     "interpolation_long": """
         {interpolation}
