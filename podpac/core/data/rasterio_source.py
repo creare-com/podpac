@@ -190,8 +190,8 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         # read data within coordinates_index window at the resolution of the overview
         # Rasterio will then automatically pull from the overview
         window = (
-            ((inds[0].min() // overview) * overview, int(np.ceil(inds[0].max() / overview)) * overview),
-            ((inds[1].min() // overview) * overview, int(np.ceil(inds[1].max() / overview)) * overview),
+            ((inds[0].min() // overview) * overview, int(np.ceil(inds[0].max() / overview) + 1) * overview),
+            ((inds[1].min() // overview) * overview, int(np.ceil(inds[1].max() / overview) + 1) * overview),
         )
         slc = (slice(window[0][0], window[0][1], overview), slice(window[1][0], window[1][1], overview))
         new_coords = self.coordinates[slc]
