@@ -944,17 +944,47 @@ class Node(tl.HasTraits):
                 p = "{}"
             if not isinstance(p, dict):
                 p = json.loads(p)
-            definition = {}
-            # If one of the special names are in the params list, then add params to the root layer
-            if "node" in p or "plugin" in p or "style" in p or "attrs" in p:
-                definition.update(p)
-            else:
-                definition["attrs"] = p
-            definition.update({"node": layer})  # The user-specified node name ALWAYS takes precidence.
-            d = OrderedDict({layer.replace(".", "-"): definition})
+            return cls.from_name_params(layer, p)
 
         if d is None:
             d = json.loads(s, object_pairs_hook=OrderedDict)
+
+        return cls.from_definition(d)
+
+    @classmethod
+    def from_name_params(cls, name, params=None):
+        """
+        Create podpac Node from a WMS/WCS request.
+
+        Arguments
+        ---------
+        name : str
+            The name of the PODPAC Node / Layer
+        params : dict, optional
+            Default is None. Dictionary of parameters to modify node attributes, style, or completely/partially define the node.
+            This dictionary can either be a `Node.definition` or `Node.definition['attrs']`. Node, the specified `name` always
+            take precidence over anything defined in `params` (e.g. params['node'] won't be used).
+
+        Returns
+        -------
+        :class:`Node`
+            A full Node with sub-nodes based on the definition of the node from the node name and parameters
+
+        """
+        layer = name
+        p = params
+
+        d = None
+        if p is None:
+            p = {}
+        definition = {}
+        # If one of the special names are in the params list, then add params to the root layer
+        if "node" in p or "plugin" in p or "style" in p or "attrs" in p:
+            definition.update(p)
+        else:
+            definition["attrs"] = p
+        definition.update({"node": layer})  # The user-specified node name ALWAYS takes precidence.
+        d = OrderedDict({layer.replace(".", "-"): definition})
 
         return cls.from_definition(d)
 
