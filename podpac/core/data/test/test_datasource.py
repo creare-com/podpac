@@ -112,6 +112,14 @@ class TestDataSource(object):
         with pytest.raises(AttributeError, match="can't set attribute"):
             node.coordinates = Coordinates([])
 
+    def test_dims(self):
+        class MyDataSource(DataSource):
+            def get_coordinates(self):
+                return Coordinates([0, 0], dims=["lat", "lon"])
+
+        node = MyDataSource()
+        assert node.dims == ("lat", "lon")
+
     def test_cache_coordinates(self):
         class MyDataSource(DataSource):
             get_coordinates_called = 0
@@ -511,6 +519,29 @@ class TestDataSource(object):
         boundary = node._get_boundary(index)
         np.testing.assert_array_equal(boundary["lat"], lat_boundary[index])
         np.testing.assert_array_equal(boundary["lon"], lon_boundary[index])
+
+    def test_eval_get_cache_extra_dims(self):
+        with podpac.settings:
+            podpac.settings["DEFAULT_CACHE"] = ["ram"]
+
+            node = podpac.data.Array(
+                source=np.ones((3, 4)),
+                coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"]),
+                cache_ctrl=["ram"],
+            )
+            coords1 = podpac.Coordinates([range(3), range(4), "2012-05-19"], ["lat", "lon", "time"])
+            coords2 = podpac.Coordinates([range(3), range(4), "2019-09-10"], ["lat", "lon", "time"])
+
+            # retrieve from cache on the second evaluation
+            node.eval(coords1)
+            assert not node._from_cache
+
+            node.eval(coords1)
+            assert node._from_cache
+
+            # also retrieve from cache with different time coordinates
+            node.eval(coords2)
+            assert node._from_cache
 
 
 class TestDataSourceWithMultipleOutputs(object):

@@ -281,6 +281,10 @@ class Node(tl.HasTraits):
         key = "output"
         cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
 
+        if isinstance(self, (podpac.data.DataSource, podpac.core.compositor.BaseCompositor)) and self.dims:
+            extra_dims = [dim for dim in cache_coordinates.dims if dim not in self.dims]
+            cache_coordinates = cache_coordinates.drop(extra_dims)
+
         if not self.force_eval and self.cache_output and self.has_cache(key, cache_coordinates):
             data = self.get_cache(key, cache_coordinates)
             if output is not None:
