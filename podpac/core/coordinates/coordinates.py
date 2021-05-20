@@ -1426,13 +1426,20 @@ class Coordinates(tl.HasTraits):
         lat_sample = np.linspace(self["lat"].bounds[0], self["lat"].bounds[1], 5)
         lon_sample = np.linspace(self["lon"].bounds[0], self["lon"].bounds[1], 5)
         sample = StackedCoordinates(np.meshgrid(lat_sample, lon_sample, indexing="ij"), dims=["lat", "lon"])
+        # The sample tests if the crs transform is linear, or non-linear. The results are as follows:
+        #
+        # Start from "uniform stacked"
+        # 1. Returns "uniform unstacked"  <-- simple scaling between crs's
+        # 2. Returns "array unstacked" <-- Orthogonal coordinates still, but non-linear in this dim
+        # 3. Returns "Stacked" <-- not orthogonal from one crs to the other
+        #
         t = sample._transform(transformer)
 
         if isinstance(t, StackedCoordinates):  # Need to transform ALL the coordinates
             return
         # Then we can do a faster transform, either already done or just the diagonal
         for i, j in zip([0, 1], [1, 0]):
-            if isinstance(t[i], UniformCoordinates1d):  # already done
+            if isinstance(t[i], UniformCoordinates1d) and isinstance(cs[i], UniformCoordinates1d):  # already done
                 start = t[i].start
                 stop = t[i].stop
                 if self[t[i].name].is_descending:
