@@ -57,7 +57,7 @@ class ArrayRaw(NoCacheMixin, DataSource):
     source = ArrayTrait().tag(attr=True)
     coordinates = tl.Instance(Coordinates).tag(attr=True)
 
-    _repr_keys = ["shape", "interpolation"]
+    _repr_keys = ["shape"]
 
     @tl.validate("source")
     def _validate_source(self, d):
