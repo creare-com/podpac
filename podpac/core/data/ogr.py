@@ -8,12 +8,13 @@ from lazy_import import lazy_module
 gdal = lazy_module("osgeo.gdal")
 ogr = lazy_module("osgeo.ogr")
 
-from podpac import Node, Coordinates, cached_property, settings
+from podpac import Node, Coordinates, cached_property, settings, clinspace
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
-class OGR(Node):
+class OGRRaw(Node):
     """ """
 
     source = tl.Unicode().tag(attr=True)
@@ -67,13 +68,19 @@ class OGR(Node):
                 data[i] = self._get_data(1, 1, geotransform)
             data = data.reshape(coordinates.shape)
 
-        elif coordinates["lat"].is_uniform and coordinates["lon"].is_uniform:
-            # uniform grid
-            data = self._get_data(coordinates["lon"].size, coordinates["lat"].size, coordinates.geotransform)
-
         else:
-            # non-uniform grid
-            raise RuntimeError("OGR source cannot evaluate non-uniform grid coordinates")
+            # resample non-uniform coordinates if necessary
+            if not coordinates["lat"].is_uniform:
+                coordinates["lat"] = clinspace(
+                    coordinates["lat"].bounds[0], coordinates["lat"].bounds[1], coordinates["lat"].size, name="lat"
+                )
+            if not coordinates["lon"].is_uniform:
+                coordinates["lon"] = clinspace(
+                    coordinates["lon"].bounds[0], coordinates["lon"].bounds[1], coordinates["lon"].size, name="lon"
+                )
+
+            # evaluate uniform grid
+            data = self._get_data(coordinates["lon"].size, coordinates["lat"].size, coordinates.geotransform)
 
         if output is None:
             output = self.create_output_array(coordinates, data=data)
@@ -107,3 +114,7 @@ class OGR(Node):
         data = band.ReadAsArray(buf_type=gdal.GDT_Float64).copy()
         data[data == nan_val] = np.nan
         return data
+
+
+class OGR(InterpolationMixin, OGRRaw):
+    interpolation = "nearest"
