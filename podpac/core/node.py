@@ -390,7 +390,7 @@ class Node(tl.HasTraits):
     def trait_is_defined(self, name):
         return trait_is_defined(self, name)
 
-    def probe(self, lat=None, lon=None, time=None, alt=None):
+    def probe(self, lat=None, lon=None, time=None, alt=None, crs=None):
         """Evaluates every part of a node / pipeline at a point and records
         which nodes are actively being used.
 
@@ -404,6 +404,8 @@ class Node(tl.HasTraits):
             Default is None. The time
         alt : float, optional
             Default is None. The altitude location
+        crs : str, optional
+            Default is None. The CRS of the request.
 
         Returns
         dict
@@ -418,7 +420,7 @@ class Node(tl.HasTraits):
             }
             ```
         """
-        return probe_node(self, lat, lon, time, alt)
+        return probe_node(self, lat, lon, time, alt, crs)
 
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization

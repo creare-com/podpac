@@ -476,8 +476,7 @@ def resolve_bbox_order(bbox, crs, size):
 
     return {"lat": [lat_start, lat_stop, size[0]], "lon": [lon_start, lon_stop, size[1]]}
 
-
-def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
+def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=False):
     """Evaluates every part of a node / pipeline at a point and records
     which nodes are actively being used.
 
@@ -493,6 +492,8 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
         Default is None. The time
     alt : float, optional
         Default is None. The altitude location
+    crs : str, optional
+        Default is None. The CRS of the request.
     nested : bool, optional
         Default is False. If True, will return a nested version of the
         output dictionary isntead
@@ -547,7 +548,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
         return entry
 
     c = [(v, d) for v, d in zip([lat, lon, time, alt], ["lat", "lon", "time", "alt"]) if v is not None]
-    coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c])
+    coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c], crs=crs)
     v = float(node.eval(coords))
     definition = node.definition
     out = OrderedDict()
