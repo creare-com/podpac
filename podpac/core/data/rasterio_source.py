@@ -195,7 +195,7 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         )
         slc = (slice(window[0][0], window[0][1], overview), slice(window[1][0], window[1][1], overview))
         new_coords = self.coordinates[slc]
-        coordinates_shape = new_coords.shape
+        coordinates_shape = new_coords.shape[:2]
 
         # The following lines are *nearly* copied/pasted from get_data
         if self.outputs is not None:  # read all the bands
@@ -205,7 +205,8 @@ class RasterioRaw(S3Mixin, BaseFileSource):
             raster_data = self.dataset.read(self.band, out_shape=coordinates_shape, window=window)
 
         # set raster data to output array
-        data = self.create_output_array(new_coords, data=raster_data)
+        data = self.create_output_array(new_coords)
+        data.data.ravel()[:] = raster_data.ravel()
 
         return data
 
