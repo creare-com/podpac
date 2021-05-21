@@ -360,7 +360,7 @@ class Coordinates(tl.HasTraits):
                 # unstacked
                 d[dim] = ArrayCoordinates1d.from_xarray(xcoords[dim])
 
-        coords = cls(list(d.values()), crs=crs)
+        coords = cls(list(d.values()), crs=crs, validate_crs=False)
         return coords
 
     @classmethod
@@ -472,7 +472,7 @@ class Coordinates(tl.HasTraits):
         return cls.from_definition(coords)
 
     @classmethod
-    def from_geotransform(cls, geotransform, shape, crs=None):
+    def from_geotransform(cls, geotransform, shape, crs=None, validate_crs=True):
         """Creates Coordinates from GDAL Geotransform."""
         tol = 1e-15  # tolerance for deciding when a number is zero
         # Handle the case of rotated coordinates
@@ -504,6 +504,7 @@ class Coordinates(tl.HasTraits):
                 podpac.clinspace(origin[1], end[1], shape[::order][1], "lon"),
             ][::order],
             crs=crs,
+            validate_crs=validate_crs
         )
         return coords
 

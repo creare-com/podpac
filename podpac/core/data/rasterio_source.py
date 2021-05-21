@@ -118,20 +118,24 @@ class RasterioRaw(S3Mixin, BaseFileSource):
 
         # check to see if the coordinates are rotated used affine
         affine = self.dataset.transform
-
+        validate_crs = True
         if self.crs is not None:
             crs = self.crs
         elif isinstance(self.dataset.crs, rasterio.crs.CRS) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
+            if self.dataset.crs.is_valid:
+                validate_crs = False
         elif isinstance(self.dataset.crs, dict) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
+            if self.dataset.crs.is_valid:
+                validate_crs = False
         else:
             try:
                 crs = pyproj.CRS(self.dataset.crs).to_wkt()
             except pyproj.exceptions.CRSError:
                 raise RuntimeError("Unexpected rasterio crs '%s'" % self.dataset.crs)
 
-        return Coordinates.from_geotransform(affine.to_gdal(), self.dataset.shape, crs)
+        return Coordinates.from_geotransform(affine.to_gdal(), self.dataset.shape, crs, validate_crs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
