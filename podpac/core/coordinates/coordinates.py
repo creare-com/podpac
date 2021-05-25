@@ -23,7 +23,7 @@ import logging
 
 import podpac
 from podpac.core.settings import settings
-from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param
+from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param, cached_property
 from podpac.core.coordinates.utils import has_alt_units
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -857,7 +857,7 @@ class Coordinates(tl.HasTraits):
 
         return json.dumps(self.definition, separators=(",", ":"), cls=podpac.core.utils.JSONEncoder)
 
-    @property
+    @cached_property
     def hash(self):
         """:str: Coordinates hash value."""
         # We can't use self.json for the hash because the CRS is not standardized.
