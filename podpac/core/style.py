@@ -85,7 +85,7 @@ class Style(tl.HasTraits):
         return tuple(
             [
                 self.enumeration_colors.get(value, self.default_enumeration_color)
-                for value in range(max(self.enumeration_colors) + 1)
+                for value in range(min(self.enumeration_colors), max(self.enumeration_colors) + 1)
             ]
         )
 
@@ -95,7 +95,7 @@ class Style(tl.HasTraits):
         return tuple(
             [
                 self.enumeration_legend.get(value, self.default_enumeration_legend)
-                for value in range(max(self.enumeration_legend) + 1)
+                for value in range(min(self.enumeration_legend), max(self.enumeration_legend) + 1)
             ]
         )
 
