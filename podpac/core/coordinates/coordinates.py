@@ -504,7 +504,7 @@ class Coordinates(tl.HasTraits):
                 podpac.clinspace(origin[1], end[1], shape[::order][1], "lon"),
             ][::order],
             crs=crs,
-            validate_crs=validate_crs
+            validate_crs=validate_crs,
         )
         return coords
 

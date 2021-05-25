@@ -485,7 +485,10 @@ class InterpolationManager(object):
                 selected_coords_idx[d] = np.arange(source_coordinates[d].size)[selected_coords_idx[d]]
 
         selected_coords = Coordinates(
-            [selected_coords[k] for k in source_coordinates.dims], source_coordinates.dims, crs=source_coordinates.crs, validate_crs=False
+            [selected_coords[k] for k in source_coordinates.dims],
+            source_coordinates.dims,
+            crs=source_coordinates.crs,
+            validate_crs=False,
         )
         if index_type == "numpy":
             selected_coords_idx2 = np.ix_(*[np.ravel(selected_coords_idx[k]) for k in source_coordinates.dims])

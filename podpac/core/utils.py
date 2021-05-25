@@ -476,6 +476,7 @@ def resolve_bbox_order(bbox, crs, size):
 
     return {"lat": [lat_start, lat_stop, size[0]], "lon": [lon_start, lon_stop, size[1]]}
 
+
 def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=False):
     """Evaluates every part of a node / pipeline at a point and records
     which nodes are actively being used.
