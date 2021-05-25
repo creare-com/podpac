@@ -116,7 +116,8 @@ class XarrayInterpolator(Interpolator):
             for d in source_coordinates.dims:
                 if not np.any(np.isnan(source_data)):
                     break
-                source_data = source_data.interpolate_na(method=self.method, dim=d)
+                #use_coordinate=False allows for interpolation when dimension is not monotonically increasing
+                source_data = source_data.interpolate_na(method=self.method, dim=d, use_coordinate=False)
 
         if self.method == "bilinear":
             self.method = "linear"
