@@ -281,6 +281,39 @@ class DataSource(Node):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
+    def eval(self, coordinates, **kwargs):
+        # check for missing dimensions
+        for c in self.coordinates.values():
+            if isinstance(c, Coordinates1d):
+                if c.name not in coordinates.udims:
+                    raise ValueError("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
+            elif isinstance(c, StackedCoordinates):
+                if all(s.name not in coordinates.udims for s in c):
+                    raise ValueError("Cannot evaluate these coordinates, missing at least one dim in '%s'" % c.name)
+
+        # remove extra dimensions
+        extra = [
+            c.name
+            for c in coordinates.values()
+            if (isinstance(c, Coordinates1d) and c.name not in self.coordinates.udims)
+            or (isinstance(c, StackedCoordinates) and all(dim not in self.coordinates.udims for dim in c.dims))
+        ]
+        coordinates = coordinates.drop(extra)
+
+        # transform coordinates into native crs if different
+        requested_crs = coordinates.crs
+        if coordinates.crs.lower() != self.coordinates.crs.lower():
+            coordinates = coordinates.transform(self.coordinates.crs)
+
+        output = super().eval(coordinates, **kwargs)
+
+        # transform back to requested coordinates, if necessary
+        if coordinates.crs.lower() != requested_crs.lower():
+            coords = Coordinates.from_xarray(output, crs=output.attrs.get("crs", None))
+            output = self.create_output_array(coords.transform(requested_crs), data=output.data)
+
+        return output
+
     @common_doc(COMMON_DATA_DOC)
     def _eval(self, coordinates, output=None, _selector=None):
         """Evaluates this node using the supplied coordinates.
@@ -316,35 +349,6 @@ class DataSource(Node):
 
         log.debug("Evaluating {} data source".format(self.__class__.__name__))
 
-        # store requested coordinates for debugging
-        if settings["DEBUG"]:
-            self._requested_coordinates = coordinates
-
-        # check for missing dimensions
-        for c in self.coordinates.values():
-            if isinstance(c, Coordinates1d):
-                if c.name not in coordinates.udims:
-                    raise ValueError("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
-            elif isinstance(c, StackedCoordinates):
-                if all(s.name not in coordinates.udims for s in c):
-                    raise ValueError("Cannot evaluate these coordinates, missing at least one dim in '%s'" % c.name)
-
-        # remove extra dimensions
-        extra = [
-            c.name
-            for c in coordinates.values()
-            if (isinstance(c, Coordinates1d) and c.name not in self.coordinates.udims)
-            or (isinstance(c, StackedCoordinates) and all(dim not in self.coordinates.udims for dim in c.dims))
-        ]
-        coordinates = coordinates.drop(extra)
-
-        # save before transforming
-        requested_coordinates = coordinates
-
-        # transform coordinates into native crs if different
-        if self.coordinates.crs.lower() != coordinates.crs.lower():
-            coordinates = coordinates.transform(self.coordinates.crs)
-
         # Use the selector
         if _selector is not None:
             (rsc, rsci) = _selector(self.coordinates, coordinates, index_type=self.coordinate_index_type)
@@ -374,18 +378,16 @@ class DataSource(Node):
         # get data from data source
         rsd = self._get_data(rsc, rsci)
 
-        # data = rsd.part_transpose(requested_coordinates.dims) # this does not appear to be necessary anymore
-        data = rsd
         if output is None:
-            if requested_coordinates.crs.lower() != coordinates.crs.lower():
-                if rsc.shape == data.shape:
-                    data = self.create_output_array(rsc, data=data.data)
-                else:
-                    crds = Coordinates.from_xarray(data, crs=data.attrs.get("crs", None))
-                    data = self.create_output_array(crds.transform(rsc.crs), data=data.data)
-            output = data
+            # if requested_coordinates.crs.lower() != coordinates.crs.lower():
+            #     if rsc.shape == rsd.shape:
+            #         rsd = self.create_output_array(rsc, data=rsd.data)
+            #     else:
+            #         crds = Coordinates.from_xarray(rsd, crs=data.attrs.get("crs", None))
+            #         rsd = self.create_output_array(crds.transform(rsc.crs), data=rsd.data)
+            output = rsd
         else:
-            output.data[:] = data.data
+            output.data[:] = rsd.data
 
         # get indexed boundary
         rsb = self._get_boundary(rsci)

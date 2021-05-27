@@ -543,6 +543,27 @@ class TestDataSource(object):
             node.eval(coords2)
             assert node._from_cache
 
+    def test_eval_get_cache_transform_crs(self):
+        with podpac.settings:
+            podpac.settings["DEFAULT_CACHE"] = ["ram"]
+
+            node = podpac.core.data.array_source.Array(
+                source=np.ones((3, 4)),
+                coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"], crs="EPSG:4326"),
+                cache_ctrl=["ram"],
+            )
+
+            # retrieve from cache on the second evaluation
+            node.eval(node.coordinates)
+            assert not node._from_cache
+
+            node.eval(node.coordinates)
+            assert node._from_cache
+
+            # also retrieve from cache with different crs
+            node.eval(node.coordinates.transform("EPSG:4326"))
+            assert node._from_cache
+
 
 class TestDataSourceWithMultipleOutputs(object):
     def test_evaluate_no_overlap_with_output_extract_output(self):

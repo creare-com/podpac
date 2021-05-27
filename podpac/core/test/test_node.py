@@ -373,11 +373,6 @@ class TestNodeEval(object):
         assert node._from_cache == True
         np.testing.assert_array_equal(o5, o1.transpose("lon", "lat"))
 
-        # get from cache with coords transformed, when possible
-        o6 = node.eval(coords.transform("EPSG:4326"))
-        assert node._from_cache == True
-        np.testing.assert_array_equal(o6, o1)
-
     def test_eval_output_crs(self):
         coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
 

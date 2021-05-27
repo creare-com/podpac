@@ -281,14 +281,7 @@ class Node(tl.HasTraits):
         key = "output"
 
         # get standardized coordinates for caching
-        cache_coordinates = coordinates.simplify()
-        cache_coordinates = cache_coordinates.transpose(*sorted(coordinates.dims))
-        cache_coordinates = cache_coordinates.transform(settings["DEFAULT_CRS"])
-
-        # remove extra dims
-        if isinstance(self, (podpac.data.DataSource, podpac.core.compositor.BaseCompositor)) and self.dims:
-            extra_dims = [dim for dim in cache_coordinates.dims if dim not in self.dims]
-            cache_coordinates = cache_coordinates.drop(extra_dims)
+        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims)).simplify()
 
         if not self.force_eval and self.cache_output and self.has_cache(key, cache_coordinates):
             data = self.get_cache(key, cache_coordinates)
