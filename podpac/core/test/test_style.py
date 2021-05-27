@@ -38,15 +38,21 @@ class TestStyle(object):
             enumeration_legend={1: "apples", 3: "oranges"},
             default_enumeration_color="k",
         )
-        assert style.full_enumeration_colors == ("k", "r", "k", "o")
-        assert style.full_enumeration_legend == ("unknown", "apples", "unknown", "oranges")
+        assert style.full_enumeration_colors == ("r", "k", "o")
+        assert style.full_enumeration_legend == ("apples", "unknown", "oranges")
+
+        # negative key
+        style = Style(
+            enumeration_colors={-1: "r", 1: "o"},
+            enumeration_legend={-1: "apples", 1: "oranges"},
+            default_enumeration_color="k",
+        )
+        assert style.full_enumeration_colors == ("r", "k", "o")
+        assert style.full_enumeration_legend == ("apples", "unknown", "oranges")
 
         # invalid
         with pytest.raises(ValueError, match="Style enumeration_legend keys must match enumeration_colors keys"):
             style = Style(enumeration_colors={1: "r", 3: "o"}, enumeration_legend={1: "apples"})
-
-        with pytest.raises(ValueError, match="Style enumeration_colors keys cannot be negative"):
-            style = Style(enumeration_colors={-1: "r", 3: "o"}, enumeration_legend={-1: "apples", 3: "oranges"})
 
         with pytest.raises(TypeError, match="Style enumeration_legend requires enumeration_colors"):
             style = Style(enumeration_legend={-1: "apples", 3: "oranges"})

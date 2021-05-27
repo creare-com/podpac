@@ -65,8 +65,6 @@ class Style(tl.HasTraits):
         enum_colors = d["value"]
         if enum_colors and self.colormap:
             raise TypeError("Style can have a colormap or enumeration_colors, but not both")
-        if any(value < 0 for value in enum_colors):
-            raise ValueError("Style enumeration_colors keys cannot be negative")
         return enum_colors
 
     @tl.validate("enumeration_legend")
