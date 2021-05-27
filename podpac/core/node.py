@@ -279,8 +279,13 @@ class Node(tl.HasTraits):
         if settings["DEBUG"]:
             self._requested_coordinates = coordinates
         key = "output"
-        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
 
+        # get standardized coordinates for caching
+        cache_coordinates = coordinates.simplify()
+        cache_coordinates = cache_coordinates.transpose(*sorted(coordinates.dims))
+        cache_coordinates = cache_coordinates.transform(settings["DEFAULT_CRS"])
+
+        # remove extra dims
         if isinstance(self, (podpac.data.DataSource, podpac.core.compositor.BaseCompositor)) and self.dims:
             extra_dims = [dim for dim in cache_coordinates.dims if dim not in self.dims]
             cache_coordinates = cache_coordinates.drop(extra_dims)

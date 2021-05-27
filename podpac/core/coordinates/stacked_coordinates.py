@@ -622,3 +622,6 @@ class StackedCoordinates(BaseCoordinates):
                         ocs.append(StackedCoordinates([coords[dim] for dim in dims]))
 
             return all(a.issubset(o) for a, o in zip(acs, ocs))
+
+    def simplify(self):
+        return StackedCoordinates([c.simplify() for c in self._coords])
