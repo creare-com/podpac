@@ -193,18 +193,22 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         # Find the overview that's closest to this reduction factor
         if reduction_factor < 2:  # Then we shouldn't use an overview
             overview = 1
+            overview_level = None
         else:
             diffs = reduction_factor - np.array(self.overviews)
-            if not self.prefer_overviews_closest:
-                diffs[diffs < 0] = np.inf
-            else:
+            if self.prefer_overviews_closest:
                 diffs = np.abs(diffs)
+            else:
+                diffs[diffs < 0] = np.inf
             overview_level = np.argmin(diffs)
             overview = self.overviews[np.argmin(diffs)]
 
         # Now read the data
         inds = coordinates_index
-        dataset = self.open_dataset(self.source, overview_level)
+        if overview_level is None:
+            dataset = self.dataset
+        else:
+            dataset = self.open_dataset(self.source, overview_level)
         try:
             # read data within coordinates_index window at the resolution of the overview
             # Rasterio will then automatically pull from the overview
@@ -230,7 +234,8 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         except Exception as e:
             _logger.error("Error occurred when reading overview with Rasterio: {}".format(e))
 
-        dataset.close()
+        if overview_level is not None:
+            dataset.close()
 
         return data
 
