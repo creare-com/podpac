@@ -82,8 +82,10 @@ class RasterioRaw(S3Mixin, BaseFileSource):
                 aws_unsigned=self.anon,
             )
 
-        with rasterio.env.Env(**envargs) as env:
-            _logger.debug("Rasterio environment options: {}".format(env.options))
+            with rasterio.env.Env(**envargs) as env:
+                _logger.debug("Rasterio environment options: {}".format(env.options))
+                return rasterio.open(self.source)
+        else:
             return rasterio.open(self.source)
 
     @tl.default("band")
