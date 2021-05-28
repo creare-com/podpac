@@ -282,6 +282,7 @@ class DataSource(Node):
     # ------------------------------------------------------------------------------------------------------------------
 
     def eval(self, coordinates, **kwargs):
+
         # check for missing dimensions
         for c in self.coordinates.values():
             if isinstance(c, Coordinates1d):
@@ -290,6 +291,9 @@ class DataSource(Node):
             elif isinstance(c, StackedCoordinates):
                 if all(s.name not in coordinates.udims for s in c):
                     raise ValueError("Cannot evaluate these coordinates, missing at least one dim in '%s'" % c.name)
+
+        # store original requested coordinates
+        requested_coordinates = coordinates
 
         # remove extra dimensions
         extra = [
@@ -301,16 +305,18 @@ class DataSource(Node):
         coordinates = coordinates.drop(extra)
 
         # transform coordinates into native crs if different
-        requested_crs = coordinates.crs
         if coordinates.crs.lower() != self.coordinates.crs.lower():
             coordinates = coordinates.transform(self.coordinates.crs)
 
         output = super().eval(coordinates, **kwargs)
 
         # transform back to requested coordinates, if necessary
-        if coordinates.crs.lower() != requested_crs.lower():
+        if coordinates.crs.lower() != requested_coordinates.crs.lower():
             coords = Coordinates.from_xarray(output, crs=output.attrs.get("crs", None))
-            output = self.create_output_array(coords.transform(requested_crs), data=output.data)
+            output = self.create_output_array(coords.transform(requested_coordinates.crs), data=output.data)
+
+        if settings["DEBUG"]:
+            self._requested_coordinates = requested_coordinates
 
         return output
 

@@ -480,6 +480,9 @@ class StackedCoordinates(BaseCoordinates):
         return index
 
     def _transform(self, transformer):
+        if self.size == 0:
+            return self.copy()
+
         coords = [c.copy() for c in self._coords]
 
         if "lat" in self.dims and "lon" in self.dims and "alt" in self.dims:
