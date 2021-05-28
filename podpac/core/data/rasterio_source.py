@@ -48,6 +48,8 @@ class RasterioRaw(S3Mixin, BaseFileSource):
     prefer_overviews: bool, optional
         Default is False. If True, will pull data from an overview with the closest resolution (step size) matching the smallest resolution
         in the request.
+    prefer_overviews_closest: bool, optional
+        Default is False. If True, will find the closest overview instead of the closest
 
     See Also
     --------
@@ -61,6 +63,7 @@ class RasterioRaw(S3Mixin, BaseFileSource):
     coordinate_index_type = tl.Unicode()
     aws_https = tl.Bool(True).tag(attr=True)
     prefer_overviews = tl.Bool(False).tag(attr=True)
+    prefer_overviews_closest = tl.Bool(False).tag(attr=True)
 
     @tl.default("coordinate_index_type")
     def _default_coordinate_index_type(self):
@@ -187,7 +190,10 @@ class RasterioRaw(S3Mixin, BaseFileSource):
             overview = 1
         else:
             diffs = reduction_factor - np.array(self.overviews)
-            diffs[diffs < 0] = np.inf
+            if not self.prefer_overviews_closest:
+                diffs[diffs < 0] = np.inf
+            else:
+                diffs = np.abs(diffs)
             overview = self.overviews[np.argmin(diffs)]
 
         # Now read the data
