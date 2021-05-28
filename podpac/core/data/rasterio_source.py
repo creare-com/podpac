@@ -17,7 +17,7 @@ rasterio = lazy_module("rasterio")
 boto3 = lazy_module("boto3")
 
 from podpac.core.utils import common_doc, cached_property
-from podpac.core.coordinates import UniformCoordinates1d, Coordinates
+from podpac.core.coordinates import UniformCoordinates1d, Coordinates, merge_dims
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource
 from podpac.core.authentication import S3Mixin
@@ -219,6 +219,9 @@ class RasterioRaw(S3Mixin, BaseFileSource):
             slc = (slice(window[0][0], window[0][1], 1), slice(window[1][0], window[1][1], 1))
             new_coords = Coordinates.from_geotransform(dataset.transform.to_gdal(), dataset.shape, crs=self.coordinates.crs)
             new_coords = new_coords[slc]
+            missing_coords = self.coordinates.drop(['lat', 'lon'])
+            new_coords = merge_dims([new_coords, missing_coords])
+            new_coords = new_coords.transpose(*self.coordinates.dims)
             coordinates_shape = new_coords.shape[:2]
 
             # The following lines are *nearly* copied/pasted from get_data
