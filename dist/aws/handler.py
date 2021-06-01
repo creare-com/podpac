@@ -16,12 +16,12 @@ from six import string_types
 
 def default_pipeline(pipeline=None):
     """Get default pipeline definiton, merging with input pipline if supplied
-    
+
     Parameters
     ----------
     pipeline : dict, optional
         Input pipline. Will fill in any missing defaults.
-    
+
     Returns
     -------
     dict
@@ -46,20 +46,20 @@ def default_pipeline(pipeline=None):
 
     # overwrite certain settings so that the function doesn't fail
     pipeline["settings"]["ROOT_PATH"] = "/tmp"
-    pipeline["settings"]["LOG_FILE_PATH"] = "/tmp"
+    pipeline["settings"]["LOG_FILE_PATH"] = "/tmp/podpac.log"
 
     return pipeline
 
 
 def get_trigger(event):
-    """ 
+    """
     Helper method to determine the trigger for the lambda invocation
-    
+
     Parameters
     ----------
     event : dict
         Event dict from AWS. See [TODO: add link reference]
-    
+
     Returns
     -------
     str
@@ -76,7 +76,7 @@ def get_trigger(event):
 
 def parse_event(trigger, event):
     """Parse pipeline, settings, and output details from event depending on trigger
-    
+
     Parameters
     ----------
     trigger : str
@@ -86,7 +86,7 @@ def parse_event(trigger, event):
     """
 
     if trigger == "eval":
-        print ("Triggered by Invoke")
+        print("Triggered by Invoke")
 
         # event is the pipeline, provide consistent pipeline defaults
         pipeline = default_pipeline(event)
@@ -94,7 +94,7 @@ def parse_event(trigger, event):
         return pipeline
 
     elif trigger == "S3":
-        print ("Triggered from S3")
+        print("Triggered from S3")
 
         # get boto s3 client
         s3 = boto3.client("s3")
@@ -133,7 +133,7 @@ def parse_event(trigger, event):
         return pipeline
 
     elif trigger == "APIGateway":
-        print ("Triggered from API Gateway")
+        print("Triggered from API Gateway")
 
         pipeline = default_pipeline()
         pipeline["url"] = event["queryStringParameters"]
@@ -158,8 +158,8 @@ def parse_event(trigger, event):
                     # If we get here, the api settings were loaded
                     pipeline["settings"] = {**pipeline["settings"], **api_settings}
                 except Exception as e:
-                    print ("Got an exception when attempting to load api settings: ", e)
-                    print (pipeline)
+                    print("Got an exception when attempting to load api settings: ", e)
+                    print(pipeline)
 
             # handle OUTPUT in query parameters
             elif param == "output":
@@ -187,7 +187,7 @@ def parse_event(trigger, event):
 
 def handler(event, context):
     """Lambda function handler
-    
+
     Parameters
     ----------
     event : dict
@@ -199,7 +199,7 @@ def handler(event, context):
     ret_pipeline : bool, optional
         Description
     """
-    print (event)
+    print(event)
 
     # Add /tmp/ path to handle python path for dependencies
     sys.path.append("/tmp/")
@@ -229,21 +229,21 @@ def handler(event, context):
     else:
         dependencies = "podpac_deps_{}.zip".format(
             os.environ.get("PODPAC_VERSION", pipeline["settings"].get("PODPAC_VERSION"))
-        ) 
-        if 'None' in dependencies:
-            dependencies = 'podpac_deps.zip'  # Development version of podpac
+        )
+        if "None" in dependencies:
+            dependencies = "podpac_deps.zip"  # Development version of podpac
         # this should be equivalent to version.semver()
 
     # Check to see if this function is "hot", in which case the dependencies have already been downloaded and are
     # available for use right away.
     if os.path.exists("/tmp/scipy"):
-        print (
+        print(
             "Scipy has been detected in the /tmp/ directory. Assuming this function is hot, dependencies will"
             " not be downloaded."
         )
     else:
         # Download dependencies from specific bucket/object
-        print ("Downloading and extracting dependencies from {} {}".format(bucket, dependencies))
+        print("Downloading and extracting dependencies from {} {}".format(bucket, dependencies))
         s3 = boto3.client("s3")
         s3.download_file(bucket, dependencies, "/tmp/" + dependencies)
         subprocess.call(["unzip", "/tmp/" + dependencies, "-d", "/tmp"])
@@ -266,7 +266,7 @@ def handler(event, context):
     # update podpac settings with inputs from the trigger
     settings.update(json.loads(os.environ.get("SETTINGS", "{}")))
     settings.update(pipeline["settings"])
-  
+
     # build the Node and Coordinates
     if trigger in ("eval", "S3"):
         node = Node.from_definition(pipeline["pipeline"])
@@ -302,7 +302,7 @@ def handler(event, context):
         try:
             json.dumps(body)
         except Exception as e:
-            print ("Output body is not serializable, attempting to decode.")
+            print("Output body is not serializable, attempting to decode.")
             body = body.decode()
 
         return {
