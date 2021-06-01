@@ -32,6 +32,8 @@ class BaseCompositor(Node):
         Source nodes.
     source_coordinates : :class:`podpac.Coordinates`
         Coordinates that make each source unique. Must the same size as ``sources`` and single-dimensional. Optional.
+    multithreading : bool, optional
+        Default is False. If True, will always evaluate the compositor in serial, ignoring any MULTITHREADING settings
 
     Notes
     -----
@@ -48,6 +50,11 @@ class BaseCompositor(Node):
 
     sources = tl.List(trait=NodeTrait()).tag(attr=True)
     source_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
+    multithreading = tl.Bool(False)
+
+    @tl.default("multithreading")
+    def _default_multithreading(self):
+        return settings["MULTITHREADING"]
 
     dims = tl.List(trait=Dimension()).tag(attr=True)
     auto_outputs = tl.Bool(False)
@@ -192,14 +199,14 @@ class BaseCompositor(Node):
             yield self.create_output_array(coordinates)
             return
 
-        if settings["MULTITHREADING"]:
+        if self.multithreading:
             n_threads = thread_manager.request_n_threads(len(sources))
             if n_threads == 1:
                 thread_manager.release_n_threads(n_threads)
         else:
             n_threads = 0
 
-        if settings["MULTITHREADING"] and n_threads > 1:
+        if self.multithreading and n_threads > 1:
             # evaluate nodes in parallel using thread pool
             self._multi_threaded = True
             pool = thread_manager.get_thread_pool(processes=n_threads)

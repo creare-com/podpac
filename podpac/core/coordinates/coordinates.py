@@ -23,7 +23,7 @@ import logging
 
 import podpac
 from podpac.core.settings import settings
-from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param
+from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param, cached_property
 from podpac.core.coordinates.utils import has_alt_units
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -306,7 +306,7 @@ class Coordinates(tl.HasTraits):
         return cls([stacked], crs=crs)
 
     @classmethod
-    def from_xarray(cls, x, crs=None):
+    def from_xarray(cls, x, crs=None, validate_crs=False):
         """
         Create podpac Coordinates from xarray coords.
 
@@ -317,6 +317,8 @@ class Coordinates(tl.HasTraits):
         crs : str, optional
             Coordinate reference system. Supports any PROJ4 or PROJ6 compliant string (https://proj.org/).
             If not provided, the crs will be loaded from ``x.attrs`` if possible.
+        validate_crs: bool, optional
+            Default is False. If True, the crs will be validated.
 
         Returns
         -------
@@ -360,7 +362,7 @@ class Coordinates(tl.HasTraits):
                 # unstacked
                 d[dim] = ArrayCoordinates1d.from_xarray(xcoords[dim])
 
-        coords = cls(list(d.values()), crs=crs)
+        coords = cls(list(d.values()), crs=crs, validate_crs=validate_crs)
         return coords
 
     @classmethod
@@ -472,7 +474,7 @@ class Coordinates(tl.HasTraits):
         return cls.from_definition(coords)
 
     @classmethod
-    def from_geotransform(cls, geotransform, shape, crs=None):
+    def from_geotransform(cls, geotransform, shape, crs=None, validate_crs=True):
         """Creates Coordinates from GDAL Geotransform."""
         tol = 1e-15  # tolerance for deciding when a number is zero
         # Handle the case of rotated coordinates
@@ -504,6 +506,7 @@ class Coordinates(tl.HasTraits):
                 podpac.clinspace(origin[1], end[1], shape[::order][1], "lon"),
             ][::order],
             crs=crs,
+            validate_crs=validate_crs,
         )
         return coords
 
@@ -856,7 +859,7 @@ class Coordinates(tl.HasTraits):
 
         return json.dumps(self.definition, separators=(",", ":"), cls=podpac.core.utils.JSONEncoder)
 
-    @property
+    @cached_property
     def hash(self):
         """:str: Coordinates hash value."""
         # We can't use self.json for the hash because the CRS is not standardized.

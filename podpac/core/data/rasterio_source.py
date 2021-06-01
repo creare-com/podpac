@@ -17,7 +17,7 @@ rasterio = lazy_module("rasterio")
 boto3 = lazy_module("boto3")
 
 from podpac.core.utils import common_doc, cached_property
-from podpac.core.coordinates import UniformCoordinates1d, Coordinates
+from podpac.core.coordinates import UniformCoordinates1d, Coordinates, merge_dims
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource
 from podpac.core.authentication import S3Mixin
@@ -48,6 +48,8 @@ class RasterioRaw(S3Mixin, BaseFileSource):
     prefer_overviews: bool, optional
         Default is False. If True, will pull data from an overview with the closest resolution (step size) matching the smallest resolution
         in the request.
+    prefer_overviews_closest: bool, optional
+        Default is False. If True, will find the closest overview instead of the closest
 
     See Also
     --------
@@ -61,6 +63,7 @@ class RasterioRaw(S3Mixin, BaseFileSource):
     coordinate_index_type = tl.Unicode()
     aws_https = tl.Bool(True).tag(attr=True)
     prefer_overviews = tl.Bool(False).tag(attr=True)
+    prefer_overviews_closest = tl.Bool(False).tag(attr=True)
 
     @tl.default("coordinate_index_type")
     def _default_coordinate_index_type(self):
@@ -71,9 +74,14 @@ class RasterioRaw(S3Mixin, BaseFileSource):
 
     @cached_property
     def dataset(self):
-        envargs = {"AWS_HTTPS": self.aws_https}
+        return self.open_dataset(self.source)
 
-        if self.source.startswith("s3://"):
+    def open_dataset(self, source, overview_level=None):
+        envargs = {"AWS_HTTPS": self.aws_https}
+        kwargs = {}
+        if overview_level is not None:
+            kwargs = {'overview_level': overview_level}
+        if source.startswith("s3://"):
             envargs["session"] = rasterio.session.AWSSession(
                 aws_access_key_id=self.aws_access_key_id,
                 aws_secret_access_key=self.aws_secret_access_key,
@@ -82,9 +90,11 @@ class RasterioRaw(S3Mixin, BaseFileSource):
                 aws_unsigned=self.anon,
             )
 
-        with rasterio.env.Env(**envargs) as env:
-            _logger.debug("Rasterio environment options: {}".format(env.options))
-            return rasterio.open(self.source)
+            with rasterio.env.Env(**envargs) as env:
+                _logger.debug("Rasterio environment options: {}".format(env.options))
+                return rasterio.open(source, **kwargs)
+        else:
+            return rasterio.open(source, **kwargs)
 
     @tl.default("band")
     def _band_default(self):
@@ -118,20 +128,24 @@ class RasterioRaw(S3Mixin, BaseFileSource):
 
         # check to see if the coordinates are rotated used affine
         affine = self.dataset.transform
-
+        validate_crs = True
         if self.crs is not None:
             crs = self.crs
         elif isinstance(self.dataset.crs, rasterio.crs.CRS) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
+            if self.dataset.crs.is_valid:
+                validate_crs = False
         elif isinstance(self.dataset.crs, dict) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
+            if self.dataset.crs.is_valid:
+                validate_crs = False
         else:
             try:
                 crs = pyproj.CRS(self.dataset.crs).to_wkt()
             except pyproj.exceptions.CRSError:
                 raise RuntimeError("Unexpected rasterio crs '%s'" % self.dataset.crs)
 
-        return Coordinates.from_geotransform(affine.to_gdal(), self.dataset.shape, crs)
+        return Coordinates.from_geotransform(affine.to_gdal(), self.dataset.shape, crs, validate_crs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -179,34 +193,52 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         # Find the overview that's closest to this reduction factor
         if reduction_factor < 2:  # Then we shouldn't use an overview
             overview = 1
+            overview_level = None
         else:
             diffs = reduction_factor - np.array(self.overviews)
-            diffs[diffs < 0] = np.inf
+            if self.prefer_overviews_closest:
+                diffs = np.abs(diffs)
+            else:
+                diffs[diffs < 0] = np.inf
+            overview_level = np.argmin(diffs)
             overview = self.overviews[np.argmin(diffs)]
 
         # Now read the data
         inds = coordinates_index
+        if overview_level is None:
+            dataset = self.dataset
+        else:
+            dataset = self.open_dataset(self.source, overview_level)
+        try:
+            # read data within coordinates_index window at the resolution of the overview
+            # Rasterio will then automatically pull from the overview
+            window = (
+                ((inds[0].min() // overview), int(np.ceil(inds[0].max() / overview) + 1)),
+                ((inds[1].min() // overview), int(np.ceil(inds[1].max() / overview) + 1)),
+            )
+            slc = (slice(window[0][0], window[0][1], 1), slice(window[1][0], window[1][1], 1))
+            new_coords = Coordinates.from_geotransform(dataset.transform.to_gdal(), dataset.shape, crs=self.coordinates.crs)
+            new_coords = new_coords[slc]
+            missing_coords = self.coordinates.drop(['lat', 'lon'])
+            new_coords = merge_dims([new_coords, missing_coords])
+            new_coords = new_coords.transpose(*self.coordinates.dims)
+            coordinates_shape = new_coords.shape[:2]
 
-        # read data within coordinates_index window at the resolution of the overview
-        # Rasterio will then automatically pull from the overview
-        window = (
-            ((inds[0].min() // overview) * overview, int(np.ceil(inds[0].max() / overview) + 1) * overview),
-            ((inds[1].min() // overview) * overview, int(np.ceil(inds[1].max() / overview) + 1) * overview),
-        )
-        slc = (slice(window[0][0], window[0][1], overview), slice(window[1][0], window[1][1], overview))
-        new_coords = self.coordinates[slc]
-        coordinates_shape = new_coords.shape[:2]
+            # The following lines are *nearly* copied/pasted from get_data
+            if self.outputs is not None:  # read all the bands
+                raster_data = dataset.read(out_shape=(len(self.outputs),) + coordinates_shape, window=window)
+                raster_data = np.moveaxis(raster_data, 0, 2)
+            else:  # read the requested band
+                raster_data = dataset.read(self.band, out_shape=coordinates_shape, window=window)
 
-        # The following lines are *nearly* copied/pasted from get_data
-        if self.outputs is not None:  # read all the bands
-            raster_data = self.dataset.read(out_shape=(len(self.outputs),) + coordinates_shape, window=window)
-            raster_data = np.moveaxis(raster_data, 0, 2)
-        else:  # read the requested band
-            raster_data = self.dataset.read(self.band, out_shape=coordinates_shape, window=window)
+            # set raster data to output array
+            data = self.create_output_array(new_coords)
+            data.data.ravel()[:] = raster_data.ravel()
+        except Exception as e:
+            _logger.error("Error occurred when reading overview with Rasterio: {}".format(e))
 
-        # set raster data to output array
-        data = self.create_output_array(new_coords)
-        data.data.ravel()[:] = raster_data.ravel()
+        if overview_level is not None:
+            dataset.close()
 
         return data
 

@@ -587,7 +587,7 @@ class Node(tl.HasTraits):
 
         return json.dumps(self.definition, indent=4, cls=JSONEncoder)
 
-    @property
+    @cached_property
     def hash(self):
         """ hash for this node, used in caching and to determine equality. """
 
