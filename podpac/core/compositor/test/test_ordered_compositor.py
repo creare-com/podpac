@@ -100,10 +100,14 @@ class TestOrderedCompositor(object):
             n_threads_before = podpac.core.managers.multi_threading.thread_manager._n_threads_used
             a = Array(source=np.ones(coords.shape), coordinates=coords, interpolation="bilinear")
             b = Array(source=np.zeros(coords.shape), coordinates=coords, interpolation="bilinear")
-            node = OrderedCompositor(sources=[a, b])
+            node = OrderedCompositor(sources=[a, b], eval_serial=False)
+            node2 = OrderedCompositor(sources=[a, b], eval_serial=True)
             output = node.eval(coords)
+            output2 = node2.eval(coords)
             np.testing.assert_array_equal(output, a.source)
+            np.testing.assert_array_equal(output2, a.source)
             assert node._multi_threaded == True
+            assert node2._multi_threaded == False
             assert podpac.core.managers.multi_threading.thread_manager._n_threads_used == n_threads_before
 
     def test_composite_into_result(self):
