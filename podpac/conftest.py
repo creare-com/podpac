@@ -65,7 +65,8 @@ def pytest_sessionstart(session):
 
 def pytest_sessionfinish(session, exitstatus):
     # restore settings
-    for key in settings:
+    keys = list(settings.keys())
+    for key in keys:
         if key in original_settings:
             settings[key] = original_settings[key]
         else:
