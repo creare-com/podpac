@@ -21,12 +21,12 @@ class OrderedCompositor(BaseCompositor):
         Source nodes, in order of preference. Later sources are only used where earlier sources do not provide data.
     source_coordinates : :class:`podpac.Coordinates`
         Coordinates that make each source unique. Must the same size as ``sources`` and single-dimensional. Optional.
-    eval_serial : bool, optional
+    multithreading : bool, optional
         Default is True. If True, will always evaluate the compositor in serial, ignoring any MULTITHREADING settings
 
     """
 
-    eval_serial = tl.Bool(True)
+    multithreading = tl.Bool(False)
 
     @common_doc(COMMON_COMPOSITOR_DOC)
     def composite(self, coordinates, data_arrays, result=None):

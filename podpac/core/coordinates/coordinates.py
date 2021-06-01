@@ -306,7 +306,7 @@ class Coordinates(tl.HasTraits):
         return cls([stacked], crs=crs)
 
     @classmethod
-    def from_xarray(cls, x, crs=None):
+    def from_xarray(cls, x, crs=None, validate_crs=False):
         """
         Create podpac Coordinates from xarray coords.
 
@@ -317,6 +317,8 @@ class Coordinates(tl.HasTraits):
         crs : str, optional
             Coordinate reference system. Supports any PROJ4 or PROJ6 compliant string (https://proj.org/).
             If not provided, the crs will be loaded from ``x.attrs`` if possible.
+        validate_crs: bool, optional
+            Default is False. If True, the crs will be validated.
 
         Returns
         -------
@@ -360,7 +362,7 @@ class Coordinates(tl.HasTraits):
                 # unstacked
                 d[dim] = ArrayCoordinates1d.from_xarray(xcoords[dim])
 
-        coords = cls(list(d.values()), crs=crs, validate_crs=False)
+        coords = cls(list(d.values()), crs=crs, validate_crs=validate_crs)
         return coords
 
     @classmethod
