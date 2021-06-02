@@ -73,8 +73,7 @@ class BaseCompositor(Node):
                 "The sources must all be standard single-output nodes or all multi-output nodes."
             )
 
-        # copy so that interpolation trait of the input source is not overwritten
-        return [copy.deepcopy(source) for source in sources]
+        return sources
 
     @tl.validate("source_coordinates")
     def _validate_source_coordinates(self, d):
