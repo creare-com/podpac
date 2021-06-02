@@ -7,6 +7,7 @@ import podpac
 from podpac.datalib import gfs
 
 
+@pytest.mark.skip("Broken, GFS data source structure changed. ")
 @pytest.mark.integration
 class TestGFS(object):
     parameter = "SOIM"

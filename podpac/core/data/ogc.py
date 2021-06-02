@@ -216,7 +216,13 @@ class WCSRaw(DataSource):
         xsize = int(high[0]) - int(low[0])
         ysize = int(high[1]) - int(low[1])
 
-        rbbox = resolve_bbox_order(bbox, crs, (xsize, ysize))
+        # Based on https://www.ctps.org/geoserver/web/wicket/bookmarkable/org.geoserver.wcs.web.demo.WCSRequestBuilder;jsessionid=9E2AA99F95410C694D05BA609F25527C?0
+        # The above link points to a geoserver implementation, which is the reference implementation.
+        # WCS version 1.0.0 always has order lon/lat while version 1.1.1 actually follows the CRS
+        if self.version == "1.0.0":
+            rbbox = {"lat": [bbox[1], bbox[3], ysize], "lon": [bbox[0], bbox[2], xsize]}
+        else:
+            rbbox = resolve_bbox_order(bbox, crs, (xsize, ysize))
 
         coords = []
         coords.append(UniformCoordinates1d(rbbox["lat"][0], rbbox["lat"][1], size=rbbox["lat"][2], name="lat"))
