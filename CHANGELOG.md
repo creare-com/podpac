@@ -1,12 +1,76 @@
 # Changelog
 
+## 3.1.0
+
+This release was in support of the GeoWATCH application. Bugs/features added were to support server deployment.
+
+### Features
+* Added `OGR` datasource node for reading shapefiles
+* `Compositers.multithreading`: For some compositors, it's important to actually evaluate the nodes in serial for performance reasons, regardless of the global multithreading setting. Now compositors user settings['MULTITHREADING'] by default, but `OrderedCompositors` always set this to `False`. In either case it can be overwritten on a node-by-node basis.
+* `RasterioSource.prefer_overview_closest`: when selecting overview levels, we can either select the coarsest overview smaller than the eval coordinates OR we can select the overview with the closest step size to the eval coordinates (this may be coarser than the eval coordinates). Setting this attr to `True` will select the closest overview instead of the closest higher resolution overview.
+* Improved speed of evaluations by eliminating unneccessary CRS validations
+* Added `decode_cf` attribute to `Dataset` data source node
+* Default interpolation can now be specificief application-wide through the `podpac.settings["DEFAULT_INTERPOLATION"]` setting
+* Added `MockWCSClient` to `ogc.py` for WCS endpoints that do not implement `get_coverage`. This make it easy to turn PODPAC into a lightweight WCS server, and then use a PODPAC WCS client.
+* Added `prefer_overviews` and `prefer_overviews_closest` attributes to `Rasterio` data source node. These attributes allow users to pull from the overviews directly for coarse requests.
+* Added the point prober. This allows users to probe the values of an algorithm pipeline at a point. See `Node.probe`
+* Added the `from_name_params` method to `Node`, allowing nodes to be created from the node name + additional parameters.
+* Renamed `set_unsafe_eval` to `allow_unrestricted_code_execution` for a more descriptive name.
+* Improved specification of enumerated colormaps in the `Style`
+* Enabled saving to a geotiff memory file to support WCS calls
+
+## Bugfixes
+* Fixed crs mismatch bug in `Reproject` node
+* Fixed lat/lon ordering bug for different versions of WMS/WCS in `from_url` method of `Coordinates`
+* Fixed bug in `Coordinates.transform` where `ArrayCoordinates` turned into `UniformCoordinates` for two CRS with linear mapping.
+* Fixed bug in `DataSource` node where `get_data` returns coordinates that are different from the request (this happens in the case where raw data is returned)
+* Fixed BBOX order specification error in `WCS` node, where different versions of WCS change the order of lat/lon. This is now handled correctly.
+* Fixed a number of interpolation errors:
+  * `InterpolationMixin` will no longer cache internal evaluations which lead to strange caching errors
+  * Fixed selector bugs related to negative step sizes
+  * Fixed nearest neighbor interpolation bugs related to negative step sizes
+  * Fixed Selector uniform coordinates short-cut
+* Fixed bug where `DataArray` attributes were dropped when doing basic math operations
+* Fixed bug in `to_geotiff` export function (misplaced parenthesis)
+
+## 3.0.0
+Interpolation refactoring. Interpolation now lives as an Algorithm Node. As such,
+interpolation can exist in any part of a pipeline, and even multiple times. As
+part of this improvement, we also implemented "Selectors" which subselect data
+based on the interpolation method specified BEFORE data is pulled from remote
+servers.
+
+Because this refactor changed the interface somewhat, we bumped the major version number.
+
+The MAJOR change with the PODPAC functionality is that now some Nodes may return DIFFERENT (not interpolated) coordinates than the eval coordinates.
+
+### Features
+* Added `Interpolation` Node and `InterpolationMixin` to restore backwards compatibility with most nodes.
+* Replace WCS node with a new version that uses owslib under the hood. Also added authentiation support.
+* Added SoilGrids WCS data sources
+* Added an "Xarray" interpolator, which uses `xarray`'s interpolation methods. This now allows linear project for time, for example.
+* Interpolators will now throw warning if the user specifies an interpolation parameter which is not used.
+* Improved interpolation documentation
+* Added "Autozoom" functionality for TerrainTiles datasource
+* Added `Compositor` nodes that combine multiple files/tiles of a single datasource BEFORE interpolation
+* Removed SMAP PyDAP datalib -- it was always unstable whereas the EGI version usually works
+* Improved Rasterio node -- it now read datasources directly using Rasterio instead of going through s3fs.
+
+### Bugfixes
+* Can now clear ram cache before cache is eliminated
+* Fixed #303, UnitsDataArray deserialization
+* Removed support for "numpy" return type in Algorithm nodes, since coordinates can now be altered in Algorithm Nodes
+* Fixed styling and plugin information is being set 7aef43b5a
+* Fixed some floating point rounding issues at tile edges 8ac834d4
+* Fixed Coordinates.from_url to work correctly with different versions of OCG WMS call (and possible WCS calls, but the WCS documentation and my reference servers disagree...)
+
 ## 2.3.0
-### Introduction 
+### Introduction
 
 Adding subdataset support for hdf4 data sources (i.e. downloaded MODIS netcdf file), wrapping SoilScape data, and adding
-expiration to cache. 
+expiration to cache.
 
-This release also drops Python 3.5 support. 
+This release also drops Python 3.5 support.
 
 ### Features
 * Subdataset support in Rasterio Node, see #410
@@ -22,7 +86,7 @@ This release also drops Python 3.5 support.
 ### Bug Fixes
 * Fixed floating point errors on selection of data subset (short circuit optimization to avoid unnecessary interpolation)
 * Fixed bug in cosmos_stations.latlon_from_label giving the wrong latlon for a label
-* Fixing compositor to update interpolation of sources automatically (and deleting cached definitions). 
+* Fixing compositor to update interpolation of sources automatically (and deleting cached definitions).
     * Also making cached node definitions easier to remove -- no longer caching node.json, node.json_pretty and node.hash
 
 ## 2.2.0
@@ -35,27 +99,27 @@ Wrapping Landsat8, Sentinel2, and MODIS data and improving interpolation.
 * Added `datalib.modis_pds` which wraps MODIS products ["MCD43A4.006", "MOD09GA.006", "MYD09GA.006", "MOD09GQ.006", "MYD09GQ.006"]
 * Added settings['AWS_REQUESTER_PAYS'] and `authentication.S3Mixing.aws_requester_pays` attribute to support Sentinel2 data
 * Added `issubset` method to Coordinates which allows users to test if a coordinate is a subset of another one
-* Added environmental variables in Lambda function deployment allowing users to specify the location of additional 
-dependencies (`FUNCTION_DEPENDENCIES_KEY`) and settings (`SETTINGS`). This was in support the WMS service. 
+* Added environmental variables in Lambda function deployment allowing users to specify the location of additional
+dependencies (`FUNCTION_DEPENDENCIES_KEY`) and settings (`SETTINGS`). This was in support the WMS service.
 * Intake nodes can now filter inputs by additional data columns for .csv files / pandas dataframes by using the pandas
-`query` method. 
+`query` method.
 * Added documentation on `Interpolation` and `Wrapping Datasets`
 
 ### Bug Fixes
-* Added `dims` attributes to `Compositor` nodes which indicates the dimensions that sources are expected to have. This 
+* Added `dims` attributes to `Compositor` nodes which indicates the dimensions that sources are expected to have. This
 fixes a bug where `Nodes` throw and error if Coordinates contain extra dimensions when the `Compositor` sources are missing
 those dimensions.
-* `COSMOSStations` will no longer fail for sites with no data or one data point. These sites are now automatically filtered. 
+* `COSMOSStations` will no longer fail for sites with no data or one data point. These sites are now automatically filtered.
 * Fixed `core.data.file_source` closing files prematurely due to using context managers
 * Fixed heterogenous interpolation (where lat/lon uses a different interpolator than time, for example)
-* `datalib.TerrainTiles` now accesses S3 anonymously by default. Interpolation specified at the compositor level are 
-also now passed down to the sources. 
+* `datalib.TerrainTiles` now accesses S3 anonymously by default. Interpolation specified at the compositor level are
+also now passed down to the sources.
 
 ### Breaking changes
 * Fixed `core.algorithm.signal.py` and in the process removed `SpatialConvolution` and `TemporalConvolutions`. Users now
-have to label the dimensions of the kernel -- which prevents results from being modified if the eval coordinates are 
-transposed. This was a major bug in the `Convolution` node, and the new change obviates the need for the removed Nodes, 
-but it may break some pipelines. 
+have to label the dimensions of the kernel -- which prevents results from being modified if the eval coordinates are
+transposed. This was a major bug in the `Convolution` node, and the new change obviates the need for the removed Nodes,
+but it may break some pipelines.
 
 
 ## 2.1.0
@@ -82,7 +146,7 @@ Fixing some bugs associated with AWS evaluation and the drought-monitor applicat
 * Added `MODIS` datasource `datalib.modis_pds`
 * Added `datalib.weathercitizen` to retrieve weathercitizen data
 * Added `datalib.cosmos_stations` to retrieve soil moisture data from the stationary COSMOS soil moisture network
-* Added `algorithm.ResampleReduce`, which allows users to coarsen a dataset based on a reduce operation (such as mean, max, etc.). 
+* Added `algorithm.ResampleReduce`, which allows users to coarsen a dataset based on a reduce operation (such as mean, max, etc.).
 * Added the `managers.parallel` submodule that enables parallel computation with PODPAC in a multi-threaded, multi-process, or multi-AWS-Lambda-function way
 * Added the `managers.multi_process` submodule that enables PODPAC nodes to be run in another process.
 * Added the `compositor.UniformTileCompositor` and `compositor.UniformTileMixin` to enable compositing of data sources BEFORE harmonization (so that interpolation can happen across data sources with the same coordinate systems)
@@ -97,7 +161,7 @@ Fixing some bugs associated with AWS evaluation and the drought-monitor applicat
 * Added podpac's version to pipeline definitions
 
 ### Bug Fixes
-* Fixed `algorithm.GroupReduce` to accept `dayofyear`, `weekofyear`, `season`, and `month`. It also now returns the time coordinate in one of these units. 
+* Fixed `algorithm.GroupReduce` to accept `dayofyear`, `weekofyear`, `season`, and `month`. It also now returns the time coordinate in one of these units.
 * Implemented a circular dependency check to avoid infinite recursion and locking up due to cache accessing. This change also defined the `NodeDefinitionError` exception.
 * Fixed the `UnitsDataArray.to_format` function's `zarr_part` format to work propertly with parallel computations
 * Added the `[algorithm]` dependencies as part of the AWS Lambda function build -- previously the `numexpr` Python package was missing
@@ -112,7 +176,7 @@ Fixing some bugs associated with AWS evaluation and the drought-monitor applicat
 * Removed `datalib.airmoss` -- it was no longer working!
 
 ### Maintenance
-* Refactored the way PODPAC keeps track of `Node` definition. Most all of it is now handled by the base class, previously `DataSource`, `Algorithm`, and `Compositor` had to implement specialized functions. 
+* Refactored the way PODPAC keeps track of `Node` definition. Most all of it is now handled by the base class, previously `DataSource`, `Algorithm`, and `Compositor` had to implement specialized functions.
 * Refactored `datalib` nodes to prefer using the new `cached_property` decorator instead of `defaults` which were causing severe circular dependencies
 * Refactored `DataSource` nodes that access files on S3 to use a common `Mixin`
 * Refactored authentication to use more consistent approach across the library
@@ -125,7 +189,7 @@ The purpose of this release was to make the software more robust and to improve 
 
 ### Features
 
-* Algorithm arrays can now be multi-threaded. This allows an algorithm with multiple S3 data sources to fetch the data 
+* Algorithm arrays can now be multi-threaded. This allows an algorithm with multiple S3 data sources to fetch the data
   in parallel before doing the computation, speeding up the process. See #343
 * Improvements to AWS interface. See #336
 * Added budgeting / billing capability to manage AWS resources. See #361
@@ -150,7 +214,7 @@ The purpose of this release was to make the software more robust and to improve 
     * CSV.lon_col --> lon_key
     * CSV.time_col --> time_key
     * CSV.alt_col --> alt_key
-    
+
 
 ## 1.2.0
 
@@ -158,7 +222,7 @@ The purpose of this release was to make the software more robust and to improve 
 
 The purpose of this release was to develop a short course for AMS2020. A major feature of this release is automated
 creation of the PODPAC Lambda function. As part of this we implemented a few more additional
-features, and fixed a number of bugs. 
+features, and fixed a number of bugs.
 
 ### Features
 

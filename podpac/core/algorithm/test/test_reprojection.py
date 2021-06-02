@@ -3,7 +3,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import pytest
 
 import numpy as np
-from numpy.testing import assert_equal, assert_array_equal
+from numpy.testing import assert_equal, assert_array_equal, assert_almost_equal
 import traitlets as tl
 
 import podpac
@@ -18,6 +18,11 @@ class TestReprojection(object):
     source = Array(source=np.arange(81).reshape(9, 9), coordinates=source_coords, interpolation="nearest")
     source_coarse = Array(
         source=[[0, 4, 8], [36, 40, 44], [72, 76, 80]], coordinates=coarse_coords, interpolation="bilinear"
+    )
+    source_coarse2 = Array(
+        source=[[0, 4, 8], [36, 40, 44], [72, 76, 80]],
+        coordinates=coarse_coords.transform("EPSG:3857"),
+        interpolation="bilinear",
     )
 
     def test_reprojection_Coordinates(self):
@@ -63,3 +68,32 @@ class TestReprojection(object):
         node = podpac.Node.from_json(reproject.json)
         o3 = node.eval(self.coarse_coords)
         assert_array_equal(o1.data, o3.data)
+
+    def test_reprojection_Coordinates_crs(self):
+        # same eval and source but different reproject
+        reproject = Reproject(
+            source=self.source,
+            interpolation={"method": "bilinear", "params": {"fill_value": "extrapolate"}},
+            coordinates=self.coarse_coords.transform("EPSG:3857"),
+        )
+        o1 = reproject.eval(self.source_coords)
+        # We have to use a second source here because the reprojected source
+        # gets interpreted as having it's source coordinates in EPSG:3857
+        # and when being subsampled, there's a warping effect...
+        o2 = self.source_coarse2.eval(self.source_coords)
+        assert_almost_equal(o1.data, o2.data, decimal=13)
+
+        node = podpac.Node.from_json(reproject.json)
+        o3 = node.eval(self.source_coords)
+        assert_array_equal(o1.data, o3.data)
+
+        # same eval and reproject but different source
+        o1 = reproject.eval(self.source_coords.transform("EPSG:3857"))
+        o2 = self.source_coarse2.eval(self.source_coords.transform("EPSG:3857"))
+        assert_almost_equal(o1.data, o2.data, decimal=13)
+
+        # same source and reproject but different eval
+        reproject = Reproject(source=self.source, interpolation="bilinear", coordinates=self.coarse_coords)
+        o1 = reproject.eval(self.source_coords.transform("EPSG:3857"))
+        o2 = self.source_coarse.eval(self.source_coords.transform("EPSG:3857"))
+        assert_almost_equal(o1.data, o2.data, decimal=13)

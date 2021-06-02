@@ -1,4 +1,5 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
+from podpac.core.cache import cache_ctrl
 
 import traitlets as tl
 from copy import deepcopy
@@ -15,6 +16,7 @@ from podpac.core.utils import NodeTrait, common_doc
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims, Coordinates
 from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationTrait
+from podpac.core.cache.cache_ctrl import CacheCtrl
 
 _logger = logging.getLogger(__name__)
 
@@ -28,12 +30,17 @@ class InterpolationMixin(tl.HasTraits):
         return super()._repr_keys + ["interpolation"]
 
     def _eval(self, coordinates, output=None, _selector=None):
-        node = Interpolate(interpolation=self.interpolation)
+        node = Interpolate(
+            interpolation=self.interpolation, source_id=self.hash, force_eval=True, cache_ctrl=CacheCtrl([])
+        )
         node._set_interpolation()
         selector = node._interpolation.select_coordinates
         node._source_xr = super()._eval(coordinates, _selector=selector)
         self._interp_node = node
-        return node.eval(coordinates, output=output)
+        r = node.eval(coordinates, output=output)
+        # Helpful for debugging
+        self._from_cache = node._from_cache
+        return r
 
 
 class Interpolate(Node):
@@ -45,7 +52,7 @@ class Interpolate(Node):
         The source node which will be interpolated
     interpolation : str, dict, optional
         Interpolation definition for the data source.
-        By default, the interpolation method is set to ``'nearest'`` for all dimensions.
+        By default, the interpolation method is set to `podpac.settings["DEFAULT_INTERPOLATION"]` which defaults to ``'nearest'`` for all dimensions.
 
          If input is a string, it must match one of the interpolation shortcuts defined in
         :attr:`podpac.data.INTERPOLATION_SHORTCUTS`. The interpolation method associated
@@ -95,6 +102,7 @@ class Interpolate(Node):
     """
 
     source = NodeTrait(allow_none=True).tag(attr=True)
+    source_id = tl.Unicode(allow_none=True).tag(attr=True)
     _source_xr = tl.Instance(UnitsDataArray, allow_none=True)  # This is needed for the Interpolation Mixin
 
     interpolation = InterpolationTrait().tag(attr=True)

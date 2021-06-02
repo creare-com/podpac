@@ -181,6 +181,7 @@ class UnitsDataArray(xr.DataArray):
             r = self.to_image(format, *args, **kwargs)
         elif format.upper() in ["TIFF", "TIF", "GEOTIFF"]:
             r = self.to_geotiff(*args, **kwargs)
+
         elif format in ["pickle", "pkl"]:
             r = cPickle.dumps(self)
         elif format == "zarr_part":
@@ -235,11 +236,11 @@ class UnitsDataArray(xr.DataArray):
         """
         return to_image(self, format, vmin, vmax, return_base64)
 
-    def to_geotiff(self, fp, geotransform=None, crs=None, **kwargs):
+    def to_geotiff(self, fp=None, geotransform=None, crs=None, **kwargs):
         """
         For documentation, see `core.units.to_geotiff`
         """
-        to_geotiff(fp, self, geotransform=geotransform, crs=crs, **kwargs)
+        return to_geotiff(fp, self, geotransform=geotransform, crs=crs, **kwargs)
 
     def _pp_serialize(self):
         if self.attrs.get("units"):
@@ -474,7 +475,12 @@ for tp in ("mul", "matmul", "truediv", "div"):
     def make_func(meth, tp):
         def func(self, other):
             x = getattr(super(UnitsDataArray, self), meth)(other)
-            return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+            units = x2.attrs.get("units")
+            x2.attrs = self.attrs
+            if units is not None:
+                x2.attrs["units"] = units
+            return x2
 
         return func
 
@@ -490,7 +496,9 @@ for tp in ("add", "sub", "mod", "floordiv"):  # , "divmod", ):
         def func(self, other):
             multiplier = self._get_unit_multiplier(other)
             x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-            return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+            x2.attrs = self.attrs
+            return x2
 
         return func
 
@@ -621,7 +629,8 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
     Params
     -------
     fp:  str, file object or pathlib.Path object
-        A filename or URL, a file object opened in binary ('rb') mode, or a Path object.
+        A filename or URL, a file object opened in binary ('rb') mode, or a Path object. If not supplied, the results will
+        be written to a memfile object
     data: UnitsDataArray, xr.DataArray, np.ndarray
         The data to be saved. If there is more than 1 band, this should be the last dimension of the array.
         If given a np.ndarray, ensure that the 'lat' dimension is aligned with the rows of the data, with an appropriate
@@ -640,15 +649,20 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
                 dtype=data.dtype
                 mode="w"
 
+    Returns
+    --------
+    MemoryFile, list
+        If fp is given, results a list of the results for writing to each band r.append(dst.write(data[..., i], i + 1))
+        If fp is None, returns the MemoryFile object
     """
 
     # This only works for data that essentially has lat/lon only
     dims = data.coords.dims
     if "lat" not in dims or "lon" not in dims:
         raise NotImplementedError("Cannot export GeoTIFF for dataset with lat/lon coordinates.")
-    if "time" in dims and len(data.coords["time"] > 1):
+    if "time" in dims and len(data.coords["time"]) > 1:
         raise NotImplemented("Cannot export GeoTIFF for dataset with multiple times,")
-    if "alt" in dims and len(data.coords["alt"] > 1):
+    if "alt" in dims and len(data.coords["alt"]) > 1:
         raise NotImplemented("Cannot export GeoTIFF for dataset with multiple altitudes.")
 
     # TODO: add proper checks, etc. to make sure we handle edge cases and throw errors when we cannot support
@@ -669,12 +683,15 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
         # if isinstance(data, xr.DataArray) and data.dims.index('lat') > data.dims.index('lon'):
         # geotransform = geotransform[3:] + geotransform[:3]
     if geotransform is None:
-        raise ValueError(
-            "The `geotransform` of the data needs to be provided to save as GeoTIFF. If the geotransform attribute "
-            "wasn't automatically populated as part of the dataset, it means that the data is in a non-uniform "
-            "coordinate system. This can sometimes happen when the data is transformed to a different CRS than the "
-            "native CRS, which can cause the coordinates to seems non-uniform due to floating point precision. "
-        )
+        try:
+            geotransform = Coordinates.from_xarray(data).geotransform
+        except (TypeError, AttributeError):
+            raise ValueError(
+                "The `geotransform` of the data needs to be provided to save as GeoTIFF. If the geotransform attribute "
+                "wasn't automatically populated as part of the dataset, it means that the data is in a non-uniform "
+                "coordinate system. This can sometimes happen when the data is transformed to a different CRS than the "
+                "native CRS, which can cause the coordinates to seems non-uniform due to floating point precision. "
+            )
 
     # Make all types into a numpy array
     if isinstance(data, xr.DataArray):
@@ -698,14 +715,21 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
         dtype=data.dtype,
         crs=crs,
         transform=geotransform,
-        mode="w",
     )
     kwargs2.update(kwargs)
 
     # Write the file
-    r = []
-    with rasterio.open(fp, **kwargs2) as dst:
-        for i in range(data.shape[2]):
-            r.append(dst.write(data[..., i], i + 1))
+    if fp is None:
+        # Write to memory file
+        r = rasterio.io.MemoryFile()
+        with r.open(**kwargs2) as dst:
+            for i in range(data.shape[2]):
+                dst.write(data[..., i], i + 1)
+    else:
+        r = []
+        kwargs2["mode"] = "w"
+        with rasterio.open(fp, **kwargs2) as dst:
+            for i in range(data.shape[2]):
+                r.append(dst.write(data[..., i], i + 1))
 
     return r

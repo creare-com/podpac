@@ -1,4 +1,5 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
+from io import StringIO
 
 import os
 import sys
@@ -21,6 +22,7 @@ from podpac.core.utils import OrderedDictTrait, ArrayTrait, TupleTrait, NodeTrai
 from podpac.core.utils import JSONEncoder, is_json_serializable
 from podpac.core.utils import cached_property
 from podpac.core.utils import ind2slice
+from podpac.core.utils import probe_node
 
 
 class TestCommonDocs(object):
@@ -467,3 +469,241 @@ class TestInd2Slice(object):
         assert ind2slice([1, 2, 4]) == slice(1, 5)
         assert ind2slice([False, True, True, False, True, False]) == slice(1, 5)
         assert ind2slice([1, 3, 5]) == slice(1, 7, 2)
+
+
+class AnotherOne(podpac.algorithm.Algorithm):
+    def algorithm(self, inputs, coordinates):
+        return self.create_output_array(coordinates, data=1)
+
+
+class TestNodeProber(object):
+    coords = podpac.Coordinates([podpac.clinspace(0, 2, 3, "lat"), podpac.clinspace(0, 2, 3, "lon")])
+    one = podpac.data.Array(
+        source=np.ones((3, 3)), coordinates=coords, style=podpac.style.Style(name="one_style", units="o")
+    )
+    two = podpac.data.Array(
+        source=np.ones((3, 3)) * 2, coordinates=coords, style=podpac.style.Style(name="two_style", units="t")
+    )
+    arange = podpac.algorithm.Arange()
+    nan = podpac.data.Array(source=np.ones((3, 3)) * np.nan, coordinates=coords)
+    another_one = AnotherOne()
+
+    def test_single_prober(self):
+        expected = {
+            "Array": {
+                "active": True,
+                "value": 1,
+                "units": "o",
+                "inputs": [],
+                "name": "one_style",
+                "node_hash": self.one.hash,
+            }
+        }
+        out = probe_node(self.one, lat=1, lon=1)
+        assert out == expected
+
+    def test_serial_prober(self):
+        with podpac.settings:
+            podpac.settings.set_unsafe_eval(True)
+            a = podpac.algorithm.Arithmetic(one=self.one, eqn="one * 2")
+            b = podpac.algorithm.Arithmetic(a=a, eqn="a*3", style=podpac.style.Style(name="six_style", units="m"))
+            expected = {
+                "Array": {
+                    "active": True,
+                    "value": 1.0,
+                    "units": "o",
+                    "inputs": [],
+                    "name": "one_style",
+                    "node_hash": self.one.hash,
+                },
+                "Arithmetic": {
+                    "active": True,
+                    "value": 2.0,
+                    "units": "",
+                    "inputs": ["Array"],
+                    "name": "Arithmetic",
+                    "node_hash": a.hash,
+                },
+                "Arithmetic_1": {
+                    "active": True,
+                    "value": 6.0,
+                    "units": "m",
+                    "inputs": ["Arithmetic"],
+                    "name": "six_style",
+                    "node_hash": b.hash,
+                },
+            }
+            out = probe_node(b, lat=1, lon=1)
+            assert out == expected
+
+    def test_parallel_prober(self):
+        with podpac.settings:
+            podpac.settings.set_unsafe_eval(True)
+            a = podpac.algorithm.Arithmetic(one=self.one, two=self.two, eqn="one * two")
+            expected = {
+                "Array": {
+                    "active": True,
+                    "value": 1.0,
+                    "units": "o",
+                    "inputs": [],
+                    "name": "one_style",
+                    "node_hash": self.one.hash,
+                },
+                "Array_1": {
+                    "active": True,
+                    "value": 2.0,
+                    "units": "t",
+                    "inputs": [],
+                    "name": "two_style",
+                    "node_hash": self.two.hash,
+                },
+                "Arithmetic": {
+                    "active": True,
+                    "value": 2.0,
+                    "units": "",
+                    "inputs": ["Array", "Array_1"],
+                    "name": "Arithmetic",
+                    "node_hash": a.hash,
+                },
+            }
+            out = probe_node(a, lat=1, lon=1)
+            assert out == expected
+
+    def test_composited_prober(self):
+        a = podpac.compositor.OrderedCompositor(sources=[self.one, self.arange])
+        expected = {
+            "Array": {
+                "active": True,
+                "value": 1.0,
+                "units": "o",
+                "inputs": [],
+                "name": "one_style",
+                "node_hash": self.one.hash,
+            },
+            "Arange": {
+                "active": False,
+                "value": 0.0,
+                "units": "",
+                "inputs": [],
+                "name": "Arange",
+                "node_hash": self.arange.hash,
+            },
+            "OrderedCompositor": {
+                "active": True,
+                "value": 1.0,
+                "units": "",
+                "inputs": ["Array", "Arange"],
+                "name": "OrderedCompositor",
+                "node_hash": a.hash,
+            },
+        }
+        out = probe_node(a, lat=1, lon=1)
+        assert out == expected
+
+        a = podpac.compositor.OrderedCompositor(sources=[self.nan, self.two])
+        expected = {
+            "Array": {
+                "active": False,
+                "value": "nan",
+                "units": "",
+                "inputs": [],
+                "name": "Array",
+                "node_hash": self.nan.hash,
+            },
+            "Array_1": {
+                "active": True,
+                "value": 2.0,
+                "units": "t",
+                "inputs": [],
+                "name": "two_style",
+                "node_hash": self.two.hash,
+            },
+            "OrderedCompositor": {
+                "active": True,
+                "value": 2.0,
+                "units": "",
+                "inputs": ["Array", "Array_1"],
+                "name": "OrderedCompositor",
+                "node_hash": a.hash,
+            },
+        }
+        out = probe_node(a, lat=1, lon=1)
+        for k in out:
+            if np.isnan(out[k]["value"]):
+                out[k]["value"] = "nan"
+        assert out == expected
+
+        a = podpac.compositor.OrderedCompositor(sources=[self.nan, self.one, self.another_one])
+        expected = {
+            "Array": {
+                "active": False,
+                "value": "nan",
+                "units": "",
+                "inputs": [],
+                "name": "Array",
+                "node_hash": self.nan.hash,
+            },
+            "Array_1": {
+                "active": True,
+                "value": 1.0,
+                "units": "o",
+                "inputs": [],
+                "name": "one_style",
+                "node_hash": self.one.hash,
+            },
+            "AnotherOne": {
+                "active": False,
+                "value": 1.0,
+                "units": "",
+                "inputs": [],
+                "name": "AnotherOne",
+                "node_hash": self.another_one.hash,
+            },
+            "OrderedCompositor": {
+                "active": True,
+                "value": 1.0,
+                "units": "",
+                "inputs": ["Array", "Array_1", "AnotherOne"],
+                "name": "OrderedCompositor",
+                "node_hash": a.hash,
+            },
+        }
+        out = probe_node(a, lat=1, lon=1)
+        for k in out:
+            if np.isnan(out[k]["value"]):
+                out[k]["value"] = "nan"
+        assert out == expected
+
+    def test_composited_prober_nested(self):
+        a = podpac.compositor.OrderedCompositor(
+            sources=[self.one, self.arange], style=podpac.style.Style(name="composited", units="c")
+        )
+        expected = {
+            "name": "composited",
+            "value": "1.0 c",
+            "active": True,
+            "node_id": a.hash,
+            "params": {},
+            "inputs": {
+                "inputs": [
+                    {
+                        "name": "one_style",
+                        "value": "1.0 o",
+                        "active": True,
+                        "node_id": self.one.hash,
+                        "params": {},
+                        "inputs": {},
+                    },
+                    {
+                        "name": "Arange",
+                        "value": "0.0",
+                        "active": False,
+                        "node_id": self.arange.hash,
+                        "params": {},
+                        "inputs": {},
+                    },
+                ]
+            },
+        }
+        out = probe_node(a, lat=1, lon=1, nested=True)
+        assert out == expected

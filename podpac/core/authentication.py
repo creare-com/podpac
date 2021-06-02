@@ -1,5 +1,5 @@
 """
-PODPAC Authentication 
+PODPAC Authentication
 """
 
 
@@ -189,7 +189,7 @@ class NASAURSSessionMixin(RequestsSessionMixin):
 class S3Mixin(tl.HasTraits):
     """ Mixin to add S3 credentials and access to a Node. """
 
-    anon = tl.Bool(False)
+    anon = tl.Bool(False).tag(attr=True)
     aws_access_key_id = tl.Unicode(allow_none=True)
     aws_secret_access_key = tl.Unicode(allow_none=True)
     aws_region_name = tl.Unicode(allow_none=True)

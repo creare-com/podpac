@@ -940,6 +940,23 @@ class TestSerialization(object):
         node = Node.from_url(url0)
         node = Node.from_url(url1)
 
+    def test_from_name_params(self):
+        # Normal
+        name = "algorithm.Arange"
+        node = Node.from_name_params(name)
+
+        # Normal with params
+        name = "algorithm.CoordData"
+        params = {"coord_name": "alt"}
+        node = Node.from_name_params(name, params)
+        assert node.coord_name == "alt"
+
+        # Plugin style
+        name = "CoordData"
+        params = {"plugin": "podpac.algorithm", "attrs": {"coord_name": "alt"}}
+        node = Node.from_name_params(name, params)
+        assert node.coord_name == "alt"
+
     def test_style(self):
         node = podpac.data.Array(
             source=[10, 20, 30],

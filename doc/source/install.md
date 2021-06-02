@@ -20,11 +20,11 @@ Confirm you have the required dependencies installed on your computer:
 
 ### Environment
 
-If using Anaconda Python, create a PODPAC dedicated Anconda environment:
+If using Anaconda Python (recommended for Windows), create a PODPAC dedicated Anconda environment:
 
 ```
-# create environment with all `anaconda` packages
-$ conda create -n podpac python=3 anaconda
+# create environment
+$ conda create -n podpac python=3
 
 # activate environment
 $ conda activate podpac
@@ -33,16 +33,47 @@ $ conda activate podpac
 If using a non-Anaconda Python distribution, create a PODPAC dedicated virtual environment:
 
 ```
-# create environment in <DIR>
+# create environment in <DIR> using virtualenv
 $ python3 -m venv <DIR>
 
 # activate environment
 $ source <DIR>/bin/activate
+
+# Create environment named `podpac` using pyenv
+$ pyenv virtualenv 3.8.6 podpac
+$ pyenv activate podpac
 ```
 
 ### Install
 
-After activating the virtual environment, install using `pip` with one of the following commands:
+#### Windows Pre-Installation Instructions with Anaconda
+Some packages are simpler to install through `conda` compared to `pip` on Windows. NOTE: These
+instructions tend to change based on the specific version of `conda`. Substituting which packages
+are installed from `conda-forge` vs the `default` `conda` channel can usually result in a
+functional installation.
+
+For a full PODPAC installation pre-install the
+following packages in a clean `conda` environment:
+
+```bash
+# Install core dependencies
+> conda install matplotlib>=2.1 numpy>=1.14 scipy>=1.0 traitlets>=4.3 xarray>=0.10 ipython psutil requests>=2.18 owslib beautifulsoup4>=4.6 h5py>=2.9 lxml>=4.2 zarr>=2.3 intake>=0.5 boto3>=1.4 s3fs>=0.2 numexpr>=2.6 jupyterlab ipywidgets nodejs
+> conda install pyproj>=2.2 rasterio>=1.0 ipympl ipyleaflet -c conda-forge
+
+# Set up jupyter lab extensions
+> jupyter labextension install @jupyter-widgets/jupyterlab-manager
+> jupyter labextension install jupyter-leaflet
+> jupyter labextension install jupyter-matplotlib
+> jupyter nbextension enable --py widgetsnbextension
+> jupyter lab build
+
+# clean conda environment (optional)
+> conda clean -a -y
+```
+
+#### All Operating systems
+
+After activating the environment, install using `pip` with one of the following commands:
 
 ```
 $ pip install podpac                # base installation
@@ -163,12 +194,12 @@ $ git checkout -b develop origin/develop            # latest stable version
 From the root of the git repository, install using `pip` with one of the following commands:
 
 ```
-$ pip install .                # base installation
-$ pip install .[datatype]      # install podpac and optional data handling dependencies
-$ pip install .[notebook]      # install podpac and optional notebook dependencies
-$ pip install .[aws]           # install podpac and optional aws dependencies
-$ pip install .[algorithm]     # install podpac and optional algorithm dependencies
-$ pip install .[all]           # install podpac and all optional dependencies
+$ pip install -e .                # base installation
+$ pip install -e .[datatype]      # install podpac and optional data handling dependencies
+$ pip install -e .[notebook]      # install podpac and optional notebook dependencies
+$ pip install -e .[aws]           # install podpac and optional aws dependencies
+$ pip install -e .[algorithm]     # install podpac and optional algorithm dependencies
+$ pip install -e .[all]           # install podpac and all optional dependencies
 ```
 
 See [Optional Dependencies](dependencies.html#optional-dependencies) more information on optional PODPAC dependencies.

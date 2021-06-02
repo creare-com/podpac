@@ -26,6 +26,7 @@ import traitlets as tl
 import numpy as np
 import xarray as xr
 import pandas as pd  # Core dependency of xarray
+import pyproj
 
 # Optional Imports
 requests = lazy_import.lazy_module("requests")
@@ -459,3 +460,124 @@ def _ind2slice(I):
 
     # non-stepped slice
     return slice(I.min(), I.max() + 1)
+
+
+def resolve_bbox_order(bbox, crs, size):
+    """
+    Utility that puts the OGC WMS/WCS BBox in the order specified by the CRS.
+    """
+    crs = pyproj.CRS(crs)
+    r = 1
+    if crs.axis_info[0].direction != "north":
+        r = -1
+    lat_start, lon_start = bbox[:2][::r]
+    lat_stop, lon_stop = bbox[2::][::r]
+    size = size[::r]
+
+    return {"lat": [lat_start, lat_stop, size[0]], "lon": [lon_start, lon_stop, size[1]]}
+
+
+def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=False):
+    """Evaluates every part of a node / pipeline at a point and records
+    which nodes are actively being used.
+
+    Parameters
+    ------------
+    node : podpac.Node
+        A PODPAC Node instance
+    lat : float, optional
+        Default is None. The latitude location
+    lon : float, optional
+        Default is None. The longitude location
+    time : float, np.datetime64, optional
+        Default is None. The time
+    alt : float, optional
+        Default is None. The altitude location
+    crs : str, optional
+        Default is None. The CRS of the request.
+    nested : bool, optional
+        Default is False. If True, will return a nested version of the
+        output dictionary isntead
+
+    Returns
+    dict
+        A dictionary that contains the following for each node:
+        ```
+        {
+            "active": bool,   # If the node is being used or not
+            "value": float,   # The value of the node evaluated at that point
+            "inputs": list,   # List of names of input nodes (based on definition)
+            "name": str,      # node.style.name
+            "node_hash": str, # The node's hash or node.base_ref
+        }
+        ```
+    """
+
+    def partial_definition(key, definition):
+        """ Needed to build partial node definitions """
+        new_def = OrderedDict()
+        for k in definition:
+            new_def[k] = definition[k]
+            if k == key:
+                return new_def
+
+    def flatten_list(l):
+        """ Needed to flatten the inputs list for all the dependencies """
+        nl = []
+        for ll in l:
+            if isinstance(ll, list):
+                lll = flatten_list(ll)
+                nl.extend(lll)
+            else:
+                nl.append(ll)
+        return nl
+
+    def get_entry(key, out, definition):
+        """ Needed for the nested version of the pipeline """
+        # We have to rearrange the outputs
+        entry = OrderedDict()
+        entry["name"] = out[key]["name"]
+        entry["value"] = str(out[key]["value"])
+        if out[key]["units"] not in [None, ""]:
+            entry["value"] = entry["value"] + " " + str(out[key]["units"])
+        entry["active"] = out[key]["active"]
+        entry["node_id"] = out[key]["node_hash"]
+        entry["params"] = {}
+        entry["inputs"] = {"inputs": [get_entry(inp, out, definition) for inp in out[key]["inputs"]]}
+        if len(entry["inputs"]["inputs"]) == 0:
+            entry["inputs"] = {}
+        return entry
+
+    c = [(v, d) for v, d in zip([lat, lon, time, alt], ["lat", "lon", "time", "alt"]) if v is not None]
+    coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c], crs=crs)
+    v = float(node.eval(coords))
+    definition = node.definition
+    out = OrderedDict()
+    for key in definition:
+        if key == "podpac_version":
+            continue
+        d = partial_definition(key, definition)
+        n = podpac.Node.from_definition(d)
+        value = float(n.eval(coords))
+        inputs = flatten_list(list(d[key].get("inputs", {}).values()))
+        active = True
+        out[key] = {
+            "active": active,
+            "value": value,
+            "units": n.style.units,
+            "inputs": inputs,
+            "name": n.style.name if n.style.name else key,
+            "node_hash": n.hash,
+        }
+        # Fix sources for Compositors
+        if isinstance(n, podpac.compositor.OrderedCompositor):
+            searching_for_active = True
+            for inp in inputs:
+                out[inp]["active"] = False
+                if out[inp]["value"] == out[key]["value"] and np.isfinite(out[inp]["value"]) and searching_for_active:
+                    out[inp]["active"] = True
+                    searching_for_active = False
+
+    if nested:
+        out = get_entry(list(out.keys())[-1], out, definition)
+    return out
