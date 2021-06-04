@@ -376,7 +376,7 @@ class PodpacSettings(dict):
 
     def set_unsafe_eval(self, allow=False):
         _logger.warning(
-            "DEPRECATION WARNING: The `set_unsafe_eval` method has been deprecated and will be removed in future versions of PODPAC. Use `allow_unrestricted_code_execuation` instead. "
+            "DEPRECATION WARNING: The `set_unsafe_eval` method has been deprecated and will be removed in future versions of PODPAC. Use `allow_unrestricted_code_execution` instead. "
         )
         self.allow_unrestricted_code_execution(allow)
 
