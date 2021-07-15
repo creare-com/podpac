@@ -8,10 +8,8 @@ import os
 import sys
 import json
 import datetime
-import functools
-import importlib
 import logging
-import time
+import inspect
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -581,3 +579,67 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
     if nested:
         out = get_entry(list(out.keys())[-1], out, definition)
     return out
+
+
+def get_ui_node_spec(module=None, category="default"):
+    """
+    Returns a dictionary describing the specifications for each Node in a module.
+
+    Parameters
+    -----------
+    module: module
+        The Python module for which the ui specs should be summarized. Only the top-level
+        classes will be included in the spec. (i.e. no recursive search through submodules)
+    category: str, optional
+        Default is "default". Top-level category name for the group of Nodes.
+
+    Returns
+    --------
+    dict
+        Dictionary of {category: {Node1: spec_1, Node2: spec2, ...}} describing the specs for each Node.
+    """
+    import podpac
+    import podpac.datalib  # May not be imported by default
+
+    spec = {}
+
+    def get_ui_spec(cls):
+        filter = []
+        spec = {"help": cls.__doc__}
+        for attr in dir(cls):
+            if attr in filter:
+                continue
+            attrt = getattr(cls, attr)
+            if not isinstance(attrt, tl.TraitType):
+                continue
+            if "attr" not in attrt.metadata:
+                continue
+            spec[attr] = {
+                "type": attrt.__class__.__name__,
+                "type_str": str(attrt),
+                "values": getattr(attrt, "values", None),
+                "default": attrt.default(),
+                "help": attrt.help,
+            }
+        spec.update(getattr(cls, "_ui_spec", {}))
+        return spec
+
+    if module is None:
+        modcat = zip(
+            [podpac.data, podpac.algorithm, podpac.compositor, podpac.datalib],
+            ["data", "algorithms", "compositors", "datalib"],
+        )
+        for mod, cat in modcat:
+            spec.update(get_ui_node_spec(mod, cat))
+        return spec
+
+    spec[category] = {}
+    for obj in dir(module):
+        ob = getattr(module, obj)
+        if not inspect.isclass(ob):
+            continue
+        if not issubclass(ob, podpac.Node):
+            continue
+        spec[category][obj] = get_ui_spec(ob)
+
+    return spec
