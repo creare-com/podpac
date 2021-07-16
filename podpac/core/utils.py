@@ -605,7 +605,7 @@ def get_ui_node_spec(module=None, category="default"):
 
     def get_ui_spec(cls):
         filter = []
-        spec = {"help": cls.__doc__}
+        spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}}
         for attr in dir(cls):
             if attr in filter:
                 continue
@@ -614,9 +614,18 @@ def get_ui_node_spec(module=None, category="default"):
                 continue
             if "attr" not in attrt.metadata:
                 continue
-            spec[attr] = {
-                "type": attrt.__class__.__name__,
-                "type_str": str(attrt),
+            type_ = attrt.__class__.__name__
+            type_extra = str(attrt)
+            if type_ == "Union":
+                type_ = [t.__class__.__name__ for t in attrt.trait_types]
+                type_extra = "Union"
+            elif type_ == "Instance":
+                type_ = attrt.klass.__name__
+                type_extra = attrt.klass
+
+            spec["attrs"][attr] = {
+                "type": type_,
+                "type_str": type_extra,  # May remove this if not needed
                 "values": getattr(attrt, "values", None),
                 "default": attrt.default(),
                 "help": attrt.help,
