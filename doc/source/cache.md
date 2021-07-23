@@ -10,7 +10,7 @@ Each node has a **Cache Control** (`cache_ctrl`) defined by default, and the **C
 
 By default, PODPAC caches evaluated node outputs to memory (RAM). When a node is evaluated with the same coordinates, the output is retrieved from the cache.
 
-The following example demonstrates that the output was retrieved from the cache on teh second evaluation:
+The following example demonstrates that the output was retrieved from the cache on the second evaluation:
 
 ```python
 [.] import podpac
