@@ -284,8 +284,8 @@ class DataSource(Node):
     def get_source_data(self, bounds={}):
         """"""
 
-        coords = self.coordinates.select(bounds)
-        return self.eval(coords)
+        coords, I = self.coordinates.select(bounds, return_index=True)
+        return self._get_data(coords, I)
 
     def eval(self, coordinates, **kwargs):
         """
