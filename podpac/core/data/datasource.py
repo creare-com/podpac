@@ -282,6 +282,12 @@ class DataSource(Node):
     # ------------------------------------------------------------------------------------------------------------------
 
     def eval(self, coordinates, **kwargs):
+        """
+        Wraps the super Node.eval method in order to cache with the correct coordinates.
+
+        The output is independent of the crs or any extra dimensions, so this transforms and removes extra dimensions
+        before caching in the super eval method.
+        """
 
         # check for missing dimensions
         for c in self.coordinates.values():
@@ -308,6 +314,7 @@ class DataSource(Node):
         if coordinates.crs.lower() != self.coordinates.crs.lower():
             coordinates = coordinates.transform(self.coordinates.crs)
 
+        # note: super().eval (not self._eval)
         output = super().eval(coordinates, **kwargs)
 
         # transform back to requested coordinates, if necessary

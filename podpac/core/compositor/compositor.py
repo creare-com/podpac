@@ -217,6 +217,13 @@ class BaseCompositor(Node):
 
     @common_doc(COMMON_COMPOSITOR_DOC)
     def eval(self, coordinates, **kwargs):
+        """
+        Wraps the super Node.eval method in order to cache with the correct coordinates.
+
+        The output is independent of any extra dimensions, so this removes extra dimensions before caching in the
+        super eval method.
+        """
+
         super_coordinates = coordinates
 
         # remove extra dimensions
@@ -229,6 +236,7 @@ class BaseCompositor(Node):
             ]
             super_coordinates = super_coordinates.drop(extra)
 
+        # note: super().eval (not self._eval)
         output = super().eval(super_coordinates, **kwargs)
 
         if settings["DEBUG"]:
