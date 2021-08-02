@@ -282,7 +282,19 @@ class DataSource(Node):
     # ------------------------------------------------------------------------------------------------------------------
 
     def get_source_data(self, bounds={}):
-        """"""
+        """
+        Get source data, without interpolation.
+
+        Arguments
+        ---------
+        bounds : dict
+            Dictionary of bounds by dimension, optional.
+
+        Returns
+        -------
+        data : UnitsDataArray
+            Source data
+        """
 
         coords, I = self.coordinates.select(bounds, return_index=True)
         return self._get_data(coords, I)
