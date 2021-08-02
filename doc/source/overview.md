@@ -59,7 +59,7 @@ node = podpac.datalib.TerrainTiles(tile_format='geotiff', zoom=8)
 # ... and more each release
 ```
 
-Retrieve the raw source data array at full/native resolution.
+Retrieve the raw source data array at full/native resolution. **Note**: Some data source are too large to fit in RAM, and calling this function can crash Python. 
 
 ```python
 # retrieve full source data
