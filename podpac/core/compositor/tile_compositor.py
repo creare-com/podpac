@@ -83,7 +83,7 @@ class TileCompositorRaw(BaseCompositor):
         """
 
         if any(not hasattr(source, "get_source_data") for source in self.sources):
-            raise ValueError("Cannot get composited source data; all sources must be a DataSource or TileCompositor")
+            raise ValueError("Cannot get composited source data; all sources must have `get_source_data` implemented (such as nodes derived from a DataSource or TileCompositor node).")
 
         coords = None  # n/a
         source_data_arrays = (source.get_source_data(bounds) for source in self.sources)  # generator
