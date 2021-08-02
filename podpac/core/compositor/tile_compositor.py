@@ -67,6 +67,28 @@ class TileCompositorRaw(BaseCompositor):
             return result
         return res
 
+    def get_source_data(self, bounds={}):
+        """
+        Get composited source data, without interpolation.
+
+        Arguments
+        ---------
+        bounds : dict
+            Dictionary of bounds by dimension, optional.
+
+        Returns
+        -------
+        data : UnitsDataArray
+            Source data
+        """
+
+        if any(not hasattr(source, "get_source_data") for source in self.sources):
+            raise ValueError("Cannot get composited source data; all sources must be a DataSource or TileCompositor")
+
+        coords = None  # n/a
+        source_data_arrays = (source.get_source_data(bounds) for source in self.sources)  # generator
+        return self.composite(coords, source_data_arrays)
+
 
 class TileCompositor(InterpolationMixin, TileCompositorRaw):
     pass
