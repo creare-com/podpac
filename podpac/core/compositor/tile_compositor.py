@@ -75,6 +75,7 @@ class TileCompositorRaw(BaseCompositor):
         ---------
         bounds : dict
             Dictionary of bounds by dimension, optional.
+            Keys must be dimension names, and values are (min, max) tuples, e.g. ``{'lat': (10, 20)}``.
 
         Returns
         -------
@@ -83,7 +84,9 @@ class TileCompositorRaw(BaseCompositor):
         """
 
         if any(not hasattr(source, "get_source_data") for source in self.sources):
-            raise ValueError("Cannot get composited source data; all sources must have `get_source_data` implemented (such as nodes derived from a DataSource or TileCompositor node).")
+            raise ValueError(
+                "Cannot get composited source data; all sources must have `get_source_data` implemented (such as nodes derived from a DataSource or TileCompositor node)."
+            )
 
         coords = None  # n/a
         source_data_arrays = (source.get_source_data(bounds) for source in self.sources)  # generator

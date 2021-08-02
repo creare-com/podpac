@@ -289,6 +289,7 @@ class DataSource(Node):
         ---------
         bounds : dict
             Dictionary of bounds by dimension, optional.
+            Keys must be dimension names, and values are (min, max) tuples, e.g. ``{'lat': (10, 20)}``.
 
         Returns
         -------
