@@ -564,6 +564,24 @@ class TestDataSource(object):
             node.eval(node.coordinates.transform("EPSG:4326"))
             assert node._from_cache
 
+    def test_get_source_data(self):
+        node = podpac.data.Array(
+            source=np.ones((3, 4)),
+            coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"]),
+        )
+
+        data = node.get_source_data()
+        np.testing.assert_array_equal(data, node.source)
+
+    def test_get_source_data_with_bounds(self):
+        node = podpac.data.Array(
+            source=np.ones((3, 4)),
+            coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"]),
+        )
+
+        data = node.get_source_data({"lon": (1.5, 4.5)})
+        np.testing.assert_array_equal(data, node.source[:, 2:])
+
 
 class TestDataSourceWithMultipleOutputs(object):
     def test_evaluate_no_overlap_with_output_extract_output(self):

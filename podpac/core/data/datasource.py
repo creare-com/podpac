@@ -281,6 +281,12 @@ class DataSource(Node):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
+    def get_source_data(self, bounds={}):
+        """"""
+
+        coords = self.coordinates.select(bounds)
+        return self.eval(coords)
+
     def eval(self, coordinates, **kwargs):
         """
         Wraps the super Node.eval method in order to cache with the correct coordinates.
