@@ -456,7 +456,7 @@ class DataSource(Node):
         ---------
         crs : str
             Desired CRS for the bounds. Use 'source' to use the native source crs.
-            If not specified, the default CRS in the podpac settings is used. Optional.
+            If not specified, podpac.settings["DEFAULT_CRS"] is used. Optional.
 
         Returns
         -------
