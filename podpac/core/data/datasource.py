@@ -461,7 +461,7 @@ class DataSource(Node):
         Returns
         -------
         bounds : dict
-            Bounds for each dimension. Keys are dimension names and values are tuples (hi, lo).
+            Bounds for each dimension. Keys are dimension names and values are tuples (min, max).
         crs : str
             The crs for the bounds.
         """
