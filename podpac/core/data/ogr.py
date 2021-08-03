@@ -51,6 +51,26 @@ class OGRRaw(Node):
         layer = self.datasource.GetLayerByName(self.layer)
         return layer.GetExtent()
 
+    def get_source_data(self, bounds={}):
+        """
+        Raise a user-friendly exception when calling get_source_data for this node.
+
+        Arguments
+        ---------
+        bounds : dict
+            Dictionary of bounds by dimension, optional.
+            Keys must be dimension names, and values are (min, max) tuples, e.g. ``{'lat': (10, 20)}``.
+
+        raises
+        ------
+        AttributeError : Cannot get source data for OGR datasources
+        """
+
+        raise AttributeError(
+            "Cannot get source data for OGR datasources. "
+            "The source data is a vector-based shapefile without a native resolution."
+        )
+
     @common_doc(COMMON_NODE_DOC)
     def _eval(self, coordinates, output=None, _selector=None):
         if "lat" not in coordinates.udims or "lon" not in coordinates.udims:
