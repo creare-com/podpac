@@ -281,6 +281,25 @@ class DataSource(Node):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
+    def get_source_data(self, bounds={}):
+        """
+        Get source data, without interpolation.
+
+        Arguments
+        ---------
+        bounds : dict
+            Dictionary of bounds by dimension, optional.
+            Keys must be dimension names, and values are (min, max) tuples, e.g. ``{'lat': (10, 20)}``.
+
+        Returns
+        -------
+        data : UnitsDataArray
+            Source data
+        """
+
+        coords, I = self.coordinates.select(bounds, return_index=True)
+        return self._get_data(coords, I)
+
     def eval(self, coordinates, **kwargs):
         """
         Wraps the super Node.eval method in order to cache with the correct coordinates.
