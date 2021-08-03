@@ -449,6 +449,30 @@ class DataSource(Node):
 
         return [self.coordinates]
 
+    def get_bounds(self, crs="default"):
+        """Get the full available coordinate bounds for the Node.
+
+        Arguments
+        ---------
+        crs : str
+            Desired CRS for the bounds. Use 'source' to use the native source crs.
+            If not specified, the default CRS in the podpac settings is used. Optional.
+
+        Returns
+        -------
+        bounds : dict
+            Bounds for each dimension. Keys are dimension names and values are tuples (hi, lo).
+        crs : str
+            The crs for the bounds.
+        """
+
+        if crs == "default":
+            crs = settings["DEFAULT_CRS"]
+        elif crs == "source":
+            crs = self.coordinates.crs
+
+        return self.coordinates.transform(crs).bounds, crs
+
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}

@@ -353,6 +353,37 @@ class Node(tl.HasTraits):
 
         raise NotImplementedError
 
+    def get_bounds(self, crs="default"):
+        """Get the full available coordinate bounds for the Node.
+
+        Arguments
+        ---------
+        crs : str
+            Desired CRS for the bounds.
+            If not specified, the default CRS in the podpac settings is used. Optional.
+
+        Returns
+        -------
+        bounds : dict
+            Bounds for each dimension. Keys are dimension names and values are tuples (hi, lo).
+        crs : str
+            The CRS for the bounds.
+        """
+
+        if crs == "default":
+            crs = podpac.settings["DEFAULT_CRS"]
+
+        bounds = {}
+        for coords in self.find_coordinates():
+            ct = coords.transform(crs)
+            for dim, (lo, hi) in ct.bounds.items():
+                if dim not in bounds:
+                    bounds[dim] = (lo, hi)
+                else:
+                    bounds[dim] = (min(lo, bounds[dim][0]), max(hi, bounds[dim][1]))
+
+        return bounds, crs
+
     @common_doc(COMMON_DOC)
     def create_output_array(self, coords, data=np.nan, attrs=None, **kwargs):
         """

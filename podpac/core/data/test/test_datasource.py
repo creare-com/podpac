@@ -582,6 +582,36 @@ class TestDataSource(object):
         data = node.get_source_data({"lon": (1.5, 4.5)})
         np.testing.assert_array_equal(data, node.source[:, 2:])
 
+    def test_get_bounds(self):
+        node = podpac.data.Array(
+            source=np.ones((3, 4)),
+            coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"], crs="EPSG:2193"),
+        )
+
+        with podpac.settings:
+            podpac.settings["DEFAULT_CRS"] = "EPSG:4326"
+
+            # specify crs
+            bounds, crs = node.get_bounds(crs="EPSG:3857")
+            assert bounds == {
+                "lat": (-13291827.558247399, -13291815.707967814),
+                "lon": (9231489.26794932, 9231497.142754894),
+            }
+            assert crs == "EPSG:3857"
+
+            # native/source crs
+            bounds, crs = node.get_bounds(crs="source")
+            assert bounds == {"lat": (0, 2), "lon": (0, 3)}
+            assert crs == "EPSG:2193"
+
+            # default crs
+            bounds, crs = node.get_bounds()
+            assert bounds == {
+                "lat": (-75.81365382984804, -75.81362774074242),
+                "lon": (82.92787904584206, 82.92794978642414),
+            }
+            assert crs == "EPSG:4326"
+
 
 class TestDataSourceWithMultipleOutputs(object):
     def test_evaluate_no_overlap_with_output_extract_output(self):

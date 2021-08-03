@@ -12,7 +12,7 @@ import numpy as np
 
 from podpac.core.settings import settings
 from podpac.core.node import Node
-from podpac.core.utils import NodeTrait, common_doc
+from podpac.core.utils import NodeTrait, common_doc, cached_property
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims, Coordinates
 from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationTrait
@@ -273,3 +273,22 @@ class Interpolate(Node):
         """
 
         return self.source.find_coordinates()
+
+    def get_bounds(self, crs="default"):
+        """Get the full available coordinate bounds for the Node.
+
+        Arguments
+        ---------
+        crs : str
+            Desired CRS for the bounds. Use 'source' to use the native source crs.
+            If not specified, the default CRS in the podpac settings is used. Optional.
+
+        Returns
+        -------
+        bounds : dict
+            Bounds for each dimension. Keys are dimension names and values are tuples (hi, lo).
+        crs : str
+            The crs for the bounds.
+        """
+
+        return self.source.get_bounds(crs=crs)

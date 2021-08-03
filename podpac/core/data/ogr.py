@@ -53,7 +53,7 @@ class OGRRaw(Node):
 
     def get_source_data(self, bounds={}):
         """
-        Raise a user-friendly exception when calling get_source_data for this node.
+        Not available for OGR nodes.
 
         Arguments
         ---------
@@ -69,6 +69,21 @@ class OGRRaw(Node):
         raise AttributeError(
             "Cannot get source data for OGR datasources. "
             "The source data is a vector-based shapefile without a native resolution."
+        )
+
+    def find_coordinates(self):
+        """
+        Not available for OGR nodes.
+
+        raises
+        ------
+        coord_list : list
+            list of available coordinates (Coordinates objects)
+        """
+
+        raise AttributeError(
+            "Cannot get available coordinates for OGR datasources. "
+            "The source data is a vector-based shapefile without native coordinates."
         )
 
     @common_doc(COMMON_NODE_DOC)
