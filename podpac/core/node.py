@@ -279,7 +279,9 @@ class Node(tl.HasTraits):
         if settings["DEBUG"]:
             self._requested_coordinates = coordinates
         key = "output"
-        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
+
+        # get standardized coordinates for caching
+        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims)).simplify()
 
         if not self.force_eval and self.cache_output and self.has_cache(key, cache_coordinates):
             data = self.get_cache(key, cache_coordinates)
@@ -309,6 +311,9 @@ class Node(tl.HasTraits):
 
         # Add style information
         data.attrs["layer_style"] = self.style
+
+        if self.units is not None:
+            data.attrs["units"]
 
         # Add crs if it is missing
         if "crs" not in data.attrs:
@@ -347,6 +352,37 @@ class Node(tl.HasTraits):
         """
 
         raise NotImplementedError
+
+    def get_bounds(self, crs="default"):
+        """Get the full available coordinate bounds for the Node.
+
+        Arguments
+        ---------
+        crs : str
+            Desired CRS for the bounds.
+            If not specified, the default CRS in the podpac settings is used. Optional.
+
+        Returns
+        -------
+        bounds : dict
+            Bounds for each dimension. Keys are dimension names and values are tuples (min, max).
+        crs : str
+            The CRS for the bounds.
+        """
+
+        if crs == "default":
+            crs = podpac.settings["DEFAULT_CRS"]
+
+        bounds = {}
+        for coords in self.find_coordinates():
+            ct = coords.transform(crs)
+            for dim, (lo, hi) in ct.bounds.items():
+                if dim not in bounds:
+                    bounds[dim] = (lo, hi)
+                else:
+                    bounds[dim] = (min(lo, bounds[dim][0]), max(hi, bounds[dim][1]))
+
+        return bounds, crs
 
     @common_doc(COMMON_DOC)
     def create_output_array(self, coords, data=np.nan, attrs=None, **kwargs):
@@ -387,7 +423,7 @@ class Node(tl.HasTraits):
     def trait_is_defined(self, name):
         return trait_is_defined(self, name)
 
-    def probe(self, lat=None, lon=None, time=None, alt=None):
+    def probe(self, lat=None, lon=None, time=None, alt=None, crs=None):
         """Evaluates every part of a node / pipeline at a point and records
         which nodes are actively being used.
 
@@ -401,6 +437,8 @@ class Node(tl.HasTraits):
             Default is None. The time
         alt : float, optional
             Default is None. The altitude location
+        crs : str, optional
+            Default is None. The CRS of the request.
 
         Returns
         dict
@@ -415,7 +453,7 @@ class Node(tl.HasTraits):
             }
             ```
         """
-        return probe_node(self, lat, lon, time, alt)
+        return probe_node(self, lat, lon, time, alt, crs)
 
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
@@ -582,7 +620,7 @@ class Node(tl.HasTraits):
 
         return json.dumps(self.definition, indent=4, cls=JSONEncoder)
 
-    @property
+    @cached_property
     def hash(self):
         """ hash for this node, used in caching and to determine equality. """
 
@@ -939,18 +977,49 @@ class Node(tl.HasTraits):
             p = _get_param(query_params, "PARAMS")
             if p is None:
                 p = "{}"
-            p = json.loads(p)
-            definition = {}
-            # If one of the special names are in the params list, then add params to the root layer
-            if "node" in p or "plugin" in p or "style" in p or "attrs" in p:
-                definition.update(p)
-            else:
-                definition["attrs"] = p
-            definition.update({"node": layer})  # The user-specified node name ALWAYS takes precidence.
-            d = OrderedDict({layer.replace(".", "-"): definition})
+            if not isinstance(p, dict):
+                p = json.loads(p)
+            return cls.from_name_params(layer, p)
 
         if d is None:
             d = json.loads(s, object_pairs_hook=OrderedDict)
+
+        return cls.from_definition(d)
+
+    @classmethod
+    def from_name_params(cls, name, params=None):
+        """
+        Create podpac Node from a WMS/WCS request.
+
+        Arguments
+        ---------
+        name : str
+            The name of the PODPAC Node / Layer
+        params : dict, optional
+            Default is None. Dictionary of parameters to modify node attributes, style, or completely/partially define the node.
+            This dictionary can either be a `Node.definition` or `Node.definition['attrs']`. Node, the specified `name` always
+            take precidence over anything defined in `params` (e.g. params['node'] won't be used).
+
+        Returns
+        -------
+        :class:`Node`
+            A full Node with sub-nodes based on the definition of the node from the node name and parameters
+
+        """
+        layer = name
+        p = params
+
+        d = None
+        if p is None:
+            p = {}
+        definition = {}
+        # If one of the special names are in the params list, then add params to the root layer
+        if "node" in p or "plugin" in p or "style" in p or "attrs" in p:
+            definition.update(p)
+        else:
+            definition["attrs"] = p
+        definition.update({"node": layer})  # The user-specified node name ALWAYS takes precidence.
+        d = OrderedDict({layer.replace(".", "-"): definition})
 
         return cls.from_definition(d)
 

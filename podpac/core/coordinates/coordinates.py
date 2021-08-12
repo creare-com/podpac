@@ -23,7 +23,7 @@ import logging
 
 import podpac
 from podpac.core.settings import settings
-from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param
+from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param, cached_property
 from podpac.core.coordinates.utils import has_alt_units
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -306,7 +306,7 @@ class Coordinates(tl.HasTraits):
         return cls([stacked], crs=crs)
 
     @classmethod
-    def from_xarray(cls, x, crs=None):
+    def from_xarray(cls, x, crs=None, validate_crs=False):
         """
         Create podpac Coordinates from xarray coords.
 
@@ -317,6 +317,8 @@ class Coordinates(tl.HasTraits):
         crs : str, optional
             Coordinate reference system. Supports any PROJ4 or PROJ6 compliant string (https://proj.org/).
             If not provided, the crs will be loaded from ``x.attrs`` if possible.
+        validate_crs: bool, optional
+            Default is False. If True, the crs will be validated.
 
         Returns
         -------
@@ -360,7 +362,7 @@ class Coordinates(tl.HasTraits):
                 # unstacked
                 d[dim] = ArrayCoordinates1d.from_xarray(xcoords[dim])
 
-        coords = cls(list(d.values()), crs=crs)
+        coords = cls(list(d.values()), crs=crs, validate_crs=validate_crs)
         return coords
 
     @classmethod
@@ -472,7 +474,7 @@ class Coordinates(tl.HasTraits):
         return cls.from_definition(coords)
 
     @classmethod
-    def from_geotransform(cls, geotransform, shape, crs=None):
+    def from_geotransform(cls, geotransform, shape, crs=None, validate_crs=True):
         """Creates Coordinates from GDAL Geotransform."""
         tol = 1e-15  # tolerance for deciding when a number is zero
         # Handle the case of rotated coordinates
@@ -504,6 +506,7 @@ class Coordinates(tl.HasTraits):
                 podpac.clinspace(origin[1], end[1], shape[::order][1], "lon"),
             ][::order],
             crs=crs,
+            validate_crs=validate_crs,
         )
         return coords
 
@@ -856,7 +859,7 @@ class Coordinates(tl.HasTraits):
 
         return json.dumps(self.definition, separators=(",", ":"), cls=podpac.core.utils.JSONEncoder)
 
-    @property
+    @cached_property
     def hash(self):
         """:str: Coordinates hash value."""
         # We can't use self.json for the hash because the CRS is not standardized.
@@ -971,7 +974,6 @@ class Coordinates(tl.HasTraits):
             [c for c in self._coords.values() if c.name not in dims], validate_crs=False, **self.properties
         )
 
-    # do we ever need this?
     def udrop(self, dims, ignore_missing=False):
         """
         Remove the given individual dimensions from the Coordinates `udims`.
@@ -1427,13 +1429,20 @@ class Coordinates(tl.HasTraits):
         lat_sample = np.linspace(self["lat"].bounds[0], self["lat"].bounds[1], 5)
         lon_sample = np.linspace(self["lon"].bounds[0], self["lon"].bounds[1], 5)
         sample = StackedCoordinates(np.meshgrid(lat_sample, lon_sample, indexing="ij"), dims=["lat", "lon"])
+        # The sample tests if the crs transform is linear, or non-linear. The results are as follows:
+        #
+        # Start from "uniform stacked"
+        # 1. Returns "uniform unstacked"  <-- simple scaling between crs's
+        # 2. Returns "array unstacked" <-- Orthogonal coordinates still, but non-linear in this dim
+        # 3. Returns "Stacked" <-- not orthogonal from one crs to the other
+        #
         t = sample._transform(transformer)
 
         if isinstance(t, StackedCoordinates):  # Need to transform ALL the coordinates
             return
         # Then we can do a faster transform, either already done or just the diagonal
         for i, j in zip([0, 1], [1, 0]):
-            if isinstance(t[i], UniformCoordinates1d):  # already done
+            if isinstance(t[i], UniformCoordinates1d) and isinstance(cs[i], UniformCoordinates1d):  # already done
                 start = t[i].start
                 stop = t[i].stop
                 if self[t[i].name].is_descending:

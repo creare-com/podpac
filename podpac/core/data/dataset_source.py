@@ -49,6 +49,7 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
     # dataset = tl.Instance(xr.Dataset).tag(readonly=True)
     selection = tl.Dict(allow_none=True, default_value=None).tag(attr=True)
     infer_podpac_coords = tl.Bool(False).tag(attr=True)
+    decode_cf = tl.Bool(True)
     coordinate_index_type = "xarray"
 
     # -------------------------------------------------------------------------
@@ -56,7 +57,7 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
     # -------------------------------------------------------------------------
 
     def open_dataset(self, fp):
-        return xr.open_dataset(fp)
+        return xr.open_dataset(fp, decode_cf=self.decode_cf)
 
     def close_dataset(self):
         super(DatasetRaw, self).close_dataset()

@@ -71,24 +71,24 @@ COMMON_INTERPOLATOR_DOCS = {
             The alt_scale defines the factor that alt coordinates will be scaled by (coordinates are divided by alt_scale)
             to output a valid distance for the combined set of dimensions.
         respect_bounds : bool
-            Default is True. If True, any requested dimension OUTSIDE of the bounds will be interpolated as 'nan'. 
-            Otherwise, any point outside the bounds will have NN interpolation allowed. 
+            Default is True. If True, any requested dimension OUTSIDE of the bounds will be interpolated as 'nan'.
+            Otherwise, any point outside the bounds will have NN interpolation allowed.
         remove_nan: bool
             Default is False. If True, nan's in the source dataset will NOT be interpolated. This can be used if a value for the function
             is needed at every point of the request. It is not helpful when computing statistics, where nan values will be explicitly
-            ignored. In that case, if remove_nan is True, nan values will take on the values of neighbors, skewing the statistical result. 
+            ignored. In that case, if remove_nan is True, nan values will take on the values of neighbors, skewing the statistical result.
         use_selector: bool
-            Default is True. If True, a subset of the coordinates will be selected BEFORE the data of a dataset is retrieved. This 
+            Default is True. If True, a subset of the coordinates will be selected BEFORE the data of a dataset is retrieved. This
             reduces the number of data retrievals needed for large datasets. In cases where remove_nan = True, the selector may select
             only nan points, in which case the interpolation fails to produce non-nan data. This usually happens when requesting a single
-            point from a dataset that contains nans. As such, in these cases set use_selector = False to get a non-nan value. 
+            point from a dataset that contains nans. As such, in these cases set use_selector = False to get a non-nan value.
 
         """,
     "interpolator_can_select": """
         Evaluate if interpolator can downselect the source coordinates from the requested coordinates
         for the unstacked dims supplied.
         If not overwritten, this method returns an empty tuple (``tuple()``)
-        
+
         Parameters
         ----------
         udims : tuple
@@ -97,7 +97,7 @@ COMMON_INTERPOLATOR_DOCS = {
             Description
         eval_coordinates : :class:`podpac.Coordinates`
             Description
-        
+
         Returns
         -------
         tuple
@@ -106,7 +106,7 @@ COMMON_INTERPOLATOR_DOCS = {
         """,
     "interpolator_select": """
         Downselect coordinates with interpolator method
-        
+
         Parameters
         ----------
         udims : tuple
@@ -117,7 +117,7 @@ COMMON_INTERPOLATOR_DOCS = {
             Description
         eval_coordinates : :class:`podpac.Coordinates`
             Description
-        
+
         Returns
         -------
         (:class:`podpac.Coordinates`, list)
@@ -131,7 +131,7 @@ COMMON_INTERPOLATOR_DOCS = {
     "interpolator_can_interpolate": """
         Evaluate if this interpolation method can handle the requested coordinates and source_coordinates.
         If not overwritten, this method returns an empty tuple (`tuple()`)
-        
+
         Parameters
         ----------
         udims : tuple
@@ -140,7 +140,7 @@ COMMON_INTERPOLATOR_DOCS = {
             Description
         eval_coordinates : :class:`podpac.Coordinates`
             Description
-        
+
         Returns
         -------
         tuple
@@ -149,7 +149,7 @@ COMMON_INTERPOLATOR_DOCS = {
         """,
     "interpolator_interpolate": """
         Interpolate data from requested coordinates to source coordinates.
-        
+
         Parameters
         ----------
         udims : tuple
@@ -162,11 +162,11 @@ COMMON_INTERPOLATOR_DOCS = {
             Description
         output_data : podpac.core.units.UnitsDataArray
             Description
-        
+
         Raises
         ------
         NotImplementedError
-        
+
         Returns
         -------
         podpac.core.units.UnitDataArray

@@ -8,10 +8,8 @@ import os
 import sys
 import json
 import datetime
-import functools
-import importlib
 import logging
-import time
+import inspect
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -477,7 +475,7 @@ def resolve_bbox_order(bbox, crs, size):
     return {"lat": [lat_start, lat_stop, size[0]], "lon": [lon_start, lon_stop, size[1]]}
 
 
-def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
+def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=False):
     """Evaluates every part of a node / pipeline at a point and records
     which nodes are actively being used.
 
@@ -493,6 +491,8 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
         Default is None. The time
     alt : float, optional
         Default is None. The altitude location
+    crs : str, optional
+        Default is None. The CRS of the request.
     nested : bool, optional
         Default is False. If True, will return a nested version of the
         output dictionary isntead
@@ -535,7 +535,9 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
         # We have to rearrange the outputs
         entry = OrderedDict()
         entry["name"] = out[key]["name"]
-        entry["value"] = out[key]["value"]
+        entry["value"] = str(out[key]["value"])
+        if out[key]["units"] not in [None, ""]:
+            entry["value"] = entry["value"] + " " + str(out[key]["units"])
         entry["active"] = out[key]["active"]
         entry["node_id"] = out[key]["node_hash"]
         entry["params"] = {}
@@ -545,7 +547,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
         return entry
 
     c = [(v, d) for v, d in zip([lat, lon, time, alt], ["lat", "lon", "time", "alt"]) if v is not None]
-    coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c])
+    coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c], crs=crs)
     v = float(node.eval(coords))
     definition = node.definition
     out = OrderedDict()
@@ -560,17 +562,93 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, nested=False):
         out[key] = {
             "active": active,
             "value": value,
+            "units": n.style.units,
             "inputs": inputs,
             "name": n.style.name if n.style.name else key,
             "node_hash": n.hash,
         }
         # Fix sources for Compositors
         if isinstance(n, podpac.compositor.OrderedCompositor):
+            searching_for_active = True
             for inp in inputs:
                 out[inp]["active"] = False
-                if out[inp]["value"] == out[key]["value"] and np.isfinite(out[inp]["value"]):
+                if out[inp]["value"] == out[key]["value"] and np.isfinite(out[inp]["value"]) and searching_for_active:
                     out[inp]["active"] = True
+                    searching_for_active = False
 
     if nested:
         out = get_entry(list(out.keys())[-1], out, definition)
     return out
+
+
+def get_ui_node_spec(module=None, category="default"):
+    """
+    Returns a dictionary describing the specifications for each Node in a module.
+
+    Parameters
+    -----------
+    module: module
+        The Python module for which the ui specs should be summarized. Only the top-level
+        classes will be included in the spec. (i.e. no recursive search through submodules)
+    category: str, optional
+        Default is "default". Top-level category name for the group of Nodes.
+
+    Returns
+    --------
+    dict
+        Dictionary of {category: {Node1: spec_1, Node2: spec2, ...}} describing the specs for each Node.
+    """
+    import podpac
+    import podpac.datalib  # May not be imported by default
+
+    spec = {}
+
+    def get_ui_spec(cls):
+        filter = []
+        spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}}
+        for attr in dir(cls):
+            if attr in filter:
+                continue
+            attrt = getattr(cls, attr)
+            if not isinstance(attrt, tl.TraitType):
+                continue
+            if "attr" not in attrt.metadata:
+                continue
+            type_ = attrt.__class__.__name__
+            type_extra = str(attrt)
+            if type_ == "Union":
+                type_ = [t.__class__.__name__ for t in attrt.trait_types]
+                type_extra = "Union"
+            elif type_ == "Instance":
+                type_ = attrt.klass.__name__
+                type_extra = attrt.klass
+
+            spec["attrs"][attr] = {
+                "type": type_,
+                "type_str": type_extra,  # May remove this if not needed
+                "values": getattr(attrt, "values", None),
+                "default": attrt.default(),
+                "help": attrt.help,
+            }
+        spec.update(getattr(cls, "_ui_spec", {}))
+        return spec
+
+    if module is None:
+        modcat = zip(
+            [podpac.data, podpac.algorithm, podpac.compositor, podpac.datalib],
+            ["data", "algorithms", "compositors", "datalib"],
+        )
+        for mod, cat in modcat:
+            spec.update(get_ui_node_spec(mod, cat))
+        return spec
+
+    spec[category] = {}
+    for obj in dir(module):
+        ob = getattr(module, obj)
+        if not inspect.isclass(ob):
+            continue
+        if not issubclass(ob, podpac.Node):
+            continue
+        spec[category][obj] = get_ui_spec(ob)
+
+    return spec

@@ -320,7 +320,6 @@ class TestUnitDataArray(object):
         assert isinstance(uda.to_image(vmin=0, vmax=2, return_base64=True), bytes)
         assert isinstance(uda.to_image(vmin=0, vmax=2), io.BytesIO)
 
-    @pytest.mark.skip(reason="Error in xarray layer")
     def test_ufuncs(self):
         a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter})
         a2 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.kelvin})
@@ -335,6 +334,30 @@ class TestUnitDataArray(object):
         np.dot(a2.T, a1)
         np.std(a1)
         np.var(a1)
+
+    def test_keep_attrs(self):
+        # This tests #265
+        # Create Nodes to use the convience methods for making units data arrays
+        a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter, "test": "test"})
+        a2 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.yard})
+
+        assert "test" in (a1 + a2).attrs
+        assert "test" in (a1 * a2).attrs
+
+        # No units
+        a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"test": "test"})
+        a2 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"])
+
+        assert "test" in (a1 + 1).attrs
+        assert "test" in (a1 + a2).attrs
+        assert "test" in (a1 * 1).attrs
+        assert "test" in (a1 * a2).attrs
+
+        # Order is important
+        assert "test" not in (1 + a1).attrs
+        assert "test" not in (a2 + a1).attrs
+        assert "test" not in (1 * a1).attrs
+        assert "test" not in (a2 * a1).attrs
 
 
 class TestCreateDataArray(object):

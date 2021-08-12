@@ -2,6 +2,7 @@
 Test Setup
 """
 
+import copy
 import pytest
 from podpac.core.settings import settings
 
@@ -50,12 +51,23 @@ def pytest_unconfigure(config):
     pass
 
 
-original_default_cache = settings["DEFAULT_CACHE"]
+original_settings = None
 
 
 def pytest_sessionstart(session):
+    # save settings
+    global original_settings
+    original_settings = copy.copy(settings)
+
+    # set the default cache
     settings["DEFAULT_CACHE"] = []
 
 
 def pytest_sessionfinish(session, exitstatus):
-    settings["DEFAULT_CACHE"] = original_default_cache
+    # restore settings
+    keys = list(settings.keys())
+    for key in keys:
+        if key in original_settings:
+            settings[key] = original_settings[key]
+        else:
+            del settings[key]

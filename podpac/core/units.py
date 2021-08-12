@@ -475,7 +475,12 @@ for tp in ("mul", "matmul", "truediv", "div"):
     def make_func(meth, tp):
         def func(self, other):
             x = getattr(super(UnitsDataArray, self), meth)(other)
-            return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+            units = x2.attrs.get("units")
+            x2.attrs = self.attrs
+            if units is not None:
+                x2.attrs["units"] = units
+            return x2
 
         return func
 
@@ -491,7 +496,9 @@ for tp in ("add", "sub", "mod", "floordiv"):  # , "divmod", ):
         def func(self, other):
             multiplier = self._get_unit_multiplier(other)
             x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-            return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+            x2.attrs = self.attrs
+            return x2
 
         return func
 
@@ -676,12 +683,15 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
         # if isinstance(data, xr.DataArray) and data.dims.index('lat') > data.dims.index('lon'):
         # geotransform = geotransform[3:] + geotransform[:3]
     if geotransform is None:
-        raise ValueError(
-            "The `geotransform` of the data needs to be provided to save as GeoTIFF. If the geotransform attribute "
-            "wasn't automatically populated as part of the dataset, it means that the data is in a non-uniform "
-            "coordinate system. This can sometimes happen when the data is transformed to a different CRS than the "
-            "native CRS, which can cause the coordinates to seems non-uniform due to floating point precision. "
-        )
+        try:
+            geotransform = Coordinates.from_xarray(data).geotransform
+        except (TypeError, AttributeError):
+            raise ValueError(
+                "The `geotransform` of the data needs to be provided to save as GeoTIFF. If the geotransform attribute "
+                "wasn't automatically populated as part of the dataset, it means that the data is in a non-uniform "
+                "coordinate system. This can sometimes happen when the data is transformed to a different CRS than the "
+                "native CRS, which can cause the coordinates to seems non-uniform due to floating point precision. "
+            )
 
     # Make all types into a numpy array
     if isinstance(data, xr.DataArray):

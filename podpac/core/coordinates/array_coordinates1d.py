@@ -77,9 +77,7 @@ class ArrayCoordinates1d(Coordinates1d):
             self._is_uniform = None
 
         else:
-            deltas = (self.coordinates[1:] - self.coordinates[:-1]).astype(float) * np.sign(
-                self.coordinates[1] - self.coordinates[0]
-            ).astype(float)
+            deltas = self.deltas
             if np.any(deltas <= 0):
                 self._is_monotonic = False
                 self._is_descending = False
@@ -262,6 +260,7 @@ class ArrayCoordinates1d(Coordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
 
     def __getitem__(self, index):
+        # The following 3 lines are copied by UniformCoordinates1d.__getitem__
         if self.ndim == 1 and np.ndim(index) > 1 and np.array(index).dtype == int:
             index = np.array(index).flatten().tolist()
         return ArrayCoordinates1d(self.coordinates[index], **self.properties)
@@ -269,6 +268,12 @@ class ArrayCoordinates1d(Coordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
+
+    @property
+    def deltas(self):
+        return (self.coordinates[1:] - self.coordinates[:-1]).astype(float) * np.sign(
+            self.coordinates[1] - self.coordinates[0]
+        ).astype(float)
 
     @property
     def ndim(self):

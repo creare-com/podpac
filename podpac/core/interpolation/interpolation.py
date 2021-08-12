@@ -1,4 +1,5 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
+from podpac.core.cache import cache_ctrl
 
 import traitlets as tl
 from copy import deepcopy
@@ -11,10 +12,11 @@ import numpy as np
 
 from podpac.core.settings import settings
 from podpac.core.node import Node
-from podpac.core.utils import NodeTrait, common_doc
+from podpac.core.utils import NodeTrait, common_doc, cached_property
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims, Coordinates
 from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationTrait
+from podpac.core.cache.cache_ctrl import CacheCtrl
 
 _logger = logging.getLogger(__name__)
 
@@ -28,7 +30,9 @@ class InterpolationMixin(tl.HasTraits):
         return super()._repr_keys + ["interpolation"]
 
     def _eval(self, coordinates, output=None, _selector=None):
-        node = Interpolate(interpolation=self.interpolation, source_id=self.hash)
+        node = Interpolate(
+            interpolation=self.interpolation, source_id=self.hash, force_eval=True, cache_ctrl=CacheCtrl([])
+        )
         node._set_interpolation()
         selector = node._interpolation.select_coordinates
         node._source_xr = super()._eval(coordinates, _selector=selector)
@@ -48,7 +52,7 @@ class Interpolate(Node):
         The source node which will be interpolated
     interpolation : str, dict, optional
         Interpolation definition for the data source.
-        By default, the interpolation method is set to ``'nearest'`` for all dimensions.
+        By default, the interpolation method is set to `podpac.settings["DEFAULT_INTERPOLATION"]` which defaults to ``'nearest'`` for all dimensions.
 
          If input is a string, it must match one of the interpolation shortcuts defined in
         :attr:`podpac.data.INTERPOLATION_SHORTCUTS`. The interpolation method associated
@@ -272,3 +276,22 @@ class Interpolate(Node):
         """
 
         return self.source.find_coordinates()
+
+    def get_bounds(self, crs="default"):
+        """Get the full available coordinate bounds for the Node.
+
+        Arguments
+        ---------
+        crs : str
+            Desired CRS for the bounds. Use 'source' to use the native source crs.
+            If not specified, the default CRS in the podpac settings is used. Optional.
+
+        Returns
+        -------
+        bounds : dict
+            Bounds for each dimension. Keys are dimension names and values are tuples (hi, lo).
+        crs : str
+            The crs for the bounds.
+        """
+
+        return self.source.get_bounds(crs=crs)

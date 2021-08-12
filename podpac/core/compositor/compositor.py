@@ -17,7 +17,6 @@ from podpac.core.coordinates.utils import Dimension
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
-from podpac.core.interpolation import InterpolationTrait
 from podpac.core.managers.multi_threading import thread_manager
 
 COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
@@ -33,8 +32,8 @@ class BaseCompositor(Node):
         Source nodes.
     source_coordinates : :class:`podpac.Coordinates`
         Coordinates that make each source unique. Must the same size as ``sources`` and single-dimensional. Optional.
-    interpolation : str, dict, optional
-        {interpolation}
+    multithreading : bool, optional
+        Default is False. If True, will always evaluate the compositor in serial, ignoring any MULTITHREADING settings
 
     Notes
     -----
@@ -51,6 +50,11 @@ class BaseCompositor(Node):
 
     sources = tl.List(trait=NodeTrait()).tag(attr=True)
     source_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
+    multithreading = tl.Bool(False)
+
+    @tl.default("multithreading")
+    def _default_multithreading(self):
+        return settings["MULTITHREADING"]
 
     dims = tl.List(trait=Dimension()).tag(attr=True)
     auto_outputs = tl.Bool(False)
@@ -69,8 +73,7 @@ class BaseCompositor(Node):
                 "The sources must all be standard single-output nodes or all multi-output nodes."
             )
 
-        # copy so that interpolation trait of the input source is not overwritten
-        return [copy.deepcopy(source) for source in sources]
+        return sources
 
     @tl.validate("source_coordinates")
     def _validate_source_coordinates(self, d):
@@ -195,14 +198,14 @@ class BaseCompositor(Node):
             yield self.create_output_array(coordinates)
             return
 
-        if settings["MULTITHREADING"]:
+        if self.multithreading:
             n_threads = thread_manager.request_n_threads(len(sources))
             if n_threads == 1:
                 thread_manager.release_n_threads(n_threads)
         else:
             n_threads = 0
 
-        if settings["MULTITHREADING"] and n_threads > 1:
+        if self.multithreading and n_threads > 1:
             # evaluate nodes in parallel using thread pool
             self._multi_threaded = True
             pool = thread_manager.get_thread_pool(processes=n_threads)
@@ -217,6 +220,35 @@ class BaseCompositor(Node):
             self._multi_threaded = False
             for src in sources:
                 yield src.eval(coordinates, _selector=_selector)
+
+    @common_doc(COMMON_COMPOSITOR_DOC)
+    def eval(self, coordinates, **kwargs):
+        """
+        Wraps the super Node.eval method in order to cache with the correct coordinates.
+
+        The output is independent of any extra dimensions, so this removes extra dimensions before caching in the
+        super eval method.
+        """
+
+        super_coordinates = coordinates
+
+        # remove extra dimensions
+        if self.dims:
+            extra = [
+                c.name
+                for c in coordinates.values()
+                if (isinstance(c, Coordinates1d) and c.name not in self.dims)
+                or (isinstance(c, StackedCoordinates) and all(dim not in self.dims for dim in c.dims))
+            ]
+            super_coordinates = super_coordinates.drop(extra)
+
+        # note: super().eval (not self._eval)
+        output = super().eval(super_coordinates, **kwargs)
+
+        if settings["DEBUG"]:
+            self._requested_coordinates = coordinates
+
+        return output
 
     @common_doc(COMMON_COMPOSITOR_DOC)
     def _eval(self, coordinates, output=None, _selector=None):
@@ -235,18 +267,6 @@ class BaseCompositor(Node):
         -------
         {eval_return}
         """
-
-        self._requested_coordinates = coordinates
-
-        # remove extra dimensions
-        if self.dims:
-            extra = [
-                c.name
-                for c in coordinates.values()
-                if (isinstance(c, Coordinates1d) and c.name not in self.dims)
-                or (isinstance(c, StackedCoordinates) and all(dim not in self.dims for dim in c.dims))
-            ]
-            coordinates = coordinates.drop(extra)
 
         self._evaluated_coordinates = coordinates
         outputs = self.iteroutputs(coordinates, _selector)

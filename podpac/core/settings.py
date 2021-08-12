@@ -7,6 +7,7 @@ import json
 from copy import deepcopy
 import errno
 import uuid
+import logging
 
 from podpac import version
 
@@ -15,6 +16,8 @@ try:
     from json import JSONDecodeError
 except ImportError:
     JSONDecodeError = ValueError
+
+_logger = logging.getLogger(__name__)
 
 # Settings Defaults
 DEFAULT_SETTINGS = {
@@ -30,9 +33,10 @@ DEFAULT_SETTINGS = {
     "N_THREADS": 8,
     "CHUNK_SIZE": None,  # Size of chunks for parallel processing or large arrays that do not fit in memory
     "ENABLE_UNITS": True,
-    "DEFAULT_CRS": "+proj=longlat +datum=WGS84 +no_defs +vunits=m",  # EPSG:4326 with vertical units as meters
     "PODPAC_VERSION": version.semver(),
     "UNSAFE_EVAL_HASH": uuid.uuid4().hex,  # unique id for running unsafe evaluations
+    "DEFAULT_CRS": "+proj=longlat +datum=WGS84 +no_defs +vunits=m",  # EPSG:4326 with vertical units as meters
+    "DEFAULT_INTERPOLATION": "nearest",
     # cache
     "DEFAULT_CACHE": ["ram"],
     "CACHE_DATASOURCE_OUTPUT_DEFAULT": True,
@@ -371,6 +375,12 @@ class PodpacSettings(dict):
         return "PODPAC_UNSAFE_EVAL" in os.environ and os.environ["PODPAC_UNSAFE_EVAL"] == self["UNSAFE_EVAL_HASH"]
 
     def set_unsafe_eval(self, allow=False):
+        _logger.warning(
+            "DEPRECATION WARNING: The `set_unsafe_eval` method has been deprecated and will be removed in future versions of PODPAC. Use `allow_unrestricted_code_execution` instead. "
+        )
+        self.allow_unrestricted_code_execution(allow)
+
+    def allow_unrestricted_code_execution(self, allow=False):
         """Allow unsafe evaluation for this podpac environment
 
         Parameters
@@ -380,6 +390,9 @@ class PodpacSettings(dict):
         """
         if allow:
             os.environ["PODPAC_UNSAFE_EVAL"] = self["UNSAFE_EVAL_HASH"]
+            _logger.warning(
+                "Setting unrestricted code execution can results in vulnerabilities on publically accessible servers. Use with caution."
+            )
         else:
             if "PODPAC_UNSAFE_EVAL" in os.environ:
                 os.environ.pop("PODPAC_UNSAFE_EVAL")

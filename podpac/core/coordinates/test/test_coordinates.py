@@ -2,9 +2,10 @@ import sys
 import json
 from copy import deepcopy
 
+
 import pytest
 import numpy as np
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_array_equal
 import xarray as xr
 import pyproj
 
@@ -2084,3 +2085,12 @@ class TestCoordinatesMethodTransform(object):
         with pytest.raises(ValueError, match="nonadjacent lat and lon"):
             grid_coords = Coordinates([np.linspace(-10, 10, 21), [1], [1, 2, 3]], dims=["lat", "time", "lon"])
             grid_coords.transform(crs="EPSG:2193")
+
+    def test_transform_same_crs_same_result(self):
+        c1 = Coordinates(
+            [[1, 2, 4], clinspace(0, 4, 4)], dims=["lat", "lon"], crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m"
+        )
+        c2 = c1.transform("EPSG:4326")
+
+        assert_array_equal(c2["lat"].coordinates, c1["lat"].coordinates)
+        assert_array_equal(c2["lon"].coordinates, c1["lon"].coordinates)

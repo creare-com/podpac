@@ -112,14 +112,16 @@ class XarrayInterpolator(Interpolator):
 
         coords["kwargs"] = kwargs
 
+        if self.method == "bilinear":
+            self.method = "linear"
+
         if self.fill_nan:
             for d in source_coordinates.dims:
                 if not np.any(np.isnan(source_data)):
                     break
-                source_data = source_data.interpolate_na(method=self.method, dim=d)
+                # use_coordinate=False allows for interpolation when dimension is not monotonically increasing
+                source_data = source_data.interpolate_na(method=self.method, dim=d, use_coordinate=False)
 
-        if self.method == "bilinear":
-            self.method = "linear"
         if nn_coords:
             source_data = source_data.sel(method="nearest", **nn_coords)
 

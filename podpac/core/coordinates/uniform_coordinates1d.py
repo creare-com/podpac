@@ -17,6 +17,7 @@ from podpac.core.coordinates.utils import (
 )
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
+from podpac.core.utils import cached_property
 
 
 class UniformCoordinates1d(Coordinates1d):
@@ -215,7 +216,10 @@ class UniformCoordinates1d(Coordinates1d):
     def __getitem__(self, index):
         # fallback for non-slices
         if not isinstance(index, slice):
-            return ArrayCoordinates1d(self.coordinates, **self.properties)[index]
+            # The following 3 lines is copied from ArrayCoordinates1d.__getitem__
+            if self.ndim == 1 and np.ndim(index) > 1 and np.array(index).dtype == int:
+                index = np.array(index).flatten().tolist()
+            return ArrayCoordinates1d(self.coordinates[index], **self.properties)
 
         # start, stop, step
         if index.start is None:
@@ -269,7 +273,7 @@ class UniformCoordinates1d(Coordinates1d):
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
 
-    @property
+    @cached_property
     def coordinates(self):
         """:array, read-only: Coordinate values. """
 

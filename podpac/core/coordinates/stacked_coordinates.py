@@ -480,6 +480,9 @@ class StackedCoordinates(BaseCoordinates):
         return index
 
     def _transform(self, transformer):
+        if self.size == 0:
+            return self.copy()
+
         coords = [c.copy() for c in self._coords]
 
         if "lat" in self.dims and "lon" in self.dims and "alt" in self.dims:
@@ -622,3 +625,6 @@ class StackedCoordinates(BaseCoordinates):
                         ocs.append(StackedCoordinates([coords[dim] for dim in dims]))
 
             return all(a.issubset(o) for a, o in zip(acs, ocs))
+
+    def simplify(self):
+        return StackedCoordinates([c.simplify() for c in self._coords])

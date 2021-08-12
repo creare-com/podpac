@@ -44,7 +44,7 @@ class CoordData(Algorithm):
         Name of coordinate to extract (one of lat, lon, time, alt)
     """
 
-    coord_name = tl.Unicode("").tag(attr=True)
+    coord_name = tl.Enum(["time", "lat", "lon", "alt"], default_value="none", allow_none=False).tag(attr=True)
 
     def algorithm(self, inputs, coordinates):
         """Extract coordinate from request and makes data available.

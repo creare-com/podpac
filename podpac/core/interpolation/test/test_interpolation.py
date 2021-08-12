@@ -81,6 +81,9 @@ class TestInterpolation(object):
 
         np.testing.assert_array_equal(o.data, np.concatenate([self.s1.source, self.s2.source], axis=0))
 
+    def test_get_bounds(self):
+        assert self.interp.get_bounds() == self.s1.get_bounds()
+
 
 class TestInterpolationBehavior(object):
     def test_linear_1D_issue411and413(self):
