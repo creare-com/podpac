@@ -5,7 +5,8 @@
 PODPAC allows users to specify various different interpolation schemes for nodes with
 increased granularity, and even lets users write their own interpolators. By default
 PODPAC uses the `podpac.settings["DEFAULT_INTERPOLATION"] == "nearest"`, which may
-be modified by users.
+be modified by users. Users who wish to see raw datasources can also use `"none"`
+for the interpolator type.
 
 Relevant example notebooks include:
 * [Advanced Interpolation](https://github.com/creare-com/podpac-examples/blob/master/notebooks/4-advanced/interpolation.ipynb)
@@ -21,7 +22,8 @@ Consider a `DataSource` with `lat`, `lon`, `time` coordinates that we will insta
 ### ...as a string
 
 `interpolation='nearest'`
-* **Descripition**: All dimensions are interpolated using nearest neighbor interpolation. This is the default, but available options can be found here: `podpac.core.interpolation.interpolation.INTERPOLATION_METHODS` .
+<<<<<<< HEAD
+* **Descripition**: All dimensions are interpolated using nearest neighbor interpolation. This is the default, but available options can be found here: `podpac.core.interpolation.interpolation.INTERPOLATION_METHODS`. In particular, for no interpolation, use `interpolation="none"`. *NOTE* the `none` interpolator ONLY considers the bounds of any evaluated coordinates. This means the data is returned at FULL resolution (no striding or sub-selection).
 * **Details**: PODPAC will automatically select appropriate interpolators based on the source coordinates and eval coordinates. Default interpolator orders can be found in `podpac.core.interpolation.interpolation.INTERPOLATION_METHODS_DICT`
 
 ### ...as a dictionary
@@ -62,6 +64,7 @@ The first item in the list will be interpolated first. In this case, `lat`/`lon`
 
 ## Interpolators
 The list of available interpolators are as follows:
+* `NoneInterpolator`: An interpolator that passes through the raw, source data at full resolution -- it does not do any interpolation. **Note**: This interpolator can be used for **some** of the dimension by specifying `interpolation` as a list.
 * `NearestNeighbor`: A custom implementation based on `scipy.cKDtree`, which handles nearly any combination of source and destination coordinates
 * `XarrayInterpolator`: A light-weight wrapper around `xarray`'s `DataArray.interp` method, which is itself a wrapper around `scipy` interpolation functions, but with a clean `xarray` interface
 * `RasterioInterpolator`: A wrapper around `rasterio`'s interpolation/reprojection routines. Appropriate for grid-to-grid interpolation.

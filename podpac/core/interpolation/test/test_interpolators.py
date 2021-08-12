@@ -31,6 +31,106 @@ class MockArrayDataSource(InterpolationMixin, DataSource):
         return self.create_output_array(coordinates, data=self.data[coordinates_index])
 
 
+class TestNone(object):
+    def test_none_select(self):
+        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
+        srccoords = Coordinates([[-1, 0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
+
+        # test straight ahead functionality
+        interp = InterpolationManager("none")
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        assert coords == srccoords[1:5, 1:-1]
+        assert srccoords[cidx] == coords
+
+        # test when selection is applied serially
+        interp = InterpolationManager([{"method": "none", "dims": ["lat"]}, {"method": "none", "dims": ["lon"]}])
+
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        assert coords == srccoords[1:5, 1:-1]
+        assert srccoords[cidx] == coords
+
+        # Test Case where rounding issues causes problem with endpoint
+        reqcoords = Coordinates([[0, 2, 4], [0, 2, 4]], dims=["lat", "lon"])
+        lat = np.arange(0, 6.1, 1.3333333333333334)
+        lon = np.arange(0, 6.1, 1.333333333333334)  # Notice one decimal less on this number
+        srccoords = Coordinates([lat, lon], dims=["lat", "lon"])
+
+        # test straight ahead functionality
+        interp = InterpolationManager("none")
+        coords, cidx = interp.select_coordinates(srccoords, reqcoords)
+        srccoords = Coordinates([lat, lon], dims=["lat", "lon"])
+        assert srccoords[cidx] == coords
+
+    def test_none_interpolation(self):
+        node = podpac.data.Array(
+            source=[0, 1, 2],
+            coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),
+            interpolation="none",
+        )
+        o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
+        np.testing.assert_array_equal(o.data, node.source)
+
+    def test_none_heterogeneous(self):
+        # Heterogeneous
+        node = podpac.data.Array(
+            source=[[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]],
+            coordinates=podpac.Coordinates([[1, 5, 9, 13], [0, 1, 2]], dims=["lat", "lon"]),
+            interpolation=[{"method": "none", "dims": ["lat"]}, {"method": "linear", "dims": ["lon"]}],
+        )
+        o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 2), [0.5, 1.5]], dims=["lat", "lon"]))
+        np.testing.assert_array_equal(
+            o.data,
+            [
+                [0.5, 1.5],
+                [
+                    0.5,
+                    1.5,
+                ],
+                [0.5, 1.5],
+            ],
+        )
+
+        # Heterogeneous _flipped
+        node = podpac.data.Array(
+            source=[[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]],
+            coordinates=podpac.Coordinates([[1, 5, 9, 13], [0, 1, 2]], dims=["lat", "lon"]),
+            interpolation=[{"method": "linear", "dims": ["lon"]}, {"method": "none", "dims": ["lat"]}],
+        )
+        o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 2), [0.5, 1.5]], dims=["lat", "lon"]))
+        np.testing.assert_array_equal(
+            o.data,
+            [
+                [0.5, 1.5],
+                [
+                    0.5,
+                    1.5,
+                ],
+                [0.5, 1.5],
+            ],
+        )
+
+        # Examples
+        #  source                      eval
+        #  lat_lon                     lat, lon
+        node = podpac.data.Array(
+            source=[0, 1, 2],
+            coordinates=podpac.Coordinates([[[1, 5, 9], [1, 5, 9]]], dims=[["lat", "lon"]]),
+            interpolation=[{"method": "none", "dims": ["lon", "lat"]}],
+        )
+        o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1), podpac.crange(1, 9, 1)], dims=["lon", "lat"]))
+        np.testing.assert_array_equal(o.data, node.source)
+
+        #  source                      eval
+        #  lat, lon                    lat_lon
+        node = podpac.data.Array(
+            source=[[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]],
+            coordinates=podpac.Coordinates([[1, 5, 9, 13], [0, 1, 2]], dims=["lat", "lon"]),
+            interpolation=[{"method": "none", "dims": ["lat", "lon"]}],
+        )
+        o = node.eval(podpac.Coordinates([[podpac.crange(1, 9, 2), podpac.crange(1, 9, 2)]], dims=[["lat", "lon"]]))
+        np.testing.assert_array_equal(o.data, node.source[:-1, 1:])
+
+
 class TestNearest(object):
     def test_nearest_preview_select(self):
         reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
