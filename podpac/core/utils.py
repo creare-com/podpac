@@ -623,12 +623,25 @@ def get_ui_node_spec(module=None, category="default"):
                 type_ = attrt.klass.__name__
                 type_extra = attrt.klass
 
+            default_val = attrt.default()
+            if not isinstance(type_extra, str):
+                type_extra = str(type_extra)                
+            try:
+                if np.isnan(default_val):
+                    default_val = 'nan'
+            except:
+                pass
+            
+            if default_val == tl.Undefined:
+                default_val = None
+
             spec["attrs"][attr] = {
                 "type": type_,
                 "type_str": type_extra,  # May remove this if not needed
                 "values": getattr(attrt, "values", None),
-                "default": attrt.default(),
+                "default": default_val,
                 "help": attrt.help,
+
             }
         spec.update(getattr(cls, "_ui_spec", {}))
         return spec
