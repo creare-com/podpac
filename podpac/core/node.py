@@ -12,7 +12,6 @@ import importlib
 import warnings
 from collections import OrderedDict
 from copy import deepcopy
-from hashlib import md5 as hash_alg
 
 import numpy as np
 import traitlets as tl
@@ -27,6 +26,7 @@ from podpac.core.utils import cached_property
 from podpac.core.utils import trait_is_defined
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.utils import probe_node
+from podpac.core.utils import hash_alg
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl, S3CacheStore, DiskCacheStore
@@ -278,13 +278,13 @@ class Node(tl.HasTraits):
 
         if settings["DEBUG"]:
             self._requested_coordinates = coordinates
-        key = "output"
+        item = "output"
 
         # get standardized coordinates for caching
         cache_coordinates = coordinates.transpose(*sorted(coordinates.dims)).simplify()
 
-        if not self.force_eval and self.cache_output and self.has_cache(key, cache_coordinates):
-            data = self.get_cache(key, cache_coordinates)
+        if not self.force_eval and self.cache_output and self.has_cache(item, cache_coordinates):
+            data = self.get_cache(item, cache_coordinates)
             if output is not None:
                 order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
                 output.transpose(*order)[:] = data
@@ -292,7 +292,7 @@ class Node(tl.HasTraits):
         else:
             data = self._eval(coordinates, **kwargs)
             if self.cache_output:
-                self.put_cache(data, key, cache_coordinates)
+                self.put_cache(data, item, cache_coordinates)
             self._from_cache = False
 
         # extract single output, if necessary

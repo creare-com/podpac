@@ -95,7 +95,7 @@ class SinCoords(Algorithm):
             i_time = list(out.coords.keys()).index("time")
             crds[i_time] = crds[i_time].astype("datetime64[h]").astype(float)
         except ValueError:
-            pass
+            pass  # Value error indicates the source does not have time
 
         crds = np.meshgrid(*crds, indexing="ij")
         for crd in crds:

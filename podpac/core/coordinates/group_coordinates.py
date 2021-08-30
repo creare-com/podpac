@@ -1,8 +1,8 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import json
-from hashlib import md5 as hash_alg
 import traitlets as tl
+from podpac.core.utils import hash_alg
 from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.utils import JSONEncoder
 
