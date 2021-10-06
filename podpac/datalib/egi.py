@@ -108,6 +108,11 @@ class EGI(InterpolationMixin, DataSource):
 
     min_bounds_span = tl.Dict(allow_none=True).tag(attr=True)
 
+    @property
+    def udims(self):
+        """ This needs to be implemented so this node will cache properly. See Datasource.eval."""
+        raise NotImplementedError
+
     # optional
 
     # full list of supported formats ["GeoTIFF", "HDF-EOS5", "NetCDF4-CF", "NetCDF-3", "ASCII", "HDF-EOS", "KML"]

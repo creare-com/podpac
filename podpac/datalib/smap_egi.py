@@ -157,6 +157,10 @@ class SMAP(EGI):
         return SMAP_PRODUCT_DICT[self.product]
 
     @property
+    def udims(self):
+        return ["lat", "lon", "time"]
+
+    @property
     def lat_key(self):
         return self._product_data[0]
 

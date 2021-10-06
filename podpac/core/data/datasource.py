@@ -225,8 +225,17 @@ class DataSource(Node):
     @property
     def dims(self):
         """ datasource dims. """
-
         return self.coordinates.dims
+
+    @property
+    def udims(self):
+        """ datasource udims. """
+        return self.coordinates.udims
+
+    @property
+    def crs(self):
+        """ datasource crs. """
+        return self.coordinates.crs
 
     # ------------------------------------------------------------------------------------------------------------------
     # Private Methods
@@ -324,14 +333,14 @@ class DataSource(Node):
         extra = [
             c.name
             for c in coordinates.values()
-            if (isinstance(c, Coordinates1d) and c.name not in self.coordinates.udims)
-            or (isinstance(c, StackedCoordinates) and all(dim not in self.coordinates.udims for dim in c.dims))
+            if (isinstance(c, Coordinates1d) and c.name not in self.udims)
+            or (isinstance(c, StackedCoordinates) and all(dim not in self.udims for dim in c.dims))
         ]
         coordinates = coordinates.drop(extra)
 
         # transform coordinates into native crs if different
-        if coordinates.crs.lower() != self.coordinates.crs.lower():
-            coordinates = coordinates.transform(self.coordinates.crs)
+        if coordinates.crs.lower() != self.crs.lower():
+            coordinates = coordinates.transform(self.crs)
 
         # note: super().eval (not self._eval)
         output = super().eval(coordinates, **kwargs)
