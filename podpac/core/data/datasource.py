@@ -233,7 +233,7 @@ class DataSource(Node):
         return self.coordinates.udims
 
     @property
-    def crs(self):
+    def _crs(self):
         """ datasource crs. """
         return self.coordinates.crs
 
@@ -339,8 +339,8 @@ class DataSource(Node):
         coordinates = coordinates.drop(extra)
 
         # transform coordinates into native crs if different
-        if coordinates.crs.lower() != self.crs.lower():
-            coordinates = coordinates.transform(self.crs)
+        if coordinates.crs.lower() != self._crs.lower():
+            coordinates = coordinates.transform(self._crs)
 
         # note: super().eval (not self._eval)
         output = super().eval(coordinates, **kwargs)
