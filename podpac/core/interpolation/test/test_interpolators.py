@@ -31,6 +31,15 @@ class MockArrayDataSource(InterpolationMixin, DataSource):
         return self.create_output_array(coordinates, data=self.data[coordinates_index])
 
 
+class MockArrayDataSourceXR(InterpolationMixin, DataSource):
+    data = ArrayTrait().tag(attr=True)
+    coordinates = tl.Instance(Coordinates).tag(attr=True)
+
+    def get_data(self, coordinates, coordinates_index):
+        dataxr = self.create_output_array(self.coordinates, data=self.data)
+        return self.create_output_array(coordinates, data=dataxr[coordinates_index].data)
+
+
 class TestNone(object):
     def test_none_select(self):
         reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
@@ -563,6 +572,128 @@ class TestNearest(object):
         output = node.eval(coords_dst)
         np.testing.assert_array_equal(output.data[1:], source[[0, 2]])
         assert np.isnan(output.data[0])
+
+    def test_2Dstacked(self):
+        # With Time
+        source = np.random.rand(5, 4, 2)
+        coords_src = Coordinates(
+            [
+                [
+                    np.arange(5)[:, None] + 0.1 * np.ones((5, 4)),
+                    np.arange(4)[None, :] + 0.1 * np.ones((5, 4)),
+                ],
+                [0.4, 0.7],
+            ],
+            ["lat_lon", "time"],
+        )
+        coords_dst = Coordinates([np.arange(4) + 0.2, np.arange(1, 4) - 0.2, [0.5]], ["lat", "lon", "time"])
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={
+                "method": "nearest",
+                "interpolators": [NearestNeighbor],
+            },
+        )
+        output = node.eval(coords_dst)
+        np.testing.assert_array_equal(output, source[:4, 1:, :1])
+
+        # Using 'xarray' coordinates type
+        node = MockArrayDataSourceXR(
+            data=source,
+            coordinates=coords_src,
+            coordinate_index_type="xarray",
+            interpolation={
+                "method": "nearest",
+                "interpolators": [NearestNeighbor],
+            },
+        )
+        output = node.eval(coords_dst)
+        np.testing.assert_array_equal(output, source[:4, 1:, :1])
+
+        # Using 'slice' coordinates type
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            coordinate_index_type="slice",
+            interpolation={
+                "method": "nearest",
+                "interpolators": [NearestNeighbor],
+            },
+        )
+        output = node.eval(coords_dst)
+        np.testing.assert_array_equal(output, source[:4, 1:, :1])
+
+        # Without Time
+        source = np.random.rand(5, 4)
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src.drop("time"),
+            interpolation={
+                "method": "nearest",
+                "interpolators": [NearestNeighbor],
+            },
+        )
+        output = node.eval(coords_dst)
+        np.testing.assert_array_equal(output, source[:4, 1:])
+
+    # def test_3Dstacked(self):
+    #     # With Time
+    #     source = np.random.rand(5, 4, 2)
+    #     coords_src = Coordinates([[
+    #         np.arange(5)[:, None, None] + 0.1 * np.ones((5, 4, 2)),
+    #         np.arange(4)[None, :, None] + 0.1 * np.ones((5, 4, 2)),
+    #         np.arange(2)[None, None, :] + 0.1 * np.ones((5, 4, 2))]], ["lat_lon_time"])
+    #     coords_dst = Coordinates([np.arange(4)+0.2, np.arange(1, 4)-0.2, [0.5]], ["lat", "lon", "time"])
+    #     node = MockArrayDataSource(
+    #         data=source,
+    #         coordinates=coords_src,
+    #         interpolation={
+    #             "method": "nearest",
+    #             "interpolators": [NearestNeighbor],
+    #         },
+    #     )
+    #     output = node.eval(coords_dst)
+    #     np.testing.assert_array_equal(output, source[:4, 1:, :1])
+
+    #     # Using 'xarray' coordinates type
+    #     node = MockArrayDataSourceXR(
+    #         data=source,
+    #         coordinates=coords_src,
+    #         coordinate_index_type='xarray',
+    #         interpolation={
+    #             "method": "nearest",
+    #             "interpolators": [NearestNeighbor],
+    #         },
+    #     )
+    #     output = node.eval(coords_dst)
+    #     np.testing.assert_array_equal(output, source[:4, 1:, :1])
+
+    #     # Using 'slice' coordinates type
+    #     node = MockArrayDataSource(
+    #         data=source,
+    #         coordinates=coords_src,
+    #         coordinate_index_type='slice',
+    #         interpolation={
+    #             "method": "nearest",
+    #             "interpolators": [NearestNeighbor],
+    #         },
+    #     )
+    #     output = node.eval(coords_dst)
+    #     np.testing.assert_array_equal(output, source[:4, 1:, :1])
+
+    #     # Without Time
+    #     source = np.random.rand(5, 4)
+    #     node = MockArrayDataSource(
+    #         data=source,
+    #         coordinates=coords_src.drop('time'),
+    #         interpolation={
+    #             "method": "nearest",
+    #             "interpolators": [NearestNeighbor],
+    #         },
+    #     )
+    #     output = node.eval(coords_dst)
+    #     np.testing.assert_array_equal(output, source[:4, 1:])
 
 
 class TestInterpolateRasterioInterpolator(object):
