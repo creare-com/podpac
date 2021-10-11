@@ -105,11 +105,14 @@ class EGI(InterpolationMixin, DataSource):
     lat_key = tl.Unicode(allow_none=True).tag(attr=True)
     lon_key = tl.Unicode(allow_none=True).tag(attr=True)
     time_key = tl.Unicode(allow_none=True).tag(attr=True)
+    udims_overwrite = tl.List()
 
     min_bounds_span = tl.Dict(allow_none=True).tag(attr=True)
 
     @property
     def udims(self):
+        if self.udims_overwrite:
+            return self.udims_overwrite
         """ This needs to be implemented so this node will cache properly. See Datasource.eval."""
         raise NotImplementedError
 

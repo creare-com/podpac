@@ -6,6 +6,7 @@ from copy import deepcopy
 from collections import OrderedDict
 from six import string_types
 import numpy as np
+import xarray as xr
 import traitlets as tl
 
 from podpac.core import settings
@@ -502,9 +503,42 @@ class InterpolationManager(object):
             validate_crs=False,
         )
         if index_type == "numpy":
-            selected_coords_idx2 = np.ix_(*[np.ravel(selected_coords_idx[k]) for k in source_coordinates.dims])
-        elif index_type in ["slice", "xarray"]:
-            selected_coords_idx2 = tuple([selected_coords_idx[d] for d in source_coordinates.dims])
+            npcoords = []
+            has_stacked = False
+            for k in source_coordinates.dims:
+                # Deal with nD stacked source coords (marked by coords being in tuple)
+                if isinstance(selected_coords_idx[k], tuple):
+                    has_stacked = True
+                    npcoords.extend([sci for sci in selected_coords_idx[k]])
+                else:
+                    npcoords.append(selected_coords_idx[k])
+            if has_stacked:
+                # When stacked coordinates are nD we cannot use the catchall of the next branch
+                selected_coords_idx2 = npcoords
+            else:
+                # This would not be needed if everything went as planned in
+                # interpolator.select_coordinates, but this is a catchall that works
+                # for 90% of the cases
+                selected_coords_idx2 = np.ix_(*[np.ravel(npc) for npc in npcoords])
+        elif index_type == "xarray":
+            selected_coords_idx2 = []
+            for i in selected_coords.dims:
+                # Deal with nD stacked source coords (marked by coords being in tuple)
+                if isinstance(selected_coords_idx[i], tuple):
+                    selected_coords_idx2.extend([xr.DataArray(sci, dims=[i]) for sci in selected_coords_idx[i]])
+                else:
+                    selected_coords_idx2.append(selected_coords_idx[i])
+            selected_coords_idx2 = tuple(selected_coords_idx2)
+        elif index_type == "slice":
+            selected_coords_idx2 = []
+            for i in selected_coords.dims:
+                # Deal with nD stacked source coords (marked by coords being in tuple)
+                if isinstance(selected_coords_idx[i], tuple):
+                    selected_coords_idx2.extend(selected_coords_idx[i])
+                else:
+                    selected_coords_idx2.append(selected_coords_idx[i])
+
+            selected_coords_idx2 = tuple(selected_coords_idx2)
         else:
             raise ValueError("Unknown index_type '%s'" % index_type)
         return selected_coords, tuple(selected_coords_idx2)
