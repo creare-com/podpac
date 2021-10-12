@@ -227,7 +227,7 @@ class Interpolate(Node):
 
         # Drop extra coordinates
         extra_dims = [d for d in coordinates.udims if d not in source_coords.udims]
-        coordinates = coordinates.drop(extra_dims)
+        coordinates = coordinates.udrop(extra_dims)
 
         # Transform so that interpolation happens on the source data coordinate system
         if source_coords.crs.lower() != coordinates.crs.lower():
