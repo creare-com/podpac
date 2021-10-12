@@ -293,14 +293,14 @@ class SMAP(EGI):
             lat = all_data.lat.sel(lat=data.lat, method="nearest")
 
             # When the difference between old and new coordintaes are large, it means there are new coordinates
-            Ilat = np.abs(lat.data - data.lat) > 1e-3
+            Ilat = (np.abs(lat.data - data.lat) > 1e-3).data
             # Use the new data's coordinates for the new coordinates
-            lat.data[Ilat] = data.lat[Ilat]
+            lat.data[Ilat] = data.lat.data[Ilat]
 
             # Repeat for lon
             lon = all_data.lon.sel(lon=data.lon, method="nearest")
-            Ilon = np.abs(lon.data - data.lon) > 1e-3
-            lon.data[Ilon] = data.lon[Ilon]
+            Ilon = (np.abs(lon.data - data.lon) > 1e-3).data
+            lon.data[Ilon] = data.lon.data[Ilon]
 
             # Assign to data
             data.lon.data[:] = lon.data
