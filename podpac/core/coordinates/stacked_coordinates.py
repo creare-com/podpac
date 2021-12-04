@@ -257,7 +257,7 @@ class StackedCoordinates(BaseCoordinates):
 
         return (self.flatten().coordinates == item).all(axis=1).any()
 
-    def __eq__(self, other):
+    def _eq_base(self, other):
         if not isinstance(other, StackedCoordinates):
             return False
 
@@ -266,6 +266,10 @@ class StackedCoordinates(BaseCoordinates):
             return False
 
         if self.shape != other.shape:
+            return False
+
+    def __eq__(self, other):
+        if not _eq_base(other):
             return False
 
         # full check of underlying coordinates
@@ -460,9 +464,12 @@ class StackedCoordinates(BaseCoordinates):
             index = slice(max(index.start or 0 for index in indices), min(index.stop or self.size for index in indices))
             # for consistency
             if index.start == 0 and index.stop == self.size:
-                index = slice(None, None)
+                if self.ndim > 1:
+                    index = [slice(None, None) for dim in self.dims]
+                else:
+                    index = slice(None, None)
         elif any(_index_len(index) == 0 for index in indices):
-            return slice(0, 0)
+            intex = slice(0, 0)
         else:
             # convert any slices to boolean array
             for i, index in enumerate(indices):
@@ -475,7 +482,10 @@ class StackedCoordinates(BaseCoordinates):
 
             # for consistency
             if np.all(index):
-                index = slice(None, None)
+                if self.ndim > 1:
+                    index = [slice(None, None) for dim in self.dims]
+                else:
+                    index = slice(None, None)
 
         return index
 
@@ -527,7 +537,7 @@ class StackedCoordinates(BaseCoordinates):
 
             coords[ialt] = ArrayCoordinates1d(talt, "alt").simplify()
 
-        return StackedCoordinates(coords)
+        return StackedCoordinates(coords).simplify()
 
     def transpose(self, *dims, **kwargs):
         """
@@ -627,4 +637,25 @@ class StackedCoordinates(BaseCoordinates):
             return all(a.issubset(o) for a, o in zip(acs, ocs))
 
     def simplify(self):
+        if set(self.dims) == {"lat", "lon"} and self.ndim == 2 and (self.shape[0] > 1 and self.shape[1] > 1):
+            coordinates = self.coordinates
+            origin = coordinates[0, 0]
+            step = coordinates[1, 1] - origin
+            d = np.linalg.norm(step)
+
+            corner = self.coordinates[-1, -1]
+            import pdb
+
+            pdb.set_trace()  # breakpoint 09127d19 //
+
         return StackedCoordinates([c.simplify() for c in self._coords])
+
+    def is_rotated_grid(self):
+        if set(self.dims) != {"lat", "lon"}:
+            return False
+
+        if not (self.ndim == 2 and self.shape[0] > 1 and self.shape[1] > 1):
+            return False
+
+        self.coordinates[1:, 0] - self.coordinates[:-1, 0]
+        self.coordinates[0, 1:] - self.coordinates[0, :-1]

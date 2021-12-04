@@ -106,6 +106,10 @@ class LoadFileMixin(S3Mixin):
         if self.source.startswith("s3://"):
             _logger.info("Loading AWS resource: %s" % self.source)
             self._file = self.s3.open(self.source, "rb")
+            import pdb
+
+            pdb.set_trace()  # breakpoint 0dc1960c //
+
         elif self.source.startswith("http://") or self.source.startswith("https://"):
             _logger.info("Downloading: %s" % self.source)
             response = requests.get(self.source)

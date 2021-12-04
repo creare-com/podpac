@@ -657,7 +657,7 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
     """
 
     # This only works for data that essentially has lat/lon only
-    dims = data.coords.dims
+    dims = list(data.coords.keys())
     if "lat" not in dims or "lon" not in dims:
         raise NotImplementedError("Cannot export GeoTIFF for dataset with lat/lon coordinates.")
     if "time" in dims and len(data.coords["time"]) > 1:
@@ -670,6 +670,10 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
     _logger.warning("GeoTIFF export assumes data is in a uniform, non-rotated coordinate system.")
 
     # Get the crs and geotransform that describes the coordinates
+    import pdb
+
+    pdb.set_trace()  # breakpoint 5113a5a3 //
+
     if crs is None:
         crs = data.attrs.get("crs")
     if crs is None:
@@ -682,6 +686,7 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
         # Geotransform should ALWAYS be defined as (lon_origin, lon_dj, lon_di, lat_origin, lat_dj, lat_di)
         # if isinstance(data, xr.DataArray) and data.dims.index('lat') > data.dims.index('lon'):
         # geotransform = geotransform[3:] + geotransform[:3]
+
     if geotransform is None:
         try:
             geotransform = Coordinates.from_xarray(data).geotransform

@@ -30,7 +30,7 @@ from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
-from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
+from podpac.core.coordinates.affine_coordinates import AffineCoordinates
 from podpac.core.coordinates.cfunctions import clinspace
 
 # Optional dependencies
@@ -478,16 +478,18 @@ class Coordinates(tl.HasTraits):
         """Creates Coordinates from GDAL Geotransform."""
         tol = 1e-15  # tolerance for deciding when a number is zero
         # Handle the case of rotated coordinates
-        try:
-            rcoords = RotatedCoordinates.from_geotransform(geotransform, shape, dims=["lat", "lon"])
-        except affine_module.UndefinedRotationError:
-            rcoords = None
-            _logger.debug("Rasterio source dataset does not have Rotated Coordinates")
+        # try:
+        #     rcoords = RotatedCoordinates.from_geotransform(geotransform, shape, dims=["lat", "lon"])
+        # except affine_module.UndefinedRotationError:
+        #     import pdb; pdb.set_trace()  # breakpoint 18309101 //
 
-        if rcoords is not None and np.abs(rcoords.theta % (np.pi / 2)) > tol:
-            # These are Rotated coordinates and we can return
-            coords = Coordinates([rcoords], dims=["lat,lon"], crs=crs)
-            return coords
+        #     rcoords = None
+        #     _logger.debug("Rasterio source dataset does not have Rotated Coordinates")
+
+        # if rcoords is not None and np.abs(rcoords.theta % (np.pi / 2)) > tol:
+        #     # These are Rotated coordinates and we can return
+        #     coords = Coordinates([rcoords], dims=["lat_lon"], crs=crs)
+        #     return coords
 
         # Handle the case of uniform coordinates (not rotated, but N-S E-W aligned)
         affine = rasterio.Affine.from_gdal(*geotransform)
@@ -900,10 +902,10 @@ class Coordinates(tl.HasTraits):
             ) * rasterio.transform.Affine.scale(self[first].step, self[second].step)
             transform = transform.to_gdal()
         # Do the rotated coordinates cases
-        elif "lat,lon" in self.dims and isinstance(self._coords["lat,lon"], RotatedCoordinates):
-            transform = self._coords["lat,lon"].geotransform
-        elif "lon,lat" in self.dims and isinstance(self._coords["lon,lat"], RotatedCoordinates):
-            transform = self._coords["lon,lat"].geotransform
+        elif "lat_lon" in self.dims and isinstance(self._coords["lat_lon"], RotatedCoordinates):
+            transform = self._coords["lat_lon"].geotransform
+        elif "lon_lat" in self.dims and isinstance(self._coords["lon_lat"], RotatedCoordinates):
+            transform = self._coords["lon_lat"].geotransform
         else:
             raise TypeError(
                 "Only 2-D coordinates that are uniform or rotated have a GDAL transform. These coordinates "
@@ -1414,7 +1416,7 @@ class Coordinates(tl.HasTraits):
                 cs.pop(i)
                 cs.insert(i, c)
 
-        # transform the altitude if needed
+        # transform remaining altitude or stacked spatial dimensions if needed
         ts = []
         for c in cs:
             tc = c._transform(transformer)
@@ -1512,9 +1514,9 @@ class Coordinates(tl.HasTraits):
         for c in self._coords.values():
             if isinstance(c, Coordinates1d):
                 rep += "\n\t%s: %s" % (c.name, c)
-            elif isinstance(c, RotatedCoordinates):
+            elif isinstance(c, AffineCoordinates):
                 for dim in c.dims:
-                    rep += "\n\t%s[%s]: Rotated(TODO)" % (c.name, dim)
+                    rep += "\n\t%s[%s]: Affine(TODO)" % (c.name, dim)
             elif isinstance(c, StackedCoordinates):
                 for dim in c.dims:
                     rep += "\n\t%s[%s]: %s" % (c.name, dim, c[dim])
