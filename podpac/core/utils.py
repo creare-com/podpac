@@ -612,7 +612,7 @@ def get_ui_node_spec(module=None, category="default"):
             attrt = getattr(cls, attr)
             if not isinstance(attrt, tl.TraitType):
                 continue
-            if "attr" not in attrt.metadata:
+            if not attrt.metadata.get("attr", False):
                 continue
             type_ = attrt.__class__.__name__
             type_extra = str(attrt)
@@ -623,15 +623,16 @@ def get_ui_node_spec(module=None, category="default"):
                 type_ = attrt.klass.__name__
                 type_extra = attrt.klass
 
+            required = attrt.metadata.get("required", False)
             default_val = attrt.default()
             if not isinstance(type_extra, str):
-                type_extra = str(type_extra)                
+                type_extra = str(type_extra)
             try:
                 if np.isnan(default_val):
-                    default_val = 'nan'
+                    default_val = "nan"
             except:
                 pass
-            
+
             if default_val == tl.Undefined:
                 default_val = None
 
@@ -641,7 +642,7 @@ def get_ui_node_spec(module=None, category="default"):
                 "values": getattr(attrt, "values", None),
                 "default": default_val,
                 "help": attrt.help,
-
+                "required": required,
             }
         spec.update(getattr(cls, "_ui_spec", {}))
         return spec
