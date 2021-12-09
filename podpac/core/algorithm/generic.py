@@ -62,8 +62,8 @@ class Arithmetic(GenericInputs):
     arith = Arithmetic(A=a, B=b, eqn = 'A * B + {offset}', params={'offset': 1})
     """
 
-    eqn = tl.Unicode().tag(attr=True)
-    params = tl.Dict().tag(attr=True)
+    eqn = tl.Unicode().tag(attr=True, required=True)
+    params = tl.Dict().tag(attr=True, required=True)
 
     _repr_keys = ["eqn"]
 
