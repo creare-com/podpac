@@ -129,7 +129,7 @@ class Node(tl.HasTraits):
 
     outputs = tl.List(trait=tl.Unicode(), allow_none=True).tag(attr=True)
     output = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
-    units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
+    units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True,hidden=True)
     style = tl.Instance(Style)
 
     dtype = tl.Enum([float], default_value=float)
@@ -1023,50 +1023,91 @@ class Node(tl.HasTraits):
 
         return cls.from_definition(d)
 
-
     @classmethod
-    def get_ui_spec(cls):
-        filter = []
-        spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}}
-        for attr in dir(cls):
-            if attr in filter:
-                continue
-            attrt = getattr(cls, attr)
-            if not isinstance(attrt, tl.TraitType):
-                continue
-            if not attrt.metadata.get("attr", False):
-                continue
-            type_ = attrt.__class__.__name__
-            type_extra = str(attrt)
-            if type_ == "Union":
-                type_ = [t.__class__.__name__ for t in attrt.trait_types]
-                type_extra = "Union"
-            elif type_ == "Instance":
-                type_ = attrt.klass.__name__
-                type_extra = attrt.klass
+    def get_ui_node_spec(module=None, category="default"):
+        """
+        Returns a dictionary describing the specifications for each Node in a module.
 
-            required = attrt.metadata.get("required", False)
-            default_val = attrt.default()
-            if not isinstance(type_extra, str):
-                type_extra = str(type_extra)
-            try:
-                if np.isnan(default_val):
-                    default_val = "nan"
-            except:
-                pass
+        Parameters
+        -----------
+        module: module
+            The Python module for which the ui specs should be summarized. Only the top-level
+            classes will be included in the spec. (i.e. no recursive search through submodules)
+        category: str, optional
+            Default is "default". Top-level category name for the group of Nodes.
 
-            if default_val == tl.Undefined:
-                default_val = None
+        Returns
+        --------
+        dict
+            Dictionary of {category: {Node1: spec_1, Node2: spec2, ...}} describing the specs for each Node.
+        """
+        import podpac
+        import podpac.datalib  # May not be imported by default
 
-            spec["attrs"][attr] = {
-                "type": type_,
-                "type_str": type_extra,  # May remove this if not needed
-                "values": getattr(attrt, "values", None),
-                "default": default_val,
-                "help": attrt.help,
-                "required": required,
-            }
-        spec.update(getattr(cls, "_ui_spec", {}))
+        spec = {}
+
+        def get_ui_spec(cls):
+            filter = []
+            spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}}
+            for attr in dir(cls):
+                if attr in filter:
+                    continue
+                attrt = getattr(cls, attr)
+                if not isinstance(attrt, tl.TraitType):
+                    continue
+                if not attrt.metadata.get("attr", False):
+                    continue
+                type_ = attrt.__class__.__name__
+                type_extra = str(attrt)
+                if type_ == "Union":
+                    type_ = [t.__class__.__name__ for t in attrt.trait_types]
+                    type_extra = "Union"
+                elif type_ == "Instance":
+                    type_ = attrt.klass.__name__
+                    type_extra = attrt.klass
+
+                required = attrt.metadata.get("required", False)
+                default_val = attrt.default()
+                if not isinstance(type_extra, str):
+                    type_extra = str(type_extra)
+                try:
+                    if np.isnan(default_val):
+                        default_val = "nan"
+                except:
+                    pass
+
+                if default_val == tl.Undefined:
+                    default_val = None
+
+                spec["attrs"][attr] = {
+                    "type": type_,
+                    "type_str": type_extra,  # May remove this if not needed
+                    "values": getattr(attrt, "values", None),
+                    "default": default_val,
+                    "help": attrt.help,
+                    "required": required,
+                }
+            spec.update(getattr(cls, "_ui_spec", {}))
+            return spec
+
+        if module is None:
+            modcat = zip(
+                [podpac.data, podpac.algorithm, podpac.compositor, podpac.datalib],
+                ["data", "algorithm", "compositor", "datalib"],
+            )
+            for mod, cat in modcat:
+                spec.update(get_ui_node_spec(mod, cat))
+            return spec
+
+        spec[category] = {}
+        for obj in dir(module):
+            ob = getattr(module, obj)
+            if not inspect.isclass(ob):
+                continue
+            if not issubclass(ob, podpac.Node):
+                continue
+            spec[category][obj] = get_ui_spec(ob)
+
         return spec
 
 
