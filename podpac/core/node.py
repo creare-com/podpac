@@ -1024,6 +1024,52 @@ class Node(tl.HasTraits):
         return cls.from_definition(d)
 
 
+    @classmethod
+    def get_ui_spec(cls):
+        filter = []
+        spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}}
+        for attr in dir(cls):
+            if attr in filter:
+                continue
+            attrt = getattr(cls, attr)
+            if not isinstance(attrt, tl.TraitType):
+                continue
+            if not attrt.metadata.get("attr", False):
+                continue
+            type_ = attrt.__class__.__name__
+            type_extra = str(attrt)
+            if type_ == "Union":
+                type_ = [t.__class__.__name__ for t in attrt.trait_types]
+                type_extra = "Union"
+            elif type_ == "Instance":
+                type_ = attrt.klass.__name__
+                type_extra = attrt.klass
+
+            required = attrt.metadata.get("required", False)
+            default_val = attrt.default()
+            if not isinstance(type_extra, str):
+                type_extra = str(type_extra)
+            try:
+                if np.isnan(default_val):
+                    default_val = "nan"
+            except:
+                pass
+
+            if default_val == tl.Undefined:
+                default_val = None
+
+            spec["attrs"][attr] = {
+                "type": type_,
+                "type_str": type_extra,  # May remove this if not needed
+                "values": getattr(attrt, "values", None),
+                "default": default_val,
+                "help": attrt.help,
+                "required": required,
+            }
+        spec.update(getattr(cls, "_ui_spec", {}))
+        return spec
+
+
 def _lookup_input(nodes, name, value):
     # containers
     if isinstance(value, list):
