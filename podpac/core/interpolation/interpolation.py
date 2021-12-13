@@ -22,7 +22,9 @@ _logger = logging.getLogger(__name__)
 
 
 class InterpolationMixin(tl.HasTraits):
+    # interpolation = InterpolationTrait().tag(attr=True, required=True, default = "nearest")
     interpolation = InterpolationTrait().tag(attr=True)
+
     _interp_node = None
 
     @property

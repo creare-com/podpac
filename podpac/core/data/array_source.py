@@ -54,8 +54,8 @@ class ArrayRaw(NoCacheMixin, DataSource):
     >>> output = node.eval(coords)
     """
 
-    source = ArrayTrait().tag(attr=True)
-    coordinates = tl.Instance(Coordinates).tag(attr=True)
+    source = ArrayTrait().tag(attr=True, required=True)
+    coordinates = tl.Instance(Coordinates).tag(attr=True,required=True)
 
     _repr_keys = ["shape"]
 

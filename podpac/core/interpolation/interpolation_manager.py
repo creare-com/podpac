@@ -693,7 +693,7 @@ class InterpolationTrait(tl.Union):
 
     def __init__(
         self,
-        trait_types=[tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(InterpolationManager)],
+        trait_types=[tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS).tag(attr=True, required=True, default = "nearest"), tl.Instance(InterpolationManager)],
         *args,
         **kwargs
     ):
