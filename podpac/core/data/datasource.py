@@ -155,7 +155,7 @@ class DataSource(Node):
     nan_val = tl.Any(np.nan).tag(attr=True)
     boundary = tl.Dict().tag(attr=True)
 
-    coordinate_index_type = tl.Enum(["slice", "numpy", "xarray"], default_value="numpy")
+    coordinate_index_type = tl.Enum(["slice", "numpy", "xarray"], default_value="numpy",).tag(attr=True)
     cache_coordinates = tl.Bool(False)
     cache_output = tl.Bool()
 

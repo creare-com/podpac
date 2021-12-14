@@ -50,21 +50,21 @@ class ArrayRaw(NoCacheMixin, DataSource):
     >>> coords = podpac.Coordinates([podpac.clinspace(1, 10, 10, 'time'),
                                      podpac.clinspace(1, 32, 32, 'lat'),
                                      podpac.clinspace(1, 34, 34, 'lon')])
-    >>> node = podpac.data.Array(source=data, coordinates=coords, outputs=['R', 'G', 'B'])
+    >>> node = podpac.data.Array(array=data, coordinates=coords, outputs=['R', 'G', 'B'])
     >>> output = node.eval(coords)
     """
 
-    source = ArrayTrait().tag(attr=True, required=True)
+    array = ArrayTrait().tag(attr=True, required=True)
     coordinates = tl.Instance(Coordinates).tag(attr=True,required=True)
 
     _repr_keys = ["shape"]
 
-    @tl.validate("source")
-    def _validate_source(self, d):
+    @tl.validate("array")
+    def _validate_array(self, d):
         try:
             d["value"].astype(float)
         except:
-            raise ValueError("Array 'source' data must be numerical")
+            raise ValueError("Array 'array' data must be numerical")
         return d["value"]
 
     def _first_init(self, **kwargs):
@@ -78,19 +78,19 @@ class ArrayRaw(NoCacheMixin, DataSource):
 
     @property
     def shape(self):
-        """Returns the shape of :attr:`self.source`
+        """Returns the shape of :attr:`self.array`
 
         Returns
         -------
         tuple
-            Shape of :attr:`self.source`
+            Shape of :attr:`self.array`
         """
-        return self.source.shape
+        return self.array.shape
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}"""
-        d = self.create_output_array(coordinates, data=self.source[coordinates_index])
+        d = self.create_output_array(coordinates, data=self.array[coordinates_index])
         return d
 
     def set_coordinates(self, value):
