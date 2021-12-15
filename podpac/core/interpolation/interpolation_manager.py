@@ -691,9 +691,10 @@ class InterpolationManager(object):
 class InterpolationTrait(tl.Union):
     default_value = INTERPOLATION_DEFAULT
 
+    # .tag(attr=True, required=True, default = "linear")
     def __init__(
         self,
-        trait_types=[tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS).tag(attr=True, required=True, default = "nearestt"), tl.Instance(InterpolationManager)],
+        trait_types=[tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(InterpolationManager)],
         *args,
         **kwargs
     ):

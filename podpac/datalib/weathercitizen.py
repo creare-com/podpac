@@ -62,7 +62,7 @@ class WeatherCitizen(InterpolationMixin, DataSource):
         Display log messages or progress
     """
 
-    source = tl.Unicode(allow_none=True, default_value="geosensors")
+    source = tl.Unicode(allow_none=True, default_value="geosensors").tag(attr=True, required=True)
     data_key = tl.Unicode(allow_none=True, default_value="properties.pressure").tag(attr=True)
     uuid = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     device = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)

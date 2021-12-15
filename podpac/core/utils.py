@@ -665,6 +665,6 @@ def get_ui_node_spec(module=None, category="default"):
             continue
         if not issubclass(ob, podpac.Node):
             continue
-        spec[category][obj] = get_ui_spec(ob)
+        spec[category][obj] = ob.get_ui_spec()
 
     return spec

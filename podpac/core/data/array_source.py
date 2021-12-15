@@ -50,21 +50,21 @@ class ArrayRaw(NoCacheMixin, DataSource):
     >>> coords = podpac.Coordinates([podpac.clinspace(1, 10, 10, 'time'),
                                      podpac.clinspace(1, 32, 32, 'lat'),
                                      podpac.clinspace(1, 34, 34, 'lon')])
-    >>> node = podpac.data.Array(array=data, coordinates=coords, outputs=['R', 'G', 'B'])
+    >>> node = podpac.data.Array(source=data, coordinates=coords, outputs=['R', 'G', 'B'])
     >>> output = node.eval(coords)
     """
 
-    array = ArrayTrait().tag(attr=True, required=True)
+    source = ArrayTrait().tag(attr=True, required=True)
     coordinates = tl.Instance(Coordinates).tag(attr=True,required=True)
 
     _repr_keys = ["shape"]
 
-    @tl.validate("array")
-    def _validate_array(self, d):
+    @tl.validate("source")
+    def _validate_source(self, d):
         try:
             d["value"].astype(float)
         except:
-            raise ValueError("Array 'array' data must be numerical")
+            raise ValueError("Array 'source' data must be numerical")
         return d["value"]
 
     def _first_init(self, **kwargs):
