@@ -227,12 +227,12 @@ class Mask(Algorithm):
 
     """
 
-    source = NodeTrait().tag(attr=True)
-    mask = NodeTrait().tag(attr=True)
+    source = NodeTrait().tag(attr=True, required=True)
+    mask = NodeTrait().tag(attr=True, required=True)
     masked_val = tl.Float(allow_none=True, default_value=None).tag(attr=True)
-    bool_val = tl.Float(1).tag(attr=True)
-    bool_op = tl.Enum(["==", "<", "<=", ">", ">="], default_value="==").tag(attr=True)
-    in_place = tl.Bool(False).tag(attr=True)
+    bool_val = tl.Float(1).tag(attr=True, default_value="1.0")
+    bool_op = tl.Enum(["==", "<", "<=", ">", ">="], default_value="==").tag(attr=True, default_value="==")
+    in_place = tl.Bool(False).tag(attr=True, default_value=False)
 
     _repr_keys = ["source", "mask"]
 

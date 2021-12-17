@@ -103,7 +103,7 @@ class Interpolate(Node):
 
     """
 
-    source = NodeTrait(allow_none=True).tag(attr=True)
+    source = NodeTrait(allow_none=True).tag(attr=True, required=True)
     source_id = tl.Unicode(allow_none=True).tag(attr=True)
     _source_xr = tl.Instance(UnitsDataArray, allow_none=True)  # This is needed for the Interpolation Mixin
 
