@@ -85,12 +85,12 @@ class ArrayRaw(NoCacheMixin, DataSource):
         tuple
             Shape of :attr:`self.array`
         """
-        return self.array.shape
+        return self.source.shape
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}"""
-        d = self.create_output_array(coordinates, data=self.array[coordinates_index])
+        d = self.create_output_array(coordinates, data=self.source[coordinates_index])
         return d
 
     def set_coordinates(self, value):

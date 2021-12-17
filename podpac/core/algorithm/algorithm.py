@@ -58,6 +58,9 @@ class Algorithm(BaseAlgorithm):
     Developers of new Algorithm nodes need to implement the `algorithm` method.
     """
 
+    #not the best solution... hard to check for these attrs
+    # abstract = tl.Bool(default_value=True, allow_none=True).tag(attr=True, required=False, hidden=True)
+
     def algorithm(self, inputs, coordinates):
         """
         Arguments
