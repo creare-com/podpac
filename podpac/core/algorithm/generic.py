@@ -31,7 +31,7 @@ if sys.version_info.major == 2:
 class GenericInputs(Algorithm):
     """Base class for Algorithms that accept generic named inputs."""
 
-    inputs = tl.Dict(read_only=True)
+    inputs = tl.Dict(read_only=True).tag(attr=True, required=True)
 
     _repr_keys = ["inputs"]
 
@@ -145,7 +145,7 @@ class Generic(GenericInputs):
     generic = Generic(code=code, a=a, b=b)
     """
 
-    code = tl.Unicode().tag(attr=True, readonly=True)
+    code = tl.Unicode().tag(attr=True, readonly=True, required=True)
 
     def init(self):
         if not settings.allow_unsafe_eval:
