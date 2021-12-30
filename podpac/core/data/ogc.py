@@ -160,7 +160,7 @@ class WCSRaw(DataSource):
     layer = tl.Unicode().tag(attr=True, required=True)
     version = tl.Unicode(default_value="1.0.0").tag(attr=True)
     interpolation = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
-    allow_mock_client = tl.Bool(False).tag(attr=True, default_value=False)
+    allow_mock_client = tl.Bool(False).tag(attr=True)
     username = tl.Unicode(allow_none=True)
     password = tl.Unicode(allow_none=True)
 

@@ -1026,7 +1026,7 @@ class Node(tl.HasTraits):
     @classmethod
     def get_ui_spec(cls):
         filter = []
-        spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}}
+        spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}, "style": {}}
         for attr in dir(cls):
             if attr in filter:
                 continue
@@ -1067,6 +1067,26 @@ class Node(tl.HasTraits):
                 "required": required,
                 "hidden": hidden,
             }
+
+            # spec["style"] = cls.style.json #this does not work, because node not created yet?
+            """
+            I will manually define generic defaults here. Eventually we may want to
+            dig into this and create node specific styling. This will have to be done under each
+            node. But may be difficult to add style to each node?
+
+            Example: podpac.core.algorithm.utility.SinCoords.Style ----> returns a tl.Instance
+            """
+            spec["style"] = {
+                "name": "?",
+                "units": "m",
+                "clim": [-1.0, 1.0],
+                "colormap": "Blues",
+                "enumeration_legend": "?",
+                "enumeration_colors": "?",
+                "default_enumeration_legend": "unknown",
+                "default_enumeration_color": (0.2, 0.2, 0.2),
+            }
+
         spec.update(getattr(cls, "_ui_spec", {}))
         return spec
 
