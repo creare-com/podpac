@@ -158,11 +158,8 @@ class COSMOSStationsRaw(TileCompositorRaw):
     dims = ["lat", "lon", "time"]
 
     from podpac.style import Style
-    style = Style(colormap="jet")
 
-    @tl.default("interpolation")
-    def _interpolation_default(self):
-        return {"method": "nearest", "params": {"use_selector": False, "remove_nan": False, "time_scale": "1,M"}}
+    style = Style(colormap="jet")
 
     ## PROPERTIES
     @cached_property(use_cache_ctrl=True)
@@ -389,7 +386,9 @@ class COSMOSStationsRaw(TileCompositorRaw):
 
 
 class COSMOSStations(InterpolationMixin, COSMOSStationsRaw):
-    pass
+    @tl.default("interpolation")
+    def _interpolation_default(self):
+        return {"method": "nearest", "params": {"use_selector": False, "remove_nan": False, "time_scale": "1,M"}}
 
 
 if __name__ == "__main__":

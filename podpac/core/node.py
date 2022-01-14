@@ -13,6 +13,7 @@ import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from hashlib import md5 as hash_alg
+import logging
 
 import numpy as np
 import traitlets as tl
@@ -32,6 +33,7 @@ from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl, S3CacheStore, DiskCacheStore
 from podpac.core.managers.multi_threading import thread_manager
 
+_logger = logging.getLogger(__name__)
 
 COMMON_NODE_DOC = {
     "requested_coordinates": """The set of coordinates requested by a user. The Node will be evaluated using these coordinates.""",
@@ -129,7 +131,7 @@ class Node(tl.HasTraits):
 
     outputs = tl.List(trait=tl.Unicode(), allow_none=True).tag(attr=True)
     output = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
-    units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True,hidden=True)
+    units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True, hidden=True)
     style = tl.Instance(Style)
 
     dtype = tl.Enum([float], default_value=float)
@@ -1027,6 +1029,23 @@ class Node(tl.HasTraits):
     def get_ui_spec(cls):
         filter = []
         spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}, "style": {}}
+        # find any default values that are defined by function with decorators
+        # e.g. using @tl.default("trait_name")
+        #            def _default_trait_name(self): ...
+        function_defaults = {}
+        for attr in dir(cls):
+            atr = getattr(cls, attr)
+            if not isinstance(atr, tl.traitlets.DefaultHandler):
+                continue
+            try:
+                function_defaults[atr.trait_name] = atr(cls)
+            except Exception:
+                _logger.warning(
+                    "For node {}: Failed to generate default from function for trait {}".format(
+                        cls.__name__, atr.trait_name
+                    )
+                )
+
         for attr in dir(cls):
             if attr in filter:
                 continue
@@ -1046,7 +1065,10 @@ class Node(tl.HasTraits):
 
             required = attrt.metadata.get("required", False)
             hidden = attrt.metadata.get("hidden", False)
-            default_val = attrt.default()
+            if attr in function_defaults:
+                default_val = function_defaults[attr]
+            else:
+                default_val = attrt.default()
             if not isinstance(type_extra, str):
                 type_extra = str(type_extra)
             try:
@@ -1069,12 +1091,12 @@ class Node(tl.HasTraits):
             }
 
         try:
-            #This returns the 
-            style_json = json.loads(cls().style.json) #load the style from the cls
+            # This returns the
+            style_json = json.loads(cls().style.json)  # load the style from the cls
         except:
             style_json = {}
 
-        spec["style"] = style_json #this does not work, because node not created yet?
+        spec["style"] = style_json  # this does not work, because node not created yet?
         """
         I will manually define generic defaults here. Eventually we may want to
         dig into this and create node specific styling. This will have to be done under each
