@@ -313,7 +313,7 @@ class Node(tl.HasTraits):
         data.attrs["layer_style"] = self.style
 
         if self.units is not None:
-            data.attrs["units"]
+            data.attrs["units"] = self.units
 
         # Add crs if it is missing
         if "crs" not in data.attrs:
@@ -1069,7 +1069,6 @@ class Node(tl.HasTraits):
             }
 
         try:
-            #This returns the 
             style_json = json.loads(cls().style.json) #load the style from the cls
         except:
             style_json = {}

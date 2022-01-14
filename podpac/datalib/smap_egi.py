@@ -135,7 +135,7 @@ class SMAP(EGI):
         Earthdata password (https://urs.earthdata.nasa.gov/)
         If undefined, node will look for a password under setting key "password@urs.earthdata.nasa.gov"
     """
-
+    
     product = tl.Enum(SMAP_PRODUCTS, default_value="SPL4SMAU").tag(attr=True)
     nan_vals = [-9999.0]
     min_bounds_span = tl.Dict(default_value={"lon": 0.3, "lat": 0.3, "time": "3,h"}).tag(attr=True)

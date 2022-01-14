@@ -593,3 +593,9 @@ class EGI(InterpolationMixin, DataSource):
             s.close()
 
         return ip
+    
+    @classmethod
+    def get_ui_spec(cls):
+        spec=super().get_ui_spec()
+        spec["attrs"]["username"]={}
+        spec["attrs"]["password"]={}
