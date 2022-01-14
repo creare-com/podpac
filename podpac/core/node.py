@@ -1068,24 +1068,36 @@ class Node(tl.HasTraits):
                 "hidden": hidden,
             }
 
-            # spec["style"] = cls.style.json #this does not work, because node not created yet?
-            """
-            I will manually define generic defaults here. Eventually we may want to
-            dig into this and create node specific styling. This will have to be done under each
-            node. But may be difficult to add style to each node?
+        try:
+            #This returns the 
+            style_json = json.loads(cls().style.json) #load the style from the cls
+        except:
+            style_json = {}
 
-            Example: podpac.core.algorithm.utility.SinCoords.Style ----> returns a tl.Instance
-            """
-            spec["style"] = {
-                "name": "?",
-                "units": "m",
-                "clim": [-1.0, 1.0],
-                "colormap": "Blues",
-                "enumeration_legend": "?",
-                "enumeration_colors": "?",
-                "default_enumeration_legend": "unknown",
-                "default_enumeration_color": (0.2, 0.2, 0.2),
-            }
+        spec["style"] = style_json #this does not work, because node not created yet?
+        """
+        I will manually define generic defaults here. Eventually we may want to
+        dig into this and create node specific styling. This will have to be done under each
+        node. But may be difficult to add style to each node?
+
+        Example: podpac.core.algorithm.utility.SinCoords.Style ----> returns a tl.Instance
+        BUT if I do:
+        podpac.core.algorithm.utility.SinCoords().style.json ---> outputs style
+
+        ERROR if no parenthesis are given. So how can this be done without instantiating the class?
+
+        Will need to ask @MPU how to define a node specific style.
+        """
+        # spec["style"] = {
+        #     "name": "?",
+        #     "units": "m",
+        #     "clim": [-1.0, 1.0],
+        #     "colormap": "jet",
+        #     "enumeration_legend": "?",
+        #     "enumeration_colors": "?",
+        #     "default_enumeration_legend": "unknown",
+        #     "default_enumeration_color": (0.2, 0.2, 0.2),
+        # }
 
         spec.update(getattr(cls, "_ui_spec", {}))
         return spec

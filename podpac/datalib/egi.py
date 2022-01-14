@@ -105,7 +105,7 @@ class EGI(InterpolationMixin, DataSource):
     data_key = tl.Unicode().tag(attr=True, required=True)
     lat_key = tl.Unicode(allow_none=True).tag(attr=True, required=True)
     lon_key = tl.Unicode(allow_none=True).tag(attr=True, required=True)
-    time_key = tl.Unicode(allow_none=True).tag(attr=True)
+    time_key = tl.Unicode(allow_none=True).tag(attr=True, required=True)
     udims_overwrite = tl.List()
 
     min_bounds_span = tl.Dict(allow_none=True).tag(attr=True)

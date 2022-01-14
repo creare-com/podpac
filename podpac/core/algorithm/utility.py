@@ -74,6 +74,9 @@ class CoordData(Algorithm):
 class SinCoords(Algorithm):
     """A simple test node that creates a data based on coordinates and trigonometric (sin) functions."""
 
+    from podpac.style import Style
+    style = Style(clim=[-1.0, 1.0], colormap="jet")
+
     def algorithm(self, inputs, coordinates):
         """Computes sinusoids of all the coordinates.
 

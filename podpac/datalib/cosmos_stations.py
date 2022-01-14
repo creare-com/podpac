@@ -157,6 +157,9 @@ class COSMOSStationsRaw(TileCompositorRaw):
     stations_url = tl.Unicode("sitesNoLegend.js")
     dims = ["lat", "lon", "time"]
 
+    from podpac.style import Style
+    style = Style(colormap="jet")
+
     @tl.default("interpolation")
     def _interpolation_default(self):
         return {"method": "nearest", "params": {"use_selector": False, "remove_nan": False, "time_scale": "1,M"}}
