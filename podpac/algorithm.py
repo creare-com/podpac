@@ -17,6 +17,7 @@ from podpac.core.algorithm.stats import (
     Variance,
     StandardDeviation,
     Skew,
+    Percentile,
     Kurtosis,
     DayOfYear,
     GroupReduce,
