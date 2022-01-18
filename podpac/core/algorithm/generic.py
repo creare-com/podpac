@@ -18,7 +18,7 @@ ne = lazy_module("numexpr")
 
 from podpac import settings
 from podpac import Coordinates
-from podpac.core.node import Node
+from podpac.core.node import Node, NodeException
 from podpac.core.utils import NodeTrait
 from podpac.core.algorithm.algorithm import Algorithm
 
@@ -71,7 +71,7 @@ class Arithmetic(GenericInputs):
         if not settings.allow_unsafe_eval:
             warnings.warn(
                 "Insecure evaluation of Python code using Arithmetic node has not been allowed. If "
-                "this is an error, use: `podpac.settings.set_unsafe_eval(True)`. "
+                "this is an error, use: `podpac.settings.allow_unrestricted_code_execution(True)`. "
                 "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
@@ -101,7 +101,7 @@ class Arithmetic(GenericInputs):
         if not settings.allow_unsafe_eval:
             raise PermissionError(
                 "Insecure evaluation of Python code using Arithmetic node has not been allowed. If "
-                "this is an error, use: `podpac.settings.set_unsafe_eval(True)`. "
+                "this is an error, use: `podpac.settings.allow_unrestricted_code_execution(True)`. "
                 "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
@@ -151,7 +151,7 @@ class Generic(GenericInputs):
         if not settings.allow_unsafe_eval:
             warnings.warn(
                 "Insecure evaluation of Python code using Generic node has not been allowed. If this "
-                "this is an error, use: `podpac.settings.set_unsafe_eval(True)`. "
+                "this is an error, use: `podpac.settings.allow_unrestricted_code_execution(True)`. "
                 "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
@@ -178,7 +178,7 @@ class Generic(GenericInputs):
         if not settings.allow_unsafe_eval:
             raise PermissionError(
                 "Insecure evaluation of Python code using Generic node has not been allowed. If this "
-                "this is an error, use: `podpac.settings.set_unsafe_eval(True)`. "
+                "this is an error, use: `podpac.settings.allow_unrestricted_code_execution(True)`. "
                 "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
