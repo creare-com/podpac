@@ -181,3 +181,17 @@ class TestConvolution(object):
         o1 = node.eval(coords1)
         o2 = node.eval(coords2)
         assert np.all(o2.data == o1.data.T)
+
+    def test_missing_source_dims(self):
+        lat = clinspace(-0.25, 1.25, 7, name="lat")
+        lon = clinspace(-0.125, 1.125, 11, name="lon")
+        time = ["2012-05-19", "2016-01-31", "2018-06-20"]
+        coords = Coordinates([lat, lon, time], dims=["lat", "lon", "time"])
+
+        source = Array(source=np.random.random(coords.drop("time").shape), coordinates=coords.drop("time"))
+        node = Convolution(
+            source=source, kernel=[[[-1], [2], [-1]]], kernel_dims=["lat", "lon", "time"], force_eval=True
+        )
+        o = node.eval(coords[:, 1:-1, :])
+        expected = source.source[:, 1:-1] * 2 - source.source[:, 2:] - source.source[:, :-2]
+        assert np.abs(o.data - expected).max() < 1e-14

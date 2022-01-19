@@ -23,25 +23,25 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 COMMON_DOC[
     "full_kernel"
 ] = """Kernel that contains all the dimensions of the input source, in the correct order.
-        
+
         Returns
         -------
         np.ndarray
             The dimensionally full convolution kernel"""
 COMMON_DOC[
     "validate_kernel"
-] = """Checks to make sure the kernel is valid. 
-        
+] = """Checks to make sure the kernel is valid.
+
         Parameters
         ----------
         proposal : np.ndarray
             The proposed kernel
-        
+
         Returns
         -------
         np.ndarray
             The valid kernel
-        
+
         Raises
         ------
         ValueError
@@ -172,10 +172,12 @@ class Convolution(UnaryAlgorithm):
             )
 
         full_kernel = self._get_full_kernel(coordinates)
+        kernel_dims_u = kernel_dims
         kernel_dims = self.kernel_dims
         sum_dims = [d for d in kernel_dims if d not in source.dims]
         # Sum out the extra dims
         full_kernel = full_kernel.sum(axis=tuple([kernel_dims.index(d) for d in sum_dims]))
+        exp_slice = [exp_slice[i] for i in range(len(kernel_dims_u)) if kernel_dims_u[i] not in sum_dims]
         kernel_dims = [d for d in kernel_dims if d in source.dims]
 
         # Put the kernel axes in the correct order
