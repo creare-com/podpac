@@ -557,7 +557,11 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
             continue
         d = partial_definition(item, definition)
         n = podpac.Node.from_definition(d)
-        value = float(n.eval(coords))
+        o = n.eval(coords)
+        if o.size == 1:
+            value = float(o)
+        else:
+            value = o.data.tolist()
         inputs = flatten_list(list(d[item].get("inputs", {}).values()))
         active = True
         out[item] = {
