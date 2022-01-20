@@ -204,6 +204,9 @@ class TestConvolution(object):
         ) / 9
         assert np.abs(o.data - expected).max() < 1e-14
 
+        # Check to make sure array coordinates for a single coordinate is ok...
+        o = node.eval(coords2[0, 1:-1])
+
     def test_partial_source_convolution(self):
         lat = clinspace(-0.25, 1.25, 7, name="lat")
         lon = clinspace(-0.125, 1.125, 11, name="lon")

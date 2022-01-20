@@ -151,7 +151,7 @@ class Convolution(UnaryAlgorithm):
                 )
                 exp_slice.append(slice(-s_start, -s_end))
             elif isinstance(coord, ArrayCoordinates1d):
-                if not coord.is_monotonic:
+                if not coord.is_monotonic or coord.size < 2:
                     exp_coords.append(coord)
                     exp_slice.append(slice(None))
                     continue
