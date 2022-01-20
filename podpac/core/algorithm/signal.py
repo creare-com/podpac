@@ -11,7 +11,7 @@ import xarray as xr
 import scipy.signal
 
 from podpac.core.settings import settings
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.coordinates import add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import UnaryAlgorithm
@@ -117,7 +117,7 @@ class Convolution(UnaryAlgorithm):
         {eval_return}
         """
         # The size of this kernel is used to figure out the expanded size
-        full_kernel = self._get_full_kernel(coordinates)
+        full_kernel = self.kernel
 
         # expand the coordinates
         # The next line effectively drops extra coordinates, so we have to add those later in case the
@@ -130,24 +130,41 @@ class Convolution(UnaryAlgorithm):
         for dim in kernel_dims:
             coord = coordinates[dim]
             s = full_kernel.shape[self.kernel_dims.index(dim)]
-            if s == 1 or not isinstance(coord, UniformCoordinates1d):
+            if s == 1 or not isinstance(coord, (UniformCoordinates1d, ArrayCoordinates1d)):
                 exp_coords.append(coord)
                 exp_slice.append(slice(None))
                 continue
 
-            s_start = -s // 2
-            s_end = max(s // 2 - ((s + 1) % 2), 1)
-            # The 1e-07 is for floating point error because if endpoint is slightly
-            # in front of step * N then the endpoint is excluded
-            exp_coords.append(
-                UniformCoordinates1d(
-                    add_coord(coord.start, s_start * coord.step),
-                    add_coord(coord.stop, s_end * coord.step + 1e-07 * coord.step),
-                    coord.step,
-                    **coord.properties
+            if isinstance(coord, UniformCoordinates1d):
+                s_start = -s // 2
+                s_end = max(s // 2 - ((s + 1) % 2), 1)
+                # The 1e-07 is for floating point error because if endpoint is slightly
+                # in front of step * N then the endpoint is excluded
+                exp_coords.append(
+                    UniformCoordinates1d(
+                        add_coord(coord.start, s_start * coord.step),
+                        add_coord(coord.stop, s_end * coord.step + 1e-07 * coord.step),
+                        coord.step,
+                        **coord.properties
+                    )
                 )
-            )
-            exp_slice.append(slice(-s_start, -s_end))
+                exp_slice.append(slice(-s_start, -s_end))
+            elif isinstance(coord, ArrayCoordinates1d):
+                if not coord.is_monotonic:
+                    exp_coords.append(coord)
+                    exp_slice.append(slice(None))
+                    continue
+
+                arr_coords = coord.coordinates
+                delta_start = arr_coords[1] - arr_coords[0]
+                extra_start = np.arange(arr_coords[0] - delta_start * (s // 2), arr_coords[0], delta_start)
+                delta_end = arr_coords[-1] - arr_coords[-2]
+                extra_end = np.arange(
+                    arr_coords[-1] + delta_end, arr_coords[-1] + delta_end * (s // 2) + delta_end * 1e-8, delta_end
+                )
+                arr_coords = np.concatenate([extra_start, arr_coords, extra_end])
+                exp_coords.append(ArrayCoordinates1d(arr_coords, **coord.properties))
+                exp_slice.append(slice(extra_start.size, -extra_end.size))
 
         # Add missing dims back in -- this is needed in case the source is a reduce node.
         exp_coords += [coordinates[d] for d in missing_dims]
@@ -171,7 +188,6 @@ class Convolution(UnaryAlgorithm):
                 )
             )
 
-        full_kernel = self._get_full_kernel(coordinates)
         kernel_dims_u = kernel_dims
         kernel_dims = self.kernel_dims
         sum_dims = [d for d in kernel_dims if d not in source.dims]
@@ -225,7 +241,3 @@ class Convolution(UnaryAlgorithm):
                 k = np.tensordot(k, k1d, 0)
 
         return k / k.sum()
-
-    def _get_full_kernel(self, coordinates):
-        """{full_kernel}"""
-        return self.kernel
