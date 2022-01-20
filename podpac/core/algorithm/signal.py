@@ -59,14 +59,15 @@ class Convolution(UnaryAlgorithm):
         Source node on which convolution will be performed.
     kernel : np.ndarray, optional
         The convolution kernel. This kernel must include the dimensions of source node outputs. The dimensions for this
-        array are labelled by `kernel_dims`. Any dimensions not in the soucr nodes outputs will be summed over.
+        array are labelled by `kernel_dims`. Any dimensions not in the source nodes outputs will be summed over.
     kernel_dims : list, optional
-        A list of the dimensions for the kernel axes. The dimensions in this list must match the
-        coordinates in the source, or contain additional dimensions, and the order does not need to match.
-        Any extra dimensions are summed out.
+        A list of the dimensions for the kernel axes. If the dimensions in this list do not match the
+        coordinates in the source, then any extra dimensions in the kernel are summed out and any extra
+        dimensions in the source are not convolved with any kernel.
+
     kernel_type : str, optional
         If kernel is not defined, kernel_type will create a kernel based on the inputs, and it will have the
-        same number of axes as kernel_ndim.
+        same number of axes as kernel_dim.
         The format for the created  kernels is '<kernel_type>, <kernel_size>, <kernel_params>'.
         Any kernel defined in `scipy.signal` as well as `mean` can be used. For example:
         kernel_type = 'mean, 8' or kernel_type = 'gaussian,16,8' are both valid.
@@ -159,8 +160,9 @@ class Convolution(UnaryAlgorithm):
                 delta_start = arr_coords[1] - arr_coords[0]
                 extra_start = np.arange(arr_coords[0] - delta_start * (s // 2), arr_coords[0], delta_start)
                 delta_end = arr_coords[-1] - arr_coords[-2]
+                # The 1e-07 is for floating point error to make sure endpoint is included
                 extra_end = np.arange(
-                    arr_coords[-1] + delta_end, arr_coords[-1] + delta_end * (s // 2) + delta_end * 1e-8, delta_end
+                    arr_coords[-1] + delta_end, arr_coords[-1] + delta_end * (s // 2) + delta_end * 1e-7, delta_end
                 )
                 arr_coords = np.concatenate([extra_start, arr_coords, extra_end])
                 exp_coords.append(ArrayCoordinates1d(arr_coords, **coord.properties))
@@ -168,7 +170,6 @@ class Convolution(UnaryAlgorithm):
 
         # Add missing dims back in -- this is needed in case the source is a reduce node.
         exp_coords += [coordinates[d] for d in missing_dims]
-        # exp_slice += [slice(None) for d in missing_dims]
 
         # Create expanded coordinates
         exp_slice = tuple(exp_slice)
@@ -179,14 +180,6 @@ class Convolution(UnaryAlgorithm):
 
         # evaluate source using expanded coordinates, convolve, and then slice out original coordinates
         source = self.source.eval(expanded_coordinates, _selector=_selector)
-
-        # Check dimensions
-        if any([d not in kernel_dims for d in source.dims if d != "output"]):
-            raise ValueError(
-                "Kernel dims must contain all of the dimensions in source but not all of {} is in kernel_dims={}".format(
-                    source.dims, kernel_dims
-                )
-            )
 
         kernel_dims_u = kernel_dims
         kernel_dims = self.kernel_dims
@@ -199,6 +192,20 @@ class Convolution(UnaryAlgorithm):
         # Put the kernel axes in the correct order
         # The (if d in kernel_dims) takes care of "output", which can be optionally present
         full_kernel = full_kernel.transpose([kernel_dims.index(d) for d in source.dims if (d in kernel_dims)])
+
+        # Check for extra dimensions in the source and reshape the kernel appropriately
+        if any([d not in kernel_dims for d in source.dims if d != "output"]):
+            new_axis = []
+            new_exp_slice = []
+            for d in source.dims:
+                if d in kernel_dims:
+                    new_axis.append(slice(None))
+                    new_exp_slice.append(exp_slice[kernel_dims.index(d)])
+                else:
+                    new_axis.append(None)
+                    new_exp_slice.append(slice(None))
+            full_kernel = full_kernel[new_axis]
+            exp_slice = new_exp_slice
 
         if np.any(np.isnan(source)):
             method = "direct"

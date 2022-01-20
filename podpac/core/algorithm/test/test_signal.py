@@ -67,16 +67,6 @@ class TestConvolution(object):
         o = node2d.eval(Coordinates([lat, lon]))
         o = node3d.eval(Coordinates([lat, lon, time]))
 
-        with pytest.raises(
-            ValueError, match="Kernel dims must contain all of the dimensions in source but not all of "
-        ):
-            node2d.eval(Coordinates([lat, lon, time]))
-
-        with pytest.raises(
-            ValueError, match="Kernel dims must contain all of the dimensions in source but not all of "
-        ):
-            node2d.eval(Coordinates([lat, time]))
-
     def test_eval_multiple_outputs(self):
 
         lat = clinspace(45, 66, 30, name="lat")
@@ -214,13 +204,15 @@ class TestConvolution(object):
         ) / 9
         assert np.abs(o.data - expected).max() < 1e-14
 
-    # def test_partial_source_convolution(self):
-    #     lat = clinspace(-0.25, 1.25, 7, name="lat")
-    #     lon = clinspace(-0.125, 1.125, 11, name="lon")
-    #     time = ["2012-05-19", "2016-01-31", "2018-06-20"]
-    #     coords = Coordinates([lat, lon, time], dims=["lat", "lon", "time"])
+    def test_partial_source_convolution(self):
+        lat = clinspace(-0.25, 1.25, 7, name="lat")
+        lon = clinspace(-0.125, 1.125, 11, name="lon")
+        time = ["2012-05-19", "2016-01-31", "2018-06-20"]
+        coords = Coordinates([lat, lon, time], dims=["lat", "lon", "time"])
 
-    #     source = Array(source=np.random.random(coords.shape), coordinates=coords)
-    #     node = Convolution(source=source, kernel=[[-1, 2, -1]], kernel_dims=["lat", "lon"], force_eval=True)
-    #     o = node.eval(coords)
-    #     assert np.all([d in ["lat", "lon", "time"] for d in o.dims])
+        source = Array(source=np.random.random(coords.shape), coordinates=coords)
+        node = Convolution(source=source, kernel=[[-1, 2, -1]], kernel_dims=["lat", "lon"], force_eval=True)
+        o = node.eval(coords[:, 1:-1, :])
+        expected = source.source[:, 1:-1] * 2 - source.source[:, 2:] - source.source[:, :-2]
+
+        assert np.abs(o.data - expected).max() < 1e-14
