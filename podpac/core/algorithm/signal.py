@@ -139,13 +139,16 @@ class Convolution(UnaryAlgorithm):
             if isinstance(coord, UniformCoordinates1d):
                 s_start = -s // 2
                 s_end = max(s // 2 - ((s + 1) % 2), 1)
-                # The 1e-07 is for floating point error because if endpoint is slightly
+                # The 1e-14 is for floating point error because if endpoint is slightly
                 # in front of step * N then the endpoint is excluded
+                # ALSO: MUST use size instead of step otherwise floating point error
+                # makes the xarray arrays not align. The following HAS to be true:
+                #     np.diff(coord.coordinates).mean() == coord.step
                 exp_coords.append(
                     UniformCoordinates1d(
                         add_coord(coord.start, s_start * coord.step),
-                        add_coord(coord.stop, s_end * coord.step + 1e-07 * coord.step),
-                        coord.step,
+                        add_coord(coord.stop, s_end * coord.step + 1e-14 * coord.step),
+                        size=coord.size - s_start + s_end,  # HAVE to use size, see note above
                         **coord.properties
                     )
                 )
@@ -160,9 +163,9 @@ class Convolution(UnaryAlgorithm):
                 delta_start = arr_coords[1] - arr_coords[0]
                 extra_start = np.arange(arr_coords[0] - delta_start * (s // 2), arr_coords[0], delta_start)
                 delta_end = arr_coords[-1] - arr_coords[-2]
-                # The 1e-07 is for floating point error to make sure endpoint is included
+                # The 1e-14 is for floating point error to make sure endpoint is included
                 extra_end = np.arange(
-                    arr_coords[-1] + delta_end, arr_coords[-1] + delta_end * (s // 2) + delta_end * 1e-7, delta_end
+                    arr_coords[-1] + delta_end, arr_coords[-1] + delta_end * (s // 2) + delta_end * 1e-14, delta_end
                 )
                 arr_coords = np.concatenate([extra_start, arr_coords, extra_end])
                 exp_coords.append(ArrayCoordinates1d(arr_coords, **coord.properties))
