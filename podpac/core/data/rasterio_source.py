@@ -126,9 +126,6 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         have to overload this method.
         """
 
-        import pdb
-
-        pdb.set_trace()  # breakpoint b1ea5376 //
         # check to see if the coordinates are rotated used affine
         affine = self.dataset.transform
         validate_crs = True

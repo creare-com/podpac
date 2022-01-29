@@ -222,7 +222,10 @@ class StackedCoordinates(BaseCoordinates):
             return self._coords[self.dims.index(index)]
 
         else:
-            return StackedCoordinates([c[index] for c in self._coords])
+            return self._getsubset(index)
+
+    def _getsubset(self, index):
+        return StackedCoordinates([c[index] for c in self._coords])
 
     def __setitem__(self, dim, c):
         if not dim in self.dims:
@@ -267,6 +270,8 @@ class StackedCoordinates(BaseCoordinates):
 
         if self.shape != other.shape:
             return False
+
+        return True
 
     def __eq__(self, other):
         if not _eq_base(other):

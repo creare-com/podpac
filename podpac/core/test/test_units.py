@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 from pint.errors import DimensionalityError
 
-from podpac.core.coordinates import Coordinates, clinspace, RotatedCoordinates
+from podpac.core.coordinates import Coordinates, clinspace, AffineCoordinates
 from podpac.core.style import Style
 
 from podpac.core.units import ureg
@@ -544,9 +544,8 @@ class TestToGeoTiff(object):
     def make_rot_array(self, order=1, bands=1):
         # order = -1
         # bands = 3
-        rc = RotatedCoordinates(
-            shape=(2, 4), theta=np.pi / 8, origin=[10, 20], step=[2.0, 1.0], dims=["lat", "lon"][::order]
-        )
+        assert order == 1  # I think this requires changing the geotransform
+        rc = AffineCoordinates(geotransform=(10.0, 1.879, -1.026, 20.0, 0.684, 2.819), shape=(2, 4))
         c = Coordinates([rc])
         node = Array(
             source=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
@@ -637,11 +636,7 @@ class TestToGeoTiff(object):
 
         from podpac.core.data.array_source import ArrayRaw
 
-        node2 = ArrayRaw(
-            source=node.source,
-            coordinates=node.coordinates,
-            outputs=node.outputs,
-        )
+        node2 = ArrayRaw(source=node.source, coordinates=node.coordinates, outputs=node.outputs,)
 
         out = node2.eval(node2.coordinates)
 

@@ -477,39 +477,44 @@ class Coordinates(tl.HasTraits):
     def from_geotransform(cls, geotransform, shape, crs=None, validate_crs=True):
         """Creates Coordinates from GDAL Geotransform."""
         tol = 1e-15  # tolerance for deciding when a number is zero
-        # Handle the case of rotated coordinates
-        # try:
-        #     rcoords = RotatedCoordinates.from_geotransform(geotransform, shape, dims=["lat", "lon"])
-        # except affine_module.UndefinedRotationError:
-        #     import pdb; pdb.set_trace()  # breakpoint 18309101 //
 
-        #     rcoords = None
-        #     _logger.debug("Rasterio source dataset does not have Rotated Coordinates")
+        acoords = AffineCoordinates(geotransform, shape)
 
-        # if rcoords is not None and np.abs(rcoords.theta % (np.pi / 2)) > tol:
-        #     # These are Rotated coordinates and we can return
-        #     coords = Coordinates([rcoords], dims=["lat_lon"], crs=crs)
-        #     return coords
+        try:
+            rotation = acoords.affine.rotation_angle / 180 * np.pi
+        except affine_module.UndefinedRotationError:
+            rotation = None
 
-        # Handle the case of uniform coordinates (not rotated, but N-S E-W aligned)
-        affine = rasterio.Affine.from_gdal(*geotransform)
-        if affine.e <= tol and affine.a <= tol:
-            order = -1
-            step = np.array([affine.d, affine.b])
+        # rotated
+        if rotation is not None and np.abs(rotation % (np.pi / 2)) > tol:
+            coords = Coordinates([acoords], crs=crs)
+
+        # TODO AffineCoordinates.simplify should return uniform coordinates when possible
+        #      remove the rotation case and use that in this case instead
+        # if acoords is not None:
+        #     TODO
+
         else:
-            order = 1
-            step = np.array([affine.e, affine.a])
+            # uniform
+            affine = rasterio.Affine.from_gdal(*geotransform)
+            if affine.e <= tol and affine.a <= tol:
+                order = -1
+                step = np.array([affine.d, affine.b])
+            else:
+                order = 1
+                step = np.array([affine.e, affine.a])
 
-        origin = affine.f + step[0] / 2, affine.c + step[1] / 2
-        end = origin[0] + step[0] * (shape[::order][0] - 1), origin[1] + step[1] * (shape[::order][1] - 1)
-        coords = Coordinates(
-            [
-                podpac.clinspace(origin[0], end[0], shape[::order][0], "lat"),
-                podpac.clinspace(origin[1], end[1], shape[::order][1], "lon"),
-            ][::order],
-            crs=crs,
-            validate_crs=validate_crs,
-        )
+            origin = affine.f + step[0] / 2, affine.c + step[1] / 2
+            end = origin[0] + step[0] * (shape[::order][0] - 1), origin[1] + step[1] * (shape[::order][1] - 1)
+            coords = Coordinates(
+                [
+                    podpac.clinspace(origin[0], end[0], shape[::order][0], "lat"),
+                    podpac.clinspace(origin[1], end[1], shape[::order][1], "lon"),
+                ][::order],
+                crs=crs,
+                validate_crs=validate_crs,
+            )
+
         return coords
 
     @classmethod
@@ -901,10 +906,9 @@ class Coordinates(tl.HasTraits):
                 self[first].start - self[first].step / 2, self[second].start - self[second].step / 2
             ) * rasterio.transform.Affine.scale(self[first].step, self[second].step)
             transform = transform.to_gdal()
-        # Do the rotated coordinates cases
-        elif "lat_lon" in self.dims and isinstance(self._coords["lat_lon"], RotatedCoordinates):
+        elif "lat_lon" in self.dims and isinstance(self._coords["lat_lon"], AffineCoordinates):
             transform = self._coords["lat_lon"].geotransform
-        elif "lon_lat" in self.dims and isinstance(self._coords["lon_lat"], RotatedCoordinates):
+        elif "lon_lat" in self.dims and isinstance(self._coords["lon_lat"], AffineCoordinates):
             transform = self._coords["lon_lat"].geotransform
         else:
             raise TypeError(

@@ -670,10 +670,6 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
     _logger.warning("GeoTIFF export assumes data is in a uniform, non-rotated coordinate system.")
 
     # Get the crs and geotransform that describes the coordinates
-    import pdb
-
-    pdb.set_trace()  # breakpoint 5113a5a3 //
-
     if crs is None:
         crs = data.attrs.get("crs")
     if crs is None:

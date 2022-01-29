@@ -28,6 +28,19 @@ class AffineCoordinates(StackedCoordinates):
         xarray coordinates (container of coordinate arrays)
     coordinates : tuple
         Tuple of 2d coordinate values in each dimension.
+
+    Notes
+    -----
+
+    https://gdal.org/tutorials/geotransforms_tut.html
+
+    GT(0) x-coordinate of the upper-left corner of the upper-left pixel.
+    GT(1) w-e pixel resolution / pixel width.
+    GT(2) row rotation (typically zero).
+    GT(3) y-coordinate of the upper-left corner of the upper-left pixel.
+    GT(4) column rotation (typically zero).
+    GT(5) n-s pixel resolution / pixel height (negative value for a north-up image).
+
     """
 
     geotransform = tl.Tuple(tl.Float(), tl.Float(), tl.Float(), tl.Float(), tl.Float(), tl.Float(), read_only=True)
@@ -95,12 +108,7 @@ class AffineCoordinates(StackedCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     def __repr__(self):
-        return "%s(%s): Origin%s, Shape%s" % (
-            self.__class__.__name__,
-            self.dims,
-            self.origin,
-            self.shape,
-        )
+        return "%s(%s): Origin%s, Shape%s" % (self.__class__.__name__, self.dims, self.origin, self.shape,)
 
     def __eq__(self, other):
         if not self._eq_base(other):
@@ -114,10 +122,7 @@ class AffineCoordinates(StackedCoordinates):
 
         return True
 
-    def __getitem__(self, index):
-
-        if isinstance(index, slice):
-            index = index, slice(None)
+    def _getsubset(self, index):
 
         if isinstance(index, tuple) and isinstance(index[0], slice) and isinstance(index[1], slice):
             raise NotImplementedError("TODO")
@@ -130,9 +135,7 @@ class AffineCoordinates(StackedCoordinates):
 
         else:
             raise NotImplementedError("TODO")
-            # NOTE may not need to use StackedCoordinates any more
-            # convert to raw StackedCoordinates (which creates the _coords attribute that the indexing requires)
-            return StackedCoordinates(self.coordinates, dims=self.dims).__getitem__(index)
+            return super(AffineCoordinates, self)._getsubset(index)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -140,7 +143,6 @@ class AffineCoordinates(StackedCoordinates):
 
     @property
     def _coords(self):
-        raise NotImplementedError("TODO")
         return [ArrayCoordinates1d(c, name=dim) for c, dim in zip(self.coordinates, self.dims)]
 
     @property
@@ -162,8 +164,7 @@ class AffineCoordinates(StackedCoordinates):
 
     @property
     def origin(self):
-        """ :array: lower right corner. """
-        origin = self.affine * [0.5, 0.5]
+        origin = self.affine * [0, 0]
         if self.dims == ("lat", "lon"):
             origin = origin[::-1]
         return origin
@@ -183,7 +184,7 @@ class AffineCoordinates(StackedCoordinates):
             c = np.stack([y, x])
         else:
             c = np.stack([x, y])
-        return c.transpose(1, 2, 0)
+        return c.T  # transpose(1, 2, 0)
 
     @property
     def definition(self):
@@ -209,7 +210,7 @@ class AffineCoordinates(StackedCoordinates):
         :class:`AffineCoordinates`
             Copy of the affine coordinates.
         """
-        return AffineCoordinates(self.geotransform, self.shape, dims=self.dims)
+        return AffineCoordinates(self.geotransform, self.shape)
 
     def get_area_bounds(self, boundary):
         """Get coordinate area bounds, including boundary information, for each unstacked dimension.
@@ -257,8 +258,9 @@ class AffineCoordinates(StackedCoordinates):
             # returning the general stacked coordinates is a general solution
             return super(AffineCoordinates, self).select(bounds, outer=outer, return_index=return_index)
 
-        raise NotImplementedError("TODO")
-        lat, lon = self.coordinates
+        # same rotation and step, new origin and shape
+        lat = self.coordinates[:, :, 0]
+        lon = self.coordinates[:, :, 1]
         b = (
             (lat >= bounds["lat"][0])
             & (lat <= bounds["lat"][1])
@@ -273,9 +275,20 @@ class AffineCoordinates(StackedCoordinates):
         jmax = min(self.shape[1] - 1, np.max(J) + 1)
 
         origin = np.array([lat[imin, jmin], lon[imin, jmin]])
-        corner = np.array([lat[imax, jmax], lon[imax, jmax]])
-        shape = imax - imin + 1, jmax - jmin + 1
-        selected = AffineCoordinates(geotransform=geotransform, shape=shape, dims=self.dims)
+        origin -= np.array([lat[0, 0], lon[0, 0]]) - self.origin
+
+        shape = int(imax - imin + 1), int(jmax - jmin + 1)
+
+        geotransform = (
+            origin[1],
+            self.geotransform[1],
+            self.geotransform[2],
+            origin[0],
+            self.geotransform[4],
+            self.geotransform[5],
+        )
+
+        selected = AffineCoordinates(geotransform=geotransform, shape=shape)
 
         if return_index:
             return selected, (slice(imin, imax + 1), slice(jmin, jmax + 1))
@@ -292,9 +305,9 @@ class AffineCoordinates(StackedCoordinates):
     def plot(self, marker="b.", origin_marker="bo", corner_marker="bx"):
         from matplotlib import pyplot
 
-        pyplot.plot(self.coordinates[0].flatten(), self.coordinates[1].flatten(), marker)
+        x = self.coordinates[:, :, 0]
+        y = self.coordinates[:, :, 1]
+        pyplot.plot(x.flatten(), y.flatten(), marker)
         ox, oy = self.origin
-        cx, cy = self.corner
         pyplot.plot(ox, oy, origin_marker)
-        pyplot.plot(cx, cy, corner_marker)
-        pyplot.show(block=False)
+        pyplot.gca().set_aspect("equal")
