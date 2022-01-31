@@ -532,8 +532,6 @@ class TestToImage(object):
 
 class TestToGeoTiff(object):
     def make_square_array(self, order=1, bands=1):
-        # order = -1
-        # bands = 3
         node = Array(
             source=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
             coordinates=Coordinates([clinspace(4, 0, 2, "lat"), clinspace(1, 4, 4, "lon")][::order], crs="EPSG:4326"),
@@ -541,12 +539,28 @@ class TestToGeoTiff(object):
         )
         return node
 
+    def make_stacked_square_array(self, order=1, bands=1):
+        node = Array(
+            source=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
+            coordinates=Coordinates(
+                [np.meshgrid([1, 2, 3, 4], [4, 0])[::-1][::order]],
+                dims=["_".join(["lat", "lon"][::order])],
+                crs="EPSG:4326",
+            ),
+            outputs=[str(s) for s in list(range(bands))],
+        )
+
+        return node
+
     def make_rot_array(self, order=1, bands=1):
-        # order = -1
-        # bands = 3
-        assert order == 1  # I think this requires changing the geotransform
-        rc = AffineCoordinates(geotransform=(10.0, 1.879, -1.026, 20.0, 0.684, 2.819), shape=(2, 4))
-        c = Coordinates([rc])
+        if order == 1:
+            geotransform = (10.0, 1.879, -1.026, 20.0, 0.684, 2.819)
+        else:
+            # I think this requires changing the geotransform? Not yet supported
+            raise NotImplementedError("TODO")
+
+        rc = AffineCoordinates(geotransform=geotransform, shape=(2, 4))
+        c = Coordinates([rc], crs="EPSG:4326")
         node = Array(
             source=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
             coordinates=c,
@@ -630,15 +644,42 @@ class TestToGeoTiff(object):
             rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 1], rout.data)
 
+    def test_to_geotiff_roundtrip_stacked_coords(self):
+        # lat/lon order, usual
+        node = self.make_stacked_square_array()
+
+        out = node.eval(node.coordinates)
+
+        with tempfile.NamedTemporaryFile("wb") as fp:
+            out.to_geotiff(fp)
+            fp.write(b"a")  # for some reason needed to get good comparison
+
+            fp.seek(0)
+            rnode = Rasterio(source=fp.name, outputs=node.outputs, mode="r")
+            assert node.coordinates == rnode.coordinates
+
+            rout = rnode.eval(rnode.coordinates)
+            np.testing.assert_almost_equal(out.data, rout.data)
+
+        # lon/lat order, unsual
+        node = self.make_stacked_square_array(order=-1)
+        out = node.eval(node.coordinates)
+        with tempfile.NamedTemporaryFile("wb") as fp:
+            out.to_geotiff(fp)
+            fp.write(b"a")  # for some reason needed to get good comparison
+
+            fp.seek(0)
+            rnode = Rasterio(source=fp.name, outputs=node.outputs)
+            assert node.coordinates == rnode.coordinates
+
+            rout = rnode.eval(rnode.coordinates)
+            np.testing.assert_almost_equal(out.data, rout.data)
+
     def test_to_geotiff_roundtrip_rotcoords(self):
         # lat/lon order, usual
         node = self.make_rot_array()
 
-        from podpac.core.data.array_source import ArrayRaw
-
-        node2 = ArrayRaw(source=node.source, coordinates=node.coordinates, outputs=node.outputs,)
-
-        out = node2.eval(node2.coordinates)
+        out = node.eval(node.coordinates)
 
         with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)

@@ -63,7 +63,7 @@ class AffineCoordinates(StackedCoordinates):
         self.set_trait("geotransform", geotransform)
         self.set_trait("shape", shape)
 
-        # properties
+        # private traits
         self._affine = rasterio.Affine.from_gdal(*self.geotransform)
 
     @tl.validate("shape")
@@ -108,7 +108,12 @@ class AffineCoordinates(StackedCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     def __repr__(self):
-        return "%s(%s): Origin%s, Shape%s" % (self.__class__.__name__, self.dims, self.origin, self.shape,)
+        return "%s(%s): Origin%s, Shape%s" % (
+            self.__class__.__name__,
+            self.dims,
+            self.origin,
+            self.shape,
+        )
 
     def __eq__(self, other):
         if not self._eq_base(other):
@@ -143,7 +148,11 @@ class AffineCoordinates(StackedCoordinates):
 
     @property
     def _coords(self):
-        return [ArrayCoordinates1d(c, name=dim) for c, dim in zip(self.coordinates, self.dims)]
+        if not hasattr(self, "_coords_"):
+            self._coords_ = [
+                ArrayCoordinates1d(c, name=dim) for c, dim in zip(self.coordinates.transpose(2, 0, 1), self.dims)
+            ]
+        return self._coords_
 
     @property
     def ndim(self):
@@ -184,7 +193,7 @@ class AffineCoordinates(StackedCoordinates):
             c = np.stack([y, x])
         else:
             c = np.stack([x, y])
-        return c.T  # transpose(1, 2, 0)
+        return c.transpose(1, 2, 0)
 
     @property
     def definition(self):

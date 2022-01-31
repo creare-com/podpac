@@ -326,6 +326,10 @@ class Coordinates(tl.HasTraits):
             podpac Coordinates
         """
 
+        if "geotransform" in x.attrs:
+            shape = x.transpose(..., "output").shape[:-1]
+            return cls.from_geotransform(x.geotransform, shape=shape, crs=crs, validate_crs=validate_crs)
+
         if isinstance(x, (xr.DataArray, xr.Dataset)):
             xcoords = x.coords
             # only pull crs from the DataArray attrs if the crs is not specified
@@ -1039,7 +1043,10 @@ class Coordinates(tl.HasTraits):
                     cs.append(c)
             elif isinstance(c, StackedCoordinates):
                 stacked = [s for s in c if s.name not in dims]
-                if len(stacked) > 1:
+                if len(stacked) == len(c):
+                    # preserves parameterized stacked coordinates such as AffineCoordinates
+                    cs.append(c)
+                elif len(stacked) > 1:
                     cs.append(StackedCoordinates(stacked))
                 elif len(stacked) == 1:
                     cs.append(stacked[0])

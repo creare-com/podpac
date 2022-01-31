@@ -11,7 +11,7 @@ import traitlets as tl
 
 from podpac.core import settings
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import merge_dims, Coordinates
+from podpac.core.coordinates import merge_dims, Coordinates, StackedCoordinates
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 from podpac.core.interpolation.interpolator import Interpolator
 from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
@@ -594,13 +594,18 @@ class InterpolationManager(object):
         # TODO handle stacked issubset of unstacked case
         #      this case is currently skipped because of the set(eval_coordinates) == set(source_coordinates)))
         if eval_coordinates.issubset(source_coordinates) and set(eval_coordinates) == set(source_coordinates):
-            try:
-                output_data.data[:] = source_data.interp(output_data.coords, method="nearest").transpose(
-                    *output_data.dims
-                )
-            except (NotImplementedError, ValueError):
-                output_data.data[:] = source_data.sel(output_data.coords).transpose(*output_data.dims)
-            return output_data
+            if any(isinstance(c, StackedCoordinates) and c.ndim > 1 for c in eval_coordinates.values()):
+                # TODO AFFINE
+                # currently this is bypassing the short-circuit in the shaped stacked coordinates case
+                pass
+            else:
+                try:
+                    data = source_data.interp(output_data.coords, method="nearest")
+                except (NotImplementedError, ValueError):
+                    data = source_data.sel(output_data.coords)
+
+                output_data.data[:] = data.transpose(*output_data.dims)
+                return output_data
 
         interpolator_queue = self._select_interpolator_queue(
             source_coordinates, eval_coordinates, "can_interpolate", strict=True
