@@ -37,8 +37,6 @@ from podpac.core.coordinates.cfunctions import clinspace
 from lazy_import import lazy_module, lazy_class
 
 rasterio = lazy_module("rasterio")
-affine_module = lazy_module("affine")
-
 
 # Set up logging
 _logger = logging.getLogger(__name__)
@@ -481,46 +479,11 @@ class Coordinates(tl.HasTraits):
     @classmethod
     def from_geotransform(cls, geotransform, shape, crs=None, validate_crs=True):
         """Creates Coordinates from GDAL Geotransform."""
-        tol = 1e-15  # tolerance for deciding when a number is zero
 
-        acoords = AffineCoordinates(geotransform, shape)
-
-        try:
-            rotation = acoords.affine.rotation_angle / 180 * np.pi
-        except affine_module.UndefinedRotationError:
-            rotation = None
-
-        # rotated
-        if rotation is not None and np.abs(rotation % (np.pi / 2)) > tol:
-            coords = Coordinates([acoords], crs=crs)
-
-        # TODO AffineCoordinates.simplify should return uniform coordinates when possible
-        #      remove the rotation case and use that in this case instead
-        # if acoords is not None:
-        #     TODO
-
-        else:
-            # uniform
-            affine = rasterio.Affine.from_gdal(*geotransform)
-            if affine.e <= tol and affine.a <= tol:
-                order = -1
-                step = np.array([affine.d, affine.b])
-            else:
-                order = 1
-                step = np.array([affine.e, affine.a])
-
-            origin = affine.f + step[0] / 2, affine.c + step[1] / 2
-            end = origin[0] + step[0] * (shape[::order][0] - 1), origin[1] + step[1] * (shape[::order][1] - 1)
-            coords = Coordinates(
-                [
-                    podpac.clinspace(origin[0], end[0], shape[::order][0], "lat"),
-                    podpac.clinspace(origin[1], end[1], shape[::order][1], "lon"),
-                ][::order],
-                crs=crs,
-                validate_crs=validate_crs,
-            )
-
-        return coords
+        cs = AffineCoordinates(geotransform, shape).simplify()
+        if isinstance(cs, AffineCoordinates):
+            cs = [cs]
+        return Coordinates(cs, crs=crs, validate_crs=validate_crs)
 
     @classmethod
     def from_definition(cls, d):
@@ -562,8 +525,8 @@ class Coordinates(tl.HasTraits):
                 c = UniformCoordinates1d.from_definition(e)
             elif "name" in e and "values" in e:
                 c = ArrayCoordinates1d.from_definition(e)
-            elif "dims" in e and "shape" in e and "theta" in e and "origin" in e and ("step" in e or "corner" in e):
-                c = RotatedCoordinates.from_definition(e)
+            elif "geotransform" in e and "shape" in e:
+                c = AffineCoordinates.from_definition(e)
             else:
                 raise ValueError("Could not parse coordinates definition item with keys %s" % e.keys())
 
@@ -1484,7 +1447,13 @@ class Coordinates(tl.HasTraits):
             Simplified coordinates.
         """
 
-        cs = [c.simplify() for c in self._coords.values()]
+        cs = []
+        for c in self._coords.values():
+            c2 = c.simplify()
+            if isinstance(c2, list):
+                cs += c2
+            else:
+                cs.append(c2)
         return Coordinates(cs, **self.properties)
 
     def issubset(self, other):

@@ -143,16 +143,12 @@ class TestAffineCoordinatesCreation(object):
 class TestAffineCoordinatesProperties(object):
     def test_origin(self):
         c = AffineCoordinates(geotransform=GEOTRANSFORM_NORTHUP, shape=(3, 4))
-        np.testing.assert_array_equal(c.origin, [18.5, 11.0])
+        np.testing.assert_array_equal(c.origin, [20.0, 10.0])
 
-    # def test_origin_rotated(self):
-    #     # lat, lon
-    #     c = AffineCoordinates(geotransform=GEOTRANSFORM_ROTATED, shape=(3, 4), dims=['lat', 'lon'])
-    #     np.testing.assert_array_equal(c.origin, [20, 10])
-
-    #     # lon, lat
-    #     c = AffineCoordinates(geotransform=GEOTRANSFORM_ROTATED, shape=(3, 4), dims=['lon', 'lat'])
-    #     np.testing.assert_array_equal(c.origin, [10, 20])
+    def test_origin_rotated(self):
+        # lat, lon
+        c = AffineCoordinates(geotransform=GEOTRANSFORM_ROTATED, shape=(3, 4))
+        np.testing.assert_array_equal(c.origin, [20.0, 10.0])
 
     def test_coordinates(self):
         c = AffineCoordinates(geotransform=GEOTRANSFORM_NORTHUP, shape=(3, 4))

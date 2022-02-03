@@ -7,9 +7,11 @@ import traitlets as tl
 import lazy_import
 
 rasterio = lazy_import.lazy_module("rasterio")
+affine_module = lazy_import.lazy_module("affine")
 
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
+from podpac.core.coordinates.cfunctions import clinspace
 
 
 class AffineCoordinates(StackedCoordinates):
@@ -101,7 +103,7 @@ class AffineCoordinates(StackedCoordinates):
             raise ValueError('AffineCoordinates definition requires "geotransform" property')
         if "shape" not in d:
             raise ValueError('AffineCoordinates definition requires "shape" property')
-        return AffineCoordinates(d)
+        return AffineCoordinates(geotransform=d["geotransform"], shape=d["shape"])
 
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods
@@ -305,7 +307,37 @@ class AffineCoordinates(StackedCoordinates):
             return selected
 
     def simplify(self):
-        return self.copy()
+        # NOTE: podpac prefers unstacked UniformCoordinates to AffineCoordinates
+        #       if that changes, just return self.copy()
+
+        tol = 1e-15  # tolerance for deciding when a number is zero
+        affine = self.affine
+        shape = self.shape
+
+        # get rotation
+        try:
+            rotation = affine.rotation_angle / 180 * np.pi
+        except affine_module.UndefinedRotationError:
+            rotation = None
+
+        # rotated
+        if rotation is not None and np.abs(rotation % (np.pi / 2)) > tol:
+            return self.copy()
+
+        # uniform
+        else:
+            if affine.e <= tol and affine.a <= tol:
+                order = -1
+                step = np.array([affine.d, affine.b])
+            else:
+                order = 1
+                step = np.array([affine.e, affine.a])
+
+            origin = affine.f + step[0] / 2, affine.c + step[1] / 2
+            end = origin[0] + step[0] * (shape[::order][0] - 1), origin[1] + step[1] * (shape[::order][1] - 1)
+            lat = clinspace(origin[0], end[0], shape[::order][0], "lat")
+            lon = clinspace(origin[1], end[1], shape[::order][1], "lon")
+            return [lat, lon][::order]
 
     # ------------------------------------------------------------------------------------------------------------------
     # Debug

@@ -2137,7 +2137,6 @@ class TestCoordinatesMethodSimplify(object):
         # uniform -> uniform
         assert c2.simplify() == c4
 
-    @pytest.mark.skip(reason="test not yet implemented")
     def test_stacked_to_affine(self):
         geotransform_rotated = (10.0, 1.879, -1.026, 20.0, 0.684, 2.819)
         c1 = Coordinates([AffineCoordinates(geotransform=geotransform_rotated, shape=(4, 6))])
@@ -2150,6 +2149,7 @@ class TestCoordinatesMethodSimplify(object):
         assert c1.simplify() == c1
 
     def test_affine_to_uniform(self):
+        # NOTE: this assumes that podpac prefers unstacked UniformCoordinates to AffineCoordinates
         geotransform_northup = (10.0, 2.0, 0.0, 20.0, 0.0, -3.0)
         geotransform_rotated = (10.0, 1.879, -1.026, 20.0, 0.684, 2.819)
 

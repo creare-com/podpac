@@ -274,7 +274,7 @@ class StackedCoordinates(BaseCoordinates):
         return True
 
     def __eq__(self, other):
-        if not _eq_base(other):
+        if not self._eq_base(other):
             return False
 
         # full check of underlying coordinates
