@@ -642,20 +642,4 @@ class StackedCoordinates(BaseCoordinates):
             return all(a.issubset(o) for a, o in zip(acs, ocs))
 
     def simplify(self):
-        if self.is_affine:
-            # TODO AFFINE
-            # raise NotImplementedError("TODO")
-            pass
-
         return StackedCoordinates([c.simplify() for c in self._coords])
-
-    def is_affine(self):
-        if set(self.dims) != {"lat", "lon"}:
-            return False
-
-        if not (self.ndim == 2 and self.shape[0] > 1 and self.shape[1] > 1):
-            return False
-
-        # TODO AFFINE
-        # check if the coordinates are in a uniform grid, potentially rotated
-        raise NotImplementedError("TODO")
