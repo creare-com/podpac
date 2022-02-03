@@ -326,15 +326,16 @@ class Coordinates(tl.HasTraits):
             podpac Coordinates
         """
 
-        if "geotransform" in x.attrs:
-            shape = x.transpose(..., "output").shape[:-1]
-            return cls.from_geotransform(x.geotransform, shape=shape, crs=crs, validate_crs=validate_crs)
-
         if isinstance(x, (xr.DataArray, xr.Dataset)):
-            xcoords = x.coords
             # only pull crs from the DataArray attrs if the crs is not specified
             if crs is None:
                 crs = x.attrs.get("crs")
+
+            if "geotransform" in x.attrs:
+                shape = x.transpose(..., "output").shape[:-1]
+                return cls.from_geotransform(x.geotransform, shape=shape, crs=crs, validate_crs=validate_crs)
+
+            xcoords = x.coords
         elif isinstance(x, (xarray.core.coordinates.DataArrayCoordinates, xarray.core.coordinates.DatasetCoordinates)):
             xcoords = x
         else:
