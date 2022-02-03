@@ -2112,19 +2112,56 @@ class TestCoordinatesMethodSimplify(object):
         # uniform -> uniform
         assert c3.simplify() == c3.simplify()
 
-    @pytest.mark.skip(reason="test not yet implemented")
-    # @pytest.mark.xfail(reason="not implemented")
+    @pytest.mark.xfail(reason="not implemented")
     def test_simplify_stacked_to_unstacked(self):
-        pass
+        c1 = Coordinates([np.meshgrid([1, 2, 3, 5], [4, 6, 8])], dims=["lat_lon"])
+        c2 = Coordinates([[1, 2, 3, 5], [4, 6, 8]], dims=["lat", "lon"])
 
-    @pytest.mark.skip(reason="test not yet implemented")
+        assert c1.simplify() == c2
+        assert c2.simplify() == c2
+
+        # uniform
+        c3 = Coordinates([np.meshgrid([1, 2, 3, 4], [4, 6, 8])], dims=["lat_lon"])
+        c4 = Coordinates([clinspace(1, 4, 4), clinspace(4, 8, 3)], dims=["lat", "lon"])
+
+        assert c3.simplify() == c4
+        assert c4.simplify() == c4
+
     def test_stacked_to_uniform(self):
-        pass
+        c1 = Coordinates([np.meshgrid([1, 2, 3, 4], [4, 6, 8])], dims=["lat_lon"])
+        c2 = Coordinates([clinspace(1, 4, 4), clinspace(4, 8, 3)], dims=["lat", "lon"])
+
+        # stacked grid -> uniform
+        assert c1.simplify() == c2
+
+        # uniform -> uniform
+        assert c2.simplify() == c4
 
     @pytest.mark.skip(reason="test not yet implemented")
     def test_stacked_to_affine(self):
-        pass
+        geotransform_rotated = (10.0, 1.879, -1.026, 20.0, 0.684, 2.819)
+        c1 = Coordinates([AffineCoordinates(geotransform=geotransform_rotated, shape=(4, 6))])
+        c2 = Coordinates([c1["lat_lon"]["lat"], c1["lat_lon"]["lon"]])
 
-    @pytest.mark.skip(reason="test not yet implemented")
+        # stacked -> affine
+        assert c2.simplify() == c1
+
+        # affine -> affine
+        assert c1.simplify() == c1
+
     def test_affine_to_uniform(self):
-        pass
+        geotransform_northup = (10.0, 2.0, 0.0, 20.0, 0.0, -3.0)
+        geotransform_rotated = (10.0, 1.879, -1.026, 20.0, 0.684, 2.819)
+
+        c1 = Coordinates([AffineCoordinates(geotransform=geotransform_northup, shape=(4, 6))])
+        c2 = Coordinates([AffineCoordinates(geotransform=geotransform_rotated, shape=(4, 6))])
+        c3 = Coordinates([clinspace(18.5, 9.5, 4, name="lat"), clinspace(11, 21, 6, name="lon")])
+
+        # unrotated affine -> unstacked uniform
+        assert c1.simplify() == c3
+
+        # rotated affine -> rotated affine
+        assert c2.simplify() == c2
+
+        # unstacked uniform -> unstacked uniform
+        assert c3.simplify() == c3
