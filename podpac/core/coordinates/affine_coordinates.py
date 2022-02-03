@@ -130,18 +130,13 @@ class AffineCoordinates(StackedCoordinates):
         return True
 
     def _getsubset(self, index):
-
         if isinstance(index, tuple) and isinstance(index[0], slice) and isinstance(index[1], slice):
+            # if the step is 1 for both slices, just need to modify the geotransform offset and the shape
+            # otherwise, need to also modify the geotransform scale/resolution
             raise NotImplementedError("TODO")
-            I = np.arange(self.shape[0])[index[0]]
-            J = np.arange(self.shape[1])[index[1]]
-            origin = self.affine * [I[0], J[0]]
-            step = self.step * [index[0].step or 1, index[1].step or 1]
-            shape = I.size, J.size
-            return AffineCoordinates(shape, self.theta, origin, step)
+            return AffineCoordinates(geotransform=geotransform, shape=shape)
 
         else:
-            raise NotImplementedError("TODO")
             return super(AffineCoordinates, self)._getsubset(index)
 
     # ------------------------------------------------------------------------------------------------------------------
