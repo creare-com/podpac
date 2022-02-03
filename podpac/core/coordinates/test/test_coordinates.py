@@ -13,7 +13,7 @@ import podpac
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
-from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
+from podpac.core.coordinates.affine_coordinates import AffineCoordinates
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.cfunctions import crange, clinspace
 from podpac.core.coordinates.coordinates import Coordinates
@@ -180,7 +180,7 @@ class TestCoordinateCreation(object):
         assert c.size == 12
 
     def test_rotated(self):
-        latlon = RotatedCoordinates((3, 4), np.pi / 4, [10, 20], [1.0, 2.0], dims=["lat", "lon"])
+        latlon = AffineCoordinates(geotransform=(10.0, 2.0, 0.0, 20.0, 0.0, -3.0), shape=(3, 4))
         c = Coordinates([latlon])
         assert c.dims == ("lat_lon",)
         assert c.udims == ("lat", "lon")
@@ -227,8 +227,8 @@ class TestCoordinateCreation(object):
         assert c.size == 72
         repr(c)
 
-    def test_mixed_rotated(sesf):
-        latlon = RotatedCoordinates((3, 4), np.pi / 4, [10, 20], [1.0, 2.0], dims=["lat", "lon"])
+    def test_mixed_affine(sesf):
+        latlon = AffineCoordinates(geotransform=(10.0, 2.0, 0.0, 20.0, 0.0, -3.0), shape=(3, 4))
         dates = [["2018-01-01", "2018-01-02", "2018-01-03"], ["2019-01-01", "2019-01-02", "2019-01-03"]]
         c = Coordinates([latlon, dates], dims=["lat_lon", "time"])
         assert c.dims == ("lat_lon", "time")
@@ -640,8 +640,8 @@ class TestCoordinatesSerialization(object):
         c2 = Coordinates.from_definition(d)
         assert c2 == c
 
-    def test_definition_rotated(self):
-        latlon = RotatedCoordinates((3, 4), np.pi / 4, [10, 20], [1.0, 2.0], dims=["lat", "lon"])
+    def test_definition_affine(self):
+        latlon = AffineCoordinates(geotransform=(10.0, 2.0, 0.0, 20.0, 0.0, -3.0), shape=(3, 4))
         c = Coordinates([latlon])
         d = c.definition
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)
@@ -1835,6 +1835,7 @@ class TestCoordinatesGeoTransform(object):
         ):
             c.geotransform
 
+    @pytest.mark.skip(reason="obsolete")
     def rot_coords_working(self):
         # order -lat, lon
         rc = RotatedCoordinates(shape=(4, 3), theta=np.pi / 8, origin=[10, 20], step=[-2.0, 1.0], dims=["lat", "lon"])
@@ -2094,3 +2095,36 @@ class TestCoordinatesMethodTransform(object):
 
         assert_array_equal(c2["lat"].coordinates, c1["lat"].coordinates)
         assert_array_equal(c2["lon"].coordinates, c1["lon"].coordinates)
+
+
+class TestCoordinatesMethodSimplify(object):
+    def test_simplify_array_to_uniform(self):
+        c1 = Coordinates([[1, 2, 3, 4], [4, 6, 8]], dims=["lat", "lon"])
+        c2 = Coordinates([[1, 2, 3, 5], [4, 6, 8]], dims=["lat", "lon"])
+        c3 = Coordinates([clinspace(1, 4, 4), clinspace(4, 8, 3)], dims=["lat", "lon"])
+
+        # array -> uniform
+        assert c1.simplify() == c3.simplify()
+
+        # array -> array
+        assert c2.simplify() == c2.simplify()
+
+        # uniform -> uniform
+        assert c3.simplify() == c3.simplify()
+
+    @pytest.mark.skip(reason="test not yet implemented")
+    # @pytest.mark.xfail(reason="not implemented")
+    def test_simplify_stacked_to_unstacked(self):
+        pass
+
+    @pytest.mark.skip(reason="test not yet implemented")
+    def test_stacked_to_uniform(self):
+        pass
+
+    @pytest.mark.skip(reason="test not yet implemented")
+    def test_stacked_to_affine(self):
+        pass
+
+    @pytest.mark.skip(reason="test not yet implemented")
+    def test_affine_to_uniform(self):
+        pass
