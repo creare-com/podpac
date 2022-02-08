@@ -795,7 +795,7 @@ class Node(tl.HasTraits):
         if self.cache_ctrl is None:
             return
 
-        self.cache_ctrl.rem(self, key=key, coordinates=coordinates, mode=mode)
+        self.cache_ctrl.rem(self, item=key, coordinates=coordinates, mode=mode)
 
     # --------------------------------------------------------#
     #  Class Methods (Deserialization)

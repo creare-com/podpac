@@ -23,10 +23,10 @@ class TestAuthentication(object):
                 set_credentials()
 
             with pytest.raises(ValueError):
-                set_credentials(None, username="test", password="test")
+                set_credentials(None, uname="test", password="test")
 
             with pytest.raises(ValueError):
-                set_credentials("", username="test", password="test")
+                set_credentials("", uname="test", password="test")
 
             # make sure these are empty at first
             assert not settings["username@test.com"]
@@ -36,12 +36,12 @@ class TestAuthentication(object):
             # TODO: how do you test this?
 
             # set both username and pw
-            set_credentials(hostname="test.com", username="testuser", password="testpass")
+            set_credentials(hostname="test.com", uname="testuser", password="testpass")
             assert settings["username@test.com"] == "testuser"
             assert settings["password@test.com"] == "testpass"
 
             # set username only
-            set_credentials(hostname="test.com", username="testuser2")
+            set_credentials(hostname="test.com", uname="testuser2")
             assert settings["username@test.com"] == "testuser2"
             assert settings["password@test.com"] == "testpass"
 

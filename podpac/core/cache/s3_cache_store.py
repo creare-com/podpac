@@ -90,13 +90,13 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
     # helper methods
     # -----------------------------------------------------------------------------------------------------------------
 
-    def search(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
+    def search(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
         """Fileglob to match files that could be storing cached data for specified node,key,coordinates
 
         Parameters
         ----------
         node : podpac.core.node.Node
-        key : str, CacheWildCard
+        item : str, CacheWildCard
             CacheWildCard indicates to match any key
         coordinates : podpac.core.coordinates.coordinates.Coordinates, CacheWildCard, None
             CacheWildCard indicates to macth any coordinates
@@ -118,7 +118,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
             obj_names = []
 
         node_dir = self._get_node_dir(node)
-        obj_names = fnmatch.filter(obj_names, self._get_filename_pattern(node, key, coordinates))
+        obj_names = fnmatch.filter(obj_names, self._get_filename_pattern(node, item, coordinates))
         paths = [self._path_join(node_dir, filename) for filename in obj_names]
         return paths
 

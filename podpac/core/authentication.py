@@ -136,7 +136,7 @@ class RequestsSessionMixin(tl.HasTraits):
             If no password is provided and the password does not already exist in the settings,
             the user will be prompted to enter one.
         """
-        return set_credentials(self.hostname, username=username, password=password)
+        return set_credentials(self.hostname, uname=username, password=password)
 
     def _create_session(self):
         """Creates a :class:`requests.Session` with username and password defined
