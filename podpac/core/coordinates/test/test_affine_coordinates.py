@@ -18,7 +18,6 @@ GEOTRANSFORM_NORTHUP = (10.0, 2.0, 0.0, 20.0, 0.0, -3.0)
 
 # origin [10, 20], step [2, 3], rotated 20 degrees
 GEOTRANSFORM_ROTATED = (10.0, 1.879, -1.026, 20.0, 0.684, 2.819)
-#                      (10.0, 1.879, -0.684, 20.0, 1.026, 2.819) # TODO which?
 
 from podpac import Coordinates
 

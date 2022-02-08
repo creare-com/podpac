@@ -2113,42 +2113,33 @@ class TestCoordinatesMethodSimplify(object):
         assert c3.simplify() == c3.simplify()
 
     @pytest.mark.skip(reason="not implemented, spec uncertain")
-    def test_simplify_stacked_to_unstacked(self):
-        c1 = Coordinates([np.meshgrid([1, 2, 3, 5], [4, 6, 8])], dims=["lat_lon"])
-        c2 = Coordinates([[1, 2, 3, 5], [4, 6, 8]], dims=["lat", "lon"])
+    def test_simplify_stacked_to_unstacked_arrays(self):
+        stacked = Coordinates([np.meshgrid([1, 2, 3, 5], [4, 6, 8])], dims=["lat_lon"])
+        unstacked = Coordinates([[1, 2, 3, 5], [4, 6, 8]], dims=["lat", "lon"])
 
-        assert c1.simplify() == c2
-        assert c2.simplify() == c2
+        assert stacked.simplify() == unstacked
+        assert unstacked.simplify() == unstacked
 
-        # uniform
-        c3 = Coordinates([np.meshgrid([1, 2, 3, 4], [4, 6, 8])], dims=["lat_lon"])
-        c4 = Coordinates([clinspace(1, 4, 4), clinspace(4, 8, 3)], dims=["lat", "lon"])
-
-        assert c3.simplify() == c4
-        assert c4.simplify() == c4
-
-    @pytest.mark.skip(reason="not implemented, spec uncertain")
-    def test_stacked_to_uniform(self):
-        c1 = Coordinates([np.meshgrid([1, 2, 3, 4], [4, 6, 8])], dims=["lat_lon"])
-        c2 = Coordinates([clinspace(1, 4, 4), clinspace(4, 8, 3)], dims=["lat", "lon"])
+    def test_stacked_to_unstacked_uniform(self):
+        stacked = Coordinates([np.meshgrid([4, 6, 8], [1, 2, 3, 4])[::-1]], dims=["lat_lon"])
+        unstacked_uniform = Coordinates([clinspace(1, 4, 4), clinspace(4, 8, 3)], dims=["lat", "lon"])
 
         # stacked grid -> uniform
-        assert c1.simplify() == c2
+        assert stacked.simplify() == unstacked_uniform
 
         # uniform -> uniform
-        assert c2.simplify() == c4
+        assert unstacked_uniform.simplify() == unstacked_uniform
 
-    @pytest.mark.skip(reason="not implemented, spec uncertain")
     def test_stacked_to_affine(self):
         geotransform_rotated = (10.0, 1.879, -1.026, 20.0, 0.684, 2.819)
-        c1 = Coordinates([AffineCoordinates(geotransform=geotransform_rotated, shape=(4, 6))])
-        c2 = Coordinates([c1["lat_lon"]["lat"], c1["lat_lon"]["lon"]])
+        affine = Coordinates([AffineCoordinates(geotransform=geotransform_rotated, shape=(4, 6))])
+        stacked = Coordinates([StackedCoordinates([affine["lat_lon"]["lat"], affine["lat_lon"]["lon"]])])
 
         # stacked -> affine
-        assert c2.simplify() == c1
+        assert stacked.simplify() == affine
 
         # affine -> affine
-        assert c1.simplify() == c1
+        assert affine.simplify() == affine
 
     def test_affine_to_uniform(self):
         # NOTE: this assumes that podpac prefers unstacked UniformCoordinates to AffineCoordinates

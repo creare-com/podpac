@@ -8,12 +8,15 @@ import xarray as xr
 import pandas as pd
 import traitlets as tl
 from six import string_types
+import lazy_import
 
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.utils import make_coord_value
+
+rasterio = lazy_import.lazy_module("rasterio")
 
 
 class StackedCoordinates(BaseCoordinates):
@@ -642,4 +645,64 @@ class StackedCoordinates(BaseCoordinates):
             return all(a.issubset(o) for a, o in zip(acs, ocs))
 
     def simplify(self):
+        try:
+            affine_module = rasterio.Affine
+        except ImportError:
+            affine_module = None
+
+        if affine_module is not None and self.is_affine:
+            from podpac.core.coordinates.affine_coordinates import AffineCoordinates
+
+            # origin point
+            p0 = self.coordinates[0, 0]
+
+            # rotation
+            d = self.coordinates[0, 1] - p0
+            rotation = np.arctan2(d[0], d[1]) / np.pi * 180
+            r = affine_module.rotation(rotation)
+
+            # scale
+            scale = r * (self.coordinates[1, 1] - p0)
+            s = affine_module.scale(scale[1], scale[0])
+
+            # translation
+            offset = np.array(r * s * [1, 1]) / 2
+            translation = p0 - offset[::-1]
+            t = affine_module.translation(translation[1], translation[0])
+
+            affine = t * r * s
+            a = AffineCoordinates(geotransform=affine.to_gdal(), shape=self.shape)
+
+            # simplify in order to convert to UniformCoordinates if appropriate
+            return a.simplify()
+
         return StackedCoordinates([c.simplify() for c in self._coords])
+
+    @property
+    def is_affine(self):
+        if set(self.dims) != {"lat", "lon"}:
+            return False
+
+        if not (self.ndim == 2 and self.shape[0] > 1 and self.shape[1] > 1):
+            return False
+
+        lat = self["lat"].coordinates
+        lon = self["lon"].coordinates
+
+        d = lat[1:] - lat[:-1]
+        if not np.allclose(d, d[0, 0]):
+            return False
+
+        d = lat[:, 1:] - lat[:, :-1]
+        if not np.allclose(d, d[0, 0]):
+            return False
+
+        d = lon[1:] - lon[:-1]
+        if not np.allclose(d, d[0, 0]):
+            return False
+
+        d = lon[:, 1:] - lon[:, :-1]
+        if not np.allclose(d, d[0, 0]):
+            return False
+
+        return True
