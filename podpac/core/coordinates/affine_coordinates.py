@@ -132,13 +132,31 @@ class AffineCoordinates(StackedCoordinates):
 
     def _getsubset(self, index):
         if isinstance(index, tuple) and isinstance(index[0], slice) and isinstance(index[1], slice):
-            # if the step is 1 for both slices, just need to modify the geotransform offset and the shape
-            # otherwise, need to also modify the geotransform scale/resolution
-            raise NotImplementedError("TODO")
-            return AffineCoordinates(geotransform=geotransform, shape=shape)
+            lat = self["lat"].coordinates[index]
+            lon = self["lon"].coordinates[index]
+
+            # We don't have to check every point in lat/lon for the same step
+            # since the self.is_affine call did that already
+            dlati = (lat[-1, 0] - lat[0, 0]) / (lat.shape[0] - 1)
+            dlatj = (lat[0, -1] - lat[0, 0]) / (lat.shape[1] - 1)
+            dloni = (lon[-1, 0] - lon[0, 0]) / (lon.shape[0] - 1)
+            dlonj = (lon[0, -1] - lon[0, 0]) / (lon.shape[1] - 1)
+
+            # origin point
+            p0 = np.array([lat[0, 0], lon[0, 0]]) - np.array([[dlati, dlatj], [dloni, dlonj]]) @ np.ones(2) / 2
+
+            # This is defined as x ulc, x width, x height, y ulc, y width, y height
+            # x and y are defined by the CRS. Here we are assuming that it's always
+            # lon and lat == x and y
+            geotransform = [p0[1], dlonj, dloni, p0[0], dlatj, dlati]
+
+            # get shape from indexed coordinates
+            shape = lat.shape
+
+            return AffineCoordinates(geotransform=geotransform, shape=lat.shape)
 
         else:
-            return super(AffineCoordinates, self)._getsubset(index)
+            return super(AffineCoordinates, self)._getsubset(index).simplify()
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
