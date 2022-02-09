@@ -335,7 +335,11 @@ class AffineCoordinates(StackedCoordinates):
             rotation = None
 
         # rotated
-        if rotation is not None and np.abs(rotation % (np.pi / 2)) > tol:
+        if (
+            (rotation is not None and np.abs(rotation % (np.pi / 2)) > tol)
+            or (not affine.is_rectilinear)
+            or (np.abs(affine.a * affine.b) + np.abs(affine.d * affine.e) < tol * 2)
+        ):
             return self.copy()
 
         # uniform

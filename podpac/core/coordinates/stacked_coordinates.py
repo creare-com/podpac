@@ -666,7 +666,7 @@ class StackedCoordinates(BaseCoordinates):
             dlonj = (lon[0, -1] - lon[0, 0]) / (lon.shape[1] - 1)
 
             # origin point
-            p0 = self.coordinates[0, 0] - np.array([[dlati, dlatj], [dloni, dlonj]]) @ np.ones(2) / 2
+            p0 = [lat[0, 0], lon[0, 0]] - np.array([[dlati, dlatj], [dloni, dlonj]]) @ np.ones(2) / 2
 
             # This is defined as x ulc, x width, x height, y ulc, y width, y height
             # x and y are defined by the CRS. Here we are assuming that it's always
