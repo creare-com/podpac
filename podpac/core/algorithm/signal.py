@@ -62,12 +62,12 @@ class Convolution(UnaryAlgorithm):
         array are labelled by `kernel_dims`. Any dimensions not in the source nodes outputs will be summed over.
     kernel_dims : list, optional
         A list of the dimensions for the kernel axes. If the dimensions in this list do not match the
-        coordinates in the source, then any extra dimensions in the kernel are summed out and any extra
+        coordinates in the source, then any extra dimensions in the kernel are removed by adding all the values over that axis
         dimensions in the source are not convolved with any kernel.
 
     kernel_type : str, optional
         If kernel is not defined, kernel_type will create a kernel based on the inputs, and it will have the
-        same number of axes as kernel_dim.
+        same number of axes as kernel_dims.
         The format for the created  kernels is '<kernel_type>, <kernel_size>, <kernel_params>'.
         Any kernel defined in `scipy.signal` as well as `mean` can be used. For example:
         kernel_type = 'mean, 8' or kernel_type = 'gaussian,16,8' are both valid.
