@@ -111,10 +111,13 @@ class AffineCoordinates(StackedCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     def __repr__(self):
-        return "%s(%s): Origin%s, Shape%s" % (
+        return "%s(%s): Bounds(lat, lon)([%g, %g], [%g, %g]), Shape%s" % (
             self.__class__.__name__,
             self.dims,
-            self.origin,
+            self.bounds["lat"][0],
+            self.bounds["lat"][1],
+            self.bounds["lon"][0],
+            self.bounds["lon"][1],
             self.shape,
         )
 
