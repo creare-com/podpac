@@ -53,7 +53,7 @@ class TestUniformCoordinatesCreation(object):
         c = UniformCoordinates1d(0, 49, 10)
         a = np.array([0, 10, 20, 30, 40], dtype=float)
         assert c.start == 0
-        assert c.stop == 49
+        assert c.stop == 40
         assert c.step == 10
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0, 40])
@@ -69,7 +69,7 @@ class TestUniformCoordinatesCreation(object):
         c = UniformCoordinates1d(50, 1, -10)
         a = np.array([50, 40, 30, 20, 10], dtype=float)
         assert c.start == 50
-        assert c.stop == 1
+        assert c.stop == 10
         assert c.step == -10
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [10, 50])
@@ -119,7 +119,7 @@ class TestUniformCoordinatesCreation(object):
         c = UniformCoordinates1d("2018-01-01", "2018-01-06", "2,D")
         a = np.array(["2018-01-01", "2018-01-03", "2018-01-05"]).astype(np.datetime64)
         assert c.start == np.datetime64("2018-01-01")
-        assert c.stop == np.datetime64("2018-01-06")
+        assert c.stop == np.datetime64("2018-01-05")
         assert c.step == np.timedelta64(2, "D")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[0, -1]])
@@ -135,7 +135,7 @@ class TestUniformCoordinatesCreation(object):
         c = UniformCoordinates1d("2018-01-06", "2018-01-01", "-2,D")
         a = np.array(["2018-01-06", "2018-01-04", "2018-01-02"]).astype(np.datetime64)
         assert c.start == np.datetime64("2018-01-06")
-        assert c.stop == np.datetime64("2018-01-01")
+        assert c.stop == np.datetime64("2018-01-02")
         assert c.step == np.timedelta64(-2, "D")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[-1, 0]])
@@ -217,7 +217,7 @@ class TestUniformCoordinatesCreation(object):
         c = UniformCoordinates1d("2018-01-01", "2021-04-01", "1,Y")
         a = np.array(["2018-01-01", "2019-01-01", "2020-01-01", "2021-01-01"]).astype(np.datetime64)
         assert c.start == np.datetime64("2018-01-01")
-        assert c.stop == np.datetime64("2021-04-01")
+        assert c.stop == np.datetime64("2021-01-01")
         assert c.step == np.timedelta64(1, "Y")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[0, -1]])
@@ -232,7 +232,7 @@ class TestUniformCoordinatesCreation(object):
         c = UniformCoordinates1d("2018-04-01", "2021-01-01", "1,Y")
         a = np.array(["2018-04-01", "2019-04-01", "2020-04-01"]).astype(np.datetime64)
         assert c.start == np.datetime64("2018-04-01")
-        assert c.stop == np.datetime64("2021-01-01")
+        assert c.stop == np.datetime64("2020-04-01")
         assert c.step == np.timedelta64(1, "Y")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[0, -1]])
@@ -248,7 +248,7 @@ class TestUniformCoordinatesCreation(object):
         c = UniformCoordinates1d("2021-01-01", "2018-04-01", "-1,Y")
         a = np.array(["2021-01-01", "2020-01-01", "2019-01-01", "2018-01-01"]).astype(np.datetime64)
         assert c.start == np.datetime64("2021-01-01")
-        assert c.stop == np.datetime64("2018-04-01")
+        assert c.stop == np.datetime64("2018-01-01")
         assert c.step == np.timedelta64(-1, "Y")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[-1, 0]])
@@ -263,7 +263,7 @@ class TestUniformCoordinatesCreation(object):
         c = UniformCoordinates1d("2021-04-01", "2018-01-01", "-1,Y")
         a = np.array(["2021-04-01", "2020-04-01", "2019-04-01", "2018-04-01"]).astype(np.datetime64)
         assert c.start == np.datetime64("2021-04-01")
-        assert c.stop == np.datetime64("2018-01-01")
+        assert c.stop == np.datetime64("2018-04-01")
         assert c.step == np.timedelta64(-1, "Y")
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, a[[-1, 0]])
@@ -611,7 +611,7 @@ class TestUniformCoordinatesIndexing(object):
         assert c2.name == c.name
         assert c2.properties == c.properties
         assert c2.start == 0
-        assert c2.stop == 50
+        assert c2.stop == 40
         assert c2.step == 20
 
         c2 = c[1:-1]
@@ -727,7 +727,7 @@ class TestUniformCoordinatesIndexing(object):
         assert c2.name == c.name
         assert c2.properties == c.properties
         assert c2.start == 50
-        assert c2.stop == 0
+        assert c2.stop == 10
         assert c2.step == -20
 
         c2 = c[1:-1]
@@ -1237,3 +1237,67 @@ class TestUniformCoordinatesMethods(object):
         assert u.issubset(c1)
         assert not u.issubset(c2)
         assert not u.issubset(c3)
+
+    def test_coordinates_floating_point_consistency(self):
+        c = podpac.Coordinates.from_url(
+            "?VERSION=1.3.0&HEIGHT=512&WIDTH=512&CRS=EPSG%3A3857&BBOX=-8061966.247294108,5322463.153553393,-7983694.730330088,5400734.670517412"
+        ).transform("EPSG:4326")
+        u = c["lon"]
+        u2 = podpac.coordinates.UniformCoordinates1d(
+            u.start - 2 * u.step, u.stop + 2 * u.step + 1e-14, step=u.step, fix_stop_val=True
+        )
+        u3 = podpac.coordinates.UniformCoordinates1d(
+            u.start - 2 * u.step, u.stop + 2 * u.step + 1e-14, size=u.size + 4, fix_stop_val=True
+        )
+
+        assert u2.start == u3.start
+        assert u2.stop == u3.stop
+        step = (u2.stop - u2.start) / (u2.size - 1)
+        assert u2.step == step
+        assert u3.step == step
+        assert_equal(u2.coordinates, u3.coordinates)
+
+        # Lat has a different order (i.e negative step)
+        u = c["lat"]
+        step = (u.coordinates[-1] - u.coordinates[0]) / (u.size - 1)
+        start = u.coordinates[0]
+        stop = u.coordinates[-1]
+        u2 = podpac.coordinates.UniformCoordinates1d(
+            start - 2 * step, stop + 2 * step + 1e-14, step=step, fix_stop_val=True
+        )
+        u3 = podpac.coordinates.UniformCoordinates1d(
+            start - 2 * step, stop + 2 * step + 1e-14, size=u.size + 4, fix_stop_val=True
+        )
+
+        assert u2.start == u3.start
+        assert u2.stop == u3.stop
+        step = (u2.stop - u2.start) / (u2.size - 1)
+        assert u2.step == step
+        assert u3.step == step
+        assert_equal(u2.coordinates, u3.coordinates)
+
+        # Need to make sure time data still works
+        u2 = podpac.coordinates.UniformCoordinates1d("2000-01-01", "2000-01-31", step="23,h")
+        u3 = podpac.coordinates.UniformCoordinates1d(
+            "2000-01-01T00", "2000-01-30T17", size=u2.size
+        )  # Won't allow me to specify something inconsistent...
+
+        assert u2.start == u3.start
+        assert u2.stop == u3.stop
+        step = (u2.stop - u2.start) / (u2.size - 1)
+        assert u2.step == step
+        assert u3.step == step
+        assert_equal(u2.coordinates, u3.coordinates)
+
+        # Now check consistency without the `fix_stop_val` flag
+        u = c["lon"]
+        u2 = podpac.coordinates.UniformCoordinates1d(u.start - 2 * u.step, u.stop + 2 * u.step + 1e-14, step=u.step)
+        c3 = podpac.Coordinates([u2], ["lon"])
+        n = podpac.Node().create_output_array(podpac.Coordinates([u2], ["lon"]))
+        u2b = podpac.Coordinates.from_xarray(n)
+        assert_equal(u2b["lon"].coordinates, u2.coordinates)
+
+        u2 = podpac.coordinates.UniformCoordinates1d(u.start - 2 * u.step, u.stop + 2 * u.step + 1e-14, size=u.size + 4)
+        n = podpac.Node().create_output_array(podpac.Coordinates([u2], ["lon"]))
+        u2b = podpac.Coordinates.from_xarray(n)
+        assert_equal(u2b["lon"].coordinates, u2.coordinates)
