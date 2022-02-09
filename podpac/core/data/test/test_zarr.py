@@ -74,8 +74,9 @@ class TestZarr(object):
         assert out.sel(output="a")[0, 0] == 0.0
         assert out.sel(output="b")[0, 0] == 1.0
 
-    @pytest.mark.aws
+    @pytest.mark.skip
     def test_s3(self):
+        # This file no longer exists
         path = "s3://podpac-internal-test/drought_parameters.zarr"
         node = Zarr(source=path, data_key="d0")
         node.close_dataset()

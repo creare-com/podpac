@@ -48,8 +48,8 @@ class DiskCacheStore(FileCacheStore):
     # helper methods
     # -----------------------------------------------------------------------------------------------------------------
 
-    def search(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
-        pattern = self._path_join(self._get_node_dir(node), self._get_filename_pattern(node, key, coordinates))
+    def search(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
+        pattern = self._path_join(self._get_node_dir(node), self._get_filename_pattern(node, item, coordinates))
         return [path for path in glob.glob(pattern) if not path.endswith(".meta")]
 
     # -----------------------------------------------------------------------------------------------------------------

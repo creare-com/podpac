@@ -112,8 +112,8 @@ class BaseCacheStoreTests(object):
         store.put(NODE2, 110, "mykey1")
         store.put(NODE2, 120, "mykeyA", COORDS1)
 
-        store.rem(NODE1, key="mykey1")
-        store.rem(NODE1, key="mykeyA", coordinates=COORDS1)
+        store.rem(NODE1, item="mykey1")
+        store.rem(NODE1, item="mykeyA", coordinates=COORDS1)
 
         assert store.has(NODE1, "mykey1") is False
         assert store.has(NODE1, "mykey2") is True
@@ -134,8 +134,8 @@ class BaseCacheStoreTests(object):
         store.put(NODE2, 110, "mykey1")
         store.put(NODE2, 120, "mykeyA", COORDS1)
 
-        store.rem(NODE1, key="mykey1")
-        store.rem(NODE1, key="mykeyA")
+        store.rem(NODE1, item="mykey1")
+        store.rem(NODE1, item="mykeyA")
 
         assert store.has(NODE1, "mykey1") is False
         assert store.has(NODE1, "mykey2") is True
