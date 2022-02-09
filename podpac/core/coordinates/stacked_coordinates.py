@@ -653,25 +653,27 @@ class StackedCoordinates(BaseCoordinates):
         if affine_module is not None and self.is_affine:
             from podpac.core.coordinates.affine_coordinates import AffineCoordinates
 
+            # build the geotransform directly
+
+            lat = self["lat"].coordinates
+            lon = self["lon"].coordinates
+
+            # We don't have to check every point in lat/lon for the same step
+            # since the self.is_affine call did that already
+            dlati = (lat[-1, 0] - lat[0, 0]) / (lat.shape[0] - 1)
+            dlatj = (lat[0, -1] - lat[0, 0]) / (lat.shape[1] - 1)
+            dloni = (lon[-1, 0] - lon[0, 0]) / (lon.shape[0] - 1)
+            dlonj = (lon[0, -1] - lon[0, 0]) / (lon.shape[1] - 1)
+
             # origin point
-            p0 = self.coordinates[0, 0]
+            p0 = self.coordinates[0, 0] - np.array([[dlati, dlatj], [dloni, dlonj]]) @ np.ones(2) / 2
 
-            # rotation
-            d = self.coordinates[0, 1] - p0
-            rotation = np.arctan2(d[0], d[1]) / np.pi * 180
-            r = affine_module.rotation(rotation)
+            # This is defined as x ulc, x width, x height, y ulc, y width, y height
+            # x and y are defined by the CRS. Here we are assuming that it's always
+            # lon and lat == x and y
+            geotransform = [p0[1], dlonj, dloni, p0[0], dlatj, dlati]
 
-            # scale
-            scale = r * (self.coordinates[1, 1] - p0)
-            s = affine_module.scale(scale[1], scale[0])
-
-            # translation
-            offset = np.array(r * s * [1, 1]) / 2
-            translation = p0 - offset[::-1]
-            t = affine_module.translation(translation[1], translation[0])
-
-            affine = t * r * s
-            a = AffineCoordinates(geotransform=affine.to_gdal(), shape=self.shape)
+            a = AffineCoordinates(geotransform=geotransform, shape=self.shape)
 
             # simplify in order to convert to UniformCoordinates if appropriate
             return a.simplify()

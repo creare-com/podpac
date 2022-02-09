@@ -5,6 +5,7 @@ from collections import OrderedDict
 import numpy as np
 import traitlets as tl
 import lazy_import
+import warnings
 
 rasterio = lazy_import.lazy_module("rasterio")
 affine_module = lazy_import.lazy_module("affine")
