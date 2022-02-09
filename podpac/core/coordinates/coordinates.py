@@ -1496,8 +1496,7 @@ class Coordinates(tl.HasTraits):
             if isinstance(c, Coordinates1d):
                 rep += "\n\t%s: %s" % (c.name, c)
             elif isinstance(c, AffineCoordinates):
-                for dim in c.dims:
-                    rep += "\n\t%s[%s]: Affine(TODO)" % (c.name, dim)
+                rep += "\n\t%s: %s" % (c.name, c)
             elif isinstance(c, StackedCoordinates):
                 for dim in c.dims:
                     rep += "\n\t%s[%s]: %s" % (c.name, dim, c[dim])
