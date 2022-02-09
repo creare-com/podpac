@@ -12,6 +12,7 @@ import logging
 import inspect
 from collections import OrderedDict
 from copy import deepcopy
+from hashlib import sha256 as hash_alg
 
 try:
     import urllib.parse as urllib
@@ -551,20 +552,24 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
     v = float(node.eval(coords))
     definition = node.definition
     out = OrderedDict()
-    for key in definition:
-        if key == "podpac_version":
+    for item in definition:
+        if item == "podpac_version":
             continue
-        d = partial_definition(key, definition)
+        d = partial_definition(item, definition)
         n = podpac.Node.from_definition(d)
-        value = float(n.eval(coords))
-        inputs = flatten_list(list(d[key].get("inputs", {}).values()))
+        o = n.eval(coords)
+        if o.size == 1:
+            value = float(o)
+        else:
+            value = o.data.tolist()
+        inputs = flatten_list(list(d[item].get("inputs", {}).values()))
         active = True
-        out[key] = {
+        out[item] = {
             "active": active,
             "value": value,
             "units": n.style.units,
             "inputs": inputs,
-            "name": n.style.name if n.style.name else key,
+            "name": n.style.name if n.style.name else item,
             "node_hash": n.hash,
         }
         # Fix sources for Compositors
@@ -572,7 +577,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
             searching_for_active = True
             for inp in inputs:
                 out[inp]["active"] = False
-                if out[inp]["value"] == out[key]["value"] and np.isfinite(out[inp]["value"]) and searching_for_active:
+                if out[inp]["value"] == out[item]["value"] and np.isfinite(out[inp]["value"]) and searching_for_active:
                     out[inp]["active"] = True
                     searching_for_active = False
 
@@ -625,13 +630,13 @@ def get_ui_node_spec(module=None, category="default"):
 
             default_val = attrt.default()
             if not isinstance(type_extra, str):
-                type_extra = str(type_extra)                
+                type_extra = str(type_extra)
             try:
                 if np.isnan(default_val):
-                    default_val = 'nan'
+                    default_val = "nan"
             except:
                 pass
-            
+
             if default_val == tl.Undefined:
                 default_val = None
 
@@ -641,7 +646,6 @@ def get_ui_node_spec(module=None, category="default"):
                 "values": getattr(attrt, "values", None),
                 "default": default_val,
                 "help": attrt.help,
-
             }
         spec.update(getattr(cls, "_ui_spec", {}))
         return spec

@@ -145,7 +145,7 @@ class TestCacheCtrl(object):
         assert ctrl.has(NODE, "key")
 
         # rem other and check has
-        ctrl.rem(NODE, key="*")
+        ctrl.rem(NODE, item="*")
         assert not ctrl.has(NODE, "key")
 
     def test_rem_wildcard_coordinates(self):
@@ -243,26 +243,26 @@ class TestCacheCtrl(object):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
 
         # type
-        with pytest.raises(TypeError, match="Invalid key"):
+        with pytest.raises(TypeError, match="Invalid item"):
             ctrl.put(NODE, 10, 10)
 
-        with pytest.raises(TypeError, match="Invalid key"):
+        with pytest.raises(TypeError, match="Invalid item"):
             ctrl.get(NODE, 10)
 
-        with pytest.raises(TypeError, match="Invalid key"):
+        with pytest.raises(TypeError, match="Invalid item"):
             ctrl.has(NODE, 10)
 
-        with pytest.raises(TypeError, match="Invalid key"):
+        with pytest.raises(TypeError, match="Invalid item"):
             ctrl.rem(NODE, 10)
 
         # wildcard
-        with pytest.raises(ValueError, match="Invalid key"):
+        with pytest.raises(ValueError, match="Invalid item"):
             ctrl.put(NODE, 10, "*")
 
-        with pytest.raises(ValueError, match="Invalid key"):
+        with pytest.raises(ValueError, match="Invalid item"):
             ctrl.get(NODE, "*")
 
-        with pytest.raises(ValueError, match="Invalid key"):
+        with pytest.raises(ValueError, match="Invalid item"):
             ctrl.has(NODE, "*")
 
         # allowed
