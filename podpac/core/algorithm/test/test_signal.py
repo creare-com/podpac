@@ -67,16 +67,6 @@ class TestConvolution(object):
         o = node2d.eval(Coordinates([lat, lon]))
         o = node3d.eval(Coordinates([lat, lon, time]))
 
-        with pytest.raises(
-            ValueError, match="Kernel dims must contain all of the dimensions in source but not all of "
-        ):
-            node2d.eval(Coordinates([lat, lon, time]))
-
-        with pytest.raises(
-            ValueError, match="Kernel dims must contain all of the dimensions in source but not all of "
-        ):
-            node2d.eval(Coordinates([lat, time]))
-
     def test_eval_multiple_outputs(self):
 
         lat = clinspace(45, 66, 30, name="lat")
@@ -181,3 +171,51 @@ class TestConvolution(object):
         o1 = node.eval(coords1)
         o2 = node.eval(coords2)
         assert np.all(o2.data == o1.data.T)
+
+    def test_missing_source_dims(self):
+        """ When the kernel has more dimensions than the source, sum out the kernel for the missing dim"""
+        lat = clinspace(-0.25, 1.25, 7, name="lat")
+        lon = clinspace(-0.125, 1.125, 11, name="lon")
+        time = ["2012-05-19", "2016-01-31", "2018-06-20"]
+        coords = Coordinates([lat, lon, time], dims=["lat", "lon", "time"])
+        coords2 = Coordinates([lat[[1, 2, 4]], lon, time], dims=["lat", "lon", "time"])
+
+        source = Array(source=np.random.random(coords.drop("time").shape), coordinates=coords.drop("time"))
+        node = Convolution(
+            source=source, kernel=[[[-1], [2], [-1]]], kernel_dims=["lat", "lon", "time"], force_eval=True
+        )
+        o = node.eval(coords[:, 1:-1, :])
+        expected = source.source[:, 1:-1] * 2 - source.source[:, 2:] - source.source[:, :-2]
+        assert np.abs(o.data - expected).max() < 1e-14
+
+        # Check when request has an ArrayCoordinates1d
+        node = Convolution(source=source, kernel_type="mean,3", kernel_dims=["lat", "lon", "time"], force_eval=True)
+        o = node.eval(coords2[:, 1:-1])
+        expected = (
+            source.source[[1, 2, 4], 1:-1]
+            + source.source[[0, 1, 2], 1:-1]
+            + source.source[[2, 4, 6], 1:-1]
+            + source.source[[1, 2, 4], :-2]
+            + source.source[[0, 1, 2], :-2]
+            + source.source[[2, 4, 6], :-2]
+            + source.source[[1, 2, 4], 2:]
+            + source.source[[0, 1, 2], 2:]
+            + source.source[[2, 4, 6], 2:]
+        ) / 9
+        assert np.abs(o.data - expected).max() < 1e-14
+
+        # Check to make sure array coordinates for a single coordinate is ok...
+        o = node.eval(coords2[0, 1:-1])
+
+    def test_partial_source_convolution(self):
+        lat = clinspace(-0.25, 1.25, 7, name="lat")
+        lon = clinspace(-0.125, 1.125, 11, name="lon")
+        time = ["2012-05-19", "2016-01-31", "2018-06-20"]
+        coords = Coordinates([lat, lon, time], dims=["lat", "lon", "time"])
+
+        source = Array(source=np.random.random(coords.shape), coordinates=coords)
+        node = Convolution(source=source, kernel=[[-1, 2, -1]], kernel_dims=["lat", "lon"], force_eval=True)
+        o = node.eval(coords[:, 1:-1, :])
+        expected = source.source[:, 1:-1] * 2 - source.source[:, 2:] - source.source[:, :-2]
+
+        assert np.abs(o.data - expected).max() < 1e-14

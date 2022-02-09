@@ -2,6 +2,7 @@ import pytest
 import requests
 import traitlets as tl
 import s3fs
+from numpy.testing import assert_equal
 
 from podpac import settings, Node
 from podpac.core.authentication import RequestsSessionMixin, S3Mixin, set_credentials
@@ -22,10 +23,10 @@ class TestAuthentication(object):
                 set_credentials()
 
             with pytest.raises(ValueError):
-                set_credentials(None, username="test", password="test")
+                set_credentials(None, uname="test", password="test")
 
             with pytest.raises(ValueError):
-                set_credentials("", username="test", password="test")
+                set_credentials("", uname="test", password="test")
 
             # make sure these are empty at first
             assert not settings["username@test.com"]
@@ -34,17 +35,17 @@ class TestAuthentication(object):
             # test input/getpass
             # TODO: how do you test this?
 
-            # set both username and password
-            set_credentials(hostname="test.com", username="testuser", password="testpass")
+            # set both username and pw
+            set_credentials(hostname="test.com", uname="testuser", password="testpass")
             assert settings["username@test.com"] == "testuser"
             assert settings["password@test.com"] == "testpass"
 
             # set username only
-            set_credentials(hostname="test.com", username="testuser2")
+            set_credentials(hostname="test.com", uname="testuser2")
             assert settings["username@test.com"] == "testuser2"
             assert settings["password@test.com"] == "testpass"
 
-            # set password only
+            # set pw only
             set_credentials(hostname="test.com", password="testpass3")
             assert settings["username@test.com"] == "testuser2"
             assert settings["password@test.com"] == "testpass3"
@@ -94,8 +95,8 @@ class TestRequestsSessionMixin(object):
             node = SomeNode(hostname="propertyvalues.com")
             node.set_credentials(username="testuser2", password="testpass2")
 
-            assert node.username == "testuser2"
-            assert node.password == "testpass2"
+            assert_equal(node.username, "testuser2")
+            assert_equal(node.password, "testpass2")
 
     def test_session(self):
         with settings:
