@@ -62,7 +62,8 @@ class AffineCoordinates(StackedCoordinates):
         dims : tuple (required)
             tuple of dimension names ('lat', 'lon', 'time', or 'alt').
         """
-
+        if isinstance(geotransform, np.ndarray):
+            geotransform = tuple(geotransform.tolist())
         self.set_trait("geotransform", geotransform)
         self.set_trait("shape", shape)
 

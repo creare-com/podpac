@@ -323,17 +323,31 @@ class Coordinates(tl.HasTraits):
         coords : :class:`Coordinates`
             podpac Coordinates
         """
-
+        d = OrderedDict()
         if isinstance(x, (xr.DataArray, xr.Dataset)):
             # only pull crs from the DataArray attrs if the crs is not specified
             if crs is None:
                 crs = x.attrs.get("crs")
 
-            if "geotransform" in x.attrs:
-                shape = x.transpose(..., "output").shape[:-1]
-                return cls.from_geotransform(x.geotransform, shape=shape, crs=crs, validate_crs=validate_crs)
-
             xcoords = x.coords
+            if "geotransform" in x.attrs:
+                other = cls.from_xarray(xcoords, crs=crs, validate_crs=validate_crs).udrop(["lat", "lon"])
+                latshape = xcoords["lat"].shape
+                lonshape = xcoords["lon"].shape
+                if latshape == lonshape and len(latshape) == 2:
+                    shape = latshape
+                else:
+                    shape = [latshape[0], lonshape[0]]
+                lat_lon = cls.from_geotransform(x.geotransform, shape=shape, crs=crs, validate_crs=validate_crs)
+                coords = merge_dims([other, lat_lon])
+
+                # These dims might have something like lat_lon-1, lat_lon-2, so eliminate the '-' ...
+                dims = [d.split("-")[0] for d in xcoords.dims if d != "output"]
+                # ... and make sure it's all unique without changing order (np.unique would change order...)
+                dims = [d for i, d in enumerate(dims) if d not in dims[:i]]
+                coords = coords.transpose(*dims)
+                return coords
+
         elif isinstance(x, (xarray.core.coordinates.DataArrayCoordinates, xarray.core.coordinates.DatasetCoordinates)):
             xcoords = x
         else:
@@ -345,7 +359,6 @@ class Coordinates(tl.HasTraits):
         if crs is None:
             warnings.warn("using default crs for podpac coordinates loaded from xarray because no crs was provided")
 
-        d = OrderedDict()
         for dim in xcoords.dims:
             if dim in d:
                 continue
