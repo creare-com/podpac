@@ -599,3 +599,4 @@ class EGI(InterpolationMixin, DataSource):
         spec=super().get_ui_spec()
         spec["attrs"]["username"]={}
         spec["attrs"]["password"]={}
+        return spec

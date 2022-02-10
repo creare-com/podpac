@@ -28,6 +28,7 @@ from podpac.core.utils import cached_property
 from podpac.core.utils import trait_is_defined
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.utils import probe_node
+from podpac.core.utils import NodeTrait
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl, S3CacheStore, DiskCacheStore
@@ -1038,7 +1039,15 @@ class Node(tl.HasTraits):
             if not isinstance(atr, tl.traitlets.DefaultHandler):
                 continue
             try:
-                function_defaults[atr.trait_name] = atr(cls)
+                try:
+                    def_val = atr(cls())
+                except:
+                    def_val = atr(cls)
+                if isinstance(def_val, NodeTrait):
+                    def_val = def_val.name
+                    print("Changing Nodetrait to string")
+                # if "NodeTrait" not in str(atr(cls)):
+                function_defaults[atr.trait_name] = def_val
             except Exception:
                 _logger.warning(
                     "For node {}: Failed to generate default from function for trait {}".format(
@@ -1097,6 +1106,7 @@ class Node(tl.HasTraits):
             style_json = {}
 
         spec["style"] = style_json  # this does not work, because node not created yet?
+        
         """
         I will manually define generic defaults here. Eventually we may want to
         dig into this and create node specific styling. This will have to be done under each

@@ -659,7 +659,7 @@ def get_ui_node_spec(module=None, category="default"):
         return spec
 
     spec[category] = {}
-    disabled_categories=["Algorithm","DataSource"]
+    disabled_categories=["Algorithm","DataSource","DroughtMonitorCategory","DroughtCategory","IntakeCatalog"]
     for obj in dir(module):
         # print(obj)
         if obj in disabled_categories:
