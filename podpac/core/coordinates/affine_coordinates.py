@@ -59,8 +59,6 @@ class AffineCoordinates(StackedCoordinates):
             GDAL geotransform
         shape : tuple
             shape (m, n) of the grid.
-        dims : tuple (required)
-            tuple of dimension names ('lat', 'lon', 'time', or 'alt').
         """
         if isinstance(geotransform, np.ndarray):
             geotransform = tuple(geotransform.tolist())
