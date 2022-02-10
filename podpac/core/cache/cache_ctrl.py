@@ -107,7 +107,7 @@ class CacheCtrl(object):
     def _get_cache_stores_by_mode(self, mode="all"):
         return [c for c in self._cache_stores if mode in c.cache_modes]
 
-    def put(self, node, data, key, coordinates=None, expires=None, mode="all", update=True):
+    def put(self, node, data, item, coordinates=None, expires=None, mode="all", update=True):
         """Cache data for specified node.
 
         Parameters
@@ -116,8 +116,8 @@ class CacheCtrl(object):
             node requesting storage.
         data : any
             Data to cache
-        key : str
-            Cached object key, e.g. 'output'.
+        item : str
+            Cached object item or key, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         mode : str
@@ -131,8 +131,8 @@ class CacheCtrl(object):
         if not isinstance(node, podpac.Node):
             raise TypeError("Invalid node (must be of type Node, not '%s')" % type(node))
 
-        if not isinstance(key, six.string_types):
-            raise TypeError("Invalid key (must be a string, not '%s')" % (type(key)))
+        if not isinstance(item, six.string_types):
+            raise TypeError("Invalid item (must be a string, not '%s')" % (type(item)))
 
         if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
             raise TypeError("Invalid coordinates (must be of type 'Coordinates', not '%s')" % type(coordinates))
@@ -140,21 +140,21 @@ class CacheCtrl(object):
         if mode not in _CACHE_MODES:
             raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
 
-        if key == "*":
-            raise ValueError("Invalid key ('*' is reserved)")
+        if item == "*":
+            raise ValueError("Invalid item ('*' is reserved)")
 
         for c in self._get_cache_stores_by_mode(mode):
-            c.put(node=node, data=data, key=key, coordinates=coordinates, expires=expires, update=update)
+            c.put(node=node, data=data, item=item, coordinates=coordinates, expires=expires, update=update)
 
-    def get(self, node, key, coordinates=None, mode="all"):
+    def get(self, node, item, coordinates=None, mode="all"):
         """Get cached data for this node.
 
         Parameters
         ------------
         node : Node
             node requesting storage.
-        key : str
-            Cached object key, e.g. 'output'.
+        item : str
+            Cached object item or key, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         mode : str
@@ -174,8 +174,8 @@ class CacheCtrl(object):
         if not isinstance(node, podpac.Node):
             raise TypeError("Invalid node (must be of type Node, not '%s')" % type(node))
 
-        if not isinstance(key, six.string_types):
-            raise TypeError("Invalid key (must be a string, not '%s')" % (type(key)))
+        if not isinstance(item, six.string_types):
+            raise TypeError("Invalid item (must be a string, not '%s')" % (type(item)))
 
         if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
             raise TypeError("Invalid coordinates (must be of type 'Coordinates', not '%s')" % type(coordinates))
@@ -183,23 +183,23 @@ class CacheCtrl(object):
         if mode not in _CACHE_MODES:
             raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
 
-        if key == "*":
-            raise ValueError("Invalid key ('*' is reserved)")
+        if item == "*":
+            raise ValueError("Invalid item ('*' is reserved)")
 
         for c in self._get_cache_stores_by_mode(mode):
-            if c.has(node=node, key=key, coordinates=coordinates):
-                return c.get(node=node, key=key, coordinates=coordinates)
+            if c.has(node=node, item=item, coordinates=coordinates):
+                return c.get(node=node, item=item, coordinates=coordinates)
         raise CacheException("Requested data is not in any cache stores.")
 
-    def has(self, node, key, coordinates=None, mode="all"):
+    def has(self, node, item, coordinates=None, mode="all"):
         """Check for cached data for this node
 
         Parameters
         ------------
         node : Node
             node requesting storage.
-        key : str
-            Cached object key, e.g. 'output'.
+        item : str
+            Cached object item or key, e.g. 'output'.
         coordinates: Coordinate, optional
             Coordinates for which cached object should be checked
         mode : str
@@ -214,8 +214,8 @@ class CacheCtrl(object):
         if not isinstance(node, podpac.Node):
             raise TypeError("Invalid node (must be of type Node, not '%s')" % type(node))
 
-        if not isinstance(key, six.string_types):
-            raise TypeError("Invalid key (must be a string, not '%s')" % (type(key)))
+        if not isinstance(item, six.string_types):
+            raise TypeError("Invalid item (must be a string, not '%s')" % (type(item)))
 
         if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
             raise TypeError("Invalid coordinates (must be of type 'Coordinates', not '%s')" % type(coordinates))
@@ -223,24 +223,24 @@ class CacheCtrl(object):
         if mode not in _CACHE_MODES:
             raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
 
-        if key == "*":
-            raise ValueError("Invalid key ('*' is reserved)")
+        if item == "*":
+            raise ValueError("Invalid item ('*' is reserved)")
 
         for c in self._get_cache_stores_by_mode(mode):
-            if c.has(node=node, key=key, coordinates=coordinates):
+            if c.has(node=node, item=item, coordinates=coordinates):
                 return True
 
         return False
 
-    def rem(self, node, key, coordinates=None, mode="all"):
+    def rem(self, node, item, coordinates=None, mode="all"):
         """Delete cached data for this node.
 
         Parameters
         ----------
         node : Node, str
             node requesting storage.
-        key : str
-            Delete only cached objects with this key. Use `'*'` to match all keys.
+        item : str
+            Delete only cached objects with this item/key. Use `'*'` to match all keys.
         coordinates : :class:`podpac.Coordinates`, str
             Delete only cached objects for these coordinates. Use `'*'` to match all coordinates.
         mode : str
@@ -250,8 +250,8 @@ class CacheCtrl(object):
         if not isinstance(node, podpac.Node):
             raise TypeError("Invalid node (must be of type Node, not '%s')" % type(node))
 
-        if not isinstance(key, six.string_types):
-            raise TypeError("Invalid key (must be a string, not '%s')" % (type(key)))
+        if not isinstance(item, six.string_types):
+            raise TypeError("Invalid item (must be a string, not '%s')" % (type(item)))
 
         if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None and coordinates != "*":
             raise TypeError("Invalid coordinates (must be '*' or of type 'Coordinates', not '%s')" % type(coordinates))
@@ -259,14 +259,14 @@ class CacheCtrl(object):
         if mode not in _CACHE_MODES:
             raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
 
-        if key == "*":
-            key = CacheWildCard()
+        if item == "*":
+            item = CacheWildCard()
 
         if coordinates == "*":
             coordinates = CacheWildCard()
 
         for c in self._get_cache_stores_by_mode(mode):
-            c.rem(node=node, key=key, coordinates=coordinates)
+            c.rem(node=node, item=item, coordinates=coordinates)
 
     def clear(self, mode="all"):
         """

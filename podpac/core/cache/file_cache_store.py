@@ -20,10 +20,11 @@ from podpac.core.settings import settings
 from podpac.core.utils import is_json_serializable
 from podpac.core.cache.utils import CacheException, CacheWildCard, expiration_timestamp
 from podpac.core.cache.cache_store import CacheStore
+from podpac.core.utils import hash_alg
 
 
 def _hash_string(s):
-    return hashlib.md5(s.encode()).hexdigest()
+    return hash_alg(s.encode()).hexdigest()
 
 
 class FileCacheStore(CacheStore):
@@ -38,14 +39,14 @@ class FileCacheStore(CacheStore):
     # public cache API methods
     # -----------------------------------------------------------------------------------------------------------------
 
-    def has(self, node, key, coordinates=None):
+    def has(self, node, item, coordinates=None):
         """Check for valid cached data for this node.
 
         Parameters
         ------------
         node : Node
             node requesting storage.
-        key : str
+        item : str
             Cached object key, e.g. 'output'.
         coordinates: Coordinate, optional
             Coordinates for which cached object should be checked
@@ -56,10 +57,10 @@ class FileCacheStore(CacheStore):
              True if there is a valid cached object for this node for the given key and coordinates.
         """
 
-        path = self.find(node, key, coordinates)
+        path = self.find(node, item, coordinates)
         return path is not None and not self._expired(path)
 
-    def put(self, node, data, key, coordinates=None, expires=None, update=True):
+    def put(self, node, data, item, coordinates=None, expires=None, update=True):
         """Cache data for specified node.
 
         Parameters
@@ -68,8 +69,8 @@ class FileCacheStore(CacheStore):
             node requesting storage.
         data : any
             Data to cache
-        key : str
-            Cached object key, e.g. 'output'.
+        item : str
+            Cached object item, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         expires : float, datetime, timedelta
@@ -79,14 +80,14 @@ class FileCacheStore(CacheStore):
         """
 
         # check for valid existing entry (expired entries are automatically ignored and overwritten)
-        if self.has(node, key, coordinates):
+        if self.has(node, item, coordinates):
             if not update:
                 raise CacheException("Cache entry already exists. Use `update=True` to overwrite.")
             else:
-                self._remove(self.find(node, key, coordinates))
+                self._remove(self.find(node, item, coordinates))
 
         # serialize
-        root = self._get_filename(node, key, coordinates)
+        root = self._get_filename(node, item, coordinates)
 
         if isinstance(data, podpac.core.units.UnitsDataArray):
             ext = "uda.nc"
@@ -150,15 +151,15 @@ class FileCacheStore(CacheStore):
 
         return True
 
-    def get(self, node, key, coordinates=None):
+    def get(self, node, item, coordinates=None):
         """Get cached data for this node.
 
         Parameters
         ------------
         node : Node
             node requesting storage.
-        key : str
-            Cached object key, e.g. 'output'.
+        item : str
+            Cached object item, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
 
@@ -173,7 +174,7 @@ class FileCacheStore(CacheStore):
             If the data is not in the cache.
         """
 
-        path = self.find(node, key, coordinates)
+        path = self.find(node, item, coordinates)
         if path is None:
             raise CacheException("Cache miss. Requested data not found.")
 
@@ -209,21 +210,21 @@ class FileCacheStore(CacheStore):
 
         return data
 
-    def rem(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
+    def rem(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
         """Delete cached data for this node.
 
         Parameters
         ------------
         node : Node
             node requesting storage
-        key : str, CacheWildCard, optional
-            Delete cached objects with this key, or any key if `key` is a CacheWildCard.
+        item : str, CacheWildCard, optional
+            Delete cached objects item, or any item if `item` is a CacheWildCard.
         coordinates : :class:`podpac.Coordinates`, CacheWildCard, None, optional
             Delete only cached objects for these coordinates, or any coordinates if `coordinates` is a CacheWildCard. `None` specifically indicates entries that do not have coordinates.
         """
 
         # delete matching cached objects
-        for path in self.search(node, key=key, coordinates=coordinates):
+        for path in self.search(node, item=item, coordinates=coordinates):
             self._remove(path)
 
         # remove empty node directories
@@ -244,25 +245,25 @@ class FileCacheStore(CacheStore):
     # helper methods
     # -----------------------------------------------------------------------------------------------------------------
 
-    def search(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
+    def search(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
         """
         Search for matching cached objects.
         """
         raise NotImplementedError
 
-    def find(self, node, key, coordinates=None):
+    def find(self, node, item, coordinates=None):
         """
         Find the path for a specific cached object.
         """
 
-        paths = self.search(node, key=key, coordinates=coordinates)
+        paths = self.search(node, item=item, coordinates=coordinates)
 
         if len(paths) == 0:
             return None
         elif len(paths) == 1:
             return paths[0]
         elif len(paths) > 1:
-            return RuntimeError("Too many cached files matching '%s'" % rootpath)
+            return RuntimeError("Too many cached files matching '%s'" % self._root_dir_path)
 
     def _get_node_dir(self, node):
         fullclass = str(node.__class__)[8:-2]

@@ -37,9 +37,11 @@ class UniformCoordinates1d(Coordinates1d):
     start : float or datetime64
         Start coordinate.
     stop : float or datetime64
-        Stop coordinate.
+        Stop coordinate. Unless fix_stop_val == True at creation, this may not always be
+        exactly equal to what the user specified. Internally we ensure that stop = start + step * (size - 1)
     step : float or timedelta64
-        Signed, non-zero step between coordinates.
+        Signed, non-zero step between coordinates. Note, the specified step my be changed internally to satisfy floating point consistency.
+        That is, the consistent step will ensure that step = (stop - start)  / (size - 1)
     name : str
         Dimension name, one of 'lat', 'lon', 'time', 'alt'.
     coordinates : array, read-only
@@ -59,7 +61,7 @@ class UniformCoordinates1d(Coordinates1d):
     step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)], read_only=True)
     step.__doc__ = ":float, timedelta64: Signed, non-zero step between coordinates."
 
-    def __init__(self, start, stop, step=None, size=None, name=None):
+    def __init__(self, start, stop, step=None, size=None, name=None, fix_stop_val=False):
         """
         Create uniformly-spaced 1d coordinates from a `start`, `stop`, and `step` or `size`.
 
@@ -75,6 +77,17 @@ class UniformCoordinates1d(Coordinates1d):
             Number of coordinates (either step or size required).
         name : str, optional
             Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
+        fix_stop_val : bool, optional
+            Default is False. If True, the constructor will modify the step to be consistent
+            instead of the stop value. Otherwise, the stop value *may* be modified to ensure that
+            stop = start + step * size
+
+        Notes
+        ------
+        When the user specifies fix_stop_val, then `stop` will always be exact as specified by the user.
+
+        For floating point coordinates, the specified `step` my be changed internally to satisfy floating point consistency.
+        That is, for consistency `step = (stop - start)  / (size - 1)`
         """
 
         if step is not None and size is not None:
@@ -115,6 +128,15 @@ class UniformCoordinates1d(Coordinates1d):
         self.set_trait("start", start)
         self.set_trait("stop", stop)
         self.set_trait("step", step)
+
+        if not fix_stop_val:  # Need to make sure that 'stop' is consistent with self.coordinates[-1]
+            self.set_trait("stop", add_coord(self.start, (self.size - 1) * self.step))
+
+        # Make sure step is floating-point error consistent in all cases
+        # This is only needed when the type is float
+        if fstep == step and self.size > 1:
+            step = divide_delta(self.stop - self.start, self.size - 1)
+            self.set_trait("step", step)
 
         # set common properties
         super(UniformCoordinates1d, self).__init__(name=name)

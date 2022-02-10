@@ -10,7 +10,6 @@ import sys
 import itertools
 import json
 from collections import OrderedDict
-from hashlib import md5 as hash_alg
 
 import numpy as np
 import traitlets as tl
@@ -32,6 +31,7 @@ from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
 from podpac.core.coordinates.cfunctions import clinspace
+from podpac.core.utils import hash_alg
 
 # Optional dependencies
 from lazy_import import lazy_module, lazy_class

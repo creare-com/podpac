@@ -225,7 +225,7 @@ class SelectCoordinates(ModifyCoordinates):
             # no selection in this dimension
             return coords1d
 
-        if len(selection) == 1:
+        if len(selection) == 1 or ((len(selection) == 2) and (selection[0] == selection[1])):
             # a single value
             coords1d = ArrayCoordinates1d(selection, **coords1d.properties)
 
@@ -233,7 +233,13 @@ class SelectCoordinates(ModifyCoordinates):
             # use available source coordinates within the selected bounds
             available_coordinates = self.coordinates_source.find_coordinates()
             if len(available_coordinates) != 1:
-                raise ValueError("Cannot select within bounds; too many available coordinates")
+                raise ValueError(
+                    "SelectCoordinates Node cannot determine the step size between bounds for dimension"
+                    + "{} because source node (source.find_coordinates()) has {} different coordinates.".format(
+                        dim, len(available_coordinates)
+                    )
+                    + "Please specify step-size for this dimension."
+                )
             coords1d = available_coordinates[0][dim].select(selection)
 
         elif len(selection) == 3:
