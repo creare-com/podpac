@@ -16,8 +16,6 @@ from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.utils import make_coord_value
 
-rasterio = lazy_import.lazy_module("rasterio")
-
 
 class StackedCoordinates(BaseCoordinates):
     """
@@ -645,16 +643,10 @@ class StackedCoordinates(BaseCoordinates):
             return all(a.issubset(o) for a, o in zip(acs, ocs))
 
     def simplify(self):
-        try:
-            affine_module = rasterio.Affine
-        except ImportError:
-            affine_module = None
-
-        if affine_module is not None and self.is_affine:
+        if self.is_affine:
             from podpac.core.coordinates.affine_coordinates import AffineCoordinates
 
             # build the geotransform directly
-
             lat = self["lat"].coordinates
             lon = self["lon"].coordinates
 

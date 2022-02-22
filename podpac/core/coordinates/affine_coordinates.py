@@ -7,8 +7,7 @@ import traitlets as tl
 import lazy_import
 import warnings
 
-rasterio = lazy_import.lazy_module("rasterio")
-affine_module = lazy_import.lazy_module("affine")
+affine = lazy_import.lazy_module("affine")
 
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
@@ -66,7 +65,7 @@ class AffineCoordinates(StackedCoordinates):
         self.set_trait("shape", shape)
 
         # private traits
-        self._affine = rasterio.Affine.from_gdal(*self.geotransform)
+        self._affine = affine.Affine.from_gdal(*self.geotransform)
 
     @tl.validate("shape")
     def _validate_shape(self, d):
@@ -178,7 +177,7 @@ class AffineCoordinates(StackedCoordinates):
 
     @property
     def affine(self):
-        """:rasterio.Affine: affine transformation for computing the coordinates from indexing values."""
+        """:affine.Affine: affine transformation for computing the coordinates from indexing values."""
         return self._affine
 
     @property
@@ -327,33 +326,34 @@ class AffineCoordinates(StackedCoordinates):
         #       if that changes, just return self.copy()
 
         tol = 1e-15  # tolerance for deciding when a number is zero
-        affine = self.affine
+
+        a = self.affine
         shape = self.shape
 
         # get rotation
         try:
-            rotation = affine.rotation_angle / 180 * np.pi
-        except affine_module.UndefinedRotationError:
+            rotation = a.rotation_angle / 180 * np.pi
+        except affine.UndefinedRotationError:
             rotation = None
 
         # rotated
         if (
             (rotation is not None and np.abs(rotation % (np.pi / 2)) > tol)
-            or (not affine.is_rectilinear)
-            or (np.abs(affine.a * affine.b) + np.abs(affine.d * affine.e) > tol * 2)
+            or (not a.is_rectilinear)
+            or (np.abs(a.a * a.b) + np.abs(a.d * a.e) > tol * 2)
         ):
             return self.copy()
 
         # uniform
         else:
-            if affine.e <= tol and affine.a <= tol:
+            if a.e <= tol and a.a <= tol:
                 order = -1
-                step = np.array([affine.d, affine.b])
+                step = np.array([a.d, a.b])
             else:
                 order = 1
-                step = np.array([affine.e, affine.a])
+                step = np.array([a.e, a.a])
 
-            origin = affine.f + step[0] / 2, affine.c + step[1] / 2
+            origin = a.f + step[0] / 2, a.c + step[1] / 2
             end = origin[0] + step[0] * (shape[::order][0] - 1), origin[1] + step[1] * (shape[::order][1] - 1)
             lat = clinspace(origin[0], end[0], shape[::order][0], "lat")
             lon = clinspace(origin[1], end[1], shape[::order][1], "lon")
