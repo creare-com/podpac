@@ -62,6 +62,8 @@ class TileCompositorRaw(BaseCompositor):
         res = UnitsDataArray(res)
         if bounds:
             res.attrs["bounds"] = bounds
+        if "geotransform" in res.attrs:  # Really hard to get the geotransform right, handle it in Coordinates
+            del res.attrs["geotransform"]
         if result is not None:
             result.data[:] = res.transpose(*result.dims).data
             return result

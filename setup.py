@@ -25,6 +25,7 @@ install_requires = [
     "requests>=2.18",
     "lazy-import>=0.2.2",
     "psutil",
+    "affine",
 ]
 
 if sys.version_info.major == 2:
