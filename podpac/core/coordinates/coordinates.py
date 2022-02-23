@@ -920,7 +920,13 @@ class Coordinates(tl.HasTraits):
             Dictionary of (low, high) coordinates area_bounds in each unstacked dimension
         """
 
-        return {dim: self[dim].get_area_bounds(boundary.get(dim)) for dim in self.udims}
+        area_bounds = {}
+        for dim, c in self._coords.items():
+            if isinstance(c, StackedCoordinates):
+                area_bounds.update(c.get_area_bounds(boundary))
+            else:
+                area_bounds[dim] = c.get_area_bounds(boundary.get(dim))
+        return area_bounds
 
     def drop(self, dims, ignore_missing=False):
         """

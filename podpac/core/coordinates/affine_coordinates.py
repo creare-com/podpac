@@ -196,10 +196,6 @@ class AffineCoordinates(StackedCoordinates):
         return origin
 
     @property
-    def rotation(self):
-        return self.affine.rotation_angle
-
-    @property
     def coordinates(self):
         """ :tuple: computed coordinate values for each dimension. """
 
@@ -253,7 +249,7 @@ class AffineCoordinates(StackedCoordinates):
         """
 
         # TODO the boundary offsets need to be transformed
-        warnings.warning("AffineCoordinates area_bounds are not yet correctly implemented.")
+        warnings.warn("AffineCoordinates area_bounds are not yet correctly implemented.")
         return super(AffineCoordinates, self).get_area_bounds(boundary)
 
     def select(self, bounds, outer=False, return_index=False):
@@ -324,28 +320,11 @@ class AffineCoordinates(StackedCoordinates):
     def simplify(self):
         # NOTE: podpac prefers unstacked UniformCoordinates to AffineCoordinates
         #       if that changes, just return self.copy()
+        if self.affine.is_rectilinear:
+            tol = 1e-15  # tolerance for deciding when a number is zero
+            a = self.affine
+            shape = self.shape
 
-        tol = 1e-15  # tolerance for deciding when a number is zero
-
-        a = self.affine
-        shape = self.shape
-
-        # get rotation
-        try:
-            rotation = a.rotation_angle / 180 * np.pi
-        except affine.UndefinedRotationError:
-            rotation = None
-
-        # rotated
-        if (
-            (rotation is not None and np.abs(rotation % (np.pi / 2)) > tol)
-            or (not a.is_rectilinear)
-            or (np.abs(a.a * a.b) + np.abs(a.d * a.e) > tol * 2)
-        ):
-            return self.copy()
-
-        # uniform
-        else:
             if a.e <= tol and a.a <= tol:
                 order = -1
                 step = np.array([a.d, a.b])
@@ -358,6 +337,8 @@ class AffineCoordinates(StackedCoordinates):
             lat = clinspace(origin[0], end[0], shape[::order][0], "lat")
             lon = clinspace(origin[1], end[1], shape[::order][1], "lon")
             return [lat, lon][::order]
+
+        return self.copy()
 
     # ------------------------------------------------------------------------------------------------------------------
     # Debug
