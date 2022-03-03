@@ -167,6 +167,7 @@ class WCSRaw(DataSource):
     format = tl.CaselessStrEnum(["geotiff", "geotiff_byte"], default_value="geotiff")
     crs = tl.Unicode(default_value="EPSG:4326")
     max_size = tl.Long(default_value=None, allow_none=True)
+    wcs_kwargs = tl.Dict(help="Additional query parameters sent to the WCS server")
 
     _repr_keys = ["source", "layer"]
 
@@ -372,7 +373,7 @@ class WCSRaw(DataSource):
         width = coordinates["lon"].size
         height = coordinates["lat"].size
 
-        kwargs = {}
+        kwargs = self.wcs_kwargs.copy()
 
         if "time" in coordinates:
             kwargs["time"] = coordinates["time"].coordinates.astype(str).tolist()
