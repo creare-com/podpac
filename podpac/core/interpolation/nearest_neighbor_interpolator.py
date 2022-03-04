@@ -252,7 +252,8 @@ class NearestNeighbor(Interpolator):
         stacked = {d for d in request.dims for ud in udims if ud in d and request.is_stacked(ud)}
 
         if (len(indep_evals) + len(stacked)) <= 1:  # output is stacked in the same way
-            req_coords = req_coords_diag.T
+            # The ckdtree call below needs the lat/lon pairs in the last axis position
+            req_coords = np.moveaxis(req_coords_diag, 0, -1)
         elif (len(stacked) == 0) | (len(indep_evals) == 0 and len(stacked) == len(udims)):
             req_coords = np.stack([i.ravel() for i in np.meshgrid(*req_coords_diag, indexing="ij")], axis=1)
         else:
@@ -284,7 +285,7 @@ class NearestNeighbor(Interpolator):
                 )
             # Fix order of bounds
             bounds = bounds[:, [source.udims.index(dim) for dim in udims]]
-            index[np.any((req_coords > bounds[1]), axis=1) | np.any((req_coords < bounds[0]), axis=1)] = -1
+            index[np.any((req_coords > bounds[1]), axis=-1) | np.any((req_coords < bounds[0]), axis=-1)] = -1
 
         if tol and tol != np.inf:
             index[dist > tol] = -1

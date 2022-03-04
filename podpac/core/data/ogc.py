@@ -167,6 +167,7 @@ class WCSRaw(DataSource):
     format = tl.CaselessStrEnum(["geotiff", "geotiff_byte"], default_value="geotiff")
     crs = tl.Unicode(default_value="EPSG:4326")
     max_size = tl.Long(default_value=None, allow_none=True)
+    wcs_kwargs = tl.Dict(help="Additional query parameters sent to the WCS server")
 
     _repr_keys = ["source", "layer"]
 
@@ -372,7 +373,7 @@ class WCSRaw(DataSource):
         width = coordinates["lon"].size
         height = coordinates["lat"].size
 
-        kwargs = {}
+        kwargs = self.wcs_kwargs.copy()
 
         if "time" in coordinates:
             kwargs["time"] = coordinates["time"].coordinates.astype(str).tolist()
@@ -381,8 +382,8 @@ class WCSRaw(DataSource):
             kwargs["interpolation"] = self.interpolation
 
         logger.info(
-            "WCS GetCoverage (source=%s, layer=%s, bbox=%s, shape=%s)"
-            % (self.source, self.layer, (w, n, e, s), (width, height))
+            "WCS GetCoverage (source=%s, layer=%s, bbox=%s, shape=%s, time=%s)"
+            % (self.source, self.layer, (w, n, e, s), (width, height), kwargs.get("time"))
         )
 
         crs = pyproj.CRS(coordinates.crs)
@@ -413,14 +414,21 @@ class WCSRaw(DataSource):
         # get data using rasterio
         with rasterio.MemoryFile() as mf:
             mf.write(content)
-            dataset = mf.open(driver="GTiff")
+            try:
+                dataset = mf.open(driver="GTiff")
+            except rasterio.RasterioIOError:
+                raise WCSError("Could not read file with contents:", content)
 
         if "time" in coordinates and coordinates["time"].size > 1:
             # this should be easy to do, I'm just not sure how the data comes back.
             # is each time in a different band?
             raise NotImplementedError("TODO")
 
-        data = dataset.read(1).astype(float)
+        data = dataset.read().astype(float).squeeze()
+
+        # Need to fix the order of the data in the case of multiple bands
+        if len(data.shape) == 3:
+            data = data.transpose((1, 2, 0))
 
         # Need to fix the data order. The request and response order is always the same in WCS, but not in PODPAC
         if n > s:  # By default it returns the data upside down, so this is backwards
