@@ -1064,6 +1064,12 @@ class Node(tl.HasTraits):
             if not attrt.metadata.get("attr", False):
                 continue
             type_ = attrt.__class__.__name__
+
+            try:
+                schema = getattr(attrt, "_schema")
+            except:
+                schema = None
+            
             type_extra = str(attrt)
             if type_ == "Union":
                 type_ = [t.__class__.__name__ for t in attrt.trait_types]
@@ -1097,6 +1103,7 @@ class Node(tl.HasTraits):
                 "help": attrt.help,
                 "required": required,
                 "hidden": hidden,
+                "schema": schema,
             }
 
         try:

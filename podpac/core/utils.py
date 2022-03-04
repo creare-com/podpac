@@ -205,6 +205,7 @@ class TupleTrait(tl.List):
 
 
 class NodeTrait(tl.Instance):
+    _schema = {"test":"info"}
     def __init__(self, *args, **kwargs):
         from podpac import Node as _Node
 
@@ -215,6 +216,17 @@ class NodeTrait(tl.Instance):
         if podpac.core.settings.settings["DEBUG"]:
             value = deepcopy(value)
         return value
+
+class DimsTrait(tl.List):
+    _schema = {"test":"info"}
+    def __init__(self, *args, **kwargs):
+        super().__init__(tl.Enum(['lat', 'lon', 'time', 'alt']), *args, minlen=1, maxlen=4, **kwargs)
+
+    # def validate(self, obj, value):
+    #     super().validate(obj, value)
+    #     if podpac.core.settings.settings["DEBUG"]:
+    #         value = deepcopy(value)
+    #     return value
 
 
 class JSONEncoder(json.JSONEncoder):
