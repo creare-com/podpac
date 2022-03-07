@@ -13,7 +13,7 @@ import pyproj
 
 from podpac.core.utils import common_doc, cached_property, resolve_bbox_order
 from podpac.core.data.datasource import DataSource
-from podpac.core.interpolation.interpolation import InterpolationMixin
+from podpac.core.interpolation.interpolation import InterpolationMixin, InterpolationTrait
 from podpac.core.node import NodeException
 from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d, Coordinates1d, StackedCoordinates
@@ -159,7 +159,7 @@ class WCSRaw(DataSource):
     source = tl.Unicode().tag(attr=True, required=True)
     layer = tl.Unicode().tag(attr=True, required=True)
     version = tl.Unicode(default_value="1.0.0").tag(attr=True)
-    interpolation = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
+    interpolation = InterpolationTrait(default_value=None, allow_none=True).tag(attr=True)
     allow_mock_client = tl.Bool(False).tag(attr=True)
     username = tl.Unicode(allow_none=True)
     password = tl.Unicode(allow_none=True)
