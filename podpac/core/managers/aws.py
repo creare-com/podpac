@@ -23,10 +23,19 @@ from podpac.core.utils import common_doc, JSONEncoder
 from podpac import version
 
 # Optional imports
-from lazy_import import lazy_module
+from lazy_import import lazy_module, lazy_class
 
-boto3 = lazy_module("boto3")
-botocore = lazy_module("botocore")
+try:
+    import boto3
+    import botocore
+except:
+
+    class err:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("boto3 is not installed, please install to use this functionality.")
+
+    class boto3:
+        Sessions = err
 
 
 # Set up logging
