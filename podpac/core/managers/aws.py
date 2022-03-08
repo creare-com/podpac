@@ -13,8 +13,6 @@ from datetime import datetime
 
 from six import string_types
 
-import boto3
-import botocore
 import traitlets as tl
 import numpy as np
 
@@ -23,6 +21,13 @@ from podpac.core.settings import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.utils import common_doc, JSONEncoder
 from podpac import version
+
+# Optional imports
+from lazy_import import lazy_module
+
+boto3 = lazy_module("boto3")
+botocore = lazy_module("botocore")
+
 
 # Set up logging
 _log = logging.getLogger(__name__)
