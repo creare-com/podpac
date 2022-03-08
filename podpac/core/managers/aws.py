@@ -35,7 +35,7 @@ except:
             raise ImportError("boto3 is not installed, please install to use this functionality.")
 
     class boto3:
-        Sessions = err
+        Session = err
 
 
 # Set up logging
