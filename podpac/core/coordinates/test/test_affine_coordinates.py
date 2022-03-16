@@ -12,6 +12,7 @@ import podpac
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.affine_coordinates import AffineCoordinates
+from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 
 # origin [10, 20], pixel size [3, 2], north up
 GEOTRANSFORM_NORTHUP = (10.0, 2.0, 0.0, 20.0, 0.0, -3.0)
@@ -55,6 +56,18 @@ class TestAffineCoordinatesCreation(object):
 
         with pytest.raises(ValueError, match="Invalid shape"):
             AffineCoordinates(geotransform=GEOTRANSFORM_NORTHUP, shape=(3, 0))
+
+    def test_size_one_simplify(self):
+        c = AffineCoordinates(geotransform=GEOTRANSFORM_NORTHUP, shape=(1, 1))
+        c2 = c.simplify()
+        assert isinstance(c2[0], UniformCoordinates1d)
+        assert isinstance(c2[1], UniformCoordinates1d)
+        assert c2[0].shape == (1,)
+        assert c2[1].shape == (1,)
+        assert c2[0].step == GEOTRANSFORM_NORTHUP[-1]
+        assert c2[1].step == GEOTRANSFORM_NORTHUP[1]
+        assert c2[1].name == "lon"
+        assert c2[0].name == "lat"
 
     # def test_copy(self):
     #     c = AffineCoordinates(geotransform=GEOTRANSFORM_NORTHUP, shape=(3, 4))

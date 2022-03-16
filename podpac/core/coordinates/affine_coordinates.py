@@ -7,6 +7,8 @@ import traitlets as tl
 import lazy_import
 import warnings
 
+from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
+
 affine = lazy_import.lazy_module("affine")
 
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
@@ -334,8 +336,16 @@ class AffineCoordinates(StackedCoordinates):
 
             origin = a.f + step[0] / 2, a.c + step[1] / 2
             end = origin[0] + step[0] * (shape[::order][0] - 1), origin[1] + step[1] * (shape[::order][1] - 1)
-            lat = clinspace(origin[0], end[0], shape[::order][0], "lat")
-            lon = clinspace(origin[1], end[1], shape[::order][1], "lon")
+            # when the shape == 1, UniformCoordinates1d cannot infer the step from the size
+            # we have have to create the UniformCoordinates1d manually
+            if shape[::order][0] == 1:
+                lat = UniformCoordinates1d(origin[0], end[0], step=step[0], name="lat")
+            else:
+                lat = clinspace(origin[0], end[0], shape[::order][0], "lat")
+            if shape[::order][1] == 1:
+                lon = UniformCoordinates1d(origin[1], end[1], step=step[1], name="lon")
+            else:
+                lon = clinspace(origin[1], end[1], shape[::order][1], "lon")
             return [lat, lon][::order]
 
         return self.copy()
