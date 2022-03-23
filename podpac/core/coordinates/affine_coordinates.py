@@ -327,7 +327,7 @@ class AffineCoordinates(StackedCoordinates):
             a = self.affine
             shape = self.shape
 
-            if a.e <= tol and a.a <= tol:
+            if np.abs(a.e) <= tol and np.abs(a.a) <= tol:
                 order = -1
                 step = np.array([a.d, a.b])
             else:
