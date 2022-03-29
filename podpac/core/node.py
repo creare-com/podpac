@@ -1069,13 +1069,15 @@ class Node(tl.HasTraits):
                 schema = getattr(attrt, "_schema")
             except:
                 schema = None
-            
+
             type_extra = str(attrt)
             if type_ == "Union":
                 type_ = [t.__class__.__name__ for t in attrt.trait_types]
                 type_extra = "Union"
             elif type_ == "Instance":
                 type_ = attrt.klass.__name__
+                if type_ == "Node":
+                    type_ = "NodeTrait"
                 type_extra = attrt.klass
 
             required = attrt.metadata.get("required", False)
@@ -1113,7 +1115,7 @@ class Node(tl.HasTraits):
             style_json = {}
 
         spec["style"] = style_json  # this does not work, because node not created yet?
-        
+
         """
         I will manually define generic defaults here. Eventually we may want to
         dig into this and create node specific styling. This will have to be done under each
