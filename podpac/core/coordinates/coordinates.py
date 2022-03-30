@@ -1450,8 +1450,10 @@ class Coordinates(tl.HasTraits):
             that = self[t[j].name]
             if this.size > 1:
                 other = clinspace(that.bounds[0], that.bounds[1], this.size)
-            else:
+            elif this.size == that.size:
                 other = that.coordinates
+            else:
+                other = that.coordinates.mean()
             diagonal = StackedCoordinates([this.coordinates, other], dims=[this.name, that.name])
             t_diagonal = diagonal._transform(transformer)
             cs[self.dims.index(this.name)] = t_diagonal[this.name]
