@@ -2100,6 +2100,9 @@ class TestCoordinatesMethodTransform(object):
         c1 = Coordinates([ArrayCoordinates1d([1], name="lat"), clinspace(0, 2, 5, "lon")], crs="EPSG:3857")
         c2 = c1.transform("EPSG:4326")
         assert c2.shape == c1.shape
+        c1 = Coordinates([clinspace(0, 2, 5, "lat"), ArrayCoordinates1d([1], name="lon")], crs="EPSG:3857")
+        c2 = c1.transform("EPSG:4326")
+        assert c2.shape == c1.shape
 
 
 class TestCoordinatesMethodSimplify(object):
