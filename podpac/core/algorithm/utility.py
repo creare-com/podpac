@@ -11,6 +11,7 @@ import traitlets as tl
 # Internal dependencies
 from podpac.core.coordinates import Coordinates
 from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.style import Style
 
 
 class Arange(Algorithm):
@@ -44,7 +45,9 @@ class CoordData(Algorithm):
         Name of coordinate to extract (one of lat, lon, time, alt)
     """
 
-    coord_name = tl.Enum(["time", "lat", "lon", "alt"], default_value="none", allow_none=False).tag(attr=True, required=True)
+    coord_name = tl.Enum(["time", "lat", "lon", "alt"], default_value="none", allow_none=False).tag(
+        attr=True, required=True
+    )
 
     def algorithm(self, inputs, coordinates):
         """Extract coordinate from request and makes data available.
@@ -74,8 +77,9 @@ class CoordData(Algorithm):
 class SinCoords(Algorithm):
     """A simple test node that creates a data based on coordinates and trigonometric (sin) functions."""
 
-    from podpac.style import Style
-    style = Style(clim=[-1.0, 1.0], colormap="jet")
+    @tl.default("style")
+    def _default_style(self):
+        return Style(clim=[-1.0, 1.0], colormap="jet")
 
     def algorithm(self, inputs, coordinates):
         """Computes sinusoids of all the coordinates.
