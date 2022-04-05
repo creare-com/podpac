@@ -388,7 +388,7 @@ class Node(tl.HasTraits):
         return bounds, crs
 
     @common_doc(COMMON_DOC)
-    def create_output_array(self, coords, data=np.nan, attrs=None, **kwargs):
+    def create_output_array(self, coords, data=np.nan, attrs=None, outputs=None, **kwargs):
         """
         Initialize an output data array
 
@@ -398,6 +398,10 @@ class Node(tl.HasTraits):
             {arr_coords}
         data : None, number, or array-like (optional)
             {arr_init_type}
+        attrs : dict
+            Attributes to add to output -- UnitsDataArray.create uses the 'crs' portion contained in here
+        outputs : list[string], optional
+            Default is self.outputs. List of strings listing the outputs
         **kwargs
             {arr_kwargs}
 
@@ -420,8 +424,12 @@ class Node(tl.HasTraits):
                 attrs["geotransform"] = coords.geotransform
             except (TypeError, AttributeError):
                 pass
+        if outputs is None:
+            outputs = self.outputs
+        if outputs == []:
+            outputs = None
 
-        return UnitsDataArray.create(coords, data=data, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs)
+        return UnitsDataArray.create(coords, data=data, outputs=outputs, dtype=self.dtype, attrs=attrs, **kwargs)
 
     def trait_is_defined(self, name):
         return trait_is_defined(self, name)
