@@ -356,7 +356,11 @@ class DataSource(Node):
                 outputs = output["output"].data.tolist()
                 if isinstance(outputs, str):
                     # this will pass outputs=None to the create function, which is what we want in this case
+                    # which is when it is a single output (not a dim)
                     outputs = []
+            except KeyError:
+                # 'output' does not exist in the data, so outputs should be empty
+                outputs = []
             except Exception as e:
                 outputs = self.outputs
             coords = Coordinates.from_xarray(output, crs=output.attrs.get("crs", None))
