@@ -47,7 +47,7 @@ class BaseFileSource(DataSource):
         dataset object
     """
 
-    source = tl.Unicode().tag(attr=True)
+    source = tl.Unicode().tag(attr=True,required=True)
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     _repr_keys = ["source"]

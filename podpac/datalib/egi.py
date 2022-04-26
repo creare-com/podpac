@@ -15,6 +15,7 @@ from xml.etree.ElementTree import ParseError
 
 import requests
 from six import string_types
+from traitlets.traitlets import default
 import numpy as np
 import xarray as xr
 import traitlets as tl
@@ -97,14 +98,14 @@ class EGI(InterpolationMixin, DataSource):
         The data array compiled from downloaded EGI data
     """
 
-    base_url = tl.Unicode(default_value=BASE_URL).tag(attr=True)
+    base_url = tl.Unicode(default_value=BASE_URL).tag(attr=True, required=False, default="https://n5eil01u.ecs.nsidc.org/egi/request")
 
     # required
-    short_name = tl.Unicode().tag(attr=True)
-    data_key = tl.Unicode().tag(attr=True)
-    lat_key = tl.Unicode(allow_none=True).tag(attr=True)
-    lon_key = tl.Unicode(allow_none=True).tag(attr=True)
-    time_key = tl.Unicode(allow_none=True).tag(attr=True)
+    short_name = tl.Unicode().tag(attr=True, required=True)
+    data_key = tl.Unicode().tag(attr=True, required=True)
+    lat_key = tl.Unicode(allow_none=True).tag(attr=True, required=True)
+    lon_key = tl.Unicode(allow_none=True).tag(attr=True, required=True)
+    time_key = tl.Unicode(allow_none=True).tag(attr=True, required=True)
     udims_overwrite = tl.List()
 
     min_bounds_span = tl.Dict(allow_none=True).tag(attr=True)
@@ -592,3 +593,10 @@ class EGI(InterpolationMixin, DataSource):
             s.close()
 
         return ip
+    
+    @classmethod
+    def get_ui_spec(cls):
+        spec=super().get_ui_spec()
+        spec["attrs"]["username"]={}
+        spec["attrs"]["password"]={}
+        return spec

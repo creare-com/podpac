@@ -138,7 +138,10 @@ class UnitsDataArray(xr.DataArray):
         o = self
         for d in self.dims:
             if "_" in d and "dim" not in d:  # This it is stacked
-                o = o.reset_index(d)
+                try:
+                    o = o.reset_index(d)
+                except KeyError:
+                    pass  # This is fine, actually didn't need to reset because not a real dim
         o._pp_serialize()
         r = super(UnitsDataArray, o).to_netcdf(*args, **kwargs)
         self._pp_deserialize()

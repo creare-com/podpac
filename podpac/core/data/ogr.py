@@ -17,8 +17,8 @@ from podpac.core.interpolation.interpolation import InterpolationMixin
 class OGRRaw(Node):
     """ """
 
-    source = tl.Unicode().tag(attr=True)
-    layer = tl.Unicode().tag(attr=True)
+    source = tl.Unicode().tag(attr=True, required=True)
+    layer = tl.Unicode().tag(attr=True, required=True)
     attribute = tl.Unicode().tag(attr=True)
     nan_vals = tl.List().tag(attr=True)
     nan_val = tl.Any(np.nan).tag(attr=True)

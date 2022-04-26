@@ -48,7 +48,7 @@ class BaseCompositor(Node):
         for most use-cases.
     """
 
-    sources = tl.List(trait=NodeTrait()).tag(attr=True)
+    sources = tl.List(trait=NodeTrait()).tag(attr=True,required=True)
     source_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
     multithreading = tl.Bool(False)
 

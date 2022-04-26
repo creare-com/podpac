@@ -2096,6 +2096,14 @@ class TestCoordinatesMethodTransform(object):
         assert_array_equal(c2["lat"].coordinates, c1["lat"].coordinates)
         assert_array_equal(c2["lon"].coordinates, c1["lon"].coordinates)
 
+    def test_transform_size_1_lat(self):
+        c1 = Coordinates([ArrayCoordinates1d([1], name="lat"), clinspace(0, 2, 5, "lon")], crs="EPSG:3857")
+        c2 = c1.transform("EPSG:4326")
+        assert c2.shape == c1.shape
+        c1 = Coordinates([clinspace(0, 2, 5, "lat"), ArrayCoordinates1d([1], name="lon")], crs="EPSG:3857")
+        c2 = c1.transform("EPSG:4326")
+        assert c2.shape == c1.shape
+
 
 class TestCoordinatesMethodSimplify(object):
     def test_simplify_array_to_uniform(self):

@@ -30,9 +30,9 @@ class ReprojectedSource(DataSource):
         Coordinates where the source node should be evaluated.
     """
 
-    source = NodeTrait().tag(attr=True)
+    source = NodeTrait().tag(attr=True, required=True)
     source_interpolation = InterpolationTrait().tag(attr=True)
-    reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
+    reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True, required=True)
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     _repr_keys = ["source", "interpolation"]

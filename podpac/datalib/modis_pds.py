@@ -192,8 +192,8 @@ class MODISComposite(S3Mixin, TileCompositorRaw):
         individual object (varies by product)
     """
 
-    product = tl.Enum(values=PRODUCTS, help="MODIS product ID").tag(attr=True)
-    data_key = tl.Unicode(help="data to retrieve (varies by product)").tag(attr=True)
+    product = tl.Enum(values=PRODUCTS, help="MODIS product ID").tag(attr=True, required=True)
+    data_key = tl.Unicode(help="data to retrieve (varies by product)").tag(attr=True, required=True)
 
     tile_width = (1, 2400, 2400)
     start_date = "2013-01-01"

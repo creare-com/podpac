@@ -12,6 +12,7 @@ import importlib
 import warnings
 from collections import OrderedDict
 from copy import deepcopy
+import logging
 
 import numpy as np
 import traitlets as tl
@@ -26,12 +27,14 @@ from podpac.core.utils import cached_property
 from podpac.core.utils import trait_is_defined
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.utils import probe_node
+from podpac.core.utils import NodeTrait
 from podpac.core.utils import hash_alg
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl, S3CacheStore, DiskCacheStore
 from podpac.core.managers.multi_threading import thread_manager
 
+_logger = logging.getLogger(__name__)
 
 COMMON_NODE_DOC = {
     "requested_coordinates": """The set of coordinates requested by a user. The Node will be evaluated using these coordinates.""",
@@ -129,7 +132,7 @@ class Node(tl.HasTraits):
 
     outputs = tl.List(trait=tl.Unicode(), allow_none=True).tag(attr=True)
     output = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
-    units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
+    units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True, hidden=True)
     style = tl.Instance(Style)
 
     dtype = tl.Enum([float], default_value=float)
@@ -313,7 +316,7 @@ class Node(tl.HasTraits):
         data.attrs["layer_style"] = self.style
 
         if self.units is not None:
-            data.attrs["units"]
+            data.attrs["units"] = self.units
 
         # Add crs if it is missing
         if "crs" not in data.attrs:
@@ -385,7 +388,7 @@ class Node(tl.HasTraits):
         return bounds, crs
 
     @common_doc(COMMON_DOC)
-    def create_output_array(self, coords, data=np.nan, attrs=None, **kwargs):
+    def create_output_array(self, coords, data=np.nan, attrs=None, outputs=None, **kwargs):
         """
         Initialize an output data array
 
@@ -395,6 +398,10 @@ class Node(tl.HasTraits):
             {arr_coords}
         data : None, number, or array-like (optional)
             {arr_init_type}
+        attrs : dict
+            Attributes to add to output -- UnitsDataArray.create uses the 'crs' portion contained in here
+        outputs : list[string], optional
+            Default is self.outputs. List of strings listing the outputs
         **kwargs
             {arr_kwargs}
 
@@ -417,8 +424,12 @@ class Node(tl.HasTraits):
                 attrs["geotransform"] = coords.geotransform
             except (TypeError, AttributeError):
                 pass
+        if outputs is None:
+            outputs = self.outputs
+        if outputs == []:
+            outputs = None
 
-        return UnitsDataArray.create(coords, data=data, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs)
+        return UnitsDataArray.create(coords, data=data, outputs=outputs, dtype=self.dtype, attrs=attrs, **kwargs)
 
     def trait_is_defined(self, name):
         return trait_is_defined(self, name)
@@ -1022,6 +1033,123 @@ class Node(tl.HasTraits):
         d = OrderedDict({layer.replace(".", "-"): definition})
 
         return cls.from_definition(d)
+
+    @classmethod
+    def get_ui_spec(cls):
+        filter = []
+        spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}, "style": {}}
+        # find any default values that are defined by function with decorators
+        # e.g. using @tl.default("trait_name")
+        #            def _default_trait_name(self): ...
+        function_defaults = {}
+        for attr in dir(cls):
+            atr = getattr(cls, attr)
+            if not isinstance(atr, tl.traitlets.DefaultHandler):
+                continue
+            try:
+                try:
+                    def_val = atr(cls())
+                except:
+                    def_val = atr(cls)
+                if isinstance(def_val, NodeTrait):
+                    def_val = def_val.name
+                    print("Changing Nodetrait to string")
+                # if "NodeTrait" not in str(atr(cls)):
+                function_defaults[atr.trait_name] = def_val
+            except Exception:
+                _logger.warning(
+                    "For node {}: Failed to generate default from function for trait {}".format(
+                        cls.__name__, atr.trait_name
+                    )
+                )
+
+        for attr in dir(cls):
+            if attr in filter:
+                continue
+            attrt = getattr(cls, attr)
+            if not isinstance(attrt, tl.TraitType):
+                continue
+            if not attrt.metadata.get("attr", False):
+                continue
+            type_ = attrt.__class__.__name__
+
+            try:
+                schema = getattr(attrt, "_schema")
+            except:
+                schema = None
+
+            type_extra = str(attrt)
+            if type_ == "Union":
+                type_ = [t.__class__.__name__ for t in attrt.trait_types]
+                type_extra = "Union"
+            elif type_ == "Instance":
+                type_ = attrt.klass.__name__
+                if type_ == "Node":
+                    type_ = "NodeTrait"
+                type_extra = attrt.klass
+
+            required = attrt.metadata.get("required", False)
+            hidden = attrt.metadata.get("hidden", False)
+            if attr in function_defaults:
+                default_val = function_defaults[attr]
+            else:
+                default_val = attrt.default()
+            if not isinstance(type_extra, str):
+                type_extra = str(type_extra)
+            try:
+                if np.isnan(default_val):
+                    default_val = "nan"
+            except:
+                pass
+
+            if default_val == tl.Undefined:
+                default_val = None
+
+            spec["attrs"][attr] = {
+                "type": type_,
+                "type_str": type_extra,  # May remove this if not needed
+                "values": getattr(attrt, "values", None),
+                "default": default_val,
+                "help": attrt.help,
+                "required": required,
+                "hidden": hidden,
+                "schema": schema,
+            }
+
+        try:
+            # This returns the
+            style_json = json.loads(cls().style.json)  # load the style from the cls
+        except:
+            style_json = {}
+
+        spec["style"] = style_json  # this does not work, because node not created yet?
+
+        """
+        I will manually define generic defaults here. Eventually we may want to
+        dig into this and create node specific styling. This will have to be done under each
+        node. But may be difficult to add style to each node?
+
+        Example: podpac.core.algorithm.utility.SinCoords.Style ----> returns a tl.Instance
+        BUT if I do:
+        podpac.core.algorithm.utility.SinCoords().style.json ---> outputs style
+
+        ERROR if no parenthesis are given. So how can this be done without instantiating the class?
+
+        Will need to ask @MPU how to define a node specific style.
+        """
+        # spec["style"] = {
+        #     "name": "?",
+        #     "units": "m",
+        #     "clim": [-1.0, 1.0],
+        #     "colormap": "jet",
+        #     "enumeration_legend": "?",
+        #     "enumeration_colors": "?",
+        #     "default_enumeration_legend": "unknown",
+        #     "default_enumeration_color": (0.2, 0.2, 0.2),
+        # }
+
+        spec.update(getattr(cls, "_ui_spec", {}))
+        return spec
 
 
 def _lookup_input(nodes, name, value):

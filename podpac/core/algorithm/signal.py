@@ -76,6 +76,8 @@ class Convolution(UnaryAlgorithm):
 
     kernel = ArrayTrait(dtype=float).tag(attr=True)
     kernel_dims = tl.List().tag(attr=True)
+    #Takes one or the other which is hard to implement in a GUI
+    kernel_type = tl.List().tag(attr=True)
 
     def _first_init(self, kernel=None, kernel_dims=None, kernel_type=None, kernel_ndim=None, **kwargs):
         if kernel_dims is None:

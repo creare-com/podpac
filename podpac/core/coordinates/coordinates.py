@@ -1448,10 +1448,12 @@ class Coordinates(tl.HasTraits):
             # Transform all of the points for this dimension (either lat or lon) and record result
             this = self[t[i].name]
             that = self[t[j].name]
-            if this.size > 1:
+            if this.size > 1 and that.size > 1:
                 other = clinspace(that.bounds[0], that.bounds[1], this.size)
-            else:
+            elif this.size == that.size:
                 other = that.coordinates
+            else:
+                other = np.zeros(this.size) + that.coordinates.mean()
             diagonal = StackedCoordinates([this.coordinates, other], dims=[this.name, that.name])
             t_diagonal = diagonal._transform(transformer)
             cs[self.dims.index(this.name)] = t_diagonal[this.name]

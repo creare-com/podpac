@@ -155,7 +155,10 @@ class DataSource(Node):
     nan_val = tl.Any(np.nan).tag(attr=True)
     boundary = tl.Dict().tag(attr=True)
 
-    coordinate_index_type = tl.Enum(["slice", "numpy", "xarray"], default_value="numpy")
+    coordinate_index_type = tl.Enum(
+        ["slice", "numpy", "xarray"],
+        default_value="numpy",
+    ).tag(attr=True)
     cache_coordinates = tl.Bool(False)
     cache_output = tl.Bool()
 
@@ -343,12 +346,27 @@ class DataSource(Node):
             coordinates = coordinates.transform(self._crs)
 
         # note: super().eval (not self._eval)
+        # This call already sub-selects an 'output' if specified
         output = super().eval(coordinates, **kwargs)
 
         # transform back to requested coordinates, if necessary
         if coordinates.crs.lower() != requested_coordinates.crs.lower():
+            # need to use the already-selected output, if it exists
+            try:
+                outputs = output["output"].data.tolist()
+                if isinstance(outputs, str):
+                    # this will pass outputs=None to the create function, which is what we want in this case
+                    # which is when it is a single output (not a dim)
+                    outputs = []
+            except KeyError:
+                # 'output' does not exist in the data, so outputs should be empty
+                outputs = []
+            except Exception as e:
+                outputs = self.outputs
             coords = Coordinates.from_xarray(output, crs=output.attrs.get("crs", None))
-            output = self.create_output_array(coords.transform(requested_coordinates.crs), data=output.data)
+            output = self.create_output_array(
+                coords.transform(requested_coordinates.crs), data=output.data, outputs=outputs
+            )
 
         if settings["DEBUG"]:
             self._requested_coordinates = requested_coordinates

@@ -54,8 +54,8 @@ class ArrayRaw(NoCacheMixin, DataSource):
     >>> output = node.eval(coords)
     """
 
-    source = ArrayTrait().tag(attr=True)
-    coordinates = tl.Instance(Coordinates).tag(attr=True)
+    source = ArrayTrait().tag(attr=True, required=True)
+    coordinates = tl.Instance(Coordinates).tag(attr=True,required=True)
 
     _repr_keys = ["shape"]
 
@@ -78,12 +78,12 @@ class ArrayRaw(NoCacheMixin, DataSource):
 
     @property
     def shape(self):
-        """Returns the shape of :attr:`self.source`
+        """Returns the shape of :attr:`self.array`
 
         Returns
         -------
         tuple
-            Shape of :attr:`self.source`
+            Shape of :attr:`self.array`
         """
         return self.source.shape
 

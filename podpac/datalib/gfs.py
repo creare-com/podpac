@@ -62,10 +62,10 @@ class GFS(S3Mixin, DiskCacheMixin, TileCompositor):
         source hour, e.g. '1200'
     """
 
-    parameter = tl.Unicode().tag(attr=True)
-    level = tl.Unicode().tag(attr=True)
-    date = tl.Unicode().tag(attr=True)
-    hour = tl.Unicode().tag(attr=True)
+    parameter = tl.Unicode().tag(attr=True,required=True)
+    level = tl.Unicode().tag(attr=True,required=True)
+    date = tl.Unicode().tag(attr=True,required=True)
+    hour = tl.Unicode().tag(attr=True,required=True)
 
     @property
     def _repr_keys(self):

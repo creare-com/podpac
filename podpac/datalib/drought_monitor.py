@@ -9,12 +9,19 @@ class DroughtMonitorCategory(Zarr):
 
 
 class DroughtCategory(Algorithm):
+    # soil_moisture = NodeTrait().tag(attr=True, required=True)
+    # d0 = NodeTrait().tag(attr=True, required=True)
+    # d1 = NodeTrait().tag(attr=True, required=True)
+    # d2 = NodeTrait().tag(attr=True, required=True)
+    # d3 = NodeTrait().tag(attr=True, required=True)
+    # d4 = NodeTrait().tag(attr=True, required=True)
     soil_moisture = NodeTrait().tag(attr=True)
     d0 = NodeTrait().tag(attr=True)
     d1 = NodeTrait().tag(attr=True)
     d2 = NodeTrait().tag(attr=True)
     d3 = NodeTrait().tag(attr=True)
     d4 = NodeTrait().tag(attr=True)
+    
     style = Style(
         clim=[0, 6],
         enumeration_colors={

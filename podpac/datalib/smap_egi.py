@@ -135,11 +135,11 @@ class SMAP(EGI):
         Earthdata password (https://urs.earthdata.nasa.gov/)
         If undefined, node will look for a password under setting key "password@urs.earthdata.nasa.gov"
     """
-
+    
     product = tl.Enum(SMAP_PRODUCTS, default_value="SPL4SMAU").tag(attr=True)
     nan_vals = [-9999.0]
     min_bounds_span = tl.Dict(default_value={"lon": 0.3, "lat": 0.3, "time": "3,h"}).tag(attr=True)
-    check_quality_flags = tl.Bool(True).tag(attr=True)
+    check_quality_flags = tl.Bool(True).tag(attr=True, default=True)
     quality_flag_key = tl.Unicode(allow_none=True).tag(attr=True)
     data_key = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     base_url = tl.Unicode(default_value=BASE_URL).tag(attr=True)
