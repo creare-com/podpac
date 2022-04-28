@@ -178,3 +178,7 @@ class UnaryAlgorithm(BaseAlgorithm):
     @tl.default("outputs")
     def _default_outputs(self):
         return self.source.outputs
+
+    @tl.default("style")
+    def _default_style(self):  # Pass through source style by default
+        return self.source.style

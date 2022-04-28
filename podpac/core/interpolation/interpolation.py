@@ -119,6 +119,10 @@ class Interpolate(Node):
     _requested_source_data = tl.Instance(UnitsDataArray)
     _evaluated_coordinates = tl.Instance(Coordinates)
 
+    @tl.default("style")
+    def _default_style(self):  # Pass through source style by default
+        return self.source.style
+
     # this adds a more helpful error message if user happens to try an inspect _interpolation before evaluate
     @tl.default("_interpolation")
     def _default_interpolation(self):
