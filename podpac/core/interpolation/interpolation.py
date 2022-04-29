@@ -121,7 +121,10 @@ class Interpolate(Node):
 
     @tl.default("style")
     def _default_style(self):  # Pass through source style by default
-        return self.source.style
+        if self.source is not None:
+            return self.source.style
+        else:
+            return super()._default_style()
 
     # this adds a more helpful error message if user happens to try an inspect _interpolation before evaluate
     @tl.default("_interpolation")
