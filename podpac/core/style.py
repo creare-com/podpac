@@ -44,9 +44,9 @@ class Style(tl.HasTraits):
         super(Style, self).__init__(*args, **kwargs)
 
     name = tl.Unicode()
-    units = tl.Unicode(allow_none=True,default_value="m") #this shows up as default podpac.core.style.Style().units but not podpac.core.style.Style.units
+    units = tl.Unicode(allow_none=True, default_value="")
     clim = tl.List(default_value=[None, None])
-    colormap = tl.Unicode(allow_none=True, default_value=None) #wanted to be jet, but cant have this with enumeration color
+    colormap = tl.Unicode(allow_none=True, default_value=None)
     enumeration_legend = tl.Dict(key_trait=tl.Int(), value_trait=tl.Unicode(), default_value=None, allow_none=True)
     enumeration_colors = tl.Dict(key_trait=tl.Int(), default_value=None, allow_none=True)
     default_enumeration_legend = tl.Unicode(default_value=DEFAULT_ENUMERATION_LEGEND)
