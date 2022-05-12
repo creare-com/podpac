@@ -191,7 +191,7 @@ class RasterioRaw(S3Mixin, BaseFileSource):
                 reduction_factor, np.abs(min_delta / self.coordinates[c].step)  # self.coordinates is always uniform
             )
         # Find the overview that's closest to this reduction factor
-        if reduction_factor < 2:  # Then we shouldn't use an overview
+        if (reduction_factor < 2) or (len(self.overviews) == 0):  # Then we shouldn't use an overview
             overview = 1
             overview_level = None
         else:
