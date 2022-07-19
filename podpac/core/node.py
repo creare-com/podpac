@@ -881,13 +881,13 @@ class Node(tl.HasTraits):
                 kwargs[k] = _lookup_attr(nodes, name, v)
 
             if "style" in d:
-                style_class = getattr(node_class, 'style', Style)
+                style_class = getattr(node_class, "style", Style)
                 if isinstance(style_class, tl.TraitType):
                     # Now we actually have to look through the class to see
                     # if there is a custom initializer for style
                     for attr in dir(node_class):
                         atr = getattr(node_class, attr)
-                        if not isinstance(atr, tl.traitlets.DefaultHandler) or atr.trait_name != 'style':
+                        if not isinstance(atr, tl.traitlets.DefaultHandler) or atr.trait_name != "style":
                             continue
                         try:
                             style_class = atr(node_class)
@@ -903,8 +903,6 @@ class Node(tl.HasTraits):
                 except Exception as e:
                     kwargs["style"] = Style.from_definition(d["style"])
                     # print ("couldn't make style from inferred style class", e)
-
-
 
             for k in d:
                 if k not in ["node", "inputs", "attrs", "lookup_attrs", "plugin", "style"]:
@@ -1110,6 +1108,15 @@ class Node(tl.HasTraits):
                 if type_ == "Node":
                     type_ = "NodeTrait"
                 type_extra = attrt.klass
+            elif type_ == "Dict" and schema is None:
+                try:
+                    schema = {
+                        "key": getattr(attrt, "_key_trait").__class__.__name__,
+                        "value": getattr(attrt, "_value_trait").__class__.__name__,
+                    }
+                except Exception as e:
+                    print("Could not find schema for", attrt, " of type", type_)
+                    schema = None
 
             required = attrt.metadata.get("required", False)
             hidden = attrt.metadata.get("hidden", False)

@@ -31,7 +31,7 @@ if sys.version_info.major == 2:
 class GenericInputs(Algorithm):
     """Base class for Algorithms that accept generic named inputs."""
 
-    inputs = tl.Dict(read_only=True).tag(attr=True, required=True)
+    inputs = tl.Dict(read_only=True, value_trait=NodeTrait(), key_trait=tl.Unicode()).tag(attr=True, required=True)
 
     _repr_keys = ["inputs"]
 
