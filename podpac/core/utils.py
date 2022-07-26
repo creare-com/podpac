@@ -205,7 +205,8 @@ class TupleTrait(tl.List):
 
 
 class NodeTrait(tl.Instance):
-    _schema = {"test":"info"}
+    _schema = {"test": "info"}
+
     def __init__(self, *args, **kwargs):
         from podpac import Node as _Node
 
@@ -217,10 +218,12 @@ class NodeTrait(tl.Instance):
             value = deepcopy(value)
         return value
 
+
 class DimsTrait(tl.List):
-    _schema = {"test":"info"}
+    _schema = {"test": "info"}
+
     def __init__(self, *args, **kwargs):
-        super().__init__(tl.Enum(['lat', 'lon', 'time', 'alt']), *args, minlen=1, maxlen=4, **kwargs)
+        super().__init__(tl.Enum(["lat", "lon", "time", "alt"]), *args, minlen=1, maxlen=4, **kwargs)
 
     # def validate(self, obj, value):
     #     super().validate(obj, value)
@@ -598,7 +601,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
     return out
 
 
-def get_ui_node_spec(module=None, category="default"):
+def get_ui_node_spec(module=None, category="default", help_as_html=False):
     """
     Returns a dictionary describing the specifications for each Node in a module.
 
@@ -609,6 +612,8 @@ def get_ui_node_spec(module=None, category="default"):
         classes will be included in the spec. (i.e. no recursive search through submodules)
     category: str, optional
         Default is "default". Top-level category name for the group of Nodes.
+    help_as_html: bool, optional
+        Default is False. If True, the docstrings will be converted to html before storing in the spec.
 
     Returns
     --------
@@ -620,77 +625,31 @@ def get_ui_node_spec(module=None, category="default"):
 
     spec = {}
 
-    # def get_ui_spec(cls):
-    #     filter = []
-    #     spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}}
-    #     for attr in dir(cls):
-    #         if attr in filter:
-    #             continue
-    #         attrt = getattr(cls, attr)
-    #         if not isinstance(attrt, tl.TraitType):
-    #             continue
-    #         if not attrt.metadata.get("attr", False):
-    #             continue
-    #         type_ = attrt.__class__.__name__
-    #         type_extra = str(attrt)
-    #         if type_ == "Union":
-    #             type_ = [t.__class__.__name__ for t in attrt.trait_types]
-    #             type_extra = "Union"
-    #         elif type_ == "Instance":
-    #             type_ = attrt.klass.__name__
-    #             type_extra = attrt.klass
-
-    #         required = attrt.metadata.get("required", False)
-    #         hidden = attrt.metadata.get("hidden", False)
-    #         default_val = attrt.default()
-    #         if not isinstance(type_extra, str):
-    #             type_extra = str(type_extra)
-    #         try:
-    #             if np.isnan(default_val):
-    #                 default_val = "nan"
-    #         except:
-    #             pass
-
-    #         if default_val == tl.Undefined:
-    #             default_val = None
-
-    #         spec["attrs"][attr] = {
-    #             "type": type_,
-    #             "type_str": type_extra,  # May remove this if not needed
-    #             "values": getattr(attrt, "values", None),
-    #             "default": default_val,
-    #             "help": attrt.help,
-    #             "required": required,
-    #             "hidden": hidden,
-    #         }
-    #     spec.update(getattr(cls, "_ui_spec", {}))
-    #     return spec
-
     if module is None:
         modcat = zip(
             [podpac.data, podpac.algorithm, podpac.compositor, podpac.datalib],
             ["data", "algorithm", "compositor", "datalib"],
         )
         for mod, cat in modcat:
-            spec.update(get_ui_node_spec(mod, cat))
+            spec.update(get_ui_node_spec(mod, cat, help_as_html=help_as_html))
         return spec
 
     spec[category] = {}
-    disabled_categories=["Algorithm","DataSource","DroughtMonitorCategory","DroughtCategory","IntakeCatalog"]
+    disabled_categories = ["Algorithm", "DataSource", "DroughtMonitorCategory", "DroughtCategory", "IntakeCatalog"]
     for obj in dir(module):
         # print(obj)
         if obj in disabled_categories:
             ob = getattr(module, obj)
             # print(ob)
             # print(ob.get_ui_spec())
-            #would be fairly annoying to have to check all of the attrs for abstract
-            #still need a better solution
+            # would be fairly annoying to have to check all of the attrs for abstract
+            # still need a better solution
             continue
         ob = getattr(module, obj)
         if not inspect.isclass(ob):
             continue
         if not issubclass(ob, podpac.Node):
             continue
-        spec[category][obj] = ob.get_ui_spec()
+        spec[category][obj] = ob.get_ui_spec(help_as_html=help_as_html)
 
     return spec

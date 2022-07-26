@@ -98,7 +98,9 @@ class EGI(InterpolationMixin, DataSource):
         The data array compiled from downloaded EGI data
     """
 
-    base_url = tl.Unicode(default_value=BASE_URL).tag(attr=True, required=False, default="https://n5eil01u.ecs.nsidc.org/egi/request")
+    base_url = tl.Unicode(default_value=BASE_URL).tag(
+        attr=True, required=False, default="https://n5eil01u.ecs.nsidc.org/egi/request"
+    )
 
     # required
     short_name = tl.Unicode().tag(attr=True, required=True)
@@ -593,10 +595,10 @@ class EGI(InterpolationMixin, DataSource):
             s.close()
 
         return ip
-    
+
     @classmethod
-    def get_ui_spec(cls):
-        spec=super().get_ui_spec()
-        spec["attrs"]["username"]={}
-        spec["attrs"]["password"]={}
+    def get_ui_spec(cls, help_as_html=False):
+        spec = super().get_ui_spec(help_as_html=help_as_html)
+        spec["attrs"]["username"] = {}
+        spec["attrs"]["password"] = {}
         return spec

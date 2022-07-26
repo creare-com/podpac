@@ -59,6 +59,9 @@ extras_require = {
         "sat-search>=0.2",
         "sat-stac>=0.3",
     ],
+    "node_ui": [
+        "numpydoc"
+    ],
     "dev": [
         "pylint>=1.8.2",
         "pytest-cov>=2.5.1",
@@ -75,7 +78,7 @@ extras_require = {
 if sys.version_info.major == 2:
     extras_require["dev"] += ["pytest>=3.3.2"]
 else:
-    extras_require["dev"] += ["sphinx>=2.3, <3.0", "sphinx-rtd-theme>=0.4", "sphinx-autobuild>=0.7", "pytest>=5.0"]
+    extras_require["dev"] += ["sphinx>=2.3, <3.0", "sphinx-rtd-theme>=0.4", "sphinx-autobuild>=0.7", "pytest>=5.0", "numpydoc"]
 
 if sys.version >= "3.6":
     extras_require["dev"] += [

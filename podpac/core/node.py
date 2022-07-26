@@ -1056,13 +1056,34 @@ class Node(tl.HasTraits):
         return cls.from_definition(d)
 
     @classmethod
-    def get_ui_spec(cls):
+    def get_ui_spec(cls, help_as_html=False):
+        """Get spec of node attributes for building a ui
+
+        Parameters
+        ----------
+        help_as_html : bool, optional
+            Default is False. If True, the docstrings will be converted to html before storing in the spec.
+
+        Returns
+        -------
+        dict
+            Spec for this node that is readily json-serializable
+        """
         filter = []
         spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}, "style": {}}
         # Strip out starting spaces in the help text so that markdown parsing works correctly
         if spec["help"] is None:
             spec["help"] = "No help text to display."
         spec["help"] = spec["help"].replace("\n    ", "\n")
+
+        if help_as_html:
+            from numpydoc.docscrape_sphinx import SphinxDocString
+            from docutils.core import publish_string
+
+            tmp = SphinxDocString(spec["help"])
+            tmp2 = publish_string(str(tmp), writer_name="html")
+            slc = slice(tmp2.index(b'<div class="document">'), tmp2.index(b"</body>"))
+            spec["help"] = tmp2[slc].decode()
 
         # find any default values that are defined by function with decorators
         # e.g. using @tl.default("trait_name")
