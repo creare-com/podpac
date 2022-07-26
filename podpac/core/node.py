@@ -1059,6 +1059,11 @@ class Node(tl.HasTraits):
     def get_ui_spec(cls):
         filter = []
         spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}, "style": {}}
+        # Strip out starting spaces in the help text so that markdown parsing works correctly
+        if spec["help"] is None:
+            spec["help"] = "No help text to display."
+        spec["help"] = spec["help"].replace("\n    ", "\n")
+
         # find any default values that are defined by function with decorators
         # e.g. using @tl.default("trait_name")
         #            def _default_trait_name(self): ...
