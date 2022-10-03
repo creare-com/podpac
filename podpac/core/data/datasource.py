@@ -321,13 +321,16 @@ class DataSource(Node):
         """
 
         # check for missing dimensions
-        for c in self.coordinates.values():
-            if isinstance(c, Coordinates1d):
-                if c.name not in coordinates.udims:
-                    raise ValueError("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
-            elif isinstance(c, StackedCoordinates):
-                if all(dim not in coordinates.udims for dim in c.udims):
-                    raise ValueError("Cannot evaluate these coordinates, missing at least one dim in '%s'" % c.name)
+        try:
+            for c in self.coordinates.values():
+                if isinstance(c, Coordinates1d):
+                    if c.name not in coordinates.udims:
+                        raise ValueError("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
+                elif isinstance(c, StackedCoordinates):
+                    if all(dim not in coordinates.udims for dim in c.udims):
+                        raise ValueError("Cannot evaluate these coordinates, missing at least one dim in '%s'" % c.name)
+        except Exception as E:
+            raise E
 
         # store original requested coordinates
         requested_coordinates = coordinates
