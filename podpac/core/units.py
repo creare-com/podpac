@@ -26,7 +26,6 @@ import numpy as np
 import xarray as xr
 import traitlets as tl
 from pint import UnitRegistry
-from pint.unit import _Unit
 
 ureg = UnitRegistry()
 
