@@ -33,7 +33,11 @@ class InterpolationMixin(tl.HasTraits):
 
     def _eval(self, coordinates, output=None, _selector=None):
         node = Interpolate(
-            interpolation=self.interpolation, source_id=self.hash, force_eval=True, cache_ctrl=CacheCtrl([])
+            interpolation=self.interpolation,
+            source_id=self.hash,
+            force_eval=True,
+            cache_ctrl=CacheCtrl([]),
+            style=self.style,
         )
         node._set_interpolation()
         selector = node._interpolation.select_coordinates
