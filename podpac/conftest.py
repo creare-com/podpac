@@ -51,7 +51,7 @@ def pytest_unconfigure(config):
     pass
 
 
-original_settings = None
+original_settings = {}
 
 
 def pytest_sessionstart(session):

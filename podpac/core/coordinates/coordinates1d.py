@@ -41,12 +41,12 @@ class Coordinates1d(BaseCoordinates):
 
     @tl.observe("name")
     def _set_property(self, d):
-        if d["name"] is not None:
+        if d["new"] is not None:
             self._properties.add(d["name"])
 
     def _set_name(self, value):
         # set name if it is not set already, otherwise check that it matches
-        if "name" not in self._properties:
+        if "name" not in self._properties and value is not None:
             self.name = value
         elif self.name != value:
             raise ValueError("Dimension mismatch, %s != %s" % (value, self.name))

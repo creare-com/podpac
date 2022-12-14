@@ -51,9 +51,10 @@ class TileCompositorRaw(BaseCompositor):
             res = res.combine_first(arr)
 
             # combine_first overrides MultiIndex names, even if they match. Reset them here:
-            for dim, index in res.indexes.items():
-                if isinstance(index, pd.MultiIndex):
-                    res = res.reindex({dim: pd.MultiIndex.from_tuples(index.values, names=arr.indexes[dim].names)})
+            if int(xr.__version__.split(".")[0]) < 2022:  # no longer necessary in newer versions of xarray
+                for dim, index in res.indexes.items():
+                    if isinstance(index, pd.MultiIndex):
+                        res = res.reindex({dim: pd.MultiIndex.from_tuples(index.values, names=arr.indexes[dim].names)})
 
             obounds = arr.attrs.get("bounds", {})
             bounds = {
