@@ -17,6 +17,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims, Coordinates
 from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationTrait
 from podpac.core.cache.cache_ctrl import CacheCtrl
+from podpac.core.data.datasource import DataSource
 
 _logger = logging.getLogger(__name__)
 
@@ -43,7 +44,12 @@ class InterpolationMixin(tl.HasTraits):
         selector = node._interpolation.select_coordinates
         node._source_xr = super()._eval(coordinates, _selector=selector)
         self._interp_node = node
-        r = node.eval(coordinates, output=output)
+        if isinstance(self, DataSource):
+            # This is required to ensure that the output coordinates
+            # match the requested coordinates to floating point precision
+            r = node.eval(self._requested_coordinates, output=output)
+        else:
+            r = node.eval(coordinates, output=output)
         # Helpful for debugging
         self._from_cache = node._from_cache
         return r

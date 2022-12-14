@@ -331,6 +331,9 @@ class DataSource(Node):
 
         # store original requested coordinates
         requested_coordinates = coordinates
+        # This is needed for the interpolation mixin to avoid floating-point discrepancies
+        # between the requested coordinates and the evaluated coordinates
+        self._requested_coordinates = requested_coordinates
 
         # remove extra dimensions
         extra = [
@@ -364,12 +367,12 @@ class DataSource(Node):
             except Exception as e:
                 outputs = self.outputs
             coords = Coordinates.from_xarray(output, crs=output.attrs.get("crs", None))
+            # the coords.transform in the next line can cause floating point discrepancies between
+            # the requested coordinates and the output coordinates. This is handled in the
+            # InterpolationMixin using self._requested_coordinates
             output = self.create_output_array(
                 coords.transform(requested_coordinates.crs), data=output.data, outputs=outputs
             )
-
-        if settings["DEBUG"]:
-            self._requested_coordinates = requested_coordinates
 
         return output
 

@@ -175,3 +175,19 @@ class TestInterpolationBehavior(object):
         o = node.eval(tocrds)
         assert o.crs == tocrds.crs
         assert_array_equal(o.data, np.linspace(0, 2, 9))
+
+    def test_floating_point_crs_disagreement(self):
+        tocrds = podpac.Coordinates([[39.1, 39.0, 38.9], [-77.1, -77, -77.2]], dims=["lat", "lon"], crs="EPSG:4326")
+        base = podpac.core.data.array_source.ArrayRaw(
+            source=np.random.rand(3, 3), coordinates=tocrds.transform("EPSG:32618")
+        )
+        node = podpac.interpolators.Interpolate(source=base, interpolation="nearest")
+        o = node.eval(tocrds)
+        assert np.all((o.lat.data - tocrds["lat"].coordinates) == 0)
+
+        # now check the Mixin
+        node2 = podpac.core.data.array_source.Array(
+            source=np.random.rand(3, 3), coordinates=tocrds.transform("EPSG:32618")
+        )
+        o = node2.eval(tocrds)
+        assert np.all((o.lat.data - tocrds["lat"].coordinates) == 0)
