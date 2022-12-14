@@ -15,6 +15,7 @@ from podpac.core.node import Node
 from podpac.core.coordinates.coordinates import Coordinates, merge_dims
 from podpac.core.interpolation.interpolation import Interpolate
 from podpac.core.utils import NodeTrait, cached_property
+from podpac import settings
 
 
 class Reproject(Interpolate):
@@ -84,7 +85,15 @@ class Reproject(Interpolate):
             # Better to evaluate in reproject coordinate crs than eval crs for next step of interpolation
             extra_eval_coords = extra_eval_coords.transform(coords.crs)
         coords = merge_dims([coords, extra_eval_coords])
-        return self.source.eval(coords, output=output, _selector=selector)
+        if settings["MULTITHREADING"]:
+            # we have to do a new node here to avoid clashing with the source node.
+            # What happens is that the non-projected source gets evaluated
+            # at the projected source coordinates because we have to set
+            # self._requested_coordinates for the datasource to avoid floating point
+            # lat/lon disagreement issues
+            return Node.from_definition(self.source.definition).eval(coords, output=output, _selector=selector)
+        else:
+            return self.source.eval(coords, output=output, _selector=selector)
 
     @property
     def base_ref(self):
