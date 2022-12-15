@@ -98,10 +98,25 @@ class XarrayInterpolator(Interpolator):
                     coords=[eval_coordinates.xcoords[new_dim]],
                 )
                 continue
-            if not source_coordinates.is_stacked(d) and eval_coordinates.is_stacked(d):
+            if (
+                not source_coordinates.is_stacked(d)
+                and eval_coordinates.is_stacked(d)
+                and len(eval_coordinates[d].shape) == 1
+            ):
+                # Handle case for stacked coordinates (i.e. along a curve)
                 new_dim = [dd for dd in eval_coordinates.dims if d in dd][0]
                 coords[d] = xr.DataArray(
                     eval_coordinates[d].coordinates, dims=[new_dim], coords=[eval_coordinates.xcoords[new_dim]]
+                )
+            elif (
+                not source_coordinates.is_stacked(d)
+                and eval_coordinates.is_stacked(d)
+                and len(eval_coordinates[d].shape) > 1
+            ):
+                # Dependent coordinates (i.e. a warped coordinate system)
+                keep_coords = {k: v for k, v in eval_coordinates.xcoords.items() if k in eval_coordinates.xcoords[d][0]}
+                coords[d] = xr.DataArray(
+                    eval_coordinates[d].coordinates, dims=eval_coordinates.xcoords[d][0], coords=keep_coords
                 )
             else:
                 # TODO: Check dependent coordinates
@@ -127,4 +142,4 @@ class XarrayInterpolator(Interpolator):
 
         output_data = source_data.interp(method=self.method, **coords)
 
-        return output_data.transpose(*eval_coordinates.dims)
+        return output_data.transpose(*eval_coordinates.xdims)

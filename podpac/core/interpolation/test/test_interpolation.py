@@ -191,3 +191,16 @@ class TestInterpolationBehavior(object):
         )
         o = node2.eval(tocrds)
         assert np.all((o.lat.data - tocrds["lat"].coordinates) == 0)
+
+        # now check the reverse operation
+        tocrds = podpac.Coordinates(
+            [podpac.clinspace(4307580, 4330177, 7), podpac.clinspace(309220, 327053, 8)],
+            dims=["lat", "lon"],
+            crs="EPSG:32618",
+        )
+        srccrds = podpac.Coordinates(
+            [podpac.clinspace(39.2, 38.8, 9), podpac.clinspace(-77.3, -77.0, 9)], dims=["lat", "lon"], crs="EPSG:4326"
+        )
+        node3 = podpac.core.data.array_source.Array(source=np.random.rand(9, 9), coordinates=srccrds)
+        o = node3.eval(tocrds)
+        assert np.all((o.lat.data - tocrds["lat"].coordinates) == 0)

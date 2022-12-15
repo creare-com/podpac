@@ -22,7 +22,7 @@ class TestDataset(object):
 
     def test_dims(self):
         node = Dataset(source=self.source, time_key="day")
-        assert node.dims == ["time", "lat", "lon"]
+        assert np.all([d in ["time", "lat", "lon"] for d in node.dims])
 
         # un-mapped keys
         # node = Dataset(source=self.source)
@@ -37,7 +37,7 @@ class TestDataset(object):
         # specify dimension keys
         node = Dataset(source=self.source, time_key="day")
         nc = node.coordinates
-        assert nc.dims == ("time", "lat", "lon")
+        # assert nc.dims == ("time", "lat", "lon")  # Xarray is free to change this order -- we don't care
         np.testing.assert_array_equal(nc["lat"].coordinates, self.lat)
         np.testing.assert_array_equal(nc["lon"].coordinates, self.lon)
         np.testing.assert_array_equal(nc["time"].coordinates, self.time)
@@ -103,6 +103,6 @@ class TestDataset(object):
 
         # treat day as an "extra" dimension, and select the second day
         node = Dataset(source=self.source, data_key="data", selection={"day": 1})
-        assert node.coordinates.dims == ("lat", "lon")
+        assert np.all([d in ["lat", "lon"] for d in node.dims])
         out = node.eval(node.coordinates)
         np.testing.assert_array_equal(out, self.data[1])
