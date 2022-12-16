@@ -1780,25 +1780,53 @@ class TestCoordinatesFunctions(object):
 
 
 class TestCoordinatesGeoTransform(object):
-    def uniform_working(self):
+    def test_uniform_working(self):
         # order: -lat, lon
         c = Coordinates([clinspace(1.5, 0.5, 5, "lat"), clinspace(1, 2, 9, "lon")])
+        c2 = Coordinates.from_geotransform(c.geotransform, c.shape)
+        c3 = Coordinates.from_xarray(podpac.Node().create_output_array(c))
+        assert c == c2
+        assert c == c3
         tf = np.array(c.geotransform).reshape(2, 3)
         np.testing.assert_almost_equal(
-            tf, np.array([[c["lon"].bounds[0], c["lon"].step, 0], [c["lat"].bounds[1], 0, c["lat"].step]])
+            tf,
+            np.array(
+                [
+                    [c["lon"].bounds[0] - c["lon"].step / 2, c["lon"].step, 0],
+                    [c["lat"].bounds[1] - c["lat"].step / 2, 0, c["lat"].step],
+                ]
+            ),
         )
         # order: lon, lat
         c = Coordinates([clinspace(0.5, 1.5, 5, "lon"), clinspace(1, 2, 9, "lat")])
+        c2 = Coordinates.from_geotransform(c.geotransform, c.shape)
+        c3 = Coordinates.from_xarray(podpac.Node().create_output_array(c))
+        assert c == c2
+        assert c == c3
         tf = np.array(c.geotransform).reshape(2, 3)
         np.testing.assert_almost_equal(
-            tf, np.array([[c["lon"].bounds[0], 0, c["lon"].step], [c["lat"].bounds[0], c["lat"].step, 0]])
+            tf,
+            np.array(
+                [
+                    [c["lon"].bounds[0] - c["lon"].step / 2, 0, c["lon"].step],
+                    [c["lat"].bounds[0] - c["lat"].step / 2, c["lat"].step, 0],
+                ]
+            ),
         )
 
         # order: lon, -lat, time
         c = Coordinates([clinspace(0.5, 1.5, 5, "lon"), clinspace(2, 1, 9, "lat"), crange(10, 11, 2, "time")])
+        c2 = Coordinates.from_geotransform(c.geotransform, c.drop("time").shape)
+        assert c.drop("time") == c2
         tf = np.array(c.geotransform).reshape(2, 3)
         np.testing.assert_almost_equal(
-            tf, np.array([[c["lon"].bounds[0], 0, c["lon"].step], [c["lat"].bounds[1], c["lat"].step, 0]])
+            tf,
+            np.array(
+                [
+                    [c["lon"].bounds[0] - c["lon"].step / 2, 0, c["lon"].step],
+                    [c["lat"].bounds[1] - c["lat"].step / 2, c["lat"].step, 0],
+                ]
+            ),
         )
         # order: -lon, -lat, time, alt
         c = Coordinates(
@@ -1809,12 +1837,20 @@ class TestCoordinatesGeoTransform(object):
                 crange(10, 11, 2, "alt"),
             ]
         )
+        c2 = Coordinates.from_geotransform(c.geotransform, c.drop(["time", "alt"]).shape)
+        assert c.drop(["time", "alt"]) == c2
         tf = np.array(c.geotransform).reshape(2, 3)
         np.testing.assert_almost_equal(
-            tf, np.array([[c["lon"].bounds[1], 0, c["lon"].step], [c["lat"].bounds[1], c["lat"].step, 0]])
+            tf,
+            np.array(
+                [
+                    [c["lon"].bounds[1] - c["lon"].step / 2, 0, c["lon"].step],
+                    [c["lat"].bounds[1] - c["lat"].step / 2, c["lat"].step, 0],
+                ]
+            ),
         )
 
-    def error_time_alt_too_big(self):
+    def test_error_time_alt_too_big(self):
         # time
         c = Coordinates(
             [
