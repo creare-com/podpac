@@ -76,7 +76,7 @@ class Convolution(UnaryAlgorithm):
 
     kernel = ArrayTrait(dtype=float).tag(attr=True)
     kernel_dims = tl.List().tag(attr=True)
-    #Takes one or the other which is hard to implement in a GUI
+    # Takes one or the other which is hard to implement in a GUI
     kernel_type = tl.List().tag(attr=True)
 
     def _first_init(self, kernel=None, kernel_dims=None, kernel_type=None, kernel_ndim=None, **kwargs):
@@ -209,7 +209,7 @@ class Convolution(UnaryAlgorithm):
                 else:
                     new_axis.append(None)
                     new_exp_slice.append(slice(None))
-            full_kernel = full_kernel[new_axis]
+            full_kernel = full_kernel[tuple(new_axis)]
             exp_slice = new_exp_slice
 
         if np.any(np.isnan(source)):
@@ -228,7 +228,7 @@ class Convolution(UnaryAlgorithm):
                 ],
                 axis=source.dims.index("output"),
             )
-        result = result[exp_slice]
+        result = result[tuple(exp_slice)]
 
         if output is None:
             missing_dims = [d for d in coordinates.dims if d not in source.dims]
