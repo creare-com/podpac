@@ -92,9 +92,12 @@ class TestInterpolationBehavior(object):
         raw_e_coords = [0, 0.5, 1, 1.5, 2]
 
         for dim in ["lat", "lon", "alt", "time"]:
-            ec = Coordinates([raw_e_coords], [dim])
+            ec = Coordinates([raw_e_coords], [dim], crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m")
 
-            arrb = ArrayRaw(source=data, coordinates=Coordinates([raw_coords], [dim]))
+            arrb = ArrayRaw(
+                source=data,
+                coordinates=Coordinates([raw_coords], [dim], crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m"),
+            )
             node = Interpolate(source=arrb, interpolation="linear")
             o = node.eval(ec)
 

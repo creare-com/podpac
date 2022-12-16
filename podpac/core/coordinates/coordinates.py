@@ -338,8 +338,9 @@ class Coordinates(tl.HasTraits):
                     shape = latshape
                 else:
                     shape = [latshape[0], lonshape[0]]
-                if xcoords.dims.index("lat") > xcoords.dims.index("lon"):
-                    shape = shape[::-1]
+                    xdims = list(xcoords.keys())
+                    if xdims.index("lat") > xdims.index("lon"):
+                        shape = shape[::-1]
                 lat_lon = cls.from_geotransform(x.geotransform, shape=shape, crs=crs, validate_crs=validate_crs)
                 coords = merge_dims([other, lat_lon])
 
