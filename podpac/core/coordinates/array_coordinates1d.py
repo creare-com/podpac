@@ -263,6 +263,8 @@ class ArrayCoordinates1d(Coordinates1d):
         # The following 3 lines are copied by UniformCoordinates1d.__getitem__
         if self.ndim == 1 and np.ndim(index) > 1 and np.array(index).dtype == int:
             index = np.array(index).flatten().tolist()
+        if isinstance(index, list):
+            index = tuple(index)
         return ArrayCoordinates1d(self.coordinates[index], **self.properties)
 
     # ------------------------------------------------------------------------------------------------------------------
