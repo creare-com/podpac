@@ -39,8 +39,10 @@ class Reduce(UnaryAlgorithm):
     source : podpac.Node
         The source node that will be reduced.
     """
+
     from podpac.core.utils import DimsTrait
-    dims = DimsTrait().tag(attr=True)
+
+    dims = DimsTrait(allow_none=True, default_value=None).tag(attr=True)
 
     _reduced_coordinates = tl.Instance(Coordinates, allow_none=True)
     _dims = tl.List(trait=tl.Unicode())
