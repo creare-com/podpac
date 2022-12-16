@@ -602,7 +602,14 @@ class InterpolationManager(object):
                 try:
                     data = source_data.interp(output_data.coords, method="nearest")
                 except (NotImplementedError, ValueError):
-                    data = source_data.sel(output_data.coords)
+                    try:
+                        data = source_data.sel(output_data.coords[output_data.dims])
+                    except KeyError:
+                        # Since the output is a subset of the original data,
+                        # we can just rely on xarray's broadcasting capability
+                        # to subselect data, as the final fallback
+                        output_data[:] = 0
+                        data = source_data + output_data
 
                 output_data.data[:] = data.transpose(*output_data.dims)
                 return output_data

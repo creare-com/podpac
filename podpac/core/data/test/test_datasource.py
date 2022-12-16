@@ -593,10 +593,12 @@ class TestDataSource(object):
 
             # specify crs
             bounds, crs = node.get_bounds(crs="EPSG:3857")
-            assert bounds == {
-                "lat": (-13291827.558247399, -13291815.707967814),
+            expected = {
+                "lat": (-13291827.558247397, -13291815.707967814),
                 "lon": (9231489.26794932, 9231497.142754894),
             }
+            for k in expected:
+                np.testing.assert_almost_equal(bounds[k], expected[k])
             assert crs == "EPSG:3857"
 
             # native/source crs
