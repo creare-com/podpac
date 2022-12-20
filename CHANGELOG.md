@@ -1,5 +1,30 @@
 # Changelog
 
+## 3.2.0
+
+### Features
+* Added the "none" interpolator, which disables the Interpolation node of Mixin
+* Enabled nearest-neighbor interpolation for N-D stacked coordinates (#488)
+* Implemented Xarray interpolation for dependent coordinates (multi-dimensional stacked coordinates)
+* Improved caching
+  * Extra diemnsions are discarded when caching datasource and compositor outputs
+  * Added CRS-agnostic caching
+* Added utility function that generates a JSON spec of available PODPAC nodes. This spec can be used to make UI elements
+* Added the `get_source_data` method for `Datasource` nodes to bypass interpolation (#485)
+* Added the `get_bounds` method to `Node` to retrieve the coordinate bounds (#486)
+* Added `Node` point prober features that will evaluate every node in a pipeline at a point and record its value. Useful for debugging complex pipelines.
+* Added `AffineCoorindates` (#491) these are stacked spatial shaped coordinates that are parameterized by a `geotransform`. Replaces `RotatedCoordinates`.
+* `OGC.WCS` `Node` can now handle multi-band geotiffs
+
+### Bugfixes
+* Fixed a number of floating point coordinates discrepancies
+* `Rasterio` node will no longer attempt to use overviews when no overviews are present.
+* Fixed `geotransform` shape transpose error
+* Fixed numpy deprecation of using `list` indices
+* Fixed regressions due to dependency updates
+
+
+
 ## 3.1.0
 
 This release was in support of the GeoWATCH application. Bugs/features added were to support server deployment.
