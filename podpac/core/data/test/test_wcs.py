@@ -35,7 +35,7 @@ class MockClient(object):
 
 
 class MockWCSRaw(WCSRaw):
-    """ Test node that uses the MockClient above. """
+    """Test node that uses the MockClient above."""
 
     @property
     def client(self):
@@ -46,7 +46,7 @@ class MockWCSRaw(WCSRaw):
 
 
 class MockWCS(WCS):
-    """ Test node that uses the MockClient above, and injects podpac interpolation. """
+    """Test node that uses the MockClient above, and injects podpac interpolation."""
 
     @property
     def client(self):

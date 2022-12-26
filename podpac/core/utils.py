@@ -129,7 +129,7 @@ def create_logfile(
 if sys.version < "3.6":
     # for Python 2 and Python < 3.6 compatibility
     class OrderedDictTrait(tl.Dict):
-        """ OrderedDict trait """
+        """OrderedDict trait"""
 
         default_value = OrderedDict()
 
@@ -144,13 +144,12 @@ if sys.version < "3.6":
             super(OrderedDictTrait, self).validate(obj, value)
             return value
 
-
 else:
     OrderedDictTrait = tl.Dict
 
 
 class ArrayTrait(tl.TraitType):
-    """ A coercing numpy array trait. """
+    """A coercing numpy array trait."""
 
     def __init__(self, ndim=None, shape=None, dtype=None, dtypes=None, default_value=None, *args, **kwargs):
         if ndim is not None and shape is not None and len(shape) != ndim:
@@ -197,7 +196,7 @@ class ArrayTrait(tl.TraitType):
 
 
 class TupleTrait(tl.List):
-    """ An instance of a Python tuple that accepts the 'trait' argument (like Set, List, and Dict). """
+    """An instance of a Python tuple that accepts the 'trait' argument (like Set, List, and Dict)."""
 
     def validate(self, obj, value):
         value = super(TupleTrait, self).validate(obj, value)
@@ -528,7 +527,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
     """
 
     def partial_definition(key, definition):
-        """ Needed to build partial node definitions """
+        """Needed to build partial node definitions"""
         new_def = OrderedDict()
         for k in definition:
             new_def[k] = definition[k]
@@ -536,7 +535,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
                 return new_def
 
     def flatten_list(l):
-        """ Needed to flatten the inputs list for all the dependencies """
+        """Needed to flatten the inputs list for all the dependencies"""
         nl = []
         for ll in l:
             if isinstance(ll, list):
@@ -547,7 +546,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
         return nl
 
     def get_entry(key, out, definition):
-        """ Needed for the nested version of the pipeline """
+        """Needed for the nested version of the pipeline"""
         # We have to rearrange the outputs
         entry = OrderedDict()
         entry["name"] = out[key]["name"]

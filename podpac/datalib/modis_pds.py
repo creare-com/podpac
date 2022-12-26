@@ -94,7 +94,7 @@ def _available(s3, *l):
 
 
 def get_tile_coordinates(h, v):
-    """ use pre-fetched lat and lon bounds to get coordinates for a single tile """
+    """use pre-fetched lat and lon bounds to get coordinates for a single tile"""
     lat_start, lat_stop = SINUSOIDAL_VERTICAL[v]
     lon_start, lon_stop = SINUSOIDAL_HORIZONTAL[h]
     lat = podpac.clinspace(lat_start, lat_stop, 2400, name="lat")
@@ -131,7 +131,7 @@ class MODISSource(RasterioRaw):
     _repr_keys = ["prefix", "data_key"]
 
     def init(self):
-        """ validation """
+        """validation"""
         for key in ["horizontal", "vertical", "date", "data_key"]:
             if not getattr(self, key):
                 raise ValueError("MODISSource '%s' required" % key)
@@ -214,7 +214,7 @@ class MODISComposite(S3Mixin, TileCompositorRaw):
         return [(h, v) for h in _available(self.s3, self.product) for v in _available(self.s3, self.product, h)]
 
     def select_sources(self, coordinates, _selector=None):
-        """ 2d select sources filtering """
+        """2d select sources filtering"""
 
         # filter tiles spatially
         ct = coordinates.transform(CRS)

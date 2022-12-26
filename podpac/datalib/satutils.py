@@ -29,7 +29,7 @@ _logger = logging.getLogger(__name__)
 
 
 def _get_asset_info(item, name):
-    """ for forwards/backwards compatibility, convert B0x to/from Bx as needed """
+    """for forwards/backwards compatibility, convert B0x to/from Bx as needed"""
 
     if name in item.assets:
         return item.assets[name]

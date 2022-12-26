@@ -199,7 +199,7 @@ class AffineCoordinates(StackedCoordinates):
 
     @property
     def coordinates(self):
-        """ :tuple: computed coordinate values for each dimension. """
+        """:tuple: computed coordinate values for each dimension."""
 
         I = np.arange(self.shape[1]) + 0.5
         J = np.arange(self.shape[0]) + 0.5

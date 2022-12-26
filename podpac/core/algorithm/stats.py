@@ -80,7 +80,7 @@ class Reduce(UnaryAlgorithm):
 
         chunk_size = podpac.settings["CHUNK_SIZE"]
         if chunk_size == "auto":
-            return 1024 ** 2  # TODO
+            return 1024**2  # TODO
         else:
             return chunk_size
 
@@ -611,7 +611,7 @@ class Skew(Reduce):
             Nx = np.isfinite(x).sum(dim=self._dims)
             M1x = x.mean(dim=self._dims)
             Ex = x - M1x
-            Ex2 = Ex ** 2
+            Ex2 = Ex**2
             Ex3 = Ex2 * Ex
             M2x = (Ex2).sum(dim=self._dims)
             M3x = (Ex3).sum(dim=self._dims)
@@ -632,13 +632,13 @@ class Skew(Reduce):
             n = Nb + Nx
             NNx = Nb * Nx
 
-            M3.data[b] += M3x + d ** 3 * NNx * (Nb - Nx) / n ** 2 + 3 * d * (Nb * M2x - Nx * M2b) / n
-            M2.data[b] += M2x + d ** 2 * NNx / n
+            M3.data[b] += M3x + d**3 * NNx * (Nb - Nx) / n**2 + 3 * d * (Nb * M2x - Nx * M2b) / n
+            M2.data[b] += M2x + d**2 * NNx / n
             M1.data[b] += d * Nx / n
             N.data[b] = n
 
         # calculate skew
-        skew = np.sqrt(N) * M3 / np.sqrt(M2 ** 3)
+        skew = np.sqrt(N) * M3 / np.sqrt(M2**3)
         return skew
 
 
@@ -697,9 +697,9 @@ class Kurtosis(Reduce):
             Nx = np.isfinite(x).sum(dim=self._dims)
             M1x = x.mean(dim=self._dims)
             Ex = x - M1x
-            Ex2 = Ex ** 2
+            Ex2 = Ex**2
             Ex3 = Ex2 * Ex
-            Ex4 = Ex2 ** 2
+            Ex4 = Ex2**2
             M2x = (Ex2).sum(dim=self._dims)
             M3x = (Ex3).sum(dim=self._dims)
             M4x = (Ex4).sum(dim=self._dims)
@@ -724,18 +724,18 @@ class Kurtosis(Reduce):
 
             M4.data[b] += (
                 M4x
-                + d ** 4 * NNx * (Nb ** 2 - NNx + Nx ** 2) / n ** 3
-                + 6 * d ** 2 * (Nb ** 2 * M2x + Nx ** 2 * M2b) / n ** 2
+                + d**4 * NNx * (Nb**2 - NNx + Nx**2) / n**3
+                + 6 * d**2 * (Nb**2 * M2x + Nx**2 * M2b) / n**2
                 + 4 * d * (Nb * M3x - Nx * M3b) / n
             )
 
-            M3.data[b] += M3x + d ** 3 * NNx * (Nb - Nx) / n ** 2 + 3 * d * (Nb * M2x - Nx * M2b) / n
-            M2.data[b] += M2x + d ** 2 * NNx / n
+            M3.data[b] += M3x + d**3 * NNx * (Nb - Nx) / n**2 + 3 * d * (Nb * M2x - Nx * M2b) / n
+            M2.data[b] += M2x + d**2 * NNx / n
             M1.data[b] += d * Nx / n
             N.data[b] = n
 
         # calculate kurtosis
-        kurtosis = N * M4 / M2 ** 2 - 3
+        kurtosis = N * M4 / M2**2 - 3
         return kurtosis
 
 

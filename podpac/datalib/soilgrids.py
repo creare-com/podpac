@@ -9,7 +9,7 @@ from podpac.data import WCS
 
 
 class SoilGridsBase(WCS):
-    """ Base SoilGrids WCS datasource. """
+    """Base SoilGrids WCS datasource."""
 
     format = "geotiff_byte"
     max_size = 16384
@@ -17,73 +17,73 @@ class SoilGridsBase(WCS):
 
 
 class SoilGridsWRB(SoilGridsBase):
-    """ SoilGrids: WRB classes and probabilities (WCS) """
+    """SoilGrids: WRB classes and probabilities (WCS)"""
 
     source = "https://maps.isric.org/mapserv?map=/map/wrb.map"
 
 
 class SoilGridsBDOD(SoilGridsBase):
-    """ SoilGrids: Bulk density (WCS) """
+    """SoilGrids: Bulk density (WCS)"""
 
     source = "https://maps.isric.org/mapserv?map=/map/bdod.map"
 
 
 class SoilGridsCEC(SoilGridsBase):
-    """ SoilGrids: Cation exchange capacity and ph 7 (WCS) """
+    """SoilGrids: Cation exchange capacity and ph 7 (WCS)"""
 
     source = "https://maps.isric.org/mapserv?map=/map/cec.map"
 
 
 class SoilGridsCFVO(SoilGridsBase):
-    """ SoilGrids: Coarse fragments volumetric (WCS)"""
+    """SoilGrids: Coarse fragments volumetric (WCS)"""
 
     source = "https://maps.isric.org/mapserv?map=/map/cfvo.map"
 
 
 class SoilGridsClay(SoilGridsBase):
-    """ SoilGrids: Clay content (WCS) """
+    """SoilGrids: Clay content (WCS)"""
 
     source = "https://maps.isric.org/mapserv?map=/map/clay.map"
 
 
 class SoilGridsNitrogen(SoilGridsBase):
-    """ SoilGrids: Nitrogen (WCS) """
+    """SoilGrids: Nitrogen (WCS)"""
 
     source = "https://maps.isric.org/mapserv?map=/map/nitrogen.map"
 
 
 class SoilGridsPHH2O(SoilGridsBase):
-    """ SoilGrids: Soil pH in H2O (WCS) """
+    """SoilGrids: Soil pH in H2O (WCS)"""
 
     source = "https://maps.isric.org/mapserv?map=/map/phh2o.map"
 
 
 class SoilGridsSand(SoilGridsBase):
-    """ SoilGrids: Sand content (WCS) """
+    """SoilGrids: Sand content (WCS)"""
 
     source = "https://maps.isric.org/mapserv?map=/map/sand.map"
 
 
 class SoilGridsSilt(SoilGridsBase):
-    """ SoilGrids: Silt content (WCS) """
+    """SoilGrids: Silt content (WCS)"""
 
     source = "https://maps.isric.org/mapserv?map=/map/silt.map"
 
 
 class SoilGridsSOC(SoilGridsBase):
-    """ SoilGrids: Soil organic carbon content (WCS) """
+    """SoilGrids: Soil organic carbon content (WCS)"""
 
     source = "https://maps.isric.org/mapserv?map=/map/soc.map"
 
 
 class SoilGridsOCS(SoilGridsBase):
-    """ SoilGrids: Soil organic carbon stock (WCS) """
+    """SoilGrids: Soil organic carbon stock (WCS)"""
 
     source = "https://maps.isric.org/mapserv?map=/map/ocs.map"
 
 
 class SoilGridsOCD(SoilGridsBase):
-    """ SoilGrids: Organic carbon densities (WCS) """
+    """SoilGrids: Organic carbon densities (WCS)"""
 
     source = "https://maps.isric.org/mapserv?map=/map/ocd.map"
 

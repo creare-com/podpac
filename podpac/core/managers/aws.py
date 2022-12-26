@@ -45,7 +45,7 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 
 
 class LambdaException(Exception):
-    """ Exception during execution of a Lambda node"""
+    """Exception during execution of a Lambda node"""
 
     pass
 

@@ -205,13 +205,13 @@ class RamCacheStore(CacheStore):
             del _thread_local.cache[k]
 
     def clear(self):
-        """Remove all entries from the cache. """
+        """Remove all entries from the cache."""
 
         if hasattr(_thread_local, "cache"):
             _thread_local.cache.clear()
 
     def cleanup(self):
-        """ Remove all expired entries. """
+        """Remove all expired entries."""
         for full_key, entry in list(_thread_local.cache.items()):
             if entry["expires"] is not None and time.time() >= entry["expires"]:
                 del _thread_local.cache[full_key]

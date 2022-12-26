@@ -36,7 +36,7 @@ def setup_module():
 
 
 class TestReduce(object):
-    """ Tests the Reduce class """
+    """Tests the Reduce class"""
 
     def test_auto_chunk(self):
         # any reduce node would do here
@@ -71,7 +71,7 @@ class TestReduce(object):
 
 
 class BaseTests(object):
-    """ Common tests for Reduce subclasses """
+    """Common tests for Reduce subclasses"""
 
     def test_full(self):
         with podpac.settings:

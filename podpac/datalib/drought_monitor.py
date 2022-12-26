@@ -21,7 +21,7 @@ class DroughtCategory(Algorithm):
     d2 = NodeTrait().tag(attr=True)
     d3 = NodeTrait().tag(attr=True)
     d4 = NodeTrait().tag(attr=True)
-    
+
     style = Style(
         clim=[0, 6],
         enumeration_colors={

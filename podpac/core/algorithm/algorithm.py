@@ -58,7 +58,7 @@ class Algorithm(BaseAlgorithm):
     Developers of new Algorithm nodes need to implement the `algorithm` method.
     """
 
-    #not the best solution... hard to check for these attrs
+    # not the best solution... hard to check for these attrs
     # abstract = tl.Bool(default_value=True, allow_none=True).tag(attr=True, required=False, hidden=True)
 
     def algorithm(self, inputs, coordinates):
@@ -170,7 +170,7 @@ class UnaryAlgorithm(BaseAlgorithm):
     Developers of new Algorithm nodes need to implement the `eval` method.
     """
 
-    source = NodeTrait().tag(attr=True,required=True)
+    source = NodeTrait().tag(attr=True, required=True)
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     _repr_keys = ["source"]

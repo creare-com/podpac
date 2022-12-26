@@ -345,7 +345,7 @@ class TestDataSource(object):
 
     def test_evaluate_selector(self):
         def selector(rsc, coordinates, index_type=None):
-            """ mock selector that just strides by 2 """
+            """mock selector that just strides by 2"""
             new_rsci = tuple(slice(None, None, 2) for dim in rsc.dims)
             new_rsc = rsc[new_rsci]
             return new_rsc, new_rsci
@@ -357,7 +357,7 @@ class TestDataSource(object):
         np.testing.assert_array_equal(output["lon"].data, node.coordinates["lon"][::2].coordinates)
 
     def test_nan_vals(self):
-        """ evaluate note with nan_vals """
+        """evaluate note with nan_vals"""
 
         # none
         node = MockDataSource()

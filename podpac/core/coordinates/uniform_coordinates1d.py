@@ -297,7 +297,7 @@ class UniformCoordinates1d(Coordinates1d):
 
     @cached_property
     def coordinates(self):
-        """:array, read-only: Coordinate values. """
+        """:array, read-only: Coordinate values."""
 
         coordinates = add_coord(self.start, np.arange(0, self.size) * self.step)
         # coordinates.setflags(write=False)  # This breaks the 002-open-point-file example
@@ -313,7 +313,7 @@ class UniformCoordinates1d(Coordinates1d):
 
     @property
     def size(self):
-        """ Number of coordinates. """
+        """Number of coordinates."""
 
         dname = np.array(self.step).dtype.name
 
@@ -362,7 +362,7 @@ class UniformCoordinates1d(Coordinates1d):
 
     @property
     def bounds(self):
-        """ Low and high coordinate bounds. """
+        """Low and high coordinate bounds."""
 
         lo = self.start
         hi = add_coord(self.start, self.step * (self.size - 1))

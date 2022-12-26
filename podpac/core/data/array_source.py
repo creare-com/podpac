@@ -55,7 +55,7 @@ class ArrayRaw(NoCacheMixin, DataSource):
     """
 
     source = ArrayTrait().tag(attr=True, required=True)
-    coordinates = tl.Instance(Coordinates).tag(attr=True,required=True)
+    coordinates = tl.Instance(Coordinates).tag(attr=True, required=True)
 
     _repr_keys = ["shape"]
 
@@ -94,11 +94,11 @@ class ArrayRaw(NoCacheMixin, DataSource):
         return d
 
     def set_coordinates(self, value):
-        """ Not needed. """
+        """Not needed."""
         pass
 
 
 class Array(InterpolationMixin, ArrayRaw):
-    """ Array datasource with interpolation. """
+    """Array datasource with interpolation."""
 
     pass

@@ -58,7 +58,7 @@ class H5PYRaw(FileKeysMixin, BaseFileSource):
         return h5py.File(self.source, self.file_mode)
 
     def close_dataset(self):
-        """Closes the file. """
+        """Closes the file."""
         super(H5PYRaw, self).close_dataset()
         self.dataset.close()
 
@@ -68,7 +68,7 @@ class H5PYRaw(FileKeysMixin, BaseFileSource):
 
     @cached_property
     def dims(self):
-        """ dataset coordinate dims """
+        """dataset coordinate dims"""
         try:
             if not isinstance(self.data_key, list):
                 key = self.data_key
@@ -123,6 +123,6 @@ class H5PYRaw(FileKeysMixin, BaseFileSource):
 
 
 class H5PY(InterpolationMixin, H5PYRaw):
-    """ h5py datasource with interpolation. """
+    """h5py datasource with interpolation."""
 
     pass

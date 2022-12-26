@@ -79,7 +79,7 @@ class Style(tl.HasTraits):
 
     @property
     def full_enumeration_colors(self):
-        """ Convert enumeration_colors into a tuple suitable for matplotlib ListedColormap. """
+        """Convert enumeration_colors into a tuple suitable for matplotlib ListedColormap."""
         return tuple(
             [
                 self.enumeration_colors.get(value, self.default_enumeration_color)
@@ -89,7 +89,7 @@ class Style(tl.HasTraits):
 
     @property
     def full_enumeration_legend(self):
-        """ Convert enumeration_legend into a tuple suitable for matplotlib. """
+        """Convert enumeration_legend into a tuple suitable for matplotlib."""
         return tuple(
             [
                 self.enumeration_legend.get(value, self.default_enumeration_legend)

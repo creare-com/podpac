@@ -173,7 +173,7 @@ class TestConvolution(object):
         assert np.all(o2.data == o1.data.T)
 
     def test_missing_source_dims(self):
-        """ When the kernel has more dimensions than the source, sum out the kernel for the missing dim"""
+        """When the kernel has more dimensions than the source, sum out the kernel for the missing dim"""
         lat = clinspace(-0.25, 1.25, 7, name="lat")
         lon = clinspace(-0.125, 1.125, 11, name="lon")
         time = ["2012-05-19", "2016-01-31", "2018-06-20"]

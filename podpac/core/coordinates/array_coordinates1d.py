@@ -286,7 +286,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def size(self):
-        """ Number of coordinates. """
+        """Number of coordinates."""
         return self.coordinates.size
 
     @property
@@ -333,7 +333,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def bounds(self):
-        """ Low and high coordinate bounds. """
+        """Low and high coordinate bounds."""
 
         if self.size == 0:
             lo, hi = np.nan, np.nan

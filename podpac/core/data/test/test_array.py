@@ -26,7 +26,7 @@ class TestArray(object):
             node = Array(source=["a", "b"], coordinates=self.coordinates)
 
     def test_get_data(self):
-        """ defined get_data function"""
+        """defined get_data function"""
 
         node = Array(source=self.data, coordinates=self.coordinates)
         output = node.eval(self.coordinates)

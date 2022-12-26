@@ -187,7 +187,7 @@ class NASAURSSessionMixin(RequestsSessionMixin):
 
 
 class S3Mixin(tl.HasTraits):
-    """ Mixin to add S3 credentials and access to a Node. """
+    """Mixin to add S3 credentials and access to a Node."""
 
     anon = tl.Bool(False).tag(attr=True)
     aws_access_key_id = tl.Unicode(allow_none=True)

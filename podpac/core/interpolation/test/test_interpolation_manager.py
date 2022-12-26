@@ -26,7 +26,7 @@ from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeigh
 
 
 class TestInterpolation(object):
-    """ Test interpolation class and support methods"""
+    """Test interpolation class and support methods"""
 
     def test_allow_missing_modules(self):
         """TODO: Allow user to be missing rasterio and scipy"""
