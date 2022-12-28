@@ -48,7 +48,7 @@ class BaseCompositor(Node):
         for most use-cases.
     """
 
-    sources = tl.List(trait=NodeTrait()).tag(attr=True)
+    sources = tl.List(trait=NodeTrait()).tag(attr=True, required=True)
     source_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
     multithreading = tl.Bool(False)
 
@@ -222,6 +222,35 @@ class BaseCompositor(Node):
                 yield src.eval(coordinates, _selector=_selector)
 
     @common_doc(COMMON_COMPOSITOR_DOC)
+    def eval(self, coordinates, **kwargs):
+        """
+        Wraps the super Node.eval method in order to cache with the correct coordinates.
+
+        The output is independent of any extra dimensions, so this removes extra dimensions before caching in the
+        super eval method.
+        """
+
+        super_coordinates = coordinates
+
+        # remove extra dimensions
+        if self.dims:
+            extra = [
+                c.name
+                for c in coordinates.values()
+                if (isinstance(c, Coordinates1d) and c.name not in self.dims)
+                or (isinstance(c, StackedCoordinates) and all(dim not in self.dims for dim in c.dims))
+            ]
+            super_coordinates = super_coordinates.drop(extra)
+
+        # note: super().eval (not self._eval)
+        output = super().eval(super_coordinates, **kwargs)
+
+        if settings["DEBUG"]:
+            self._requested_coordinates = coordinates
+
+        return output
+
+    @common_doc(COMMON_COMPOSITOR_DOC)
     def _eval(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
@@ -238,18 +267,6 @@ class BaseCompositor(Node):
         -------
         {eval_return}
         """
-
-        self._requested_coordinates = coordinates
-
-        # remove extra dimensions
-        if self.dims:
-            extra = [
-                c.name
-                for c in coordinates.values()
-                if (isinstance(c, Coordinates1d) and c.name not in self.dims)
-                or (isinstance(c, StackedCoordinates) and all(dim not in self.dims for dim in c.dims))
-            ]
-            coordinates = coordinates.drop(extra)
 
         self._evaluated_coordinates = coordinates
         outputs = self.iteroutputs(coordinates, _selector)

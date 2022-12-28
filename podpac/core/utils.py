@@ -8,12 +8,11 @@ import os
 import sys
 import json
 import datetime
-import functools
-import importlib
 import logging
-import time
+import inspect
 from collections import OrderedDict
 from copy import deepcopy
+from hashlib import sha256 as hash_alg
 
 try:
     import urllib.parse as urllib
@@ -130,7 +129,7 @@ def create_logfile(
 if sys.version < "3.6":
     # for Python 2 and Python < 3.6 compatibility
     class OrderedDictTrait(tl.Dict):
-        """ OrderedDict trait """
+        """OrderedDict trait"""
 
         default_value = OrderedDict()
 
@@ -145,13 +144,12 @@ if sys.version < "3.6":
             super(OrderedDictTrait, self).validate(obj, value)
             return value
 
-
 else:
     OrderedDictTrait = tl.Dict
 
 
 class ArrayTrait(tl.TraitType):
-    """ A coercing numpy array trait. """
+    """A coercing numpy array trait."""
 
     def __init__(self, ndim=None, shape=None, dtype=None, dtypes=None, default_value=None, *args, **kwargs):
         if ndim is not None and shape is not None and len(shape) != ndim:
@@ -198,7 +196,7 @@ class ArrayTrait(tl.TraitType):
 
 
 class TupleTrait(tl.List):
-    """ An instance of a Python tuple that accepts the 'trait' argument (like Set, List, and Dict). """
+    """An instance of a Python tuple that accepts the 'trait' argument (like Set, List, and Dict)."""
 
     def validate(self, obj, value):
         value = super(TupleTrait, self).validate(obj, value)
@@ -206,6 +204,8 @@ class TupleTrait(tl.List):
 
 
 class NodeTrait(tl.Instance):
+    _schema = {"test": "info"}
+
     def __init__(self, *args, **kwargs):
         from podpac import Node as _Node
 
@@ -216,6 +216,19 @@ class NodeTrait(tl.Instance):
         if podpac.core.settings.settings["DEBUG"]:
             value = deepcopy(value)
         return value
+
+
+class DimsTrait(tl.List):
+    _schema = {"test": "info"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(tl.Enum(["lat", "lon", "time", "alt"]), *args, minlen=1, maxlen=4, **kwargs)
+
+    # def validate(self, obj, value):
+    #     super().validate(obj, value)
+    #     if podpac.core.settings.settings["DEBUG"]:
+    #         value = deepcopy(value)
+    #     return value
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -514,7 +527,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
     """
 
     def partial_definition(key, definition):
-        """ Needed to build partial node definitions """
+        """Needed to build partial node definitions"""
         new_def = OrderedDict()
         for k in definition:
             new_def[k] = definition[k]
@@ -522,7 +535,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
                 return new_def
 
     def flatten_list(l):
-        """ Needed to flatten the inputs list for all the dependencies """
+        """Needed to flatten the inputs list for all the dependencies"""
         nl = []
         for ll in l:
             if isinstance(ll, list):
@@ -533,7 +546,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
         return nl
 
     def get_entry(key, out, definition):
-        """ Needed for the nested version of the pipeline """
+        """Needed for the nested version of the pipeline"""
         # We have to rearrange the outputs
         entry = OrderedDict()
         entry["name"] = out[key]["name"]
@@ -553,20 +566,24 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
     v = float(node.eval(coords))
     definition = node.definition
     out = OrderedDict()
-    for key in definition:
-        if key == "podpac_version":
+    for item in definition:
+        if item == "podpac_version":
             continue
-        d = partial_definition(key, definition)
+        d = partial_definition(item, definition)
         n = podpac.Node.from_definition(d)
-        value = float(n.eval(coords))
-        inputs = flatten_list(list(d[key].get("inputs", {}).values()))
+        o = n.eval(coords)
+        if o.size == 1:
+            value = float(o)
+        else:
+            value = o.data.tolist()
+        inputs = flatten_list(list(d[item].get("inputs", {}).values()))
         active = True
-        out[key] = {
+        out[item] = {
             "active": active,
             "value": value,
             "units": n.style.units,
             "inputs": inputs,
-            "name": n.style.name if n.style.name else key,
+            "name": n.style.name if n.style.name else item,
             "node_hash": n.hash,
         }
         # Fix sources for Compositors
@@ -574,10 +591,64 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
             searching_for_active = True
             for inp in inputs:
                 out[inp]["active"] = False
-                if out[inp]["value"] == out[key]["value"] and np.isfinite(out[inp]["value"]) and searching_for_active:
+                if out[inp]["value"] == out[item]["value"] and np.isfinite(out[inp]["value"]) and searching_for_active:
                     out[inp]["active"] = True
                     searching_for_active = False
 
     if nested:
         out = get_entry(list(out.keys())[-1], out, definition)
     return out
+
+
+def get_ui_node_spec(module=None, category="default", help_as_html=False):
+    """
+    Returns a dictionary describing the specifications for each Node in a module.
+
+    Parameters
+    -----------
+    module: module
+        The Python module for which the ui specs should be summarized. Only the top-level
+        classes will be included in the spec. (i.e. no recursive search through submodules)
+    category: str, optional
+        Default is "default". Top-level category name for the group of Nodes.
+    help_as_html: bool, optional
+        Default is False. If True, the docstrings will be converted to html before storing in the spec.
+
+    Returns
+    --------
+    dict
+        Dictionary of {category: {Node1: spec_1, Node2: spec2, ...}} describing the specs for each Node.
+    """
+    import podpac
+    import podpac.datalib  # May not be imported by default
+
+    spec = {}
+
+    if module is None:
+        modcat = zip(
+            [podpac.data, podpac.algorithm, podpac.compositor, podpac.datalib],
+            ["data", "algorithm", "compositor", "datalib"],
+        )
+        for mod, cat in modcat:
+            spec.update(get_ui_node_spec(mod, cat, help_as_html=help_as_html))
+        return spec
+
+    spec[category] = {}
+    disabled_categories = ["Algorithm", "DataSource", "DroughtMonitorCategory", "DroughtCategory", "IntakeCatalog"]
+    for obj in dir(module):
+        # print(obj)
+        if obj in disabled_categories:
+            ob = getattr(module, obj)
+            # print(ob)
+            # print(ob.get_ui_spec())
+            # would be fairly annoying to have to check all of the attrs for abstract
+            # still need a better solution
+            continue
+        ob = getattr(module, obj)
+        if not inspect.isclass(ob):
+            continue
+        if not issubclass(ob, podpac.Node):
+            continue
+        spec[category][obj] = ob.get_ui_spec(help_as_html=help_as_html)
+
+    return spec

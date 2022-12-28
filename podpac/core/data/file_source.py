@@ -47,7 +47,7 @@ class BaseFileSource(DataSource):
         dataset object
     """
 
-    source = tl.Unicode().tag(attr=True)
+    source = tl.Unicode().tag(attr=True, required=True)
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     _repr_keys = ["source"]
@@ -65,7 +65,7 @@ class BaseFileSource(DataSource):
         raise NotImplementedError()
 
     def close_dataset(self):
-        """ Close opened resources. Subclasses should implement if appropriate. """
+        """Close opened resources. Subclasses should implement if appropriate."""
         pass
 
 
@@ -129,7 +129,7 @@ class LoadFileMixin(S3Mixin):
         return self.open_dataset(f)
 
     def open_dataset(self, f):
-        """ TODO """
+        """TODO"""
         raise NotImplementedError()
 
     def close_dataset(self):
@@ -177,7 +177,7 @@ class FileKeysMixin(tl.HasTraits):
 
     @property
     def _repr_keys(self):
-        """ list of attribute names, used by __repr__ and __str__ to display minimal info about the node"""
+        """list of attribute names, used by __repr__ and __str__ to display minimal info about the node"""
         keys = ["source"]
         if len(self.available_data_keys) > 1 and not isinstance(self.data_key, list):
             keys.append("data_key")

@@ -47,3 +47,27 @@ class TestTileCompositor(object):
         np.testing.assert_array_equal(output["lat"], [3, 4, 5, 6])
         np.testing.assert_array_equal(output["lon"], [3, 4, 5, 6])
         np.testing.assert_array_equal(output, [103, 104, 200, 201])
+
+    def test_get_source_data(self):
+        a = ArrayRaw(source=np.arange(5) + 100, coordinates=podpac.Coordinates([[0, 1, 2, 3, 4]], dims=["lat"]))
+        b = ArrayRaw(source=np.arange(5) + 200, coordinates=podpac.Coordinates([[5, 6, 7, 8, 9]], dims=["lat"]))
+        c = ArrayRaw(source=np.arange(5) + 300, coordinates=podpac.Coordinates([[10, 11, 12, 13, 14]], dims=["lat"]))
+
+        node = TileCompositorRaw(sources=[a, b, c])
+
+        data = node.get_source_data()
+        np.testing.assert_array_equal(data["lat"], np.arange(15))
+        np.testing.assert_array_equal(data, np.hstack([source.source for source in node.sources]))
+
+        # with bounds
+        data = node.get_source_data({"lat": (2.5, 6.5)})
+        np.testing.assert_array_equal(data["lat"], [3, 4, 5, 6])
+        np.testing.assert_array_equal(data, [103, 104, 200, 201])
+
+        # error
+        with podpac.settings:
+            podpac.settings.set_unsafe_eval(True)
+            d = podpac.algorithm.Arithmetic(eqn="a+2", a=a)
+        node = TileCompositorRaw(sources=[a, b, c, d])
+        with pytest.raises(ValueError, match="Cannot get composited source data"):
+            node.get_source_data()

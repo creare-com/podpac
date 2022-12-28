@@ -57,7 +57,7 @@ class RamCacheStore(CacheStore):
         process = psutil.Process(os.getpid())
         return process.memory_info().rss  # this is actually the total size of the process
 
-    def put(self, node, data, key, coordinates=None, expires=None, update=True):
+    def put(self, node, data, item, coordinates=None, expires=None, update=True):
         """Cache data for specified node.
 
         Parameters
@@ -66,8 +66,8 @@ class RamCacheStore(CacheStore):
             node requesting storage.
         data : any
             Data to cache
-        key : str
-            Cached object key, e.g. 'output'.
+        item : str
+            Cached object item, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         expires : float, datetime, timedelta
@@ -79,12 +79,12 @@ class RamCacheStore(CacheStore):
         if not hasattr(_thread_local, "cache"):
             _thread_local.cache = {}
 
-        full_key = self._get_full_key(node, key, coordinates)
+        full_key = self._get_full_key(node, item, coordinates)
 
-        if not update and self.has(node, key, coordinates):
+        if not update and self.has(node, item, coordinates):
             raise CacheException("Cache entry already exists. Use update=True to overwrite.")
 
-        self.rem(node, key, coordinates)
+        self.rem(node, item, coordinates)
 
         # check size
         if self.max_size is not None:
@@ -107,15 +107,15 @@ class RamCacheStore(CacheStore):
 
         _thread_local.cache[full_key] = entry
 
-    def get(self, node, key, coordinates=None):
+    def get(self, node, item, coordinates=None):
         """Get cached data for this node.
 
         Parameters
         ------------
         node : Node
             node requesting storage.
-        key : str
-            Cached object key, e.g. 'output'.
+        item : str
+            Cached object item, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
 
@@ -133,7 +133,7 @@ class RamCacheStore(CacheStore):
         if not hasattr(_thread_local, "cache"):
             _thread_local.cache = {}
 
-        full_key = self._get_full_key(node, key, coordinates)
+        full_key = self._get_full_key(node, item, coordinates)
 
         if full_key not in _thread_local.cache:
             raise CacheException("Cache miss. Requested data not found.")
@@ -144,15 +144,15 @@ class RamCacheStore(CacheStore):
         self._set_metadata(full_key, "accessed", time.time())
         return copy.deepcopy(_thread_local.cache[full_key]["data"])
 
-    def has(self, node, key, coordinates=None):
+    def has(self, node, item, coordinates=None):
         """Check for cached data for this node
 
         Parameters
         ------------
         node : Node
             node requesting storage.
-        key : str
-            Cached object key, e.g. 'output'.
+        item : str
+            Cached object item, e.g. 'output'.
         coordinates: Coordinate, optional
             Coordinates for which cached object should be checked
 
@@ -165,10 +165,10 @@ class RamCacheStore(CacheStore):
         if not hasattr(_thread_local, "cache"):
             _thread_local.cache = {}
 
-        full_key = self._get_full_key(node, key, coordinates)
+        full_key = self._get_full_key(node, item, coordinates)
         return full_key in _thread_local.cache and not self._expired(full_key)
 
-    def rem(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
+    def rem(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
         """Delete cached data for this node.
 
         Parameters
@@ -194,7 +194,7 @@ class RamCacheStore(CacheStore):
         for nk, k, ck in _thread_local.cache.keys():
             if nk != node_key:
                 continue
-            if not isinstance(key, CacheWildCard) and k != key:
+            if not isinstance(item, CacheWildCard) and k != item:
                 continue
             if not isinstance(coordinates, CacheWildCard) and ck != coordinates_key:
                 continue
@@ -205,13 +205,13 @@ class RamCacheStore(CacheStore):
             del _thread_local.cache[k]
 
     def clear(self):
-        """Remove all entries from the cache. """
+        """Remove all entries from the cache."""
 
         if hasattr(_thread_local, "cache"):
             _thread_local.cache.clear()
 
     def cleanup(self):
-        """ Remove all expired entries. """
+        """Remove all expired entries."""
         for full_key, entry in list(_thread_local.cache.items()):
             if entry["expires"] is not None and time.time() >= entry["expires"]:
                 del _thread_local.cache[full_key]

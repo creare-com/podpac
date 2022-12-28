@@ -17,8 +17,8 @@ from podpac.core.interpolation.interpolation import InterpolationMixin
 class OGRRaw(Node):
     """ """
 
-    source = tl.Unicode().tag(attr=True)
-    layer = tl.Unicode().tag(attr=True)
+    source = tl.Unicode().tag(attr=True, required=True)
+    layer = tl.Unicode().tag(attr=True, required=True)
     attribute = tl.Unicode().tag(attr=True)
     nan_vals = tl.List().tag(attr=True)
     nan_val = tl.Any(np.nan).tag(attr=True)
@@ -50,6 +50,41 @@ class OGRRaw(Node):
     def extents(self):
         layer = self.datasource.GetLayerByName(self.layer)
         return layer.GetExtent()
+
+    def get_source_data(self, bounds={}):
+        """
+        Not available for OGR nodes.
+
+        Arguments
+        ---------
+        bounds : dict
+            Dictionary of bounds by dimension, optional.
+            Keys must be dimension names, and values are (min, max) tuples, e.g. ``{'lat': (10, 20)}``.
+
+        raises
+        ------
+        AttributeError : Cannot get source data for OGR datasources
+        """
+
+        raise AttributeError(
+            "Cannot get source data for OGR datasources. "
+            "The source data is a vector-based shapefile without a native resolution."
+        )
+
+    def find_coordinates(self):
+        """
+        Not available for OGR nodes.
+
+        raises
+        ------
+        coord_list : list
+            list of available coordinates (Coordinates objects)
+        """
+
+        raise AttributeError(
+            "Cannot get available coordinates for OGR datasources. "
+            "The source data is a vector-based shapefile without native coordinates."
+        )
 
     @common_doc(COMMON_NODE_DOC)
     def _eval(self, coordinates, output=None, _selector=None):

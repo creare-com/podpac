@@ -139,7 +139,7 @@ class SMAP(EGI):
     product = tl.Enum(SMAP_PRODUCTS, default_value="SPL4SMAU").tag(attr=True)
     nan_vals = [-9999.0]
     min_bounds_span = tl.Dict(default_value={"lon": 0.3, "lat": 0.3, "time": "3,h"}).tag(attr=True)
-    check_quality_flags = tl.Bool(True).tag(attr=True)
+    check_quality_flags = tl.Bool(True).tag(attr=True, default=True)
     quality_flag_key = tl.Unicode(allow_none=True).tag(attr=True)
     data_key = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     base_url = tl.Unicode(default_value=BASE_URL).tag(attr=True)
@@ -155,6 +155,10 @@ class SMAP(EGI):
     @cached_property
     def _product_data(self):
         return SMAP_PRODUCT_DICT[self.product]
+
+    @property
+    def udims(self):
+        return ["lat", "lon", "time"]
 
     @property
     def lat_key(self):
@@ -289,14 +293,14 @@ class SMAP(EGI):
             lat = all_data.lat.sel(lat=data.lat, method="nearest")
 
             # When the difference between old and new coordintaes are large, it means there are new coordinates
-            Ilat = np.abs(lat.data - data.lat) > 1e-3
+            Ilat = (np.abs(lat.data - data.lat) > 1e-3).data
             # Use the new data's coordinates for the new coordinates
-            lat.data[Ilat] = data.lat[Ilat]
+            lat.data[Ilat] = data.lat.data[Ilat]
 
             # Repeat for lon
             lon = all_data.lon.sel(lon=data.lon, method="nearest")
-            Ilon = np.abs(lon.data - data.lon) > 1e-3
-            lon.data[Ilon] = data.lon[Ilon]
+            Ilon = (np.abs(lon.data - data.lon) > 1e-3).data
+            lon.data[Ilon] = data.lon.data[Ilon]
 
             # Assign to data
             data.lon.data[:] = lon.data

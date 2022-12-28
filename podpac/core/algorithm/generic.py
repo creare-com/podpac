@@ -18,7 +18,7 @@ ne = lazy_module("numexpr")
 
 from podpac import settings
 from podpac import Coordinates
-from podpac.core.node import Node
+from podpac.core.node import Node, NodeException
 from podpac.core.utils import NodeTrait
 from podpac.core.algorithm.algorithm import Algorithm
 
@@ -31,7 +31,7 @@ if sys.version_info.major == 2:
 class GenericInputs(Algorithm):
     """Base class for Algorithms that accept generic named inputs."""
 
-    inputs = tl.Dict(read_only=True)
+    inputs = tl.Dict(read_only=True, value_trait=NodeTrait(), key_trait=tl.Unicode()).tag(attr=True, required=True)
 
     _repr_keys = ["inputs"]
 
@@ -62,8 +62,8 @@ class Arithmetic(GenericInputs):
     arith = Arithmetic(A=a, B=b, eqn = 'A * B + {offset}', params={'offset': 1})
     """
 
-    eqn = tl.Unicode().tag(attr=True)
-    params = tl.Dict().tag(attr=True)
+    eqn = tl.Unicode().tag(attr=True, required=True)
+    params = tl.Dict().tag(attr=True, required=True)
 
     _repr_keys = ["eqn"]
 
@@ -71,7 +71,7 @@ class Arithmetic(GenericInputs):
         if not settings.allow_unsafe_eval:
             warnings.warn(
                 "Insecure evaluation of Python code using Arithmetic node has not been allowed. If "
-                "this is an error, use: `podpac.settings.set_unsafe_eval(True)`. "
+                "this is an error, use: `podpac.settings.allow_unrestricted_code_execution(True)`. "
                 "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
@@ -101,7 +101,7 @@ class Arithmetic(GenericInputs):
         if not settings.allow_unsafe_eval:
             raise PermissionError(
                 "Insecure evaluation of Python code using Arithmetic node has not been allowed. If "
-                "this is an error, use: `podpac.settings.set_unsafe_eval(True)`. "
+                "this is an error, use: `podpac.settings.allow_unrestricted_code_execution(True)`. "
                 "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
@@ -145,13 +145,13 @@ class Generic(GenericInputs):
     generic = Generic(code=code, a=a, b=b)
     """
 
-    code = tl.Unicode().tag(attr=True, readonly=True)
+    code = tl.Unicode().tag(attr=True, readonly=True, required=True)
 
     def init(self):
         if not settings.allow_unsafe_eval:
             warnings.warn(
                 "Insecure evaluation of Python code using Generic node has not been allowed. If this "
-                "this is an error, use: `podpac.settings.set_unsafe_eval(True)`. "
+                "this is an error, use: `podpac.settings.allow_unrestricted_code_execution(True)`. "
                 "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
@@ -178,7 +178,7 @@ class Generic(GenericInputs):
         if not settings.allow_unsafe_eval:
             raise PermissionError(
                 "Insecure evaluation of Python code using Generic node has not been allowed. If this "
-                "this is an error, use: `podpac.settings.set_unsafe_eval(True)`. "
+                "this is an error, use: `podpac.settings.allow_unrestricted_code_execution(True)`. "
                 "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
@@ -227,8 +227,8 @@ class Mask(Algorithm):
 
     """
 
-    source = NodeTrait().tag(attr=True)
-    mask = NodeTrait().tag(attr=True)
+    source = NodeTrait().tag(attr=True, required=True)
+    mask = NodeTrait().tag(attr=True, required=True)
     masked_val = tl.Float(allow_none=True, default_value=None).tag(attr=True)
     bool_val = tl.Float(1).tag(attr=True)
     bool_op = tl.Enum(["==", "<", "<=", ">", ">="], default_value="==").tag(attr=True)

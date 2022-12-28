@@ -12,7 +12,7 @@ from podpac import settings
 
 
 class MockPyDAP(PyDAP):
-    """mock pydap data source """
+    """mock pydap data source"""
 
     source = "http://demo.opendap.org"
     data_key = "key"
@@ -50,7 +50,7 @@ class TestPyDAP(object):
         assert "key" in keys
 
     def test_session(self):
-        """test session attribute and traitlet default """
+        """test session attribute and traitlet default"""
 
         # hostname should be the same as the source, parsed by request
         node = PyDAP(source=self.source, data_key=self.data_key)

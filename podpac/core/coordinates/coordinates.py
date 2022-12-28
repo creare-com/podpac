@@ -10,7 +10,6 @@ import sys
 import itertools
 import json
 from collections import OrderedDict
-from hashlib import md5 as hash_alg
 
 import numpy as np
 import traitlets as tl
@@ -30,15 +29,14 @@ from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
-from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
+from podpac.core.coordinates.affine_coordinates import AffineCoordinates
 from podpac.core.coordinates.cfunctions import clinspace
+from podpac.core.utils import hash_alg
 
 # Optional dependencies
 from lazy_import import lazy_module, lazy_class
 
 rasterio = lazy_module("rasterio")
-affine_module = lazy_module("affine")
-
 
 # Set up logging
 _logger = logging.getLogger(__name__)
@@ -325,12 +323,34 @@ class Coordinates(tl.HasTraits):
         coords : :class:`Coordinates`
             podpac Coordinates
         """
-
+        d = OrderedDict()
         if isinstance(x, (xr.DataArray, xr.Dataset)):
-            xcoords = x.coords
             # only pull crs from the DataArray attrs if the crs is not specified
             if crs is None:
                 crs = x.attrs.get("crs")
+
+            xcoords = x.coords
+            if "geotransform" in x.attrs:
+                other = cls.from_xarray(xcoords, crs=crs, validate_crs=validate_crs).udrop(["lat", "lon"])
+                latshape = xcoords["lat"].shape
+                lonshape = xcoords["lon"].shape
+                if latshape == lonshape and len(latshape) == 2:
+                    shape = latshape
+                else:
+                    shape = [latshape[0], lonshape[0]]
+                    xdims = list(xcoords.keys())
+                    if xdims.index("lat") > xdims.index("lon"):
+                        shape = shape[::-1]
+                lat_lon = cls.from_geotransform(x.geotransform, shape=shape, crs=crs, validate_crs=validate_crs)
+                coords = merge_dims([other, lat_lon])
+
+                # These dims might have something like lat_lon-1, lat_lon-2, so eliminate the '-' ...
+                dims = [d.split("-")[0] for d in xcoords.dims if d != "output"]
+                # ... and make sure it's all unique without changing order (np.unique would change order...)
+                dims = [d for i, d in enumerate(dims) if d not in dims[:i]]
+                coords = coords.transpose(*dims)
+                return coords
+
         elif isinstance(x, (xarray.core.coordinates.DataArrayCoordinates, xarray.core.coordinates.DatasetCoordinates)):
             xcoords = x
         else:
@@ -342,7 +362,6 @@ class Coordinates(tl.HasTraits):
         if crs is None:
             warnings.warn("using default crs for podpac coordinates loaded from xarray because no crs was provided")
 
-        d = OrderedDict()
         for dim in xcoords.dims:
             if dim in d:
                 continue
@@ -476,39 +495,11 @@ class Coordinates(tl.HasTraits):
     @classmethod
     def from_geotransform(cls, geotransform, shape, crs=None, validate_crs=True):
         """Creates Coordinates from GDAL Geotransform."""
-        tol = 1e-15  # tolerance for deciding when a number is zero
-        # Handle the case of rotated coordinates
-        try:
-            rcoords = RotatedCoordinates.from_geotransform(geotransform, shape, dims=["lat", "lon"])
-        except affine_module.UndefinedRotationError:
-            rcoords = None
-            _logger.debug("Rasterio source dataset does not have Rotated Coordinates")
 
-        if rcoords is not None and np.abs(rcoords.theta % (np.pi / 2)) > tol:
-            # These are Rotated coordinates and we can return
-            coords = Coordinates([rcoords], dims=["lat,lon"], crs=crs)
-            return coords
-
-        # Handle the case of uniform coordinates (not rotated, but N-S E-W aligned)
-        affine = rasterio.Affine.from_gdal(*geotransform)
-        if affine.e <= tol and affine.a <= tol:
-            order = -1
-            step = np.array([affine.d, affine.b])
-        else:
-            order = 1
-            step = np.array([affine.e, affine.a])
-
-        origin = affine.f + step[0] / 2, affine.c + step[1] / 2
-        end = origin[0] + step[0] * (shape[::order][0] - 1), origin[1] + step[1] * (shape[::order][1] - 1)
-        coords = Coordinates(
-            [
-                podpac.clinspace(origin[0], end[0], shape[::order][0], "lat"),
-                podpac.clinspace(origin[1], end[1], shape[::order][1], "lon"),
-            ][::order],
-            crs=crs,
-            validate_crs=validate_crs,
-        )
-        return coords
+        cs = AffineCoordinates(geotransform, shape).simplify()
+        if isinstance(cs, AffineCoordinates):
+            cs = [cs]
+        return Coordinates(cs, crs=crs, validate_crs=validate_crs)
 
     @classmethod
     def from_definition(cls, d):
@@ -550,8 +541,8 @@ class Coordinates(tl.HasTraits):
                 c = UniformCoordinates1d.from_definition(e)
             elif "name" in e and "values" in e:
                 c = ArrayCoordinates1d.from_definition(e)
-            elif "dims" in e and "shape" in e and "theta" in e and "origin" in e and ("step" in e or "corner" in e):
-                c = RotatedCoordinates.from_definition(e)
+            elif "geotransform" in e and "shape" in e:
+                c = AffineCoordinates.from_definition(e)
             else:
                 raise ValueError("Could not parse coordinates definition item with keys %s" % e.keys())
 
@@ -565,22 +556,22 @@ class Coordinates(tl.HasTraits):
     # ------------------------------------------------------------------------------------------------------------------
 
     def keys(self):
-        """ dict-like keys: dims """
+        """dict-like keys: dims"""
         return self._coords.keys()
 
     def values(self):
-        """ dict-like values: coordinates for each key/dimension """
+        """dict-like values: coordinates for each key/dimension"""
         return self._coords.values()
 
     def items(self):
-        """ dict-like items: (dim, coordinates) pairs """
+        """dict-like items: (dim, coordinates) pairs"""
         return self._coords.items()
 
     def __iter__(self):
         return iter(self._coords)
 
     def get(self, dim, default=None):
-        """ dict-like get: get coordinates by dimension name with an optional """
+        """dict-like get: get coordinates by dimension name with an optional"""
         try:
             return self[dim]
         except KeyError:
@@ -653,7 +644,7 @@ class Coordinates(tl.HasTraits):
         return len(self._coords)
 
     def update(self, other):
-        """ dict-like update: add/replace coordinates using another Coordinates object """
+        """dict-like update: add/replace coordinates using another Coordinates object"""
         if not isinstance(other, Coordinates):
             raise TypeError("Cannot update Coordinates with object of type '%s'" % type(other))
 
@@ -762,7 +753,7 @@ class Coordinates(tl.HasTraits):
 
     @property
     def ndim(self):
-        """:int: Number of dimensions. """
+        """:int: Number of dimensions."""
 
         return len(self.shape)
 
@@ -815,7 +806,7 @@ class Coordinates(tl.HasTraits):
 
     @property
     def properties(self):
-        """:dict: Dictionary of the coordinate properties. """
+        """:dict: Dictionary of the coordinate properties."""
 
         d = OrderedDict()
         d["crs"] = self.crs
@@ -869,7 +860,7 @@ class Coordinates(tl.HasTraits):
 
     @property
     def geotransform(self):
-        """ :tuple: GDAL geotransform. """
+        """:tuple: GDAL geotransform."""
         # Make sure we only have 1 time and alt dimension
         if "time" in self.udims and self["time"].size > 1:
             raise TypeError(
@@ -899,11 +890,10 @@ class Coordinates(tl.HasTraits):
                 self[first].start - self[first].step / 2, self[second].start - self[second].step / 2
             ) * rasterio.transform.Affine.scale(self[first].step, self[second].step)
             transform = transform.to_gdal()
-        # Do the rotated coordinates cases
-        elif "lat,lon" in self.dims and isinstance(self._coords["lat,lon"], RotatedCoordinates):
-            transform = self._coords["lat,lon"].geotransform
-        elif "lon,lat" in self.dims and isinstance(self._coords["lon,lat"], RotatedCoordinates):
-            transform = self._coords["lon,lat"].geotransform
+        elif "lat_lon" in self.dims and isinstance(self._coords["lat_lon"], AffineCoordinates):
+            transform = self._coords["lat_lon"].geotransform
+        elif "lon_lat" in self.dims and isinstance(self._coords["lon_lat"], AffineCoordinates):
+            transform = self._coords["lon_lat"].geotransform
         else:
             raise TypeError(
                 "Only 2-D coordinates that are uniform or rotated have a GDAL transform. These coordinates "
@@ -933,7 +923,13 @@ class Coordinates(tl.HasTraits):
             Dictionary of (low, high) coordinates area_bounds in each unstacked dimension
         """
 
-        return {dim: self[dim].get_area_bounds(boundary.get(dim)) for dim in self.udims}
+        area_bounds = {}
+        for dim, c in self._coords.items():
+            if isinstance(c, StackedCoordinates):
+                area_bounds.update(c.get_area_bounds(boundary))
+            else:
+                area_bounds[dim] = c.get_area_bounds(boundary.get(dim))
+        return area_bounds
 
     def drop(self, dims, ignore_missing=False):
         """
@@ -1033,7 +1029,10 @@ class Coordinates(tl.HasTraits):
                     cs.append(c)
             elif isinstance(c, StackedCoordinates):
                 stacked = [s for s in c if s.name not in dims]
-                if len(stacked) > 1:
+                if len(stacked) == len(c):
+                    # preserves parameterized stacked coordinates such as AffineCoordinates
+                    cs.append(c)
+                elif len(stacked) > 1:
                     cs.append(StackedCoordinates(stacked))
                 elif len(stacked) == 1:
                     cs.append(stacked[0])
@@ -1414,7 +1413,7 @@ class Coordinates(tl.HasTraits):
                 cs.pop(i)
                 cs.insert(i, c)
 
-        # transform the altitude if needed
+        # transform remaining altitude or stacked spatial dimensions if needed
         ts = []
         for c in cs:
             tc = c._transform(transformer)
@@ -1452,10 +1451,12 @@ class Coordinates(tl.HasTraits):
             # Transform all of the points for this dimension (either lat or lon) and record result
             this = self[t[i].name]
             that = self[t[j].name]
-            if this.size > 1:
+            if this.size > 1 and that.size > 1:
                 other = clinspace(that.bounds[0], that.bounds[1], this.size)
-            else:
+            elif this.size == that.size:
                 other = that.coordinates
+            else:
+                other = np.zeros(this.size) + that.coordinates.mean()
             diagonal = StackedCoordinates([this.coordinates, other], dims=[this.name, that.name])
             t_diagonal = diagonal._transform(transformer)
             cs[self.dims.index(this.name)] = t_diagonal[this.name]
@@ -1470,7 +1471,13 @@ class Coordinates(tl.HasTraits):
             Simplified coordinates.
         """
 
-        cs = [c.simplify() for c in self._coords.values()]
+        cs = []
+        for c in self._coords.values():
+            c2 = c.simplify()
+            if isinstance(c2, list):
+                cs += c2
+            else:
+                cs.append(c2)
         return Coordinates(cs, **self.properties)
 
     def issubset(self, other):
@@ -1512,9 +1519,8 @@ class Coordinates(tl.HasTraits):
         for c in self._coords.values():
             if isinstance(c, Coordinates1d):
                 rep += "\n\t%s: %s" % (c.name, c)
-            elif isinstance(c, RotatedCoordinates):
-                for dim in c.dims:
-                    rep += "\n\t%s[%s]: Rotated(TODO)" % (c.name, dim)
+            elif isinstance(c, AffineCoordinates):
+                rep += "\n\t%s: %s" % (c.name, c)
             elif isinstance(c, StackedCoordinates):
                 for dim in c.dims:
                     rep += "\n\t%s[%s]: %s" % (c.name, dim, c[dim])

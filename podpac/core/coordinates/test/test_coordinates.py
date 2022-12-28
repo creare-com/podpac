@@ -13,7 +13,7 @@ import podpac
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
-from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
+from podpac.core.coordinates.affine_coordinates import AffineCoordinates
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.cfunctions import crange, clinspace
 from podpac.core.coordinates.coordinates import Coordinates
@@ -180,7 +180,7 @@ class TestCoordinateCreation(object):
         assert c.size == 12
 
     def test_rotated(self):
-        latlon = RotatedCoordinates((3, 4), np.pi / 4, [10, 20], [1.0, 2.0], dims=["lat", "lon"])
+        latlon = AffineCoordinates(geotransform=(10.0, 2.0, 0.0, 20.0, 0.0, -3.0), shape=(3, 4))
         c = Coordinates([latlon])
         assert c.dims == ("lat_lon",)
         assert c.udims == ("lat", "lon")
@@ -227,8 +227,8 @@ class TestCoordinateCreation(object):
         assert c.size == 72
         repr(c)
 
-    def test_mixed_rotated(sesf):
-        latlon = RotatedCoordinates((3, 4), np.pi / 4, [10, 20], [1.0, 2.0], dims=["lat", "lon"])
+    def test_mixed_affine(sesf):
+        latlon = AffineCoordinates(geotransform=(10.0, 2.0, 0.0, 20.0, 0.0, -3.0), shape=(3, 4))
         dates = [["2018-01-01", "2018-01-02", "2018-01-03"], ["2019-01-01", "2019-01-02", "2019-01-03"]]
         c = Coordinates([latlon, dates], dims=["lat_lon", "time"])
         assert c.dims == ("lat_lon", "time")
@@ -640,8 +640,8 @@ class TestCoordinatesSerialization(object):
         c2 = Coordinates.from_definition(d)
         assert c2 == c
 
-    def test_definition_rotated(self):
-        latlon = RotatedCoordinates((3, 4), np.pi / 4, [10, 20], [1.0, 2.0], dims=["lat", "lon"])
+    def test_definition_affine(self):
+        latlon = AffineCoordinates(geotransform=(10.0, 2.0, 0.0, 20.0, 0.0, -3.0), shape=(3, 4))
         c = Coordinates([latlon])
         d = c.definition
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)
@@ -1780,25 +1780,53 @@ class TestCoordinatesFunctions(object):
 
 
 class TestCoordinatesGeoTransform(object):
-    def uniform_working(self):
+    def test_uniform_working(self):
         # order: -lat, lon
         c = Coordinates([clinspace(1.5, 0.5, 5, "lat"), clinspace(1, 2, 9, "lon")])
+        c2 = Coordinates.from_geotransform(c.geotransform, c.shape)
+        c3 = Coordinates.from_xarray(podpac.Node().create_output_array(c))
+        assert c == c2
+        assert c == c3
         tf = np.array(c.geotransform).reshape(2, 3)
         np.testing.assert_almost_equal(
-            tf, np.array([[c["lon"].bounds[0], c["lon"].step, 0], [c["lat"].bounds[1], 0, c["lat"].step]])
+            tf,
+            np.array(
+                [
+                    [c["lon"].bounds[0] - c["lon"].step / 2, c["lon"].step, 0],
+                    [c["lat"].bounds[1] - c["lat"].step / 2, 0, c["lat"].step],
+                ]
+            ),
         )
         # order: lon, lat
         c = Coordinates([clinspace(0.5, 1.5, 5, "lon"), clinspace(1, 2, 9, "lat")])
+        c2 = Coordinates.from_geotransform(c.geotransform, c.shape)
+        c3 = Coordinates.from_xarray(podpac.Node().create_output_array(c))
+        assert c == c2
+        assert c == c3
         tf = np.array(c.geotransform).reshape(2, 3)
         np.testing.assert_almost_equal(
-            tf, np.array([[c["lon"].bounds[0], 0, c["lon"].step], [c["lat"].bounds[0], c["lat"].step, 0]])
+            tf,
+            np.array(
+                [
+                    [c["lon"].bounds[0] - c["lon"].step / 2, 0, c["lon"].step],
+                    [c["lat"].bounds[0] - c["lat"].step / 2, c["lat"].step, 0],
+                ]
+            ),
         )
 
         # order: lon, -lat, time
         c = Coordinates([clinspace(0.5, 1.5, 5, "lon"), clinspace(2, 1, 9, "lat"), crange(10, 11, 2, "time")])
+        c2 = Coordinates.from_geotransform(c.geotransform, c.drop("time").shape)
+        assert c.drop("time") == c2
         tf = np.array(c.geotransform).reshape(2, 3)
         np.testing.assert_almost_equal(
-            tf, np.array([[c["lon"].bounds[0], 0, c["lon"].step], [c["lat"].bounds[1], c["lat"].step, 0]])
+            tf,
+            np.array(
+                [
+                    [c["lon"].bounds[0] - c["lon"].step / 2, 0, c["lon"].step],
+                    [c["lat"].bounds[1] - c["lat"].step / 2, c["lat"].step, 0],
+                ]
+            ),
         )
         # order: -lon, -lat, time, alt
         c = Coordinates(
@@ -1809,12 +1837,20 @@ class TestCoordinatesGeoTransform(object):
                 crange(10, 11, 2, "alt"),
             ]
         )
+        c2 = Coordinates.from_geotransform(c.geotransform, c.drop(["time", "alt"]).shape)
+        assert c.drop(["time", "alt"]) == c2
         tf = np.array(c.geotransform).reshape(2, 3)
         np.testing.assert_almost_equal(
-            tf, np.array([[c["lon"].bounds[1], 0, c["lon"].step], [c["lat"].bounds[1], c["lat"].step, 0]])
+            tf,
+            np.array(
+                [
+                    [c["lon"].bounds[1] - c["lon"].step / 2, 0, c["lon"].step],
+                    [c["lat"].bounds[1] - c["lat"].step / 2, c["lat"].step, 0],
+                ]
+            ),
         )
 
-    def error_time_alt_too_big(self):
+    def test_error_time_alt_too_big(self):
         # time
         c = Coordinates(
             [
@@ -1835,6 +1871,7 @@ class TestCoordinatesGeoTransform(object):
         ):
             c.geotransform
 
+    @pytest.mark.skip(reason="obsolete")
     def rot_coords_working(self):
         # order -lat, lon
         rc = RotatedCoordinates(shape=(4, 3), theta=np.pi / 8, origin=[10, 20], step=[-2.0, 1.0], dims=["lat", "lon"])
@@ -2094,3 +2131,74 @@ class TestCoordinatesMethodTransform(object):
 
         assert_array_equal(c2["lat"].coordinates, c1["lat"].coordinates)
         assert_array_equal(c2["lon"].coordinates, c1["lon"].coordinates)
+
+    def test_transform_size_1_lat(self):
+        c1 = Coordinates([ArrayCoordinates1d([1], name="lat"), clinspace(0, 2, 5, "lon")], crs="EPSG:3857")
+        c2 = c1.transform("EPSG:4326")
+        assert c2.shape == c1.shape
+        c1 = Coordinates([clinspace(0, 2, 5, "lat"), ArrayCoordinates1d([1], name="lon")], crs="EPSG:3857")
+        c2 = c1.transform("EPSG:4326")
+        assert c2.shape == c1.shape
+
+
+class TestCoordinatesMethodSimplify(object):
+    def test_simplify_array_to_uniform(self):
+        c1 = Coordinates([[1, 2, 3, 4], [4, 6, 8]], dims=["lat", "lon"])
+        c2 = Coordinates([[1, 2, 3, 5], [4, 6, 8]], dims=["lat", "lon"])
+        c3 = Coordinates([clinspace(1, 4, 4), clinspace(4, 8, 3)], dims=["lat", "lon"])
+
+        # array -> uniform
+        assert c1.simplify() == c3.simplify()
+
+        # array -> array
+        assert c2.simplify() == c2.simplify()
+
+        # uniform -> uniform
+        assert c3.simplify() == c3.simplify()
+
+    @pytest.mark.skip(reason="not implemented, spec uncertain")
+    def test_simplify_stacked_to_unstacked_arrays(self):
+        stacked = Coordinates([np.meshgrid([1, 2, 3, 5], [4, 6, 8])], dims=["lat_lon"])
+        unstacked = Coordinates([[1, 2, 3, 5], [4, 6, 8]], dims=["lat", "lon"])
+
+        assert stacked.simplify() == unstacked
+        assert unstacked.simplify() == unstacked
+
+    def test_stacked_to_unstacked_uniform(self):
+        stacked = Coordinates([np.meshgrid([4, 6, 8], [1, 2, 3, 4])[::-1]], dims=["lat_lon"])
+        unstacked_uniform = Coordinates([clinspace(1, 4, 4), clinspace(4, 8, 3)], dims=["lat", "lon"])
+
+        # stacked grid -> uniform
+        assert stacked.simplify() == unstacked_uniform
+
+        # uniform -> uniform
+        assert unstacked_uniform.simplify() == unstacked_uniform
+
+    def test_stacked_to_affine(self):
+        geotransform_rotated = (10.0, 1.879, -1.026, 20.0, 0.684, 2.819)
+        affine = Coordinates([AffineCoordinates(geotransform=geotransform_rotated, shape=(4, 6))])
+        stacked = Coordinates([StackedCoordinates([affine["lat_lon"]["lat"], affine["lat_lon"]["lon"]])])
+
+        # stacked -> affine
+        assert stacked.simplify() == affine
+
+        # affine -> affine
+        assert affine.simplify() == affine
+
+    def test_affine_to_uniform(self):
+        # NOTE: this assumes that podpac prefers unstacked UniformCoordinates to AffineCoordinates
+        geotransform_northup = (10.0, 2.0, 0.0, 20.0, 0.0, -3.0)
+        geotransform_rotated = (10.0, 1.879, -1.026, 20.0, 0.684, 2.819)
+
+        c1 = Coordinates([AffineCoordinates(geotransform=geotransform_northup, shape=(4, 6))])
+        c2 = Coordinates([AffineCoordinates(geotransform=geotransform_rotated, shape=(4, 6))])
+        c3 = Coordinates([clinspace(18.5, 9.5, 4, name="lat"), clinspace(11, 21, 6, name="lon")])
+
+        # unrotated affine -> unstacked uniform
+        assert c1.simplify() == c3
+
+        # rotated affine -> rotated affine
+        assert c2.simplify() == c2
+
+        # unstacked uniform -> unstacked uniform
+        assert c3.simplify() == c3

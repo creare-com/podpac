@@ -8,6 +8,7 @@ import xarray as xr
 import pandas as pd
 import traitlets as tl
 from six import string_types
+import lazy_import
 
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -222,7 +223,10 @@ class StackedCoordinates(BaseCoordinates):
             return self._coords[self.dims.index(index)]
 
         else:
-            return StackedCoordinates([c[index] for c in self._coords])
+            return self._getsubset(index)
+
+    def _getsubset(self, index):
+        return StackedCoordinates([c[index] for c in self._coords])
 
     def __setitem__(self, dim, c):
         if not dim in self.dims:
@@ -257,7 +261,7 @@ class StackedCoordinates(BaseCoordinates):
 
         return (self.flatten().coordinates == item).all(axis=1).any()
 
-    def __eq__(self, other):
+    def _eq_base(self, other):
         if not isinstance(other, StackedCoordinates):
             return False
 
@@ -266,6 +270,12 @@ class StackedCoordinates(BaseCoordinates):
             return False
 
         if self.shape != other.shape:
+            return False
+
+        return True
+
+    def __eq__(self, other):
+        if not self._eq_base(other):
             return False
 
         # full check of underlying coordinates
@@ -297,7 +307,7 @@ class StackedCoordinates(BaseCoordinates):
 
     @property
     def size(self):
-        """:int: Number of stacked coordinates. """
+        """:int: Number of stacked coordinates."""
         return self._coords[0].size
 
     @property
@@ -338,7 +348,7 @@ class StackedCoordinates(BaseCoordinates):
 
     @property
     def definition(self):
-        """:list: Serializable stacked coordinates definition. """
+        """:list: Serializable stacked coordinates definition."""
 
         return [c.definition for c in self._coords]
 
@@ -460,9 +470,12 @@ class StackedCoordinates(BaseCoordinates):
             index = slice(max(index.start or 0 for index in indices), min(index.stop or self.size for index in indices))
             # for consistency
             if index.start == 0 and index.stop == self.size:
-                index = slice(None, None)
+                if self.ndim > 1:
+                    index = [slice(None, None) for dim in self.dims]
+                else:
+                    index = slice(None, None)
         elif any(_index_len(index) == 0 for index in indices):
-            return slice(0, 0)
+            index = slice(0, 0)
         else:
             # convert any slices to boolean array
             for i, index in enumerate(indices):
@@ -475,11 +488,17 @@ class StackedCoordinates(BaseCoordinates):
 
             # for consistency
             if np.all(index):
-                index = slice(None, None)
+                if self.ndim > 1:
+                    index = [slice(None, None) for dim in self.dims]
+                else:
+                    index = slice(None, None)
 
         return index
 
     def _transform(self, transformer):
+        if self.size == 0:
+            return self.copy()
+
         coords = [c.copy() for c in self._coords]
 
         if "lat" in self.dims and "lon" in self.dims and "alt" in self.dims:
@@ -524,7 +543,7 @@ class StackedCoordinates(BaseCoordinates):
 
             coords[ialt] = ArrayCoordinates1d(talt, "alt").simplify()
 
-        return StackedCoordinates(coords)
+        return StackedCoordinates(coords).simplify()
 
     def transpose(self, *dims, **kwargs):
         """
@@ -622,3 +641,62 @@ class StackedCoordinates(BaseCoordinates):
                         ocs.append(StackedCoordinates([coords[dim] for dim in dims]))
 
             return all(a.issubset(o) for a, o in zip(acs, ocs))
+
+    def simplify(self):
+        if self.is_affine:
+            from podpac.core.coordinates.affine_coordinates import AffineCoordinates
+
+            # build the geotransform directly
+            lat = self["lat"].coordinates
+            lon = self["lon"].coordinates
+
+            # We don't have to check every point in lat/lon for the same step
+            # since the self.is_affine call did that already
+            dlati = (lat[-1, 0] - lat[0, 0]) / (lat.shape[0] - 1)
+            dlatj = (lat[0, -1] - lat[0, 0]) / (lat.shape[1] - 1)
+            dloni = (lon[-1, 0] - lon[0, 0]) / (lon.shape[0] - 1)
+            dlonj = (lon[0, -1] - lon[0, 0]) / (lon.shape[1] - 1)
+
+            # origin point
+            p0 = [lat[0, 0], lon[0, 0]] - np.array([[dlati, dlatj], [dloni, dlonj]]) @ np.ones(2) / 2
+
+            # This is defined as x ulc, x width, x height, y ulc, y width, y height
+            # x and y are defined by the CRS. Here we are assuming that it's always
+            # lon and lat == x and y
+            geotransform = [p0[1], dlonj, dloni, p0[0], dlatj, dlati]
+
+            a = AffineCoordinates(geotransform=geotransform, shape=self.shape)
+
+            # simplify in order to convert to UniformCoordinates if appropriate
+            return a.simplify()
+
+        return StackedCoordinates([c.simplify() for c in self._coords])
+
+    @property
+    def is_affine(self):
+        if set(self.dims) != {"lat", "lon"}:
+            return False
+
+        if not (self.ndim == 2 and self.shape[0] > 1 and self.shape[1] > 1):
+            return False
+
+        lat = self["lat"].coordinates
+        lon = self["lon"].coordinates
+
+        d = lat[1:] - lat[:-1]
+        if not np.allclose(d, d[0, 0]):
+            return False
+
+        d = lat[:, 1:] - lat[:, :-1]
+        if not np.allclose(d, d[0, 0]):
+            return False
+
+        d = lon[1:] - lon[:-1]
+        if not np.allclose(d, d[0, 0]):
+            return False
+
+        d = lon[:, 1:] - lon[:, :-1]
+        if not np.allclose(d, d[0, 0]):
+            return False
+
+        return True

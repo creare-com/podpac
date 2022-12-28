@@ -44,7 +44,7 @@ class Style(tl.HasTraits):
         super(Style, self).__init__(*args, **kwargs)
 
     name = tl.Unicode()
-    units = tl.Unicode(allow_none=True)
+    units = tl.Unicode(allow_none=True, default_value="")
     clim = tl.List(default_value=[None, None])
     colormap = tl.Unicode(allow_none=True, default_value=None)
     enumeration_legend = tl.Dict(key_trait=tl.Int(), value_trait=tl.Unicode(), default_value=None, allow_none=True)
@@ -79,7 +79,7 @@ class Style(tl.HasTraits):
 
     @property
     def full_enumeration_colors(self):
-        """ Convert enumeration_colors into a tuple suitable for matplotlib ListedColormap. """
+        """Convert enumeration_colors into a tuple suitable for matplotlib ListedColormap."""
         return tuple(
             [
                 self.enumeration_colors.get(value, self.default_enumeration_color)
@@ -89,7 +89,7 @@ class Style(tl.HasTraits):
 
     @property
     def full_enumeration_legend(self):
-        """ Convert enumeration_legend into a tuple suitable for matplotlib. """
+        """Convert enumeration_legend into a tuple suitable for matplotlib."""
         return tuple(
             [
                 self.enumeration_legend.get(value, self.default_enumeration_legend)
@@ -118,6 +118,31 @@ class Style(tl.HasTraits):
         """
 
         return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
+
+    @classmethod
+    def get_style_ui(self):
+        """
+        Attempting to expose style units to get_ui_spec(). This will grab defaults in general.
+        BUT this will not set defaults for each particular node.
+        """
+        d = OrderedDict()
+        if self.name:
+            d["name"] = self.name
+        if self.units:
+            d["units"] = self.units
+        if self.colormap:
+            d["colormap"] = self.colormap
+        if self.enumeration_legend:
+            d["enumeration_legend"] = self.enumeration_legend
+        if self.enumeration_colors:
+            d["enumeration_colors"] = self.enumeration_colors
+        if self.default_enumeration_legend != DEFAULT_ENUMERATION_LEGEND:
+            d["default_enumeration_legend"] = self.default_enumeration_legend
+        if self.default_enumeration_color != DEFAULT_ENUMERATION_COLOR:
+            d["default_enumeration_color"] = self.default_enumeration_color
+        if self.clim != [None, None]:
+            d["clim"] = self.clim
+        return d
 
     @property
     def definition(self):

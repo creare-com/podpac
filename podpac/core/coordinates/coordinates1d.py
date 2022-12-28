@@ -41,12 +41,12 @@ class Coordinates1d(BaseCoordinates):
 
     @tl.observe("name")
     def _set_property(self, d):
-        if d["name"] is not None:
+        if d["new"] is not None:
             self._properties.add(d["name"])
 
     def _set_name(self, value):
         # set name if it is not set already, otherwise check that it matches
-        if "name" not in self._properties:
+        if "name" not in self._properties and value is not None:
             self.name = value
         elif self.name != value:
             raise ValueError("Dimension mismatch, %s != %s" % (value, self.name))
@@ -69,7 +69,7 @@ class Coordinates1d(BaseCoordinates):
         return "%s: %s" % (name, desc)
 
     def _eq_base(self, other):
-        """ used by child __eq__ methods for common checks """
+        """used by child __eq__ methods for common checks"""
         if not isinstance(other, Coordinates1d):
             return False
 
@@ -160,13 +160,13 @@ class Coordinates1d(BaseCoordinates):
 
     @property
     def bounds(self):
-        """ Low and high coordinate bounds. """
+        """Low and high coordinate bounds."""
 
         raise NotImplementedError
 
     @property
     def properties(self):
-        """:dict: Dictionary of the coordinate properties. """
+        """:dict: Dictionary of the coordinate properties."""
 
         return {key: getattr(self, key) for key in self._properties}
 

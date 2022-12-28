@@ -112,6 +112,14 @@ class TestDataSource(object):
         with pytest.raises(AttributeError, match="can't set attribute"):
             node.coordinates = Coordinates([])
 
+    def test_dims(self):
+        class MyDataSource(DataSource):
+            def get_coordinates(self):
+                return Coordinates([0, 0], dims=["lat", "lon"])
+
+        node = MyDataSource()
+        assert node.dims == ("lat", "lon")
+
     def test_cache_coordinates(self):
         class MyDataSource(DataSource):
             get_coordinates_called = 0
@@ -337,7 +345,7 @@ class TestDataSource(object):
 
     def test_evaluate_selector(self):
         def selector(rsc, coordinates, index_type=None):
-            """ mock selector that just strides by 2 """
+            """mock selector that just strides by 2"""
             new_rsci = tuple(slice(None, None, 2) for dim in rsc.dims)
             new_rsc = rsc[new_rsci]
             return new_rsc, new_rsci
@@ -349,7 +357,7 @@ class TestDataSource(object):
         np.testing.assert_array_equal(output["lon"].data, node.coordinates["lon"][::2].coordinates)
 
     def test_nan_vals(self):
-        """ evaluate note with nan_vals """
+        """evaluate note with nan_vals"""
 
         # none
         node = MockDataSource()
@@ -511,6 +519,100 @@ class TestDataSource(object):
         boundary = node._get_boundary(index)
         np.testing.assert_array_equal(boundary["lat"], lat_boundary[index])
         np.testing.assert_array_equal(boundary["lon"], lon_boundary[index])
+
+    def test_eval_get_cache_extra_dims(self):
+        with podpac.settings:
+            podpac.settings["DEFAULT_CACHE"] = ["ram"]
+
+            node = podpac.data.Array(
+                source=np.ones((3, 4)),
+                coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"]),
+                cache_ctrl=["ram"],
+            )
+            coords1 = podpac.Coordinates([range(3), range(4), "2012-05-19"], ["lat", "lon", "time"])
+            coords2 = podpac.Coordinates([range(3), range(4), "2019-09-10"], ["lat", "lon", "time"])
+
+            # retrieve from cache on the second evaluation
+            node.eval(coords1)
+            assert not node._from_cache
+
+            node.eval(coords1)
+            assert node._from_cache
+
+            # also retrieve from cache with different time coordinates
+            node.eval(coords2)
+            assert node._from_cache
+
+    def test_eval_get_cache_transform_crs(self):
+        with podpac.settings:
+            podpac.settings["DEFAULT_CACHE"] = ["ram"]
+
+            node = podpac.core.data.array_source.Array(
+                source=np.ones((3, 4)),
+                coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"], crs="EPSG:4326"),
+                cache_ctrl=["ram"],
+            )
+
+            # retrieve from cache on the second evaluation
+            node.eval(node.coordinates)
+            assert not node._from_cache
+
+            node.eval(node.coordinates)
+            assert node._from_cache
+
+            # also retrieve from cache with different crs
+            node.eval(node.coordinates.transform("EPSG:4326"))
+            assert node._from_cache
+
+    def test_get_source_data(self):
+        node = podpac.data.Array(
+            source=np.ones((3, 4)),
+            coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"]),
+        )
+
+        data = node.get_source_data()
+        np.testing.assert_array_equal(data, node.source)
+
+    def test_get_source_data_with_bounds(self):
+        node = podpac.data.Array(
+            source=np.ones((3, 4)),
+            coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"]),
+        )
+
+        data = node.get_source_data({"lon": (1.5, 4.5)})
+        np.testing.assert_array_equal(data, node.source[:, 2:])
+
+    def test_get_bounds(self):
+        node = podpac.data.Array(
+            source=np.ones((3, 4)),
+            coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"], crs="EPSG:2193"),
+        )
+
+        with podpac.settings:
+            podpac.settings["DEFAULT_CRS"] = "EPSG:4326"
+
+            # specify crs
+            bounds, crs = node.get_bounds(crs="EPSG:3857")
+            expected = {
+                "lat": (-13291827.558247397, -13291815.707967814),
+                "lon": (9231489.26794932, 9231497.142754894),
+            }
+            for k in expected:
+                np.testing.assert_almost_equal(bounds[k], expected[k])
+            assert crs == "EPSG:3857"
+
+            # native/source crs
+            bounds, crs = node.get_bounds(crs="source")
+            assert bounds == {"lat": (0, 2), "lon": (0, 3)}
+            assert crs == "EPSG:2193"
+
+            # default crs
+            bounds, crs = node.get_bounds()
+            assert bounds == {
+                "lat": (-75.81365382984804, -75.81362774074242),
+                "lon": (82.92787904584206, 82.92794978642414),
+            }
+            assert crs == "EPSG:4326"
 
 
 class TestDataSourceWithMultipleOutputs(object):

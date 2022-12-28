@@ -157,9 +157,9 @@ class COSMOSStationsRaw(TileCompositorRaw):
     stations_url = tl.Unicode("sitesNoLegend.js")
     dims = ["lat", "lon", "time"]
 
-    @tl.default("interpolation")
-    def _interpolation_default(self):
-        return {"method": "nearest", "params": {"use_selector": False, "remove_nan": False, "time_scale": "1,M"}}
+    from podpac.style import Style
+
+    style = Style(colormap="jet")
 
     ## PROPERTIES
     @cached_property(use_cache_ctrl=True)
@@ -283,7 +283,7 @@ class COSMOSStationsRaw(TileCompositorRaw):
         return c
 
     def _get_label_inds(self, label):
-        """ Helper function to get source indices for partially matched labels """
+        """Helper function to get source indices for partially matched labels"""
         ind = []
         for lab in label:
             ind.extend([i for i, l in enumerate(self.stations_label) if lab.lower() in l.lower()])
@@ -386,7 +386,9 @@ class COSMOSStationsRaw(TileCompositorRaw):
 
 
 class COSMOSStations(InterpolationMixin, COSMOSStationsRaw):
-    pass
+    @tl.default("interpolation")
+    def _interpolation_default(self):
+        return {"method": "nearest", "params": {"use_selector": False, "remove_nan": False, "time_scale": "1,M"}}
 
 
 if __name__ == "__main__":

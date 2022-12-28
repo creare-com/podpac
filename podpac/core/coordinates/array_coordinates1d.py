@@ -263,7 +263,12 @@ class ArrayCoordinates1d(Coordinates1d):
         # The following 3 lines are copied by UniformCoordinates1d.__getitem__
         if self.ndim == 1 and np.ndim(index) > 1 and np.array(index).dtype == int:
             index = np.array(index).flatten().tolist()
-        return ArrayCoordinates1d(self.coordinates[index], **self.properties)
+        try:
+            return ArrayCoordinates1d(self.coordinates[index], **self.properties)
+        except IndexError as e:  # This happens when index is a list, but should be a tuple
+            if isinstance(index, list):
+                return ArrayCoordinates1d(self.coordinates[tuple(index)], **self.properties)
+            raise (e)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -281,7 +286,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def size(self):
-        """ Number of coordinates. """
+        """Number of coordinates."""
         return self.coordinates.size
 
     @property
@@ -328,7 +333,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def bounds(self):
-        """ Low and high coordinate bounds. """
+        """Low and high coordinate bounds."""
 
         if self.size == 0:
             lo, hi = np.nan, np.nan

@@ -29,7 +29,7 @@ class CacheStore(object):
 
         raise NotImplementedError
 
-    def put(self, node, data, key, coordinates=None, expires=None, update=True):
+    def put(self, node, data, item, coordinates=None, expires=None, update=True):
         """Cache data for specified node.
 
         Parameters
@@ -38,8 +38,8 @@ class CacheStore(object):
             node requesting storage.
         data : any
             Data to cache
-        key : str
-            Cached object key, e.g. 'output'.
+        item : str
+            Cached object item or key, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         expires : float, datetime, timedelta
@@ -49,15 +49,15 @@ class CacheStore(object):
         """
         raise NotImplementedError
 
-    def get(self, node, key, coordinates=None):
+    def get(self, node, item, coordinates=None):
         """Get cached data for this node.
 
         Parameters
         ------------
         node : Node
             node requesting storage.
-        key : str
-            Cached object key, e.g. 'output'.
+        item : str
+            Cached object item or key, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
 
@@ -73,29 +73,29 @@ class CacheStore(object):
         """
         raise NotImplementedError
 
-    def rem(self, node=None, key=None, coordinates=None):
+    def rem(self, node=None, item=None, coordinates=None):
         """Delete cached data for this node.
 
         Parameters
         ------------
         node : Node
             node requesting storage.
-        key : str, optional
-            Delete only cached objects with this key.
+        item : str, optional
+            Delete only cached objects with this item name or key.
         coordinates : :class:`podpac.Coordinates`
             Delete only cached objects for these coordinates.
         """
         raise NotImplementedError
 
-    def has(self, node, key, coordinates=None):
+    def has(self, node, item, coordinates=None):
         """Check for cached data for this node
 
         Parameters
         ------------
         node : Node
             node requesting storage.
-        key : str
-            Cached object key, e.g. 'output'.
+        item : str
+            Cached object item or key, e.g. 'output'.
         coordinates: Coordinate, optional
             Coordinates for which cached object should be checked
 

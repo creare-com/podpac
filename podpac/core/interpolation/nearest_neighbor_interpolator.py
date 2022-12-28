@@ -95,7 +95,7 @@ class NearestNeighbor(Interpolator):
                     ]
 
         else:
-            bounds = {d: None for d in source_coordinates.udims}
+            bounds = None
 
         if self.remove_nan:
             # Eliminate nans from the source data. Note, this could turn a uniform griddted dataset into a stacked one
@@ -110,16 +110,38 @@ class NearestNeighbor(Interpolator):
                 continue
             source = source_coordinates[d]
             if is_stacked(d):
-                bound = np.stack([bounds[dd] for dd in d.split("_")], axis=1)
+                if bounds is not None:
+                    bound = np.stack([bounds[dd] for dd in d.split("_")], axis=1)
+                else:
+                    bound = None
                 index = self._get_stacked_index(d, source, eval_coordinates, bound)
+
+                if len(source.shape) == 2:  # Handle case of 2D-stacked coordinates
+                    ncols = source.shape[1]
+                    index1 = index // ncols
+                    index1 = self._resize_stacked_index(index1, d, eval_coordinates)
+                    # With nD stacked coordinates, there are 'n' indices in the tuple
+                    # All of these need to get into the data_index, and in the right order
+                    data_index.append(index1)  # This is a hack
+                    index = index % ncols  # The second half can go through the usual machinery
+                elif len(source.shape) > 2:  # Handle case of nD-stacked coordinates
+                    raise NotImplementedError
                 index = self._resize_stacked_index(index, d, eval_coordinates)
             elif source_coordinates[d].is_uniform:
                 request = eval_coordinates[d]
-                index = self._get_uniform_index(d, source, request, bounds[d])
+                if bounds is not None:
+                    bound = bounds[d]
+                else:
+                    bound = None
+                index = self._get_uniform_index(d, source, request, bound)
                 index = self._resize_unstacked_index(index, d, eval_coordinates)
             else:  # non-uniform coordinates... probably an optimization here
                 request = eval_coordinates[d]
-                index = self._get_nonuniform_index(d, source, request, bounds[d])
+                if bounds is not None:
+                    bound = bounds[d]
+                else:
+                    bound = None
+                index = self._get_nonuniform_index(d, source, request, bound)
                 index = self._resize_unstacked_index(index, d, eval_coordinates)
 
             data_index.append(index)
@@ -219,7 +241,8 @@ class NearestNeighbor(Interpolator):
         scales = np.array([self._get_scale(d, time_source, time_request) for d in udims])[None, :]
         tol = np.linalg.norm((tols * scales).squeeze())
         src_coords, req_coords_diag = _higher_precision_time_stack(source, request, udims)
-        ckdtree_source = cKDTree(src_coords.T * scales)
+        # We need to unwravel the nD stacked coordinates
+        ckdtree_source = cKDTree(src_coords.reshape(src_coords.shape[0], -1).T * scales)
 
         # if the udims are all stacked in the same stack as part of the request coordinates, then we're done.
         # Otherwise we have to evaluate each unstacked set of dimensions independently
@@ -229,7 +252,8 @@ class NearestNeighbor(Interpolator):
         stacked = {d for d in request.dims for ud in udims if ud in d and request.is_stacked(ud)}
 
         if (len(indep_evals) + len(stacked)) <= 1:  # output is stacked in the same way
-            req_coords = req_coords_diag.T
+            # The ckdtree call below needs the lat/lon pairs in the last axis position
+            req_coords = np.moveaxis(req_coords_diag, 0, -1)
         elif (len(stacked) == 0) | (len(indep_evals) == 0 and len(stacked) == len(udims)):
             req_coords = np.stack([i.ravel() for i in np.meshgrid(*req_coords_diag, indexing="ij")], axis=1)
         else:
@@ -252,10 +276,16 @@ class NearestNeighbor(Interpolator):
 
         if self.respect_bounds:
             if bounds is None:
-                bounds = [src_coords.min(0), src_coords.max(0)]
+                bounds = np.stack(
+                    [
+                        src_coords.reshape(src_coords.shape[0], -1).T.min(0),
+                        src_coords.reshape(src_coords.shape[0], -1).T.max(0),
+                    ],
+                    axis=1,
+                )
             # Fix order of bounds
             bounds = bounds[:, [source.udims.index(dim) for dim in udims]]
-            index[np.any((req_coords > bounds[1]), axis=1) | np.any((req_coords < bounds[0]), axis=1)] = -1
+            index[np.any((req_coords > bounds[1]), axis=-1) | np.any((req_coords < bounds[0]), axis=-1)] = -1
 
         if tol and tol != np.inf:
             index[dist > tol] = -1

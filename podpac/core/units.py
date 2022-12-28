@@ -39,6 +39,7 @@ from podpac.core.style import Style
 from lazy_import import lazy_module, lazy_class
 
 rasterio = lazy_module("rasterio")
+affine = lazy_module("affine")
 
 # Set up logging
 _logger = logging.getLogger(__name__)
@@ -136,7 +137,10 @@ class UnitsDataArray(xr.DataArray):
         o = self
         for d in self.dims:
             if "_" in d and "dim" not in d:  # This it is stacked
-                o = o.reset_index(d)
+                try:
+                    o = o.reset_index(d)
+                except KeyError:
+                    pass  # This is fine, actually didn't need to reset because not a real dim
         o._pp_serialize()
         r = super(UnitsDataArray, o).to_netcdf(*args, **kwargs)
         self._pp_deserialize()
@@ -656,7 +660,7 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
     """
 
     # This only works for data that essentially has lat/lon only
-    dims = data.coords.dims
+    dims = list(data.coords.keys())
     if "lat" not in dims or "lon" not in dims:
         raise NotImplementedError("Cannot export GeoTIFF for dataset with lat/lon coordinates.")
     if "time" in dims and len(data.coords["time"]) > 1:
@@ -681,6 +685,7 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
         # Geotransform should ALWAYS be defined as (lon_origin, lon_dj, lon_di, lat_origin, lat_dj, lat_di)
         # if isinstance(data, xr.DataArray) and data.dims.index('lat') > data.dims.index('lon'):
         # geotransform = geotransform[3:] + geotransform[:3]
+
     if geotransform is None:
         try:
             geotransform = Coordinates.from_xarray(data).geotransform
@@ -703,7 +708,7 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
     if len(data.shape) == 2:
         data = data[:, :, None]
 
-    geotransform = rasterio.Affine.from_gdal(*geotransform)
+    geotransform = affine.Affine.from_gdal(*geotransform)
 
     # Update the kwargs that rasterio will use. Anything added by the user will take priority.
     kwargs2 = dict(

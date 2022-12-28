@@ -80,7 +80,7 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         envargs = {"AWS_HTTPS": self.aws_https}
         kwargs = {}
         if overview_level is not None:
-            kwargs = {'overview_level': overview_level}
+            kwargs = {"overview_level": overview_level}
         if source.startswith("s3://"):
             envargs["session"] = rasterio.session.AWSSession(
                 aws_access_key_id=self.aws_access_key_id,
@@ -191,7 +191,7 @@ class RasterioRaw(S3Mixin, BaseFileSource):
                 reduction_factor, np.abs(min_delta / self.coordinates[c].step)  # self.coordinates is always uniform
             )
         # Find the overview that's closest to this reduction factor
-        if reduction_factor < 2:  # Then we shouldn't use an overview
+        if (reduction_factor < 2) or (len(self.overviews) == 0):  # Then we shouldn't use an overview
             overview = 1
             overview_level = None
         else:
@@ -217,9 +217,11 @@ class RasterioRaw(S3Mixin, BaseFileSource):
                 ((inds[1].min() // overview), int(np.ceil(inds[1].max() / overview) + 1)),
             )
             slc = (slice(window[0][0], window[0][1], 1), slice(window[1][0], window[1][1], 1))
-            new_coords = Coordinates.from_geotransform(dataset.transform.to_gdal(), dataset.shape, crs=self.coordinates.crs)
+            new_coords = Coordinates.from_geotransform(
+                dataset.transform.to_gdal(), dataset.shape, crs=self.coordinates.crs
+            )
             new_coords = new_coords[slc]
-            missing_coords = self.coordinates.drop(['lat', 'lon'])
+            missing_coords = self.coordinates.drop(["lat", "lon"])
             new_coords = merge_dims([new_coords, missing_coords])
             new_coords = new_coords.transpose(*self.coordinates.dims)
             coordinates_shape = new_coords.shape[:2]
@@ -321,6 +323,6 @@ class RasterioRaw(S3Mixin, BaseFileSource):
 
 
 class Rasterio(InterpolationMixin, RasterioRaw):
-    """ Rasterio datasource with interpolation. """
+    """Rasterio datasource with interpolation."""
 
     pass

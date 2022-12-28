@@ -22,7 +22,20 @@ from lazy_import import lazy_module, lazy_class
 
 zarr = lazy_module("zarr")
 zarrGroup = lazy_class("zarr.Group")
-botocore = lazy_module("botocore")
+try:
+    import botocore
+except:
+
+    class dum:
+        pass
+
+    class mod:
+        ClientError = dum
+        ReadTimeoutError = dum
+
+    class botocore:
+        exceptions = mod
+
 
 # Set up logging
 _log = logging.getLogger(__name__)

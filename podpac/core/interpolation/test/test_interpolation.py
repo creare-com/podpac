@@ -81,6 +81,9 @@ class TestInterpolation(object):
 
         np.testing.assert_array_equal(o.data, np.concatenate([self.s1.source, self.s2.source], axis=0))
 
+    def test_get_bounds(self):
+        assert self.interp.get_bounds() == self.s1.get_bounds()
+
 
 class TestInterpolationBehavior(object):
     def test_linear_1D_issue411and413(self):
@@ -89,9 +92,12 @@ class TestInterpolationBehavior(object):
         raw_e_coords = [0, 0.5, 1, 1.5, 2]
 
         for dim in ["lat", "lon", "alt", "time"]:
-            ec = Coordinates([raw_e_coords], [dim])
+            ec = Coordinates([raw_e_coords], [dim], crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m")
 
-            arrb = ArrayRaw(source=data, coordinates=Coordinates([raw_coords], [dim]))
+            arrb = ArrayRaw(
+                source=data,
+                coordinates=Coordinates([raw_coords], [dim], crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m"),
+            )
             node = Interpolate(source=arrb, interpolation="linear")
             o = node.eval(ec)
 
@@ -172,3 +178,32 @@ class TestInterpolationBehavior(object):
         o = node.eval(tocrds)
         assert o.crs == tocrds.crs
         assert_array_equal(o.data, np.linspace(0, 2, 9))
+
+    def test_floating_point_crs_disagreement(self):
+        tocrds = podpac.Coordinates([[39.1, 39.0, 38.9], [-77.1, -77, -77.2]], dims=["lat", "lon"], crs="EPSG:4326")
+        base = podpac.core.data.array_source.ArrayRaw(
+            source=np.random.rand(3, 3), coordinates=tocrds.transform("EPSG:32618")
+        )
+        node = podpac.interpolators.Interpolate(source=base, interpolation="nearest")
+        o = node.eval(tocrds)
+        assert np.all((o.lat.data - tocrds["lat"].coordinates) == 0)
+
+        # now check the Mixin
+        node2 = podpac.core.data.array_source.Array(
+            source=np.random.rand(3, 3), coordinates=tocrds.transform("EPSG:32618")
+        )
+        o = node2.eval(tocrds)
+        assert np.all((o.lat.data - tocrds["lat"].coordinates) == 0)
+
+        # now check the reverse operation
+        tocrds = podpac.Coordinates(
+            [podpac.clinspace(4307580, 4330177, 7), podpac.clinspace(309220, 327053, 8)],
+            dims=["lat", "lon"],
+            crs="EPSG:32618",
+        )
+        srccrds = podpac.Coordinates(
+            [podpac.clinspace(39.2, 38.8, 9), podpac.clinspace(-77.3, -77.0, 9)], dims=["lat", "lon"], crs="EPSG:4326"
+        )
+        node3 = podpac.core.data.array_source.Array(source=np.random.rand(9, 9), coordinates=srccrds)
+        o = node3.eval(tocrds)
+        assert np.all((o.lat.data - tocrds["lat"].coordinates) == 0)

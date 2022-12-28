@@ -12,17 +12,20 @@ import numpy as np
 
 from podpac.core.settings import settings
 from podpac.core.node import Node
-from podpac.core.utils import NodeTrait, common_doc
+from podpac.core.utils import NodeTrait, common_doc, cached_property
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims, Coordinates
 from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationTrait
 from podpac.core.cache.cache_ctrl import CacheCtrl
+from podpac.core.data.datasource import DataSource
 
 _logger = logging.getLogger(__name__)
 
 
 class InterpolationMixin(tl.HasTraits):
+    # interpolation = InterpolationTrait().tag(attr=True, required=False, default = "nearesttt")
     interpolation = InterpolationTrait().tag(attr=True)
+
     _interp_node = None
 
     @property
@@ -31,13 +34,22 @@ class InterpolationMixin(tl.HasTraits):
 
     def _eval(self, coordinates, output=None, _selector=None):
         node = Interpolate(
-            interpolation=self.interpolation, source_id=self.hash, force_eval=True, cache_ctrl=CacheCtrl([])
+            interpolation=self.interpolation,
+            source_id=self.hash,
+            force_eval=True,
+            cache_ctrl=CacheCtrl([]),
+            style=self.style,
         )
         node._set_interpolation()
         selector = node._interpolation.select_coordinates
         node._source_xr = super()._eval(coordinates, _selector=selector)
         self._interp_node = node
-        r = node.eval(coordinates, output=output)
+        if isinstance(self, DataSource):
+            # This is required to ensure that the output coordinates
+            # match the requested coordinates to floating point precision
+            r = node.eval(self._requested_coordinates, output=output)
+        else:
+            r = node.eval(coordinates, output=output)
         # Helpful for debugging
         self._from_cache = node._from_cache
         return r
@@ -101,7 +113,7 @@ class Interpolate(Node):
 
     """
 
-    source = NodeTrait(allow_none=True).tag(attr=True)
+    source = NodeTrait(allow_none=True).tag(attr=True, required=True)
     source_id = tl.Unicode(allow_none=True).tag(attr=True)
     _source_xr = tl.Instance(UnitsDataArray, allow_none=True)  # This is needed for the Interpolation Mixin
 
@@ -116,6 +128,13 @@ class Interpolate(Node):
     _requested_source_coordinates_index = tl.Tuple()
     _requested_source_data = tl.Instance(UnitsDataArray)
     _evaluated_coordinates = tl.Instance(Coordinates)
+
+    @tl.default("style")
+    def _default_style(self):  # Pass through source style by default
+        if self.source is not None:
+            return self.source.style
+        else:
+            return super()._default_style()
 
     # this adds a more helpful error message if user happens to try an inspect _interpolation before evaluate
     @tl.default("_interpolation")
@@ -227,11 +246,14 @@ class Interpolate(Node):
 
         # Drop extra coordinates
         extra_dims = [d for d in coordinates.udims if d not in source_coords.udims]
-        coordinates = coordinates.drop(extra_dims)
+        coordinates = coordinates.udrop(extra_dims)
 
         # Transform so that interpolation happens on the source data coordinate system
         if source_coords.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(source_coords.crs)
+
+        # Fix source coordinates in the case where some dimension are not being interpolated
+        coordinates = self._interpolation._fix_coordinates_for_none_interp(coordinates, source_coords)
 
         if output is None:
             if "output" in source_out.dims:
@@ -273,3 +295,22 @@ class Interpolate(Node):
         """
 
         return self.source.find_coordinates()
+
+    def get_bounds(self, crs="default"):
+        """Get the full available coordinate bounds for the Node.
+
+        Arguments
+        ---------
+        crs : str
+            Desired CRS for the bounds. Use 'source' to use the native source crs.
+            If not specified, the default CRS in the podpac settings is used. Optional.
+
+        Returns
+        -------
+        bounds : dict
+            Bounds for each dimension. Keys are dimension names and values are tuples (hi, lo).
+        crs : str
+            The crs for the bounds.
+        """
+
+        return self.source.get_bounds(crs=crs)

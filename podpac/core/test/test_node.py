@@ -212,6 +212,32 @@ class TestNode(object):
         with pytest.raises(NotImplementedError):
             node.find_coordinates()
 
+    def test_get_bounds(self):
+        class MyNode(Node):
+            def find_coordinates(self):
+                return [
+                    podpac.Coordinates([[0, 1, 2], [0, 10, 20]], dims=["lat", "lon"], crs="EPSG:2193"),
+                    podpac.Coordinates([[3, 4], [30, 40]], dims=["lat", "lon"], crs="EPSG:2193"),
+                ]
+
+        node = MyNode()
+
+        with podpac.settings:
+            podpac.settings["DEFAULT_CRS"] = "EPSG:4326"
+
+            # specify crs
+            bounds, crs = node.get_bounds(crs="EPSG:2193")
+            assert bounds == {"lat": (0, 4), "lon": (0, 40)}
+            assert crs == "EPSG:2193"
+
+            # default crs
+            bounds, crs = node.get_bounds()
+            assert bounds == {
+                "lat": (-75.81397534013118, -75.81362774074242),
+                "lon": (82.92787904584206, 82.9280189659297),
+            }
+            assert crs == "EPSG:4326"
+
 
 class TestCreateOutputArray(object):
     def test_create_output_array_default(self):

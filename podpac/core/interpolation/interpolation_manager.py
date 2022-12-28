@@ -1,21 +1,24 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 import logging
+
 import warnings
 from copy import deepcopy
 from collections import OrderedDict
 from six import string_types
 import numpy as np
+import xarray as xr
 import traitlets as tl
 
 from podpac.core import settings
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import merge_dims, Coordinates
+from podpac.core.coordinates import merge_dims, Coordinates, StackedCoordinates
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 from podpac.core.interpolation.interpolator import Interpolator
 from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
 from podpac.core.interpolation.rasterio_interpolator import RasterioInterpolator
 from podpac.core.interpolation.scipy_interpolator import ScipyPoint, ScipyGrid
 from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
+from podpac.core.interpolation.none_interpolator import NoneInterpolator
 
 _logger = logging.getLogger(__name__)
 
@@ -23,13 +26,22 @@ _logger = logging.getLogger(__name__)
 INTERPOLATION_DEFAULT = settings.settings.get("DEFAULT_INTERPOLATION", "nearest")
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
 
-INTERPOLATORS = [NearestNeighbor, XarrayInterpolator, RasterioInterpolator, ScipyPoint, ScipyGrid, NearestPreview]
+INTERPOLATORS = [
+    NoneInterpolator,
+    NearestNeighbor,
+    XarrayInterpolator,
+    RasterioInterpolator,
+    ScipyPoint,
+    ScipyGrid,
+    NearestPreview,
+]
 """list : list of available interpolator classes"""
 
 INTERPOLATORS_DICT = {}
 """dict : Dictionary of a string interpolator name and associated interpolator class"""
 
 INTERPOLATION_METHODS = [
+    "none",
     "nearest_preview",
     "nearest",
     "linear",
@@ -466,7 +478,7 @@ class InterpolationManager(object):
         for udims in interpolator_queue:
             interpolator = interpolator_queue[udims]
             extra_dims = [d for d in source_coordinates.udims if d not in udims]
-            sc = source_coordinates.drop(extra_dims)
+            sc = source_coordinates.udrop(extra_dims)
             # run interpolation. mutates selected coordinates and selected coordinates index
             sel_coords, sel_coords_idx = interpolator.select_coordinates(
                 udims, sc, eval_coordinates, index_type=index_type
@@ -491,9 +503,42 @@ class InterpolationManager(object):
             validate_crs=False,
         )
         if index_type == "numpy":
-            selected_coords_idx2 = np.ix_(*[np.ravel(selected_coords_idx[k]) for k in source_coordinates.dims])
-        elif index_type in ["slice", "xarray"]:
-            selected_coords_idx2 = tuple([selected_coords_idx[d] for d in source_coordinates.dims])
+            npcoords = []
+            has_stacked = False
+            for k in source_coordinates.dims:
+                # Deal with nD stacked source coords (marked by coords being in tuple)
+                if isinstance(selected_coords_idx[k], tuple):
+                    has_stacked = True
+                    npcoords.extend([sci for sci in selected_coords_idx[k]])
+                else:
+                    npcoords.append(selected_coords_idx[k])
+            if has_stacked:
+                # When stacked coordinates are nD we cannot use the catchall of the next branch
+                selected_coords_idx2 = npcoords
+            else:
+                # This would not be needed if everything went as planned in
+                # interpolator.select_coordinates, but this is a catchall that works
+                # for 90% of the cases
+                selected_coords_idx2 = np.ix_(*[np.ravel(npc) for npc in npcoords])
+        elif index_type == "xarray":
+            selected_coords_idx2 = []
+            for i in selected_coords.dims:
+                # Deal with nD stacked source coords (marked by coords being in tuple)
+                if isinstance(selected_coords_idx[i], tuple):
+                    selected_coords_idx2.extend([xr.DataArray(sci, dims=[i]) for sci in selected_coords_idx[i]])
+                else:
+                    selected_coords_idx2.append(selected_coords_idx[i])
+            selected_coords_idx2 = tuple(selected_coords_idx2)
+        elif index_type == "slice":
+            selected_coords_idx2 = []
+            for i in selected_coords.dims:
+                # Deal with nD stacked source coords (marked by coords being in tuple)
+                if isinstance(selected_coords_idx[i], tuple):
+                    selected_coords_idx2.extend(selected_coords_idx[i])
+                else:
+                    selected_coords_idx2.append(selected_coords_idx[i])
+
+            selected_coords_idx2 = tuple(selected_coords_idx2)
         else:
             raise ValueError("Unknown index_type '%s'" % index_type)
         return selected_coords, tuple(selected_coords_idx2)
@@ -549,13 +594,25 @@ class InterpolationManager(object):
         # TODO handle stacked issubset of unstacked case
         #      this case is currently skipped because of the set(eval_coordinates) == set(source_coordinates)))
         if eval_coordinates.issubset(source_coordinates) and set(eval_coordinates) == set(source_coordinates):
-            try:
-                output_data.data[:] = source_data.interp(output_data.coords, method="nearest").transpose(
-                    *output_data.dims
-                )
-            except (NotImplementedError, ValueError):
-                output_data.data[:] = source_data.sel(output_data.coords).transpose(*output_data.dims)
-            return output_data
+            if any(isinstance(c, StackedCoordinates) and c.ndim > 1 for c in eval_coordinates.values()):
+                # TODO AFFINE
+                # currently this is bypassing the short-circuit in the shaped stacked coordinates case
+                pass
+            else:
+                try:
+                    data = source_data.interp(output_data.coords, method="nearest")
+                except (NotImplementedError, ValueError):
+                    try:
+                        data = source_data.sel(output_data.coords[output_data.dims])
+                    except KeyError:
+                        # Since the output is a subset of the original data,
+                        # we can just rely on xarray's broadcasting capability
+                        # to subselect data, as the final fallback
+                        output_data[:] = 0
+                        data = source_data + output_data
+
+                output_data.data[:] = data.transpose(*output_data.dims)
+                return output_data
 
         interpolator_queue = self._select_interpolator_queue(
             source_coordinates, eval_coordinates, "can_interpolate", strict=True
@@ -606,10 +663,47 @@ class InterpolationManager(object):
 
         return output_data
 
+    def _fix_coordinates_for_none_interp(self, eval_coordinates, source_coordinates):
+        interpolator_queue = self._select_interpolator_queue(
+            source_coordinates, eval_coordinates, "can_interpolate", strict=True
+        )
+        if not any([isinstance(interpolator_queue[k], NoneInterpolator) for k in interpolator_queue]):
+            # Nothing to do, just return eval_coordinates
+            return eval_coordinates
+
+        # Likely need to fix the output, since the shape of output will
+        # not match the eval coordinates in most cases
+        new_dims = []
+        new_coords = []
+        covered_udims = []
+        for k in interpolator_queue:
+            if not isinstance(interpolator_queue[k], NoneInterpolator):
+                # Keep the eval_coordinates for these dimensions
+                for d in eval_coordinates.dims:
+                    ud = d.split("_")
+                    for u in ud:
+                        if u in k:
+                            new_dims.append(d)
+                            new_coords.append(eval_coordinates[d])
+                            covered_udims.extend(ud)
+                            break
+            else:
+                for d in source_coordinates.dims:
+                    ud = d.split("_")
+                    for u in ud:
+                        if u in k:
+                            new_dims.append(d)
+                            new_coords.append(source_coordinates[d])
+                            covered_udims.extend(ud)
+                            break
+        new_coordinates = Coordinates(new_coords, new_dims)
+        return new_coordinates
+
 
 class InterpolationTrait(tl.Union):
     default_value = INTERPOLATION_DEFAULT
 
+    # .tag(attr=True, required=True, default = "linear")
     def __init__(
         self,
         trait_types=[tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(InterpolationManager)],

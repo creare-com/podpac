@@ -96,6 +96,6 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
 
 class Dataset(InterpolationMixin, DatasetRaw):
-    """ xarray dataset source with interpolation. """
+    """xarray dataset source with interpolation."""
 
     pass

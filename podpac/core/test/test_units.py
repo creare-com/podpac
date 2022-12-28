@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 from pint.errors import DimensionalityError
 
-from podpac.core.coordinates import Coordinates, clinspace, RotatedCoordinates
+from podpac.core.coordinates import Coordinates, clinspace, AffineCoordinates
 from podpac.core.style import Style
 
 from podpac.core.units import ureg
@@ -83,7 +83,7 @@ class TestUnitDataArray(object):
             dims=["lat", "lon", "alt"],
             attrs={"units": ureg.meter},
         )
-        assert (a ** 2).attrs["units"] == ureg.meter ** 2
+        assert (a**2).attrs["units"] == ureg.meter**2
 
     def test_set_to_value_using_UnitsDataArray_as_mask_does_nothing_if_mask_has_dim_not_in_array(self):
         a = UnitsDataArray(
@@ -273,7 +273,7 @@ class TestUnitDataArray(object):
         assert a6[0, 0].data[()] == False
 
         a7 = a1 * a2
-        assert a7[0, 0].to(ureg.m ** 2).data[()] == (1 * ureg.meter * ureg.inch).to(ureg.meter ** 2).magnitude
+        assert a7[0, 0].to(ureg.m**2).data[()] == (1 * ureg.meter * ureg.inch).to(ureg.meter**2).magnitude
 
         a8 = a2 / a1
         assert a8[0, 0].to_base_units().data[()] == (1 * ureg.inch / ureg.meter).to_base_units().magnitude
@@ -328,7 +328,7 @@ class TestUnitDataArray(object):
         np.mean(a1)
         np.min(a1)
         np.max(a1)
-        a1 ** 2
+        a1**2
 
         # These don't have units!
         np.dot(a2.T, a1)
@@ -532,8 +532,6 @@ class TestToImage(object):
 
 class TestToGeoTiff(object):
     def make_square_array(self, order=1, bands=1):
-        # order = -1
-        # bands = 3
         node = Array(
             source=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
             coordinates=Coordinates([clinspace(4, 0, 2, "lat"), clinspace(1, 4, 4, "lon")][::order], crs="EPSG:4326"),
@@ -542,12 +540,14 @@ class TestToGeoTiff(object):
         return node
 
     def make_rot_array(self, order=1, bands=1):
-        # order = -1
-        # bands = 3
-        rc = RotatedCoordinates(
-            shape=(2, 4), theta=np.pi / 8, origin=[10, 20], step=[-2.0, 1.0], dims=["lat", "lon"][::order]
-        )
-        c = Coordinates([rc])
+        if order == 1:
+            geotransform = (10.0, 1.879, -1.026, 20.0, 0.684, 2.819)
+        else:
+            # I think this requires changing the geotransform? Not yet supported
+            raise NotImplementedError("TODO")
+
+        rc = AffineCoordinates(geotransform=geotransform, shape=(2, 4))
+        c = Coordinates([rc], crs="EPSG:4326")
         node = Array(
             source=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
             coordinates=c,
@@ -555,7 +555,7 @@ class TestToGeoTiff(object):
         )
         return node
 
-    def test_to_geotiff_rountrip_1band(self):
+    def test_to_geotiff_roundtrip_1band(self):
         # lat/lon order, usual
         node = self.make_square_array()
         out = node.eval(node.coordinates)
@@ -584,7 +584,7 @@ class TestToGeoTiff(object):
             rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(rout.data, out.data)
 
-    def test_to_geotiff_rountrip_2band(self):
+    def test_to_geotiff_roundtrip_2band(self):
         # lat/lon order, usual
         node = self.make_square_array(bands=2)
         out = node.eval(node.coordinates)
@@ -631,11 +631,12 @@ class TestToGeoTiff(object):
             rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 1], rout.data)
 
-    @pytest.mark.skip("TODO: We can remove this skipped test after solving #363")
-    def test_to_geotiff_rountrip_rotcoords(self):
+    def test_to_geotiff_roundtrip_rotcoords(self):
         # lat/lon order, usual
         node = self.make_rot_array()
+
         out = node.eval(node.coordinates)
+
         with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)
             fp.write(b"a")  # for some reason needed to get good comparison
@@ -647,16 +648,16 @@ class TestToGeoTiff(object):
             rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data, rout.data)
 
-        # lon/lat order, unsual
-        node = self.make_square_array(order=-1)
-        out = node.eval(node.coordinates)
-        with tempfile.NamedTemporaryFile("wb") as fp:
-            out.to_geotiff(fp)
-            fp.write(b"a")  # for some reason needed to get good comparison
+        # # lon/lat order, unsual
+        # node = self.make_square_array(order=-1)
+        # out = node.eval(node.coordinates)
+        # with tempfile.NamedTemporaryFile("wb") as fp:
+        #     out.to_geotiff(fp)
+        #     fp.write(b"a")  # for some reason needed to get good comparison
 
-            fp.seek(0)
-            rnode = Rasterio(source=fp.name, outputs=node.outputs)
-            assert node.coordinates == rnode.coordinates
+        #     fp.seek(0)
+        #     rnode = Rasterio(source=fp.name, outputs=node.outputs)
+        #     assert node.coordinates == rnode.coordinates
 
-            rout = rnode.eval(rnode.coordinates)
-            np.testing.assert_almost_equal(out.data, rout.data)
+        #     rout = rnode.eval(rnode.coordinates)
+        #     np.testing.assert_almost_equal(out.data, rout.data)

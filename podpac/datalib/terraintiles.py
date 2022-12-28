@@ -519,7 +519,7 @@ def _mercator_to_tilespace(xm, ym, zoom):
         (x, y) int tile coordinates
     """
 
-    tiles = 2 ** zoom
+    tiles = 2**zoom
     diameter = 2 * np.pi
     x = int(tiles * (xm + np.pi) / diameter)
     y = int(tiles * (np.pi - ym) / diameter)

@@ -100,8 +100,15 @@ class Selector(tl.HasTraits):
         for coord1d in source_coords._coords.values():
             ci = self._select1d(coord1d, request_coords, index_type)
             ci = np.sort(np.unique(ci))
-            if index_type == "slice":
+            if len(coord1d.shape) == 2:  # Handle case of 2D-stacked coordinates
+                ncols = coord1d.shape[1]
+                ci = (ci // ncols, ci % ncols)
+                if index_type == "slice":
+                    ci = tuple([_index2slice(cii) for cii in ci])
+            elif index_type == "slice":
                 ci = _index2slice(ci)
+            if len(coord1d.shape) == 3:  # Handle case of 3D-stacked coordinates
+                raise NotImplementedError
             c = coord1d[ci]
             coords.append(c)
             coords_inds.append(ci)
@@ -109,7 +116,9 @@ class Selector(tl.HasTraits):
         if index_type == "numpy":
             coords_inds = self._merge_indices(coords_inds, source_coords.dims, request_coords.dims)
         elif index_type == "xarray":
-            pass  # unlike numpy, xarray assumes indexes are orthogonal by default, so the 1d coordinates are already correct
+            # unlike numpy, xarray assumes indexes are orthogonal by default, so the 1d coordinates are already correct
+            # unless there are tuple coordinates (nD stacked coords) but those are handled in interpolation_manager
+            pass
         return coords, tuple(coords_inds)
 
     def _select1d(self, source, request, index_type):
@@ -127,11 +136,18 @@ class Selector(tl.HasTraits):
     def _merge_indices(self, indices, source_dims, request_dims):
         # For numpy to broadcast correctly, we have to reshape each of the indices
         reshape = np.ones(len(indices), int)
+        new_indices = []
         for i in range(len(indices)):
             reshape[:] = 1
             reshape[i] = -1
-            indices[i] = indices[i].reshape(*reshape)
-        return tuple(indices)
+            if isinstance(indices[i], tuple):
+                # nD stacked coordinates
+                # This means the source has shape (N, M, ...)
+                # But the coordinates are stacked (i.e. lat_lon with shape N, M for the lon and lat parts)
+                new_indices.append(tuple([ind.reshape(*reshape) for ind in indices[i]]))
+            else:
+                new_indices.append(indices[i].reshape(*reshape))
+        return tuple(new_indices)
 
     def _select_uniform(self, source, request, index_type):
         crds = request[source.name]
@@ -186,7 +202,8 @@ class Selector(tl.HasTraits):
         inds = np.array([])
         # Parts of the below code is duplicated in NearestNeighborInterpolotor
         src_coords, req_coords_diag = _higher_precision_time_stack(source, request, udims)
-        ckdtree_source = cKDTree(src_coords.T)
+        # For nD stacked coordinates we need to unravel the stacked dimension
+        ckdtree_source = cKDTree(src_coords.reshape(src_coords.shape[0], -1).T)
         if (len(indep_evals) + len(stacked)) <= 1:
             req_coords = req_coords_diag.T
         elif (len(stacked) == 0) | (len(indep_evals) == 0 and len(stacked) == len(udims)):

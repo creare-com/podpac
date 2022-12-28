@@ -51,9 +51,10 @@ class TileCompositorRaw(BaseCompositor):
             res = res.combine_first(arr)
 
             # combine_first overrides MultiIndex names, even if they match. Reset them here:
-            for dim, index in res.indexes.items():
-                if isinstance(index, pd.MultiIndex):
-                    res = res.reindex({dim: pd.MultiIndex.from_tuples(index.values, names=arr.indexes[dim].names)})
+            if int(xr.__version__.split(".")[0]) < 2022:  # no longer necessary in newer versions of xarray
+                for dim, index in res.indexes.items():
+                    if isinstance(index, pd.MultiIndex):
+                        res = res.reindex({dim: pd.MultiIndex.from_tuples(index.values, names=arr.indexes[dim].names)})
 
             obounds = arr.attrs.get("bounds", {})
             bounds = {
@@ -62,10 +63,37 @@ class TileCompositorRaw(BaseCompositor):
         res = UnitsDataArray(res)
         if bounds:
             res.attrs["bounds"] = bounds
+        if "geotransform" in res.attrs:  # Really hard to get the geotransform right, handle it in Coordinates
+            del res.attrs["geotransform"]
         if result is not None:
             result.data[:] = res.transpose(*result.dims).data
             return result
         return res
+
+    def get_source_data(self, bounds={}):
+        """
+        Get composited source data, without interpolation.
+
+        Arguments
+        ---------
+        bounds : dict
+            Dictionary of bounds by dimension, optional.
+            Keys must be dimension names, and values are (min, max) tuples, e.g. ``{'lat': (10, 20)}``.
+
+        Returns
+        -------
+        data : UnitsDataArray
+            Source data
+        """
+
+        if any(not hasattr(source, "get_source_data") for source in self.sources):
+            raise ValueError(
+                "Cannot get composited source data; all sources must have `get_source_data` implemented (such as nodes derived from a DataSource or TileCompositor node)."
+            )
+
+        coords = None  # n/a
+        source_data_arrays = (source.get_source_data(bounds) for source in self.sources)  # generator
+        return self.composite(coords, source_data_arrays)
 
 
 class TileCompositor(InterpolationMixin, TileCompositorRaw):

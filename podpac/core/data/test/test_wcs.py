@@ -8,7 +8,7 @@ from podpac.core.data.ogc import WCS, WCSRaw
 
 COORDS = podpac.Coordinates(
     [podpac.clinspace(-132.9023, -53.6051, 100, name="lon"), podpac.clinspace(23.6293, 53.7588, 100, name="lat")],
-    # crs="EPSG:4326",
+    crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m",
 )
 
 
@@ -35,7 +35,7 @@ class MockClient(object):
 
 
 class MockWCSRaw(WCSRaw):
-    """ Test node that uses the MockClient above. """
+    """Test node that uses the MockClient above."""
 
     @property
     def client(self):
@@ -46,7 +46,7 @@ class MockWCSRaw(WCSRaw):
 
 
 class MockWCS(WCS):
-    """ Test node that uses the MockClient above, and injects podpac interpolation. """
+    """Test node that uses the MockClient above, and injects podpac interpolation."""
 
     @property
     def client(self):
@@ -107,7 +107,11 @@ class TestWCSRaw(object):
         assert output.data.sum() == 1256581.0
 
     def test_eval_extra_stacked_dim(self):
-        c = podpac.Coordinates([[COORDS["lat"][50], COORDS["lon"][50], 10]], dims=["lat_lon_alt"])
+        c = podpac.Coordinates(
+            [[COORDS["lat"][50], COORDS["lon"][50], 10]],
+            dims=["lat_lon_alt"],
+            crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m",
+        )
 
         node = MockWCSRaw(source="mock", layer="mock", max_size=1000)
         output = node.eval(c)

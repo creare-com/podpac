@@ -19,14 +19,14 @@ pydap_setup_session = lazy_function("pydap.cas.urs.setup_session")
 _log = logging.getLogger(__name__)
 
 
-def set_credentials(hostname, username=None, password=None):
+def set_credentials(hostname, uname=None, password=None):
     """Set authentication credentials for a remote URL in the :class:`podpac.settings`.
 
     Parameters
     ----------
     hostname : str
-        Hostname for `username` and `password`.
-    username : str, optional
+        Hostname for `uname` and `password`.
+    uname : str, optional
         Username to store in settings for `hostname`.
         If no username is provided and the username does not already exist in the settings,
         the user will be prompted to enter one.
@@ -44,7 +44,7 @@ def set_credentials(hostname, username=None, password=None):
     p_settings = settings.get("password@{}".format(hostname))
 
     # get username from 1. function input 2. settings 3. python input()
-    u = username or u_settings or input("Username: ")
+    u = uname or u_settings or getpass.getpass("Username: ")
     p = password or p_settings or getpass.getpass()
 
     # set values in settings
@@ -136,7 +136,7 @@ class RequestsSessionMixin(tl.HasTraits):
             If no password is provided and the password does not already exist in the settings,
             the user will be prompted to enter one.
         """
-        return set_credentials(self.hostname, username=username, password=password)
+        return set_credentials(self.hostname, uname=username, password=password)
 
     def _create_session(self):
         """Creates a :class:`requests.Session` with username and password defined
@@ -187,7 +187,7 @@ class NASAURSSessionMixin(RequestsSessionMixin):
 
 
 class S3Mixin(tl.HasTraits):
-    """ Mixin to add S3 credentials and access to a Node. """
+    """Mixin to add S3 credentials and access to a Node."""
 
     anon = tl.Bool(False).tag(attr=True)
     aws_access_key_id = tl.Unicode(allow_none=True)

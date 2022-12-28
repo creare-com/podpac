@@ -52,8 +52,8 @@ class PyDAPRaw(authentication.RequestsSessionMixin, DataSource):
     PyDAP : Interpolated OpenDAP datasource for general use.
     """
 
-    source = tl.Unicode().tag(attr=True)
-    data_key = tl.Unicode().tag(attr=True)
+    source = tl.Unicode().tag(attr=True, required=True)
+    data_key = tl.Unicode().tag(attr=True, required=True)
     server_throttle_sleep_time = tl.Float(
         default_value=0.001, help="Some server have a throttling time for requests per period. "
     ).tag(attr=True)
@@ -137,6 +137,6 @@ class PyDAPRaw(authentication.RequestsSessionMixin, DataSource):
 
 
 class PyDAP(InterpolationMixin, PyDAPRaw):
-    """ OpenDAP datasource with interpolation. """
+    """OpenDAP datasource with interpolation."""
 
     pass
