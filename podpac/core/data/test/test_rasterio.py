@@ -23,7 +23,7 @@ class TestRasterio(object):
         node = Rasterio(source=self.source, band=self.band)
 
     def test_dataset(self):
-        """test dataset attribute and trait default """
+        """test dataset attribute and trait default"""
 
         node = Rasterio(source=self.source, band=self.band)
         try:

@@ -89,7 +89,7 @@ class CSVRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     @cached_property
     def dims(self):
-        """ list of dataset coordinate dimensions """
+        """list of dataset coordinate dimensions"""
         lookup = {
             self._get_key(self.lat_key): "lat",
             self._get_key(self.lon_key): "lon",
@@ -157,6 +157,6 @@ class CSVRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
 
 class CSV(InterpolationMixin, CSVRaw):
-    """ CSV datasource with interpolation. """
+    """CSV datasource with interpolation."""
 
     pass

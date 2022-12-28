@@ -202,6 +202,6 @@ class ZarrRaw(S3Mixin, FileKeysMixin, BaseFileSource):
 
 
 class Zarr(InterpolationMixin, ZarrRaw):
-    """ Zarr Datasource with Interpolation. """
+    """Zarr Datasource with Interpolation."""
 
     pass

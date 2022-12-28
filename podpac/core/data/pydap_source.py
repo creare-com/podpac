@@ -137,6 +137,6 @@ class PyDAPRaw(authentication.RequestsSessionMixin, DataSource):
 
 
 class PyDAP(InterpolationMixin, PyDAPRaw):
-    """ OpenDAP datasource with interpolation. """
+    """OpenDAP datasource with interpolation."""
 
     pass

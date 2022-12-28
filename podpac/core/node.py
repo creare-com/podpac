@@ -82,13 +82,13 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 
 
 class NodeException(Exception):
-    """ Base class for exceptions when using podpac nodes """
+    """Base class for exceptions when using podpac nodes"""
 
     pass
 
 
 class NodeDefinitionError(NodeException):
-    """ Raised node definition errors, such as when the definition is circular or is not yet unavailable. """
+    """Raised node definition errors, such as when the definition is circular or is not yet unavailable."""
 
     pass
 
@@ -186,7 +186,7 @@ class Node(tl.HasTraits):
     _traits_initialized_guard = False
 
     def __init__(self, **kwargs):
-        """ Do not overwrite me """
+        """Do not overwrite me"""
 
         # Shortcut for users to make setting the cache_ctrl simpler:
         if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
@@ -633,7 +633,7 @@ class Node(tl.HasTraits):
 
     @cached_property
     def hash(self):
-        """ hash for this node, used in caching and to determine equality. """
+        """hash for this node, used in caching and to determine equality."""
 
         # deepcopy so that the cached definition property is not modified by the deletes below
         d = deepcopy(self.definition)
@@ -1281,7 +1281,7 @@ def _lookup_attr(nodes, name, value):
 
 
 class NoCacheMixin(tl.HasTraits):
-    """ Mixin to use no cache by default. """
+    """Mixin to use no cache by default."""
 
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
 
@@ -1291,7 +1291,7 @@ class NoCacheMixin(tl.HasTraits):
 
 
 class DiskCacheMixin(tl.HasTraits):
-    """ Mixin to add disk caching to the Node by default. """
+    """Mixin to add disk caching to the Node by default."""
 
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
 

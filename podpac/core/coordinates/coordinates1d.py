@@ -69,7 +69,7 @@ class Coordinates1d(BaseCoordinates):
         return "%s: %s" % (name, desc)
 
     def _eq_base(self, other):
-        """ used by child __eq__ methods for common checks """
+        """used by child __eq__ methods for common checks"""
         if not isinstance(other, Coordinates1d):
             return False
 
@@ -160,13 +160,13 @@ class Coordinates1d(BaseCoordinates):
 
     @property
     def bounds(self):
-        """ Low and high coordinate bounds. """
+        """Low and high coordinate bounds."""
 
         raise NotImplementedError
 
     @property
     def properties(self):
-        """:dict: Dictionary of the coordinate properties. """
+        """:dict: Dictionary of the coordinate properties."""
 
         return {key: getattr(self, key) for key in self._properties}
 

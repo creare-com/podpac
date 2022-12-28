@@ -227,17 +227,17 @@ class DataSource(Node):
 
     @property
     def dims(self):
-        """ datasource dims. """
+        """datasource dims."""
         return self.coordinates.dims
 
     @property
     def udims(self):
-        """ datasource udims. """
+        """datasource udims."""
         return self.coordinates.udims
 
     @property
     def _crs(self):
-        """ datasource crs. """
+        """datasource crs."""
         return self.coordinates.crs
 
     # ------------------------------------------------------------------------------------------------------------------

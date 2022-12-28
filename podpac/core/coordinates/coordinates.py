@@ -556,22 +556,22 @@ class Coordinates(tl.HasTraits):
     # ------------------------------------------------------------------------------------------------------------------
 
     def keys(self):
-        """ dict-like keys: dims """
+        """dict-like keys: dims"""
         return self._coords.keys()
 
     def values(self):
-        """ dict-like values: coordinates for each key/dimension """
+        """dict-like values: coordinates for each key/dimension"""
         return self._coords.values()
 
     def items(self):
-        """ dict-like items: (dim, coordinates) pairs """
+        """dict-like items: (dim, coordinates) pairs"""
         return self._coords.items()
 
     def __iter__(self):
         return iter(self._coords)
 
     def get(self, dim, default=None):
-        """ dict-like get: get coordinates by dimension name with an optional """
+        """dict-like get: get coordinates by dimension name with an optional"""
         try:
             return self[dim]
         except KeyError:
@@ -644,7 +644,7 @@ class Coordinates(tl.HasTraits):
         return len(self._coords)
 
     def update(self, other):
-        """ dict-like update: add/replace coordinates using another Coordinates object """
+        """dict-like update: add/replace coordinates using another Coordinates object"""
         if not isinstance(other, Coordinates):
             raise TypeError("Cannot update Coordinates with object of type '%s'" % type(other))
 
@@ -753,7 +753,7 @@ class Coordinates(tl.HasTraits):
 
     @property
     def ndim(self):
-        """:int: Number of dimensions. """
+        """:int: Number of dimensions."""
 
         return len(self.shape)
 
@@ -806,7 +806,7 @@ class Coordinates(tl.HasTraits):
 
     @property
     def properties(self):
-        """:dict: Dictionary of the coordinate properties. """
+        """:dict: Dictionary of the coordinate properties."""
 
         d = OrderedDict()
         d["crs"] = self.crs
@@ -860,7 +860,7 @@ class Coordinates(tl.HasTraits):
 
     @property
     def geotransform(self):
-        """ :tuple: GDAL geotransform. """
+        """:tuple: GDAL geotransform."""
         # Make sure we only have 1 time and alt dimension
         if "time" in self.udims and self["time"].size > 1:
             raise TypeError(

@@ -323,6 +323,6 @@ class RasterioRaw(S3Mixin, BaseFileSource):
 
 
 class Rasterio(InterpolationMixin, RasterioRaw):
-    """ Rasterio datasource with interpolation. """
+    """Rasterio datasource with interpolation."""
 
     pass

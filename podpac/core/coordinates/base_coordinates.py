@@ -79,11 +79,11 @@ class BaseCoordinates(tl.HasTraits):
         raise NotImplementedError
 
     def unique(self, return_index=False):
-        """ Remove duplicate coordinate values."""
+        """Remove duplicate coordinate values."""
         raise NotImplementedError
 
     def get_area_bounds(self, boundary):
-        """Get coordinate area bounds, including boundary information, for each unstacked dimension. """
+        """Get coordinate area bounds, including boundary information, for each unstacked dimension."""
         raise NotImplementedError
 
     def select(self, bounds, outer=False, return_index=False):
@@ -91,15 +91,15 @@ class BaseCoordinates(tl.HasTraits):
         raise NotImplementedError
 
     def simplify(self):
-        """ Get the simplified/optimized representation of these coordinates. """
+        """Get the simplified/optimized representation of these coordinates."""
         raise NotImplementedError
 
     def flatten(self):
-        """ Get a copy of the coordinates with a flattened array. """
+        """Get a copy of the coordinates with a flattened array."""
         raise NotImplementedError
 
     def reshape(self, newshape):
-        """ Get a copy of the coordinates with a reshaped array (wraps numpy.reshape). """
+        """Get a copy of the coordinates with a reshaped array (wraps numpy.reshape)."""
         raise NotImplementedError
 
     def issubset(self, other):

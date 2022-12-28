@@ -700,7 +700,7 @@ class TestInterpolateRasterioInterpolator(object):
     """test interpolation functions"""
 
     def test_interpolate_rasterio(self):
-        """ regular interpolation using rasterio"""
+        """regular interpolation using rasterio"""
 
         assert rasterio is not None
 
@@ -812,7 +812,7 @@ class TestInterpolateScipyGrid(object):
         assert np.isnan(output.data[4, 4])  # TODO: how to handle outside bounds
 
     def test_interpolate_irregular_arbitrary_2dims(self):
-        """ irregular interpolation """
+        """irregular interpolation"""
 
         # Note, this test also tests the looper helper
 
@@ -836,7 +836,7 @@ class TestInterpolateScipyGrid(object):
         # assert output.data[0, 0] == source[]
 
     def test_interpolate_looper_helper(self):
-        """ irregular interpolation """
+        """irregular interpolation"""
 
         # Note, this test also tests the looper helper
 
@@ -906,7 +906,7 @@ class TestInterpolateScipyGrid(object):
         np.testing.assert_array_equal(output.lon.values, coords_dst["lon"].coordinates)
 
     def test_interpolate_irregular_lat_lon(self):
-        """ irregular interpolation """
+        """irregular interpolation"""
 
         source = np.random.rand(5, 5)
         coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
@@ -928,7 +928,7 @@ class TestInterpolateScipyGrid(object):
 
 class TestInterpolateScipyPoint(object):
     def test_interpolate_scipy_point(self):
-        """ interpolate point data to nearest neighbor with various coords_dst"""
+        """interpolate point data to nearest neighbor with various coords_dst"""
 
         source = np.random.rand(6)
         coords_src = Coordinates([[[0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]]], dims=["lat_lon"])
@@ -1094,7 +1094,7 @@ class TestXarrayInterpolator(object):
         assert np.all(~np.isnan(output.data))
 
     def test_interpolate_irregular_arbitrary_2dims(self):
-        """ irregular interpolation """
+        """irregular interpolation"""
 
         # try >2 dims
         source = np.random.rand(5, 5, 3)
@@ -1152,7 +1152,7 @@ class TestXarrayInterpolator(object):
         assert np.all(output.lon.values == coords_dst["lon"].coordinates)
 
     def test_interpolate_irregular_lat_lon(self):
-        """ irregular interpolation """
+        """irregular interpolation"""
 
         source = np.random.rand(5, 5)
         coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])

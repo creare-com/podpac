@@ -83,7 +83,7 @@ class TestUnitDataArray(object):
             dims=["lat", "lon", "alt"],
             attrs={"units": ureg.meter},
         )
-        assert (a ** 2).attrs["units"] == ureg.meter ** 2
+        assert (a**2).attrs["units"] == ureg.meter**2
 
     def test_set_to_value_using_UnitsDataArray_as_mask_does_nothing_if_mask_has_dim_not_in_array(self):
         a = UnitsDataArray(
@@ -273,7 +273,7 @@ class TestUnitDataArray(object):
         assert a6[0, 0].data[()] == False
 
         a7 = a1 * a2
-        assert a7[0, 0].to(ureg.m ** 2).data[()] == (1 * ureg.meter * ureg.inch).to(ureg.meter ** 2).magnitude
+        assert a7[0, 0].to(ureg.m**2).data[()] == (1 * ureg.meter * ureg.inch).to(ureg.meter**2).magnitude
 
         a8 = a2 / a1
         assert a8[0, 0].to_base_units().data[()] == (1 * ureg.inch / ureg.meter).to_base_units().magnitude
@@ -328,7 +328,7 @@ class TestUnitDataArray(object):
         np.mean(a1)
         np.min(a1)
         np.max(a1)
-        a1 ** 2
+        a1**2
 
         # These don't have units!
         np.dot(a2.T, a1)

@@ -307,7 +307,7 @@ class StackedCoordinates(BaseCoordinates):
 
     @property
     def size(self):
-        """:int: Number of stacked coordinates. """
+        """:int: Number of stacked coordinates."""
         return self._coords[0].size
 
     @property
@@ -348,7 +348,7 @@ class StackedCoordinates(BaseCoordinates):
 
     @property
     def definition(self):
-        """:list: Serializable stacked coordinates definition. """
+        """:list: Serializable stacked coordinates definition."""
 
         return [c.definition for c in self._coords]
 
@@ -475,7 +475,7 @@ class StackedCoordinates(BaseCoordinates):
                 else:
                     index = slice(None, None)
         elif any(_index_len(index) == 0 for index in indices):
-            intex = slice(0, 0)
+            index = slice(0, 0)
         else:
             # convert any slices to boolean array
             for i, index in enumerate(indices):

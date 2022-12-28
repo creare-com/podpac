@@ -283,7 +283,7 @@ class COSMOSStationsRaw(TileCompositorRaw):
         return c
 
     def _get_label_inds(self, label):
-        """ Helper function to get source indices for partially matched labels """
+        """Helper function to get source indices for partially matched labels"""
         ind = []
         for lab in label:
             ind.extend([i for i, l in enumerate(self.stations_label) if lab.lower() in l.lower()])

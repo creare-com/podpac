@@ -447,6 +447,6 @@ class WCSRaw(DataSource):
 
 
 class WCS(InterpolationMixin, WCSRaw):
-    """ WCS datasource with podpac interpolation. """
+    """WCS datasource with podpac interpolation."""
 
     coordinate_index_type = tl.Unicode("slice", read_only=True)
