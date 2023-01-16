@@ -1,0 +1,29 @@
+{
+	"Arithmetic": {
+		"node": "core.algorithm.generic.Arithmetic",
+		"attrs": {
+			"eqn": "a+b",
+			"params": {
+
+			}
+		},
+		"inputs": {
+			"a": "SinCoords",
+			"b": "Arange"
+		}
+	},
+    "SinCoords": {
+		"node": "core.algorithm.utility.SinCoords",
+		"style": {
+			"colormap": "jet",
+			"clim": [
+				-1.0,
+				1.0
+			]
+		}
+	},
+	"Arange": {
+		"node": "core.algorithm.utility.Arange"
+	},
+	"podpac_version": "3.2.0"
+}

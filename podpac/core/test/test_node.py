@@ -1260,6 +1260,37 @@ class TestUserDefinition(object):
             "podpac_version": "3.2.0"
         }
         """
+        not_ordered_json_2 = """
+        {
+            "SinCoords": {
+                "node": "core.algorithm.utility.SinCoords",
+                "style": {
+                    "colormap": "jet",
+                    "clim": [
+                        -1.0,
+                        1.0
+                    ]
+                }
+            },
+            "Arithmetic": {
+                "node": "core.algorithm.generic.Arithmetic",
+                "attrs": {
+                    "eqn": "a+b",
+                    "params": {
+
+                    }
+                },
+                "inputs": {
+                    "a": "SinCoords",
+                    "b": "Arange"
+                }
+            },
+            "Arange": {
+                "node": "core.algorithm.utility.Arange"
+            },
+            "podpac_version": "3.2.0"
+        }
+        """
         ordered_json = """
         {
             "SinCoords": {
@@ -1292,7 +1323,10 @@ class TestUserDefinition(object):
         }
         """
         # Check that the order doesn't matter. Because .from_json returns the output node, also checks correct output_node is returned
-        assert(Node.from_json(not_ordered_json).definition == Node.from_json(ordered_json).definition)
+        not_ordered_pipe = Node.from_json(not_ordered_json)
+        not_ordered_pipe_2 = Node.from_json(not_ordered_json_2)
+        ordered_pipe = Node.from_json(ordered_json)
+        assert(not_ordered_pipe.definition == ordered_pipe.definition == not_ordered_pipe_2.definition)
 
         # Check that incomplete json will throw ValueError:
         incomplete_json = """
@@ -1318,6 +1352,8 @@ class TestUserDefinition(object):
         """
         with pytest.raises(ValueError):
             Node.from_json(incomplete_json)
+
+        # Check for load issues with nodes with attributes
 
 
 
