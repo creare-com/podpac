@@ -1291,8 +1291,34 @@ class TestUserDefinition(object):
             "podpac_version": "3.2.0"
         }
         """
+        # Check that the order doesn't matter. Because .from_json returns the output node, also checks correct output_node is returned
+        assert(Node.from_json(not_ordered_json).definition == Node.from_json(ordered_json).definition)
 
-        assert(Node.from_json(not_ordered_json).definition == Node.from_json(ordered_json.definition))
+        # Check that incomplete json will throw ValueError:
+        incomplete_json = """
+        {
+            "Arange": {
+                "node": "core.algorithm.utility.Arange"
+            },
+             "Arithmetic": {
+                "node": "core.algorithm.generic.Arithmetic",
+                "attrs": {
+                    "eqn": "a+b",
+                    "params": {
+
+                    }
+                },
+                "inputs": {
+                    "a": "SinCoords",
+                    "b": "Arange"
+                }
+            },
+            "podpac_version": "3.2.0"
+        }
+        """
+        with pytest.raises(ValueError):
+            Node.from_json(incomplete_json)
+
 
 
 class TestNoCacheMixin(object):

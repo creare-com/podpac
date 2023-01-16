@@ -875,10 +875,10 @@ class Node(tl.HasTraits):
                 kwargs[k] = v
 
             for k, v in d.get("inputs", {}).items():
-                kwargs[k] = _lookup_input(nodes, name, v)
+                kwargs[k], nodes = _lookup_input(nodes, name, v, definition)
 
             for k, v in d.get("lookup_attrs", {}).items():
-                kwargs[k] = _lookup_attr(nodes, name, v)
+                kwargs[k] = _lookup_attr(nodes, name, v, definition)
 
             if "style" in d:
                 style_class = getattr(node_class, "style", Style)
@@ -1208,13 +1208,13 @@ class Node(tl.HasTraits):
         return spec
 
 
-def _lookup_input(nodes, name, value):
+def _lookup_input(nodes, name, value, definition):
     # containers
     if isinstance(value, list):
-        return [_lookup_input(nodes, name, elem) for elem in value]
+        return [_lookup_input(nodes, name, elem, definition) for elem in value]
 
     if isinstance(value, dict):
-        return {k: _lookup_input(nodes, name, v) for k, v in value.items()}
+        return {k: _lookup_input(nodes, name, v, definition) for k, v in value.items()}
 
     # node reference
     if not isinstance(value, six.string_types):
@@ -1222,28 +1222,93 @@ def _lookup_input(nodes, name, value):
             "Invalid definition for node '%s': invalid reference '%s' of type '%s' in inputs"
             % (name, value, type(value))
         )
+    # node not yet discovered yet
+    if not value in nodes:
+        # Look for it in the definition items:
+        for found_name, d in definition.items():
+            if value != found_name:
+                continue
+
+             # get node class
+            module_root = d.get("plugin", "podpac")
+            node_string = "%s.%s" % (module_root, d["node"])
+            module_name, node_name = node_string.rsplit(".", 1)
+            try:
+                module = importlib.import_module(module_name)
+            except ImportError:
+                raise ValueError("Invalid definition for node '%s': no module found '%s'" % (name, module_name))
+            try:
+                node_class = getattr(module, node_name)
+            except AttributeError:
+                raise ValueError(
+                    "Invalid definition for node '%s': class '%s' not found in module '%s'"
+                    % (found_name, node_name, module_name)
+                )
+
+            kwargs = {}
+            for k, v in d.get("attrs", {}).items():
+                kwargs[k] = v
+
+            for k, v in d.get("inputs", {}).items():
+                kwargs[k], nodes = _lookup_input(nodes, found_name, v, definition)
+
+            for k, v in d.get("lookup_attrs", {}).items():
+                kwargs[k] = _lookup_attr(nodes, found_name, v, definition)
+
+            if "style" in d:
+                style_class = getattr(node_class, "style", Style)
+                if isinstance(style_class, tl.TraitType):
+                    # Now we actually have to look through the class to see
+                    # if there is a custom initializer for style
+                    for attr in dir(node_class):
+                        atr = getattr(node_class, attr)
+                        if not isinstance(atr, tl.traitlets.DefaultHandler) or atr.trait_name != "style":
+                            continue
+                        try:
+                            style_class = atr(node_class)
+                        except Exception as e:
+                            # print ("couldn't make style from class", e)
+                            try:
+                                style_class = atr(node_class())
+                            except:
+                                # print ("couldn't make style from class instance", e)
+                                style_class = style_class.klass
+                try:
+                    kwargs["style"] = style_class.from_definition(d["style"])
+                except Exception as e:
+                    kwargs["style"] = Style.from_definition(d["style"])
+                    # print ("couldn't make style from inferred style class", e)
+
+            for k in d:
+                if k not in ["node", "inputs", "attrs", "lookup_attrs", "plugin", "style"]:
+                    raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
+
+            nodes[found_name] = node_class(**kwargs)
+            nodes = nodes
+            # found!
+            break
 
     if not value in nodes:
         raise ValueError(
             "Invalid definition for node '%s': reference to nonexistent node '%s' in inputs" % (name, value)
         )
-
+    print(value)
     node = nodes[value]
 
     # copy in debug mode
     if settings["DEBUG"]:
         node = deepcopy(node)
 
-    return node
+    return node, nodes
 
 
-def _lookup_attr(nodes, name, value):
+def _lookup_attr(nodes, name, value, definition):
     # containers
     if isinstance(value, list):
         return [_lookup_attr(nodes, name, elem) for elem in value]
 
     if isinstance(value, dict):
-        return {_k: _lookup_attr(nodes, name, v) for k, v in value.items()}
+        return {k: _lookup_attr(nodes, name, v) for k, v in value.items()}
 
     if not isinstance(value, six.string_types):
         raise ValueError(
