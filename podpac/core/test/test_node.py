@@ -1227,6 +1227,72 @@ class TestUserDefinition(object):
 
         with pytest.warns(UserWarning, match="node definition version mismatch"):
             node = Node.from_json(s)
+    
+    def test_from_proper_json(self):
+        not_ordered_json = """
+        {
+            "Arithmetic": {
+                "node": "core.algorithm.generic.Arithmetic",
+                "attrs": {
+                    "eqn": "a+b",
+                    "params": {
+
+                    }
+                },
+                "inputs": {
+                    "a": "SinCoords",
+                    "b": "Arange"
+                }
+            },
+            "SinCoords": {
+                "node": "core.algorithm.utility.SinCoords",
+                "style": {
+                    "colormap": "jet",
+                    "clim": [
+                        -1.0,
+                        1.0
+                    ]
+                }
+            },
+            "Arange": {
+                "node": "core.algorithm.utility.Arange"
+            },
+            "podpac_version": "3.2.0"
+        }
+        """
+        ordered_json = """
+        {
+            "SinCoords": {
+                "node": "core.algorithm.utility.SinCoords",
+                "style": {
+                    "colormap": "jet",
+                    "clim": [
+                        -1.0,
+                        1.0
+                    ]
+                }
+            },
+            "Arange": {
+                "node": "core.algorithm.utility.Arange"
+            },
+             "Arithmetic": {
+                "node": "core.algorithm.generic.Arithmetic",
+                "attrs": {
+                    "eqn": "a+b",
+                    "params": {
+
+                    }
+                },
+                "inputs": {
+                    "a": "SinCoords",
+                    "b": "Arange"
+                }
+            },
+            "podpac_version": "3.2.0"
+        }
+        """
+
+        assert(Node.from_json(not_ordered_json).definition == Node.from_json(ordered_json.definition))
 
 
 class TestNoCacheMixin(object):
