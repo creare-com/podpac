@@ -1353,10 +1353,6 @@ class TestUserDefinition(object):
         with pytest.raises(ValueError):
             Node.from_json(incomplete_json)
 
-        # Check for load issues with nodes with attributes
-
-
-
 class TestNoCacheMixin(object):
     class NoCacheNode(NoCacheMixin, Node):
         pass

@@ -878,7 +878,7 @@ class Node(tl.HasTraits):
                 kwargs[k], nodes = _lookup_input(nodes, name, v, definition)
 
             for k, v in d.get("lookup_attrs", {}).items():
-                kwargs[k] = _lookup_attr(nodes, name, v, definition)
+                kwargs[k] = _lookup_attr(nodes, name, v)
 
             if "style" in d:
                 style_class = getattr(node_class, "style", Style)
@@ -1253,7 +1253,7 @@ def _lookup_input(nodes, name, value, definition):
                 kwargs[k], nodes = _lookup_input(nodes, found_name, v, definition)
 
             for k, v in d.get("lookup_attrs", {}).items():
-                kwargs[k] = _lookup_attr(nodes, found_name, v, definition)
+                kwargs[k] = _lookup_attr(nodes, found_name, v)
 
             if "style" in d:
                 style_class = getattr(node_class, "style", Style)
@@ -1284,7 +1284,6 @@ def _lookup_input(nodes, name, value, definition):
                     raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
 
             nodes[found_name] = node_class(**kwargs)
-            nodes = nodes
             # found!
             break
 
@@ -1302,7 +1301,7 @@ def _lookup_input(nodes, name, value, definition):
     return node, nodes
 
 
-def _lookup_attr(nodes, name, value, definition):
+def _lookup_attr(nodes, name, value):
     # containers
     if isinstance(value, list):
         return [_lookup_attr(nodes, name, elem) for elem in value]
