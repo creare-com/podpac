@@ -1291,7 +1291,6 @@ def _lookup_input(nodes, name, value, definition):
         raise ValueError(
             "Invalid definition for node '%s': reference to nonexistent node '%s' in inputs" % (name, value)
         )
-    print(value)
     node = nodes[value]
 
     # copy in debug mode
