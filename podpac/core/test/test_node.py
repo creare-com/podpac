@@ -1258,7 +1258,6 @@ class TestUserDefinition(object):
                 "node": "core.algorithm.utility.Arange"
             },
             "podpac_version": "3.2.0",
-            "podpac_output_node": "Arithmetic"
         }
         """
         not_ordered_json_2 = """
@@ -1353,6 +1352,110 @@ class TestUserDefinition(object):
         """
         with pytest.raises(ValueError):
             Node.from_json(incomplete_json)
+
+    def test_output_node(self):
+        included_json = """
+        {
+            "Arithmetic": {
+                "node": "core.algorithm.generic.Arithmetic",
+                "attrs": {
+                    "eqn": "a+b",
+                    "params": {
+
+                    }
+                },
+                "inputs": {
+                    "a": "SinCoords",
+                    "b": "Arange"
+                }
+            },
+            "SinCoords": {
+                "node": "core.algorithm.utility.SinCoords",
+                "style": {
+                    "colormap": "jet",
+                    "clim": [
+                        -1.0,
+                        1.0
+                    ]
+                }
+            },
+            "Arange": {
+                "node": "core.algorithm.utility.Arange"
+            },
+            "podpac_version": "3.2.0",
+            "podpac_output_node": "Arithmetic"
+        }
+        """
+        ordered_json = """
+        {
+            "SinCoords": {
+                "node": "core.algorithm.utility.SinCoords",
+                "style": {
+                    "colormap": "jet",
+                    "clim": [
+                        -1.0,
+                        1.0
+                    ]
+                }
+            },
+            "Arange": {
+                "node": "core.algorithm.utility.Arange"
+            },
+             "Arithmetic": {
+                "node": "core.algorithm.generic.Arithmetic",
+                "attrs": {
+                    "eqn": "a+b",
+                    "params": {
+
+                    }
+                },
+                "inputs": {
+                    "a": "SinCoords",
+                    "b": "Arange"
+                }
+            },
+            "podpac_version": "3.2.0"
+        }
+        """
+        included_pipe = Node.from_json(included_json)
+        ordered_pipe = Node.from_json(ordered_json)
+        assert(included_pipe.definition == ordered_pipe.definition)
+
+        wrong_name_json = """
+        {
+            "SinCoords": {
+                "node": "core.algorithm.utility.SinCoords",
+                "style": {
+                    "colormap": "jet",
+                    "clim": [
+                        -1.0,
+                        1.0
+                    ]
+                }
+            },
+            "Arange": {
+                "node": "core.algorithm.utility.Arange"
+            },
+             "Arithmetic": {
+                "node": "core.algorithm.generic.Arithmetic",
+                "attrs": {
+                    "eqn": "a+b",
+                    "params": {
+
+                    }
+                },
+                "inputs": {
+                    "a": "SinCoords",
+                    "b": "Arange"
+                }
+            },
+            "podpac_version": "3.2.0",
+            "podpac_output_node": "Sum"
+        }
+        """
+        with pytest.raises(ValueError):
+            Node.from_json(wrong_name_json)
+
 
 class TestNoCacheMixin(object):
     class NoCacheNode(NoCacheMixin, Node):

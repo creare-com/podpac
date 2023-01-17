@@ -863,6 +863,11 @@ class Node(tl.HasTraits):
         if output_node is None:
             return list(nodes.values())[-1]
         
+
+        if output_node not in nodes:
+                raise ValueError(
+                    "Invalid definition for value 'podpac_output_node': reference to nonexistent node '%s' in lookup_attrs" % (output_node)
+                )
         return nodes[output_node]
 
     @classmethod
