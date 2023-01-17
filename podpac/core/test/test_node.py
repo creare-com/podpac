@@ -1257,7 +1257,7 @@ class TestUserDefinition(object):
             "Arange": {
                 "node": "core.algorithm.utility.Arange"
             },
-            "podpac_version": "3.2.0",
+            "podpac_version": "3.2.0"
         }
         """
         not_ordered_json_2 = """
