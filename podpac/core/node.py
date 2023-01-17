@@ -846,7 +846,11 @@ class Node(tl.HasTraits):
 
         # parse node definitions in order
         nodes = OrderedDict()
+        output_node = None
         for name, d in definition.items():
+            if name == "podpac_output_node":
+                output_node = d
+                continue
             if name == "podpac_version":
                 continue
 
@@ -854,8 +858,12 @@ class Node(tl.HasTraits):
                 raise ValueError("Invalid definition for node '%s': 'node' property required" % name)
 
             _process_kwargs(name, d, definition, nodes)
-            
-        return list(nodes.values())[-1]
+
+        # look for podpac_output_node attribute
+        if output_node is None:
+            return list(nodes.values())[-1]
+        
+        return nodes[output_node]
 
     @classmethod
     def from_json(cls, s):
