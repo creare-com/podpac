@@ -1201,7 +1201,7 @@ def _lookup_input(nodes, name, value, definition):
     if settings["DEBUG"]:
         node = deepcopy(node)
 
-    return node, nodes
+    return node
 
 def _lookup_attr(nodes, name, value):
     # containers
@@ -1263,7 +1263,7 @@ def _process_kwargs(name, d, definition, nodes):
         kwargs[k] = v
 
     for k, v in d.get("inputs", {}).items():
-        kwargs[k], nodes = _lookup_input(nodes, name, v, definition)
+        kwargs[k]= _lookup_input(nodes, name, v, definition)
 
     for k, v in d.get("lookup_attrs", {}).items():
         kwargs[k] = _lookup_attr(nodes, name, v)
