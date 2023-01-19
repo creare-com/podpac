@@ -1227,7 +1227,7 @@ class TestUserDefinition(object):
 
         with pytest.warns(UserWarning, match="node definition version mismatch"):
             node = Node.from_json(s)
-    
+
     def test_from_proper_json(self):
         not_ordered_json = """
         {
@@ -1326,7 +1326,8 @@ class TestUserDefinition(object):
         not_ordered_pipe = Node.from_json(not_ordered_json)
         not_ordered_pipe_2 = Node.from_json(not_ordered_json_2)
         ordered_pipe = Node.from_json(ordered_json)
-        assert(not_ordered_pipe.definition == ordered_pipe.definition == not_ordered_pipe_2.definition)
+        assert not_ordered_pipe.definition == ordered_pipe.definition == not_ordered_pipe_2.definition
+        assert not_ordered_pipe.hash == ordered_pipe.hash
 
         # Check that incomplete json will throw ValueError:
         incomplete_json = """
@@ -1419,7 +1420,8 @@ class TestUserDefinition(object):
         """
         included_pipe = Node.from_json(included_json)
         ordered_pipe = Node.from_json(ordered_json)
-        assert(included_pipe.definition == ordered_pipe.definition)
+        assert included_pipe.definition == ordered_pipe.definition
+        assert included_pipe.hash == ordered_pipe.hash
 
         wrong_name_json = """
         {
