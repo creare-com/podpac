@@ -1165,8 +1165,30 @@ class Node(tl.HasTraits):
         spec.update(getattr(cls, "_ui_spec", {}))
         return spec
 
-
 def _lookup_input(nodes, name, value, definition):
+    '''check if inputs of a node are stored in nodes, if not add them
+
+    Parameters
+    -----------
+    nodes: OrderedDict
+        Keys: Node names (strings)
+        Values: Node objects
+    
+    name: string
+        the Node whose inputs are being checked
+    
+    value: string, list, dictionary:
+        the Node (or collection of Nodes) which is being looked 
+    
+    definition: pipeline definition
+
+    Returns
+    --------
+    node: the node searched for
+
+    Note: this function calles _process_kwargs, which alters nodes by loading a Node if it is not yet in nodes.
+
+    '''
     # containers
     if isinstance(value, list):
         return [_lookup_input(nodes, name, elem, definition) for elem in value]
@@ -1242,6 +1264,27 @@ def _lookup_attr(nodes, name, value):
 
 
 def _process_kwargs(name, d, definition, nodes):
+    '''create a node and add it to nodes
+
+    Parameters
+    -----------
+    nodes: OrderedDict
+        Keys: Node names (strings)
+        Values: Node objects
+    
+    name: string
+        the Node which will be created
+    
+    d: the definition of the node to be created
+    
+    definition: pipeline definition
+
+    Returns
+    --------
+    Nothing, but loads the node with name "name" and definition "d" into nodes
+
+
+    '''
      # get node class
     module_root = d.get("plugin", "podpac")
     node_string = "%s.%s" % (module_root, d["node"])
