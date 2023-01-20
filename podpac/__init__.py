@@ -52,7 +52,7 @@ from podpac import authentication
 from podpac import data
 from podpac import interpolators
 from podpac import coordinates
-from podpac import compositor
+from podpac import compositors
 from podpac import managers
 from podpac import utils
 from podpac import style

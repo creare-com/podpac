@@ -570,7 +570,7 @@ class TestNodeProber(object):
             assert out == expected
 
     def test_composited_prober(self):
-        a = podpac.compositor.OrderedCompositor(sources=[self.one, self.arange])
+        a = podpac.compositors.OrderedCompositor(sources=[self.one, self.arange])
         expected = {
             "Array": {
                 "active": True,
@@ -600,7 +600,7 @@ class TestNodeProber(object):
         out = probe_node(a, lat=1, lon=1)
         assert out == expected
 
-        a = podpac.compositor.OrderedCompositor(sources=[self.nan, self.two])
+        a = podpac.compositors.OrderedCompositor(sources=[self.nan, self.two])
         expected = {
             "Array": {
                 "active": False,
@@ -633,7 +633,7 @@ class TestNodeProber(object):
                 out[k]["value"] = "nan"
         assert out == expected
 
-        a = podpac.compositor.OrderedCompositor(sources=[self.nan, self.one, self.another_one])
+        a = podpac.compositors.OrderedCompositor(sources=[self.nan, self.one, self.another_one])
         expected = {
             "Array": {
                 "active": False,
@@ -675,7 +675,7 @@ class TestNodeProber(object):
         assert out == expected
 
     def test_composited_prober_nested(self):
-        a = podpac.compositor.OrderedCompositor(
+        a = podpac.compositors.OrderedCompositor(
             sources=[self.one, self.arange], style=podpac.style.Style(name="composited", units="c")
         )
         expected = {

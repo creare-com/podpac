@@ -659,7 +659,7 @@ class TestSerialization(object):
     def setup_class(cls):
         a = podpac.algorithms.Arange()
         b = podpac.data.Array(source=[10, 20, 30], coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
-        c = podpac.compositor.OrderedCompositor(sources=[a, b])
+        c = podpac.compositors.OrderedCompositor(sources=[a, b])
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", "Insecure evaluation.*")
@@ -753,13 +753,13 @@ class TestSerialization(object):
         assert isinstance(node, podpac.algorithms.Arithmetic)
         assert isinstance(node.inputs["A"], podpac.algorithms.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
-        assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
+        assert isinstance(node.inputs["C"], podpac.compositors.OrderedCompositor)
 
     def test_definition_duplicate_base_ref(self):
         n1 = Node(units="m")
         n2 = Node(units="ft")
         n3 = Node(units="in")
-        node = podpac.compositor.OrderedCompositor(sources=[n1, n2, n3])
+        node = podpac.compositors.OrderedCompositor(sources=[n1, n2, n3])
         d = node.definition
         assert n1.base_ref == n2.base_ref == n3.base_ref
         assert len(d) == 5
@@ -804,7 +804,7 @@ class TestSerialization(object):
         assert isinstance(node, podpac.algorithms.Arithmetic)
         assert isinstance(node.inputs["A"], podpac.algorithms.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
-        assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
+        assert isinstance(node.inputs["C"], podpac.compositors.OrderedCompositor)
 
     def test_file(self):
         path = tempfile.mkdtemp(prefix="podpac-test-")
@@ -823,7 +823,7 @@ class TestSerialization(object):
         assert isinstance(node, podpac.algorithms.Arithmetic)
         assert isinstance(node.inputs["A"], podpac.algorithms.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
-        assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
+        assert isinstance(node.inputs["C"], podpac.compositors.OrderedCompositor)
 
     def test_json_pretty(self):
         node = Node()

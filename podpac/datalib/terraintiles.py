@@ -43,7 +43,7 @@ import numpy as np
 
 import podpac
 from podpac.core.data.rasterio_source import RasterioRaw
-from podpac.compositor import TileCompositorRaw
+from podpac.compositors import TileCompositorRaw
 from podpac.interpolators import InterpolationMixin
 from podpac.interpolators import RasterioInterpolator, ScipyGrid, ScipyPoint
 from podpac.utils import cached_property
