@@ -47,7 +47,7 @@ from podpac.compositors import TileCompositorRaw
 from podpac.interpolators import InterpolationMixin
 from podpac.interpolators import RasterioInterpolator, ScipyGrid, ScipyPoint
 from podpac.utils import cached_property
-from podpac.authentication import S3Mixin
+from podpac.authenticators import S3Mixin
 
 ####
 # private module attributes

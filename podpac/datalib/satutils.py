@@ -22,7 +22,7 @@ import podpac
 from podpac.compositors import TileCompositor
 from podpac.core.data.rasterio_source import RasterioRaw
 from podpac.core.units import UnitsDataArray
-from podpac.authentication import S3Mixin
+from podpac.authenticators import S3Mixin
 from podpac import settings
 
 _logger = logging.getLogger(__name__)

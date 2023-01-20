@@ -479,10 +479,10 @@ class AnotherOne(podpac.algorithms.Algorithm):
 class TestNodeProber(object):
     coords = podpac.Coordinates([podpac.clinspace(0, 2, 3, "lat"), podpac.clinspace(0, 2, 3, "lon")])
     one = podpac.data.Array(
-        source=np.ones((3, 3)), coordinates=coords, style=podpac.style.Style(name="one_style", units="o")
+        source=np.ones((3, 3)), coordinates=coords, style=podpac.styles.Style(name="one_style", units="o")
     )
     two = podpac.data.Array(
-        source=np.ones((3, 3)) * 2, coordinates=coords, style=podpac.style.Style(name="two_style", units="t")
+        source=np.ones((3, 3)) * 2, coordinates=coords, style=podpac.styles.Style(name="two_style", units="t")
     )
     arange = podpac.algorithms.Arange()
     nan = podpac.data.Array(source=np.ones((3, 3)) * np.nan, coordinates=coords)
@@ -506,7 +506,7 @@ class TestNodeProber(object):
         with podpac.settings:
             podpac.settings.set_unsafe_eval(True)
             a = podpac.algorithms.Arithmetic(one=self.one, eqn="one * 2")
-            b = podpac.algorithms.Arithmetic(a=a, eqn="a*3", style=podpac.style.Style(name="six_style", units="m"))
+            b = podpac.algorithms.Arithmetic(a=a, eqn="a*3", style=podpac.styles.Style(name="six_style", units="m"))
             expected = {
                 "Array": {
                     "active": True,
@@ -676,7 +676,7 @@ class TestNodeProber(object):
 
     def test_composited_prober_nested(self):
         a = podpac.compositors.OrderedCompositor(
-            sources=[self.one, self.arange], style=podpac.style.Style(name="composited", units="c")
+            sources=[self.one, self.arange], style=podpac.styles.Style(name="composited", units="c")
         )
         expected = {
             "name": "composited",

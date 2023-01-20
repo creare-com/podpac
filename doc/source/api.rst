@@ -216,14 +216,14 @@ Cloud computing managers
 Utilities
 ---------
 
-.. rubric:: Authentication
+.. rubric:: Authenticators
 
 .. autosummary::
     :toctree: api/
     :template: class.rst
 
-    podpac.authentication.RequestsSessionMixin
-    podpac.authentication.S3Mixin
+    podpac.authenticators.RequestsSessionMixin
+    podpac.authenticators.S3Mixin
 
 
 .. rubric:: Settings
@@ -249,28 +249,28 @@ Utilities
     podpac.utils.NodeTrait
 
 
-.. rubric:: Style
+.. rubric:: Styles
 
 .. autosummary::
     :toctree: api/
     :template: module.rst
 
-    podpac.style.Style
+    podpac.styles.Style
 
 
-.. rubric:: Version
+.. rubric:: Versions
 
 .. autosummary::
     :toctree: api/
     :template: function.rst
 
-    podpac.version.semver
-    podpac.version.version
+    podpac.versions.semver
+    podpac.versions.version
 
 
 .. autosummary::
     :toctree: api/
     :template: attribute.rst
 
-    podpac.version.VERSION
-    podpac.version.VERSION_INFO
+    podpac.versions.VERSION
+    podpac.versions.VERSION_INFO

@@ -48,20 +48,20 @@ from podpac.core.units import ureg as units, UnitsDataArray
 # Organized submodules
 # These files are simply wrappers to create a curated namespace of podpac modules
 from podpac import algorithms
-from podpac import authentication
+from podpac import authenticators
 from podpac import data
 from podpac import interpolators
 from podpac import coordinates
 from podpac import compositors
 from podpac import managers
 from podpac import utils
-from podpac import style
+from podpac import styles
 
 ## Developer API
 from podpac import core
 
 # version handling
-from podpac import version
+from podpac import versions
 
-__version__ = version.version()
-version_info = version.VERSION_INFO
+__version__ = versions.version()
+version_info = versions.VERSION_INFO

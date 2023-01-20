@@ -20,7 +20,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.settings import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.utils import common_doc, JSONEncoder
-from podpac import version
+from podpac import versions
 
 # Optional imports
 from lazy_import import lazy_module, lazy_class
@@ -236,7 +236,7 @@ class Lambda(Node):
 
     @tl.default("function_source_dist_key")
     def _function_source_dist_key_default(self):
-        v = version.version()
+        v = versions.version()
         if "+" in v:
             v = "dev"
 
@@ -244,7 +244,7 @@ class Lambda(Node):
 
     @tl.default("function_source_dependencies_key")
     def _function_source_dependencies_key_default(self):
-        v = version.version()
+        v = versions.version()
         if "+" in v:
             v = "dev"
 
@@ -359,14 +359,14 @@ class Lambda(Node):
     @tl.default("function_s3_dependencies_key")
     def _function_s3_dependencies_key_default(self):
         if settings["FUNCTION_DEPENDENCIES_KEY"] is None:
-            settings["FUNCTION_DEPENDENCIES_KEY"] = "podpac_deps_{}.zip".format(version.semver())
+            settings["FUNCTION_DEPENDENCIES_KEY"] = "podpac_deps_{}.zip".format(versions.semver())
 
         return settings["FUNCTION_DEPENDENCIES_KEY"]
 
     # api gateway parameters
     function_api_name = tl.Unicode().tag(readonly=True)  # see default below
     function_api_description = tl.Unicode().tag(readonly=True)  # see default below
-    function_api_version = tl.Unicode(default_value="{}".format(version.semver())).tag(readonly=True)
+    function_api_version = tl.Unicode(default_value="{}".format(versions.semver())).tag(readonly=True)
     function_api_tags = tl.Dict().tag(readonly=True)  # see default below
     function_api_stage = tl.Unicode(default_value="prod").tag(readonly=True)
     function_api_endpoint = tl.Unicode(default_value="eval").tag(readonly=True)
@@ -2427,7 +2427,7 @@ def create_api(
 
         # set version default
         if api_version is None:
-            api_version = version.semver()
+            api_version = versions.semver()
 
         api = apigateway.create_rest_api(
             name=api_name,

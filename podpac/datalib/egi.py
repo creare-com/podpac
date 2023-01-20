@@ -29,7 +29,7 @@ from podpac import Coordinates, Node
 from podpac.compositors import OrderedCompositor
 from podpac.data import DataSource
 from podpac.interpolators import InterpolationMixin
-from podpac import authentication
+from podpac import authenticators
 from podpac import settings
 from podpac import cached_property
 from podpac.core.units import UnitsDataArray
@@ -479,7 +479,7 @@ class EGI(InterpolationMixin, DataSource):
     # Token and Authentication Handling  #
     ######################################
     def set_credentials(self, username=None, password=None):
-        """Shortcut to :func:`podpac.authentication.set_crendentials` using class member :attr:`self.hostname` for the hostname
+        """Shortcut to :func:`podpac.authenticators.set_crendentials` using class member :attr:`self.hostname` for the hostname
 
         Parameters
         ----------
@@ -492,7 +492,7 @@ class EGI(InterpolationMixin, DataSource):
             If no password is provided and the password does not already exist in the settings,
             the user will be prompted to enter one.
         """
-        return authentication.set_credentials("urs.earthdata.nasa.gov", username=username, password=password)
+        return authenticators.set_credentials("urs.earthdata.nasa.gov", username=username, password=password)
 
     def _authenticate(self):
         if self.token is None:

@@ -157,7 +157,7 @@ class COSMOSStationsRaw(TileCompositorRaw):
     stations_url = tl.Unicode("sitesNoLegend.js")
     dims = ["lat", "lon", "time"]
 
-    from podpac.style import Style
+    from podpac.styles import Style
 
     style = Style(colormap="jet")
 

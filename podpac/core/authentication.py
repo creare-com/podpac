@@ -123,7 +123,7 @@ class RequestsSessionMixin(tl.HasTraits):
         return self._create_session()
 
     def set_credentials(self, username=None, password=None):
-        """Shortcut to :func:`podpac.authentication.set_crendentials` using class member :attr:`self.hostname` for the hostname
+        """Shortcut to :func:`podpac.authenticators.set_crendentials` using class member :attr:`self.hostname` for the hostname
 
         Parameters
         ----------

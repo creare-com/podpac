@@ -14,7 +14,7 @@ import podpac
 from podpac.utils import cached_property
 from podpac.compositors import TileCompositorRaw
 from podpac.core.data.rasterio_source import RasterioRaw
-from podpac.authentication import S3Mixin
+from podpac.authenticators import S3Mixin
 from podpac.interpolators import InterpolationMixin
 
 _logger = logging.getLogger(__name__)
