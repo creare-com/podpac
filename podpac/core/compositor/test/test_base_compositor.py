@@ -47,38 +47,38 @@ class TestBaseCompositor(object):
 
         # unstacked
         node = BaseCompositor(
-            sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
+            sources=[podpac.algorithms.Arange(), podpac.algorithms.SinCoords()],
             source_coordinates=podpac.Coordinates([[0, 1]], dims=["time"]),
         )
 
         # stacked
         node = BaseCompositor(
-            sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
+            sources=[podpac.algorithms.Arange(), podpac.algorithms.SinCoords()],
             source_coordinates=podpac.Coordinates([[[0, 1], [10, 20]]], dims=["time_alt"]),
         )
 
         # invalid size
         with pytest.raises(ValueError, match="Invalid source_coordinates, source and source_coordinates size mismatch"):
             node = BaseCompositor(
-                sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
+                sources=[podpac.algorithms.Arange(), podpac.algorithms.SinCoords()],
                 source_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["time"]),
             )
 
         with pytest.raises(ValueError, match="Invalid source_coordinates, source and source_coordinates size mismatch"):
             node = BaseCompositor(
-                sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
+                sources=[podpac.algorithms.Arange(), podpac.algorithms.SinCoords()],
                 source_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["time"]),
             )
 
         # invalid ndims
         with pytest.raises(ValueError, match="Invalid source_coordinates"):
             node = BaseCompositor(
-                sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
+                sources=[podpac.algorithms.Arange(), podpac.algorithms.SinCoords()],
                 source_coordinates=podpac.Coordinates([[0, 1], [10, 20]], dims=["time", "alt"]),
             )
 
     def test_select_sources_default(self):
-        node = BaseCompositor(sources=[DataSource(), DataSource(), podpac.algorithm.Arange()])
+        node = BaseCompositor(sources=[DataSource(), DataSource(), podpac.algorithms.Arange()])
         sources = node.select_sources(podpac.Coordinates([[0, 10]], ["time"]))
 
         assert isinstance(sources, list)

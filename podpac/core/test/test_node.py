@@ -657,13 +657,13 @@ class TestCaching(object):
 class TestSerialization(object):
     @classmethod
     def setup_class(cls):
-        a = podpac.algorithm.Arange()
+        a = podpac.algorithms.Arange()
         b = podpac.data.Array(source=[10, 20, 30], coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
         c = podpac.compositor.OrderedCompositor(sources=[a, b])
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", "Insecure evaluation.*")
-            cls.node = podpac.algorithm.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
+            cls.node = podpac.algorithms.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
 
     def test_base_ref(self):
         node = Node()
@@ -750,8 +750,8 @@ class TestSerialization(object):
 
         assert node is not self.node
         assert node == self.node
-        assert isinstance(node, podpac.algorithm.Arithmetic)
-        assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
+        assert isinstance(node, podpac.algorithms.Arithmetic)
+        assert isinstance(node.inputs["A"], podpac.algorithms.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
         assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
 
@@ -770,7 +770,7 @@ class TestSerialization(object):
         class MyNodeWithArrayInput(Node):
             my_array = ArrayTrait().tag(attr=True)
 
-        node1 = MyNodeWithArrayInput(my_array=[podpac.algorithm.Arange()])
+        node1 = MyNodeWithArrayInput(my_array=[podpac.algorithms.Arange()])
         node2 = Node.from_definition(node1.definition)
         assert node2 is not node1 and node2 == node1
 
@@ -780,7 +780,7 @@ class TestSerialization(object):
         class MyNodeWithDictInput(Node):
             my_dict = tl.Dict().tag(attr=True)
 
-        node1 = MyNodeWithDictInput(my_dict={"a": podpac.algorithm.Arange()})
+        node1 = MyNodeWithDictInput(my_dict={"a": podpac.algorithms.Arange()})
         node2 = Node.from_definition(node1.definition)
         assert node2 is not node1 and node2 == node1
 
@@ -801,8 +801,8 @@ class TestSerialization(object):
             node = Node.from_json(s)
         assert node is not self.node
         assert node == self.node
-        assert isinstance(node, podpac.algorithm.Arithmetic)
-        assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
+        assert isinstance(node, podpac.algorithms.Arithmetic)
+        assert isinstance(node.inputs["A"], podpac.algorithms.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
         assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
 
@@ -820,8 +820,8 @@ class TestSerialization(object):
 
         assert node is not self.node
         assert node == self.node
-        assert isinstance(node, podpac.algorithm.Arithmetic)
-        assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
+        assert isinstance(node, podpac.algorithms.Arithmetic)
+        assert isinstance(node.inputs["A"], podpac.algorithms.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
         assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
 
@@ -1085,7 +1085,7 @@ class TestUserDefinition(object):
         """
 
         node = Node.from_json(s)
-        assert isinstance(node, podpac.algorithm.CoordData)
+        assert isinstance(node, podpac.algorithms.CoordData)
         assert node.coord_name == "lat"
 
         # invalid type

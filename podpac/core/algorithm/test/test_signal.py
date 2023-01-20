@@ -8,7 +8,7 @@ import traitlets as tl
 
 import podpac
 from podpac import Coordinates, clinspace, crange
-from podpac.algorithm import Arange
+from podpac.algorithms import Arange
 from podpac.data import Array
 from podpac.core.algorithm.signal import Convolution
 

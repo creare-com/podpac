@@ -626,7 +626,7 @@ def get_ui_node_spec(module=None, category="default", help_as_html=False):
 
     if module is None:
         modcat = zip(
-            [podpac.data, podpac.algorithm, podpac.compositor, podpac.datalib],
+            [podpac.data, podpac.algorithms, podpac.compositor, podpac.datalib],
             ["data", "algorithm", "compositor", "datalib"],
         )
         for mod, cat in modcat:
