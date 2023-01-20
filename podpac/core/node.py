@@ -846,71 +846,29 @@ class Node(tl.HasTraits):
 
         # parse node definitions in order
         nodes = OrderedDict()
+        output_node = None
         for name, d in definition.items():
+            if name == "podpac_output_node":
+                output_node = d
+                continue
             if name == "podpac_version":
                 continue
 
             if "node" not in d:
                 raise ValueError("Invalid definition for node '%s': 'node' property required" % name)
 
-            # get node class
-            module_root = d.get("plugin", "podpac")
-            node_string = "%s.%s" % (module_root, d["node"])
-            module_name, node_name = node_string.rsplit(".", 1)
-            try:
-                module = importlib.import_module(module_name)
-            except ImportError:
-                raise ValueError("Invalid definition for node '%s': no module found '%s'" % (name, module_name))
-            try:
-                node_class = getattr(module, node_name)
-            except AttributeError:
+            _process_kwargs(name, d, definition, nodes)
+
+        # look for podpac_output_node attribute
+        if output_node is None:
+            return list(nodes.values())[-1]
+        
+
+        if output_node not in nodes:
                 raise ValueError(
-                    "Invalid definition for node '%s': class '%s' not found in module '%s'"
-                    % (name, node_name, module_name)
+                    "Invalid definition for value 'podpac_output_node': reference to nonexistent node '%s' in lookup_attrs" % (output_node)
                 )
-
-            # parse and configure kwargs
-            kwargs = {}
-            for k, v in d.get("attrs", {}).items():
-                kwargs[k] = v
-
-            for k, v in d.get("inputs", {}).items():
-                kwargs[k] = _lookup_input(nodes, name, v)
-
-            for k, v in d.get("lookup_attrs", {}).items():
-                kwargs[k] = _lookup_attr(nodes, name, v)
-
-            if "style" in d:
-                style_class = getattr(node_class, "style", Style)
-                if isinstance(style_class, tl.TraitType):
-                    # Now we actually have to look through the class to see
-                    # if there is a custom initializer for style
-                    for attr in dir(node_class):
-                        atr = getattr(node_class, attr)
-                        if not isinstance(atr, tl.traitlets.DefaultHandler) or atr.trait_name != "style":
-                            continue
-                        try:
-                            style_class = atr(node_class)
-                        except Exception as e:
-                            # print ("couldn't make style from class", e)
-                            try:
-                                style_class = atr(node_class())
-                            except:
-                                # print ("couldn't make style from class instance", e)
-                                style_class = style_class.klass
-                try:
-                    kwargs["style"] = style_class.from_definition(d["style"])
-                except Exception as e:
-                    kwargs["style"] = Style.from_definition(d["style"])
-                    # print ("couldn't make style from inferred style class", e)
-
-            for k in d:
-                if k not in ["node", "inputs", "attrs", "lookup_attrs", "plugin", "style"]:
-                    raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
-
-            nodes[name] = node_class(**kwargs)
-
-        return list(nodes.values())[-1]
+        return nodes[output_node]
 
     @classmethod
     def from_json(cls, s):
@@ -1207,14 +1165,36 @@ class Node(tl.HasTraits):
         spec.update(getattr(cls, "_ui_spec", {}))
         return spec
 
+def _lookup_input(nodes, name, value, definition):
+    '''check if inputs of a node are stored in nodes, if not add them
 
-def _lookup_input(nodes, name, value):
+    Parameters
+    -----------
+    nodes: OrderedDict
+        Keys: Node names (strings)
+        Values: Node objects
+    
+    name: string
+        the Node whose inputs are being checked
+    
+    value: string, list, dictionary:
+        the Node (or collection of Nodes) which is being looked 
+    
+    definition: pipeline definition
+
+    Returns
+    --------
+    node: the node searched for
+
+    Note: this function calles _process_kwargs, which alters nodes by loading a Node if it is not yet in nodes.
+
+    '''
     # containers
     if isinstance(value, list):
-        return [_lookup_input(nodes, name, elem) for elem in value]
+        return [_lookup_input(nodes, name, elem, definition) for elem in value]
 
     if isinstance(value, dict):
-        return {k: _lookup_input(nodes, name, v) for k, v in value.items()}
+        return {k: _lookup_input(nodes, name, v, definition) for k, v in value.items()}
 
     # node reference
     if not isinstance(value, six.string_types):
@@ -1222,12 +1202,21 @@ def _lookup_input(nodes, name, value):
             "Invalid definition for node '%s': invalid reference '%s' of type '%s' in inputs"
             % (name, value, type(value))
         )
+    # node not yet discovered yet
+    if not value in nodes:
+        # Look for it in the definition items:
+        for found_name, d in definition.items():
+            if value != found_name:
+                continue
+            # Load the node into nodes  
+            _process_kwargs(found_name, d, definition, nodes)
+
+            break
 
     if not value in nodes:
         raise ValueError(
             "Invalid definition for node '%s': reference to nonexistent node '%s' in inputs" % (name, value)
         )
-
     node = nodes[value]
 
     # copy in debug mode
@@ -1236,14 +1225,13 @@ def _lookup_input(nodes, name, value):
 
     return node
 
-
 def _lookup_attr(nodes, name, value):
     # containers
     if isinstance(value, list):
         return [_lookup_attr(nodes, name, elem) for elem in value]
 
     if isinstance(value, dict):
-        return {_k: _lookup_attr(nodes, name, v) for k, v in value.items()}
+        return {k: _lookup_attr(nodes, name, v) for k, v in value.items()}
 
     if not isinstance(value, six.string_types):
         raise ValueError(
@@ -1274,6 +1262,85 @@ def _lookup_attr(nodes, name, value):
 
     return attr
 
+
+def _process_kwargs(name, d, definition, nodes):
+    '''create a node and add it to nodes
+
+    Parameters
+    -----------
+    nodes: OrderedDict
+        Keys: Node names (strings)
+        Values: Node objects
+    
+    name: string
+        the Node which will be created
+    
+    d: the definition of the node to be created
+    
+    definition: pipeline definition
+
+    Returns
+    --------
+    Nothing, but loads the node with name "name" and definition "d" into nodes
+
+
+    '''
+     # get node class
+    module_root = d.get("plugin", "podpac")
+    node_string = "%s.%s" % (module_root, d["node"])
+    module_name, node_name = node_string.rsplit(".", 1)
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError:
+        raise ValueError("Invalid definition for node '%s': no module found '%s'" % (name, module_name))
+    try:
+        node_class = getattr(module, node_name)
+    except AttributeError:
+        raise ValueError(
+            "Invalid definition for node '%s': class '%s' not found in module '%s'"
+            % (name, node_name, module_name)
+        )
+
+    kwargs = {}
+    for k, v in d.get("attrs", {}).items():
+        kwargs[k] = v
+
+    for k, v in d.get("inputs", {}).items():
+        kwargs[k]= _lookup_input(nodes, name, v, definition)
+
+    for k, v in d.get("lookup_attrs", {}).items():
+        kwargs[k] = _lookup_attr(nodes, name, v)
+
+    if "style" in d:
+        style_class = getattr(node_class, "style", Style)
+        if isinstance(style_class, tl.TraitType):
+            # Now we actually have to look through the class to see
+            # if there is a custom initializer for style
+            for attr in dir(node_class):
+                atr = getattr(node_class, attr)
+                if not isinstance(atr, tl.traitlets.DefaultHandler) or atr.trait_name != "style":
+                    continue
+                try:
+                    style_class = atr(node_class)
+                except Exception as e:
+                    # print ("couldn't make style from class", e)
+                    try:
+                        style_class = atr(node_class())
+                    except:
+                        # print ("couldn't make style from class instance", e)
+                        style_class = style_class.klass
+        try:
+            kwargs["style"] = style_class.from_definition(d["style"])
+        except Exception as e:
+            kwargs["style"] = Style.from_definition(d["style"])
+            # print ("couldn't make style from inferred style class", e)
+
+    for k in d:
+        if k not in ["node", "inputs", "attrs", "lookup_attrs", "plugin", "style"]:
+            raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
+
+    nodes[name] = node_class(**kwargs)
+    
 
 # --------------------------------------------------------#
 #  Mixins
