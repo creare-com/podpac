@@ -240,11 +240,11 @@ class JSONEncoder(json.JSONEncoder):
             return obj.definition
 
         # podpac Interpolator type
-        if isinstance(obj, type) and obj in podpac.core.interpolation.INTERPOLATORS:
+        if isinstance(obj, type) and obj in podpac.core.interpolator.INTERPOLATORS:
             return obj().definition
 
         # pint Units
-        if isinstance(obj, podpac.core.units.ureg.Unit):
+        if isinstance(obj, podpac.core.units_data_array.ureg.Unit):
             return str(obj)
 
         # datetime64

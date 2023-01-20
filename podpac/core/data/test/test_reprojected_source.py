@@ -4,7 +4,7 @@ import numpy as np
 from traitlets import TraitError
 
 from podpac.core.coordinates import Coordinates, clinspace
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.node import Node
 from podpac.core.algorithm.utility import Arange
 from podpac.core.data.datasource import DataSource

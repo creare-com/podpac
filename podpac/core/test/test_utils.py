@@ -230,15 +230,15 @@ class TestJSONEncoder(object):
         json.dumps(style, cls=JSONEncoder)
 
     def test_interpolation(self):
-        interpolation = podpac.core.interpolation.interpolation.Interpolate()
+        interpolation = podpac.core.interpolator.interpolation.Interpolate()
         json.dumps(interpolation, cls=JSONEncoder)
 
     def test_interpolator(self):
-        kls = podpac.core.interpolation.INTERPOLATORS[0]
+        kls = podpac.core.interpolator.INTERPOLATORS[0]
         json.dumps(kls, cls=JSONEncoder)
 
     def test_units(self):
-        units = podpac.core.units.ureg.Unit("meters")
+        units = podpac.core.units_data_array.ureg.Unit("meters")
         json.dumps(units, cls=JSONEncoder)
 
     def test_datetime64(self):

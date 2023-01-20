@@ -314,10 +314,10 @@ class FileCacheStoreTests(BaseCacheStoreTests):
     def test_cache_units_data_array(self):
         store = self.Store()
 
-        data = podpac.core.units.UnitsDataArray([1, 2, 3], attrs={"units": "m"})
+        data = podpac.core.units_data_array.UnitsDataArray([1, 2, 3], attrs={"units": "m"})
         store.put(NODE1, data, "mykey")
         cached = store.get(NODE1, "mykey")
-        assert isinstance(cached, podpac.core.units.UnitsDataArray)
+        assert isinstance(cached, podpac.core.units_data_array.UnitsDataArray)
         xr.testing.assert_identical(cached, data)  # assert_identical checks attributes as wel
 
     def test_cache_xarray(self):

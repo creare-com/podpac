@@ -89,7 +89,7 @@ class FileCacheStore(CacheStore):
         # serialize
         root = self._get_filename(node, item, coordinates)
 
-        if isinstance(data, podpac.core.units.UnitsDataArray):
+        if isinstance(data, podpac.core.units_data_array.UnitsDataArray):
             ext = "uda.nc"
             s = data.to_netcdf()
         elif isinstance(data, xr.DataArray):
@@ -189,7 +189,7 @@ class FileCacheStore(CacheStore):
         # deserialize
         if path.endswith(".uda.nc"):
             x = xr.open_dataarray(s)
-            data = podpac.core.units.UnitsDataArray(x)._pp_deserialize()
+            data = podpac.core.units_data_array.UnitsDataArray(x)._pp_deserialize()
         elif path.endswith(".xrda.nc"):
             data = xr.open_dataarray(s)
         elif path.endswith(".xrds.nc"):

@@ -138,7 +138,7 @@ class TestBaseCompositor(object):
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 8
 
-            n_threads_before = podpac.core.managers.multi_threading.thread_manager._n_threads_used
+            n_threads_before = podpac.core.manager.multi_threading.thread_manager._n_threads_used
             node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
             outputs = node.iteroutputs(COORDS)
             np.testing.assert_array_equal(next(outputs), LAT)
@@ -147,14 +147,14 @@ class TestBaseCompositor(object):
             with pytest.raises(StopIteration):
                 next(outputs)
             assert node._multi_threaded == True
-            assert podpac.core.managers.multi_threading.thread_manager._n_threads_used == n_threads_before
+            assert podpac.core.manager.multi_threading.thread_manager._n_threads_used == n_threads_before
 
     def test_iteroutputs_n_threads_1(self):
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 1
 
-            n_threads_before = podpac.core.managers.multi_threading.thread_manager._n_threads_used
+            n_threads_before = podpac.core.manager.multi_threading.thread_manager._n_threads_used
             node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
             outputs = node.iteroutputs(COORDS)
             np.testing.assert_array_equal(next(outputs), LAT)
@@ -163,7 +163,7 @@ class TestBaseCompositor(object):
             with pytest.raises(StopIteration):
                 next(outputs)
             assert node._multi_threaded == False
-            assert podpac.core.managers.multi_threading.thread_manager._n_threads_used == n_threads_before
+            assert podpac.core.manager.multi_threading.thread_manager._n_threads_used == n_threads_before
 
     def test_composite(self):
         node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])

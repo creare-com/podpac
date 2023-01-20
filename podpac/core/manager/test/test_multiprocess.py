@@ -5,7 +5,7 @@ from multiprocessing import Queue
 
 from podpac.core.coordinates import Coordinates
 from podpac.core.algorithm.utility import Arange
-from podpac.core.managers.multi_process import Process, _f
+from podpac.core.manager.multi_process import Process, _f
 
 
 class TestProcess(object):

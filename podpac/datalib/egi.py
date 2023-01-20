@@ -32,7 +32,7 @@ from podpac.interpolators import InterpolationMixin
 from podpac import authenticators
 from podpac import settings
 from podpac import cached_property
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 
 # Set up logging
 _log = logging.getLogger(__name__)

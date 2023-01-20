@@ -13,16 +13,16 @@ import traitlets as tl
 import numpy as np
 
 import podpac
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.coordinates import Coordinates
-from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationException
-from podpac.core.interpolation.interpolation_manager import (
+from podpac.core.interpolator.interpolation_manager import InterpolationManager, InterpolationException
+from podpac.core.interpolator.interpolation_manager import (
     INTERPOLATION_METHODS,
     INTERPOLATION_DEFAULT,
     INTERPOLATION_METHODS_DICT,
 )
-from podpac.core.interpolation.interpolator import Interpolator, InterpolatorException
-from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
+from podpac.core.interpolator.interpolator import Interpolator, InterpolatorException
+from podpac.core.interpolator.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
 
 
 class TestInterpolation(object):

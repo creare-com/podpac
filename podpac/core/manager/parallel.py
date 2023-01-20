@@ -11,7 +11,7 @@ import numpy as np
 
 from multiprocessing.pool import ThreadPool
 
-from podpac.core.managers.multi_threading import Lock
+from podpac.core.manager.multi_threading import Lock
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
 from podpac.core.data.zarr_source import Zarr

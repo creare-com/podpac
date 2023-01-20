@@ -13,7 +13,7 @@ from podpac.core.authentication import S3Mixin
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin
-from podpac.core.interpolation.interpolation import InterpolationMixin
+from podpac.core.interpolator.interpolation import InterpolationMixin
 
 
 class ZarrRaw(S3Mixin, FileKeysMixin, BaseFileSource):

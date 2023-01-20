@@ -21,7 +21,7 @@ satsearch = lazy_module("satsearch")
 import podpac
 from podpac.compositors import TileCompositor
 from podpac.core.data.rasterio_source import RasterioRaw
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.authenticators import S3Mixin
 from podpac import settings
 

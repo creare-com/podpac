@@ -43,7 +43,7 @@ from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, crange, clinspace
 from podpac.core.node import Node, NodeException
 from podpac.core.utils import cached_property
-from podpac.core.units import ureg as units, UnitsDataArray
+from podpac.core.units_data_array import ureg as units, UnitsDataArray
 
 # Organized submodules
 # These files are simply wrappers to create a curated namespace of podpac modules

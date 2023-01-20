@@ -11,9 +11,9 @@ from pint.errors import DimensionalityError
 from podpac.core.coordinates import Coordinates, clinspace, AffineCoordinates
 from podpac.core.style import Style
 
-from podpac.core.units import ureg
-from podpac.core.units import UnitsDataArray
-from podpac.core.units import to_image
+from podpac.core.units_data_array import ureg
+from podpac.core.units_data_array import UnitsDataArray
+from podpac.core.units_data_array import to_image
 
 from podpac.data import Array, Rasterio
 

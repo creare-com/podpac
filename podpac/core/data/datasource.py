@@ -17,7 +17,7 @@ import traitlets as tl
 
 # Internal imports
 from podpac.core.settings import settings
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES, make_coord_delta, make_coord_delta_array
 from podpac.core.node import Node
@@ -249,7 +249,7 @@ class DataSource(Node):
 
         Returns
         -------
-        podpac.core.units.UnitsDataArray
+        podpac.core.units_data_array.UnitsDataArray
             Returns UnitsDataArray with coordinates defined by _requested_source_coordinates
 
         Raises

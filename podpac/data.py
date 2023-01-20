@@ -15,4 +15,4 @@ from podpac.core.data.zarr_source import Zarr
 from podpac.core.data.ogc import WCS
 from podpac.core.data.ogr import OGR
 from podpac.core.data.reprojection import ReprojectedSource
-from podpac.core.interpolation.interpolation_manager import INTERPOLATION_METHODS
+from podpac.core.interpolator.interpolation_manager import INTERPOLATION_METHODS

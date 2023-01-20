@@ -14,14 +14,14 @@ import numpy as np
 from numpy.testing import assert_array_equal
 
 import podpac
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.node import Node
 from podpac.core.coordinates import Coordinates
-from podpac.core.interpolation.interpolation_manager import InterpolationException
-from podpac.core.interpolation.interpolation import Interpolate, InterpolationMixin
+from podpac.core.interpolator.interpolation_manager import InterpolationException
+from podpac.core.interpolator.interpolation import Interpolate, InterpolationMixin
 from podpac.core.data.array_source import Array, ArrayRaw
 from podpac.core.compositor.tile_compositor import TileCompositorRaw
-from podpac.core.interpolation.scipy_interpolator import ScipyGrid
+from podpac.core.interpolator.scipy_interpolator import ScipyGrid
 
 
 class TestInterpolationMixin(object):

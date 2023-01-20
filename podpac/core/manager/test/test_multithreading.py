@@ -6,7 +6,7 @@ from threading import Thread
 import pytest
 
 from podpac import settings
-from podpac.core.managers.multi_threading import FakeLock, thread_manager
+from podpac.core.manager.multi_threading import FakeLock, thread_manager
 
 
 class TestFakeLock(object):

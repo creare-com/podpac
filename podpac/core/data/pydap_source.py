@@ -19,7 +19,7 @@ from lazy_import import lazy_module, lazy_class
 from podpac.core import authentication
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
-from podpac.core.interpolation.interpolation import InterpolationMixin
+from podpac.core.interpolator.interpolation import InterpolationMixin
 
 
 # Optional dependencies

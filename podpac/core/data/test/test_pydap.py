@@ -5,7 +5,7 @@ import traitlets as tl
 import requests
 
 from podpac.core.coordinates import Coordinates, clinspace
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core import authentication
 from podpac.core.data.pydap_source import PyDAP
 from podpac import settings

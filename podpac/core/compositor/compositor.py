@@ -17,7 +17,7 @@ from podpac.core.coordinates.utils import Dimension
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
-from podpac.core.managers.multi_threading import thread_manager
+from podpac.core.manager.multi_threading import thread_manager
 
 COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
 
@@ -125,7 +125,7 @@ class BaseCompositor(Node):
         ----------
         coordinates : :class:`podpac.Coordinates`
             Coordinates to evaluate at compositor sources
-        _selector : :class:`podpac.core.interpolation.selectors.Selector`
+        _selector : :class:`podpac.core.interpolator.selectors.Selector`
             Selector used to sub-select sources based on the interpolation scheme
 
         Returns
@@ -184,7 +184,7 @@ class BaseCompositor(Node):
 
         Yields
         ------
-        :class:`podpac.core.units.UnitsDataArray`
+        :class:`podpac.core.units_data_array.UnitsDataArray`
             Output from source node eval method
         """
 

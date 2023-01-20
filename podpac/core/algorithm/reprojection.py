@@ -13,7 +13,7 @@ import traitlets as tl
 # Internal dependencies
 from podpac.core.node import Node
 from podpac.core.coordinates.coordinates import Coordinates, merge_dims
-from podpac.core.interpolation.interpolation import Interpolate
+from podpac.core.interpolator.interpolation import Interpolate
 from podpac.core.utils import NodeTrait, cached_property
 from podpac import settings
 

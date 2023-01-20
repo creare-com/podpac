@@ -102,12 +102,12 @@ def method(coordinates, output=None):
     ----------
     coordinates : :class:`podpac.Coordinates`
       Coordinate input
-    output : :class:`podpac.core.units.UnitsDataArray`, optional
+    output : :class:`podpac.core.units_data_array.UnitsDataArray`, optional
       Container for output
 
     Returns
     --------
-    :class:`podpac.core.units.UnitsDataArray`
+    :class:`podpac.core.units_data_array.UnitsDataArray`
       Returns a UnitsDataArray
     """
 ```
@@ -240,7 +240,7 @@ Podpac Module
 ...
 
 from podpac import settings
-from podpac.core.units import Units, UnitsDataArray
+from podpac.core.units_data_arrayimport Units, UnitsDataArray
 from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.utils import common_doc
 ```

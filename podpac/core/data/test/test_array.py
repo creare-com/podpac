@@ -3,7 +3,7 @@ import traitlets as tl
 import pytest
 
 from podpac.core.coordinates import Coordinates, clinspace
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.node import Node
 from podpac.core.data.array_source import Array
 

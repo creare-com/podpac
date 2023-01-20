@@ -12,7 +12,7 @@ import xarray as xr
 from xarray.core.coordinates import DataArrayCoordinates
 
 import podpac
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.style import Style
 from podpac.core.coordinates import Coordinates, clinspace

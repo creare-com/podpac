@@ -17,8 +17,8 @@ except:
     rasterio = None
 
 # podac imports
-from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
-from podpac.core.units import UnitsDataArray
+from podpac.core.interpolator.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
 from podpac.core.utils import common_doc
 from podpac.core.coordinates.utils import get_timedelta

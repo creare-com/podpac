@@ -16,7 +16,7 @@ from six import string_types
 import traitlets as tl
 import numpy as np
 
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.settings import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.utils import common_doc, JSONEncoder

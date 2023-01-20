@@ -25,7 +25,7 @@ import traitlets as tl
 import podpac
 from podpac.core import common_test_utils as ctu
 from podpac.core.utils import ArrayTrait, NodeTrait
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore
 from podpac.core.node import Node, NodeException, NodeDefinitionError
@@ -281,7 +281,7 @@ class TestCreateOutputArray(object):
         output = node.create_output_array(c)
         assert isinstance(output, UnitsDataArray)
 
-        from podpac.core.units import ureg as _ureg
+        from podpac.core.units_data_array import ureg as _ureg
 
         assert output.units == _ureg.meters
 

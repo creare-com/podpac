@@ -11,7 +11,7 @@ ogr = lazy_module("osgeo.ogr")
 from podpac import Node, Coordinates, cached_property, settings, clinspace
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
-from podpac.core.interpolation.interpolation import InterpolationMixin
+from podpac.core.interpolator.interpolation import InterpolationMixin
 
 
 class OGRRaw(Node):

@@ -13,9 +13,9 @@ import numpy as np
 from podpac.core.settings import settings
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait, common_doc, cached_property
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.coordinates import merge_dims, Coordinates
-from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationTrait
+from podpac.core.interpolator.interpolation_manager import InterpolationManager, InterpolationTrait
 from podpac.core.cache.cache_ctrl import CacheCtrl
 from podpac.core.data.datasource import DataSource
 

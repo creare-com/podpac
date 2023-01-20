@@ -10,15 +10,15 @@ import xarray as xr
 import traitlets as tl
 
 from podpac.core import settings
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.coordinates import merge_dims, Coordinates, StackedCoordinates
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
-from podpac.core.interpolation.interpolator import Interpolator
-from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
-from podpac.core.interpolation.rasterio_interpolator import RasterioInterpolator
-from podpac.core.interpolation.scipy_interpolator import ScipyPoint, ScipyGrid
-from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
-from podpac.core.interpolation.none_interpolator import NoneInterpolator
+from podpac.core.interpolator.interpolator import Interpolator
+from podpac.core.interpolator.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
+from podpac.core.interpolator.rasterio_interpolator import RasterioInterpolator
+from podpac.core.interpolator.scipy_interpolator import ScipyPoint, ScipyGrid
+from podpac.core.interpolator.xarray_interpolator import XarrayInterpolator
+from podpac.core.interpolator.none_interpolator import NoneInterpolator
 
 _logger = logging.getLogger(__name__)
 
@@ -550,16 +550,16 @@ class InterpolationManager(object):
         ----------
         source_coordinates : :class:`podpac.Coordinates`
             Description
-        source_data : podpac.core.units.UnitsDataArray
+        source_data : podpac.core.units_data_array.UnitsDataArray
             Description
         eval_coordinates : :class:`podpac.Coordinates`
             Description
-        output_data : podpac.core.units.UnitsDataArray
+        output_data : podpac.core.units_data_array.UnitsDataArray
             Description
 
         Returns
         -------
-        podpac.core.units.UnitDataArray
+        podpac.core.units_data_array.UnitDataArray
             returns the new output UnitDataArray of interpolated data
 
         Raises

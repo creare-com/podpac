@@ -11,16 +11,16 @@ import numpy as np
 
 import podpac
 from podpac.core.utils import ArrayTrait
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.data.rasterio_source import rasterio
 from podpac.core.data.datasource import DataSource
-from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationException
-from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
-from podpac.core.interpolation.rasterio_interpolator import RasterioInterpolator
-from podpac.core.interpolation.scipy_interpolator import ScipyGrid, ScipyPoint
-from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
-from podpac.core.interpolation.interpolation import InterpolationMixin
+from podpac.core.interpolator.interpolation_manager import InterpolationManager, InterpolationException
+from podpac.core.interpolator.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
+from podpac.core.interpolator.rasterio_interpolator import RasterioInterpolator
+from podpac.core.interpolator.scipy_interpolator import ScipyGrid, ScipyPoint
+from podpac.core.interpolator.xarray_interpolator import XarrayInterpolator
+from podpac.core.interpolator.interpolation import InterpolationMixin
 
 
 class MockArrayDataSource(InterpolationMixin, DataSource):

@@ -97,7 +97,7 @@ class TestOrderedCompositor(object):
             podpac.settings["DEBUG"] = True
 
             coords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
-            n_threads_before = podpac.core.managers.multi_threading.thread_manager._n_threads_used
+            n_threads_before = podpac.core.manager.multi_threading.thread_manager._n_threads_used
             a = Array(source=np.ones(coords.shape), coordinates=coords, interpolation="bilinear")
             b = Array(source=np.zeros(coords.shape), coordinates=coords, interpolation="bilinear")
             node = OrderedCompositor(sources=[a, b], multithreading=True)
@@ -108,7 +108,7 @@ class TestOrderedCompositor(object):
             np.testing.assert_array_equal(output2, a.source)
             assert node._multi_threaded == True
             assert node2._multi_threaded == False
-            assert podpac.core.managers.multi_threading.thread_manager._n_threads_used == n_threads_before
+            assert podpac.core.manager.multi_threading.thread_manager._n_threads_used == n_threads_before
 
     def test_composite_into_result(self):
         coords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])

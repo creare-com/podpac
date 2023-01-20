@@ -13,11 +13,11 @@ import traitlets as tl
 
 # Internal dependencies
 from podpac.core.coordinates import Coordinates, union
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.node import Node, NodeException, COMMON_NODE_DOC
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.settings import settings
-from podpac.core.managers.multi_threading import thread_manager
+from podpac.core.manager.multi_threading import thread_manager
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 

@@ -7,7 +7,7 @@ import pytest
 from traitlets import TraitError
 
 from podpac.core.coordinates import Coordinates
-from podpac.core.units import UnitsDataArray
+from podpac.core.units_data_array import UnitsDataArray
 from podpac.core.data.rasterio_source import Rasterio
 
 

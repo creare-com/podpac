@@ -15,7 +15,7 @@ import numpy as np
 import traitlets as tl
 import six
 from podpac.core.utils import common_doc
-from podpac.core.interpolation.selector import Selector
+from podpac.core.interpolator.selector import Selector
 
 # Set up logging
 _log = logging.getLogger(__name__)
@@ -156,11 +156,11 @@ COMMON_INTERPOLATOR_DOCS = {
             dimensions to interpolate
         source_coordinates : :class:`podpac.Coordinates`
             Description
-        source_data : podpac.core.units.UnitsDataArray
+        source_data : podpac.core.units_data_array.UnitsDataArray
             Description
         eval_coordinates : :class:`podpac.Coordinates`
             Description
-        output_data : podpac.core.units.UnitsDataArray
+        output_data : podpac.core.units_data_array.UnitsDataArray
             Description
 
         Raises
@@ -169,7 +169,7 @@ COMMON_INTERPOLATOR_DOCS = {
 
         Returns
         -------
-        podpac.core.units.UnitDataArray
+        podpac.core.units_data_array.UnitDataArray
             returns the updated output of interpolated data
         """,
 }

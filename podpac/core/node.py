@@ -20,7 +20,7 @@ import six
 
 import podpac
 from podpac.core.settings import settings
-from podpac.core.units import ureg, UnitsDataArray
+from podpac.core.units_data_array import ureg, UnitsDataArray
 from podpac.core.utils import common_doc
 from podpac.core.utils import JSONEncoder
 from podpac.core.utils import cached_property
@@ -32,7 +32,7 @@ from podpac.core.utils import hash_alg
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl, S3CacheStore, DiskCacheStore
-from podpac.core.managers.multi_threading import thread_manager
+from podpac.core.manager.multi_threading import thread_manager
 
 _logger = logging.getLogger(__name__)
 

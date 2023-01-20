@@ -9,7 +9,7 @@ import matplotlib
 import matplotlib.cm
 from matplotlib.colors import ListedColormap
 
-from podpac.core.units import ureg
+from podpac.core.units_data_array import ureg
 from podpac.core.utils import trait_is_defined, JSONEncoder, TupleTrait
 
 DEFAULT_ENUMERATION_LEGEND = "unknown"

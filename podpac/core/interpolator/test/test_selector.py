@@ -4,7 +4,7 @@ import numpy as np
 
 from podpac.core.node import Node
 from podpac.core.coordinates import Coordinates, clinspace
-from podpac.core.interpolation.selector import Selector
+from podpac.core.interpolator.selector import Selector
 
 
 class TestSelector(object):
