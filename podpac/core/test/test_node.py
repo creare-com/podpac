@@ -936,12 +936,12 @@ class TestSerialization(object):
             r"&bbox=40,-71,41,70&time=2018-05-19&PARAMS={params}"
         )
 
-        params = ["{}", '{"a":{"node":"algorithm.Arange"}}', "{}", "{}"]
+        params = ["{}", '{"a":{"node":"algorithms.Arange"}}', "{}", "{}"]
 
         for service, layername in zip(["WMS", "WCS"], ["LAYERS", "COVERAGE"]):
             for layer, param in zip(
                 [
-                    "algorithm.SinCoords",
+                    "algorithms.SinCoords",
                     "%PARAMS%",
                     # urllib.urlencode({'a':'https://raw.githubusercontent.com/creare-com/podpac/develop/podpac/core/pipeline/test/test.json'})[2:],
                     # urllib.urlencode({'a':'s3://podpac-s3/test/test.json'})[2:]  # Tested locally, works fine. Hard to test with CI
@@ -955,7 +955,7 @@ class TestSerialization(object):
             r"https://mobility-devel.crearecomputing.com/geowatch?&SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&"
             r"LAYERS=Arange&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&HEIGHT=256&WIDTH=256"
             r"&CRS=EPSG%3A3857&BBOX=-20037508.342789244,10018754.171394618,-10018754.171394622,20037508.34278071&"
-            r'PARAMS={"plugin": "podpac.algorithm"}'
+            r'PARAMS={"plugin": "podpac.algorithms"}'
         )
         url1 = (
             r"https://mobility-devel.crearecomputing.com/geowatch?&SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&"
@@ -968,18 +968,18 @@ class TestSerialization(object):
 
     def test_from_name_params(self):
         # Normal
-        name = "algorithm.Arange"
+        name = "algorithms.Arange"
         node = Node.from_name_params(name)
 
         # Normal with params
-        name = "algorithm.CoordData"
+        name = "algorithms.CoordData"
         params = {"coord_name": "alt"}
         node = Node.from_name_params(name, params)
         assert node.coord_name == "alt"
 
         # Plugin style
         name = "CoordData"
-        params = {"plugin": "podpac.algorithm", "attrs": {"coord_name": "alt"}}
+        params = {"plugin": "podpac.algorithms", "attrs": {"coord_name": "alt"}}
         node = Node.from_name_params(name, params)
         assert node.coord_name == "alt"
 
@@ -1048,7 +1048,7 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.Min",
+                "node": "algorithms.Min",
                 "inputs": { "source": 10 }
             }
         }
@@ -1061,7 +1061,7 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.Min",
+                "node": "algorithms.Min",
                 "inputs": { "source": "nonexistent" }
             }
         }
@@ -1074,11 +1074,11 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "attrs": { "coord_name": "lat" }
             },
             "b": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "lookup_attrs": { "coord_name": "a.coord_name" }
             }
         }
@@ -1092,11 +1092,11 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "attrs": { "coord_name": "lat" }
             },
             "b": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "lookup_attrs": { "coord_name": 10 }
             }
         }
@@ -1109,11 +1109,11 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "attrs": { "coord_name": "lat" }
             },
             "b": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "lookup_attrs": { "coord_name": "nonexistent.coord_name" }
             }
         }
@@ -1126,11 +1126,11 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "attrs": { "coord_name": "lat" }
             },
             "b": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "lookup_attrs": { "coord_name": "a.nonexistent" }
             }
         }
@@ -1143,7 +1143,7 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.Arange",
+                "node": "algorithms.Arange",
                 "invalid_property": "value"
             }
         }
@@ -1187,15 +1187,15 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.Arange"
+                "node": "algorithms.Arange"
             },
             "mean": {
-                "node": "algorithm.Convolution",
+                "node": "algorithms.Convolution",
                 "lookup_attrs": {"source": "a"},
                 "attrs": {"kernel_type": "mean,3", "kernel_dims": ["lat", "lon"]}
             },
             "c": {
-                "node": "algorithm.Arithmetic",
+                "node": "algorithms.Arithmetic",
                 "lookup_attrs": {"A": "a", "B": "mean"},
                 "attrs": {"eqn": "a-b"}
             }
@@ -1219,7 +1219,7 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.Arange"
+                "node": "algorithms.Arange"
             },
             "podpac_version": "other"
         }
