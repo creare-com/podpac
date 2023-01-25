@@ -13,7 +13,7 @@ import pyproj
 
 from podpac.core.utils import common_doc, cached_property, resolve_bbox_order
 from podpac.core.data.datasource import DataSource
-from podpac.core.interpolation.interpolation import InterpolationMixin, InterpolationTrait
+from podpac.core.interpolators.interpolation import InterpolationMixin, InterpolationTrait
 from podpac.core.node import NodeException
 from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d, Coordinates1d, StackedCoordinates

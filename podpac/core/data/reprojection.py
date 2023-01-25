@@ -11,7 +11,7 @@ from podpac.core.utils import common_doc, NodeTrait, cached_property
 from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
-from podpac.core.interpolation import InterpolationTrait
+from podpac.core.interpolators import InterpolationTrait
 
 _logger = logging.getLogger(__name__)
 

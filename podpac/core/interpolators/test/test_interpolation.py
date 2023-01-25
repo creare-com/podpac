@@ -17,11 +17,11 @@ import podpac
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node
 from podpac.core.coordinates import Coordinates
-from podpac.core.interpolation.interpolation_manager import InterpolationException
-from podpac.core.interpolation.interpolation import Interpolate, InterpolationMixin
+from podpac.core.interpolators.interpolation_manager import InterpolationException
+from podpac.core.interpolators.interpolation import Interpolate, InterpolationMixin
 from podpac.core.data.array_source import Array, ArrayRaw
 from podpac.core.compositors.tile_compositor import TileCompositorRaw
-from podpac.core.interpolation.scipy_interpolator import ScipyGrid
+from podpac.core.interpolators.scipy_interpolator import ScipyGrid
 
 
 class TestInterpolationMixin(object):

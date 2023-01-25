@@ -14,12 +14,12 @@ from scipy.spatial import cKDTree
 
 
 # podac imports
-from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
+from podpac.core.interpolators.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
 from podpac.core.coordinates.utils import make_coord_delta, make_coord_value
 from podpac.core.utils import common_doc
 from podpac.core.coordinates.utils import get_timedelta
-from podpac.core.interpolation.selector import Selector, _higher_precision_time_coords1d, _higher_precision_time_stack
+from podpac.core.interpolators.selector import Selector, _higher_precision_time_coords1d, _higher_precision_time_stack
 
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)

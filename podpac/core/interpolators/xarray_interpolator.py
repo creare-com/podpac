@@ -13,7 +13,7 @@ import xarray as xr
 
 
 # podac imports
-from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
+from podpac.core.interpolators.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
 from podpac.core.utils import common_doc
 from podpac.core.coordinates.utils import get_timedelta

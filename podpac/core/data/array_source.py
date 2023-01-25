@@ -17,7 +17,7 @@ from podpac.core.cache import CacheCtrl
 from podpac.core.node import NoCacheMixin
 from podpac.core.coordinates import Coordinates
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
-from podpac.core.interpolation.interpolation import InterpolationMixin
+from podpac.core.interpolators.interpolation import InterpolationMixin
 
 
 class ArrayRaw(NoCacheMixin, DataSource):

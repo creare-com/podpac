@@ -8,7 +8,7 @@ import traitlets as tl
 from podpac.core.utils import common_doc
 from podpac.core.compositors.compositor import COMMON_COMPOSITOR_DOC, BaseCompositor
 from podpac.core.units import UnitsDataArray
-from podpac.core.interpolation.interpolation import InterpolationMixin
+from podpac.core.interpolators.interpolation import InterpolationMixin
 from podpac.core.coordinates import Coordinates
 
 

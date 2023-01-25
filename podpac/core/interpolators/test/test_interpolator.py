@@ -9,7 +9,7 @@ import traitlets as tl
 import numpy as np
 
 from podpac.core.coordinates import Coordinates, clinspace
-from podpac.core.interpolation.interpolator import Interpolator
+from podpac.core.interpolators.interpolator import Interpolator
 
 
 class TestInterpolator(object):

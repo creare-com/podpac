@@ -15,7 +15,7 @@ import numpy as np
 import traitlets as tl
 import six
 from podpac.core.utils import common_doc
-from podpac.core.interpolation.selector import Selector
+from podpac.core.interpolators.selector import Selector
 
 # Set up logging
 _log = logging.getLogger(__name__)

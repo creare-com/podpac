@@ -13,12 +13,12 @@ from podpac.core import settings
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import merge_dims, Coordinates, StackedCoordinates
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
-from podpac.core.interpolation.interpolator import Interpolator
-from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
-from podpac.core.interpolation.rasterio_interpolator import RasterioInterpolator
-from podpac.core.interpolation.scipy_interpolator import ScipyPoint, ScipyGrid
-from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
-from podpac.core.interpolation.none_interpolator import NoneInterpolator
+from podpac.core.interpolators.interpolator import Interpolator
+from podpac.core.interpolators.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
+from podpac.core.interpolators.rasterio_interpolator import RasterioInterpolator
+from podpac.core.interpolators.scipy_interpolator import ScipyPoint, ScipyGrid
+from podpac.core.interpolators.xarray_interpolator import XarrayInterpolator
+from podpac.core.interpolators.none_interpolator import NoneInterpolator
 
 _logger = logging.getLogger(__name__)
 
