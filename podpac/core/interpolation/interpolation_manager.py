@@ -536,7 +536,14 @@ class InterpolationManager(object):
                 if isinstance(selected_coords_idx[i], tuple):
                     selected_coords_idx2.extend(selected_coords_idx[i])
                 else:
-                    selected_coords_idx2.append(selected_coords_idx[i])
+                    if isinstance(selected_coords_idx[i], np.ndarray):
+                        # This happens when the interpolator_queue is empty, so we have to turn the
+                        # initialized coordinates into slices instead of numpy arrays
+                        selected_coords_idx2.append(
+                            slice(selected_coords_idx[i].min(), selected_coords_idx[i].max() + 1)
+                        )
+                    else:
+                        selected_coords_idx2.append(selected_coords_idx[i])
 
             selected_coords_idx2 = tuple(selected_coords_idx2)
         else:
