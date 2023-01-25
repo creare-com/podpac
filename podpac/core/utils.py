@@ -587,7 +587,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
             "node_hash": n.hash,
         }
         # Fix sources for Compositors
-        if isinstance(n, podpac.compositor.OrderedCompositor):
+        if isinstance(n, podpac.compositors.OrderedCompositor):
             searching_for_active = True
             for inp in inputs:
                 out[inp]["active"] = False
@@ -626,7 +626,7 @@ def get_ui_node_spec(module=None, category="default", help_as_html=False):
 
     if module is None:
         modcat = zip(
-            [podpac.data, podpac.algorithm, podpac.compositor, podpac.datalib],
+            [podpac.data, podpac.algorithms, podpac.compositors, podpac.datalib],
             ["data", "algorithm", "compositor", "datalib"],
         )
         for mod, cat in modcat:

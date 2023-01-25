@@ -47,12 +47,12 @@ from podpac.core.units import ureg as units, UnitsDataArray
 
 # Organized submodules
 # These files are simply wrappers to create a curated namespace of podpac modules
-from podpac import algorithm
+from podpac import algorithms
 from podpac import authentication
 from podpac import data
 from podpac import interpolators
 from podpac import coordinates
-from podpac import compositor
+from podpac import compositors
 from podpac import managers
 from podpac import utils
 from podpac import style

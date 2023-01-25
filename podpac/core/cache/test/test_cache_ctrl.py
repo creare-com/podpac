@@ -353,7 +353,7 @@ def test_clear_cache():
         podpac.settings["DEFAULT_CACHE"] = ["ram"]
 
         # fill the default cache
-        node = podpac.algorithm.Arange()
+        node = podpac.algorithms.Arange()
         node.put_cache(0, "mykey")
         assert node.has_cache("mykey")
 

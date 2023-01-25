@@ -20,7 +20,7 @@ In theory, to wrap a new `DataSource`:
     1. `coordinates` is a `podpac.Coordinates` object and it's in the same coordinate system as the data source (i.e. a subset of what comes out of `get_coordinates`)
     2. `coordinates_index` is a list (or tuple?) of slices or boolean arrays or index arrays to indexes into the output of `get_coordinates()` to produce `coordinates` that come into this function. 
     
-In practice, the real trick is implementing a compositor to put multiple tiles together to look like a single `DataSource`. We tend to use the `podpac.compositor.OrderedCompositor` node for this task, but it does not handle interpolation between tiles. Instead, see the `podpac.core.compositor.tile_compositor` module. 
+In practice, the real trick is implementing a compositor to put multiple tiles together to look like a single `DataSource`. We tend to use the `podpac.compositors.OrderedCompositor` node for this task, but it does not handle interpolation between tiles. Instead, see the `podpac.core.compositors.tile_compositor` module. 
 
 When using compositors, it is prefered the that `sources` attribute is populated at instantiation, but on-the-fly (i.e. at eval) population of sources is also acceptible and sometimes necessary for certain datasources. 
 

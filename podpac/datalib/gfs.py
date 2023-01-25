@@ -14,7 +14,7 @@ from podpac.core.data.rasterio_source import RasterioRaw
 from podpac.core.authentication import S3Mixin
 from podpac.coordinates import Coordinates
 from podpac.utils import cached_property, DiskCacheMixin
-from podpac.compositor import TileCompositor
+from podpac.compositors import TileCompositor
 
 BUCKET = "noaa-gfs-pds"
 

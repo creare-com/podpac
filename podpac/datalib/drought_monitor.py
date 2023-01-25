@@ -1,4 +1,4 @@
-from podpac.algorithm import Algorithm
+from podpac.algorithms import Algorithm
 from podpac.data import Zarr
 from podpac.style import Style
 from podpac.utils import NodeTrait

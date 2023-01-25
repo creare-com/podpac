@@ -657,13 +657,13 @@ class TestCaching(object):
 class TestSerialization(object):
     @classmethod
     def setup_class(cls):
-        a = podpac.algorithm.Arange()
+        a = podpac.algorithms.Arange()
         b = podpac.data.Array(source=[10, 20, 30], coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
-        c = podpac.compositor.OrderedCompositor(sources=[a, b])
+        c = podpac.compositors.OrderedCompositor(sources=[a, b])
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", "Insecure evaluation.*")
-            cls.node = podpac.algorithm.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
+            cls.node = podpac.algorithms.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
 
     def test_base_ref(self):
         node = Node()
@@ -750,16 +750,16 @@ class TestSerialization(object):
 
         assert node is not self.node
         assert node == self.node
-        assert isinstance(node, podpac.algorithm.Arithmetic)
-        assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
+        assert isinstance(node, podpac.algorithms.Arithmetic)
+        assert isinstance(node.inputs["A"], podpac.algorithms.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
-        assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
+        assert isinstance(node.inputs["C"], podpac.compositors.OrderedCompositor)
 
     def test_definition_duplicate_base_ref(self):
         n1 = Node(units="m")
         n2 = Node(units="ft")
         n3 = Node(units="in")
-        node = podpac.compositor.OrderedCompositor(sources=[n1, n2, n3])
+        node = podpac.compositors.OrderedCompositor(sources=[n1, n2, n3])
         d = node.definition
         assert n1.base_ref == n2.base_ref == n3.base_ref
         assert len(d) == 5
@@ -770,7 +770,7 @@ class TestSerialization(object):
         class MyNodeWithArrayInput(Node):
             my_array = ArrayTrait().tag(attr=True)
 
-        node1 = MyNodeWithArrayInput(my_array=[podpac.algorithm.Arange()])
+        node1 = MyNodeWithArrayInput(my_array=[podpac.algorithms.Arange()])
         node2 = Node.from_definition(node1.definition)
         assert node2 is not node1 and node2 == node1
 
@@ -780,7 +780,7 @@ class TestSerialization(object):
         class MyNodeWithDictInput(Node):
             my_dict = tl.Dict().tag(attr=True)
 
-        node1 = MyNodeWithDictInput(my_dict={"a": podpac.algorithm.Arange()})
+        node1 = MyNodeWithDictInput(my_dict={"a": podpac.algorithms.Arange()})
         node2 = Node.from_definition(node1.definition)
         assert node2 is not node1 and node2 == node1
 
@@ -801,10 +801,10 @@ class TestSerialization(object):
             node = Node.from_json(s)
         assert node is not self.node
         assert node == self.node
-        assert isinstance(node, podpac.algorithm.Arithmetic)
-        assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
+        assert isinstance(node, podpac.algorithms.Arithmetic)
+        assert isinstance(node.inputs["A"], podpac.algorithms.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
-        assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
+        assert isinstance(node.inputs["C"], podpac.compositors.OrderedCompositor)
 
     def test_file(self):
         path = tempfile.mkdtemp(prefix="podpac-test-")
@@ -820,10 +820,10 @@ class TestSerialization(object):
 
         assert node is not self.node
         assert node == self.node
-        assert isinstance(node, podpac.algorithm.Arithmetic)
-        assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
+        assert isinstance(node, podpac.algorithms.Arithmetic)
+        assert isinstance(node.inputs["A"], podpac.algorithms.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
-        assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
+        assert isinstance(node.inputs["C"], podpac.compositors.OrderedCompositor)
 
     def test_json_pretty(self):
         node = Node()
@@ -936,12 +936,12 @@ class TestSerialization(object):
             r"&bbox=40,-71,41,70&time=2018-05-19&PARAMS={params}"
         )
 
-        params = ["{}", '{"a":{"node":"algorithm.Arange"}}', "{}", "{}"]
+        params = ["{}", '{"a":{"node":"algorithms.Arange"}}', "{}", "{}"]
 
         for service, layername in zip(["WMS", "WCS"], ["LAYERS", "COVERAGE"]):
             for layer, param in zip(
                 [
-                    "algorithm.SinCoords",
+                    "algorithms.SinCoords",
                     "%PARAMS%",
                     # urllib.urlencode({'a':'https://raw.githubusercontent.com/creare-com/podpac/develop/podpac/core/pipeline/test/test.json'})[2:],
                     # urllib.urlencode({'a':'s3://podpac-s3/test/test.json'})[2:]  # Tested locally, works fine. Hard to test with CI
@@ -955,7 +955,7 @@ class TestSerialization(object):
             r"https://mobility-devel.crearecomputing.com/geowatch?&SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&"
             r"LAYERS=Arange&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&HEIGHT=256&WIDTH=256"
             r"&CRS=EPSG%3A3857&BBOX=-20037508.342789244,10018754.171394618,-10018754.171394622,20037508.34278071&"
-            r'PARAMS={"plugin": "podpac.algorithm"}'
+            r'PARAMS={"plugin": "podpac.algorithms"}'
         )
         url1 = (
             r"https://mobility-devel.crearecomputing.com/geowatch?&SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&"
@@ -968,18 +968,18 @@ class TestSerialization(object):
 
     def test_from_name_params(self):
         # Normal
-        name = "algorithm.Arange"
+        name = "algorithms.Arange"
         node = Node.from_name_params(name)
 
         # Normal with params
-        name = "algorithm.CoordData"
+        name = "algorithms.CoordData"
         params = {"coord_name": "alt"}
         node = Node.from_name_params(name, params)
         assert node.coord_name == "alt"
 
         # Plugin style
         name = "CoordData"
-        params = {"plugin": "podpac.algorithm", "attrs": {"coord_name": "alt"}}
+        params = {"plugin": "podpac.algorithms", "attrs": {"coord_name": "alt"}}
         node = Node.from_name_params(name, params)
         assert node.coord_name == "alt"
 
@@ -1048,7 +1048,7 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.Min",
+                "node": "algorithms.Min",
                 "inputs": { "source": 10 }
             }
         }
@@ -1061,7 +1061,7 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.Min",
+                "node": "algorithms.Min",
                 "inputs": { "source": "nonexistent" }
             }
         }
@@ -1074,29 +1074,29 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "attrs": { "coord_name": "lat" }
             },
             "b": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "lookup_attrs": { "coord_name": "a.coord_name" }
             }
         }
         """
 
         node = Node.from_json(s)
-        assert isinstance(node, podpac.algorithm.CoordData)
+        assert isinstance(node, podpac.algorithms.CoordData)
         assert node.coord_name == "lat"
 
         # invalid type
         s = """
         {
             "a": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "attrs": { "coord_name": "lat" }
             },
             "b": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "lookup_attrs": { "coord_name": 10 }
             }
         }
@@ -1109,11 +1109,11 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "attrs": { "coord_name": "lat" }
             },
             "b": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "lookup_attrs": { "coord_name": "nonexistent.coord_name" }
             }
         }
@@ -1126,11 +1126,11 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "attrs": { "coord_name": "lat" }
             },
             "b": {
-                "node": "algorithm.CoordData",
+                "node": "algorithms.CoordData",
                 "lookup_attrs": { "coord_name": "a.nonexistent" }
             }
         }
@@ -1143,7 +1143,7 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.Arange",
+                "node": "algorithms.Arange",
                 "invalid_property": "value"
             }
         }
@@ -1187,15 +1187,15 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.Arange"
+                "node": "algorithms.Arange"
             },
             "mean": {
-                "node": "algorithm.Convolution",
+                "node": "algorithms.Convolution",
                 "lookup_attrs": {"source": "a"},
                 "attrs": {"kernel_type": "mean,3", "kernel_dims": ["lat", "lon"]}
             },
             "c": {
-                "node": "algorithm.Arithmetic",
+                "node": "algorithms.Arithmetic",
                 "lookup_attrs": {"A": "a", "B": "mean"},
                 "attrs": {"eqn": "a-b"}
             }
@@ -1219,7 +1219,7 @@ class TestUserDefinition(object):
         s = """
         {
             "a": {
-                "node": "algorithm.Arange"
+                "node": "algorithms.Arange"
             },
             "podpac_version": "other"
         }
@@ -1232,7 +1232,7 @@ class TestUserDefinition(object):
         not_ordered_json = """
         {
             "Arithmetic": {
-                "node": "core.algorithm.generic.Arithmetic",
+                "node": "core.algorithms.generic.Arithmetic",
                 "attrs": {
                     "eqn": "a+b",
                     "params": {
@@ -1245,7 +1245,7 @@ class TestUserDefinition(object):
                 }
             },
             "SinCoords": {
-                "node": "core.algorithm.utility.SinCoords",
+                "node": "core.algorithms.utility.SinCoords",
                 "style": {
                     "colormap": "jet",
                     "clim": [
@@ -1255,7 +1255,7 @@ class TestUserDefinition(object):
                 }
             },
             "Arange": {
-                "node": "core.algorithm.utility.Arange"
+                "node": "core.algorithms.utility.Arange"
             },
             "podpac_version": "3.2.0"
         }
@@ -1263,7 +1263,7 @@ class TestUserDefinition(object):
         not_ordered_json_2 = """
         {
             "SinCoords": {
-                "node": "core.algorithm.utility.SinCoords",
+                "node": "core.algorithms.utility.SinCoords",
                 "style": {
                     "colormap": "jet",
                     "clim": [
@@ -1273,7 +1273,7 @@ class TestUserDefinition(object):
                 }
             },
             "Arithmetic": {
-                "node": "core.algorithm.generic.Arithmetic",
+                "node": "core.algorithms.generic.Arithmetic",
                 "attrs": {
                     "eqn": "a+b",
                     "params": {
@@ -1286,7 +1286,7 @@ class TestUserDefinition(object):
                 }
             },
             "Arange": {
-                "node": "core.algorithm.utility.Arange"
+                "node": "core.algorithms.utility.Arange"
             },
             "podpac_version": "3.2.0"
         }
@@ -1294,7 +1294,7 @@ class TestUserDefinition(object):
         ordered_json = """
         {
             "SinCoords": {
-                "node": "core.algorithm.utility.SinCoords",
+                "node": "core.algorithms.utility.SinCoords",
                 "style": {
                     "colormap": "jet",
                     "clim": [
@@ -1304,10 +1304,10 @@ class TestUserDefinition(object):
                 }
             },
             "Arange": {
-                "node": "core.algorithm.utility.Arange"
+                "node": "core.algorithms.utility.Arange"
             },
              "Arithmetic": {
-                "node": "core.algorithm.generic.Arithmetic",
+                "node": "core.algorithms.generic.Arithmetic",
                 "attrs": {
                     "eqn": "a+b",
                     "params": {
@@ -1333,10 +1333,10 @@ class TestUserDefinition(object):
         incomplete_json = """
         {
             "Arange": {
-                "node": "core.algorithm.utility.Arange"
+                "node": "core.algorithms.utility.Arange"
             },
              "Arithmetic": {
-                "node": "core.algorithm.generic.Arithmetic",
+                "node": "core.algorithms.generic.Arithmetic",
                 "attrs": {
                     "eqn": "a+b",
                     "params": {
@@ -1358,7 +1358,7 @@ class TestUserDefinition(object):
         included_json = """
         {
             "Arithmetic": {
-                "node": "core.algorithm.generic.Arithmetic",
+                "node": "core.algorithms.generic.Arithmetic",
                 "attrs": {
                     "eqn": "a+b",
                     "params": {
@@ -1371,7 +1371,7 @@ class TestUserDefinition(object):
                 }
             },
             "SinCoords": {
-                "node": "core.algorithm.utility.SinCoords",
+                "node": "core.algorithms.utility.SinCoords",
                 "style": {
                     "colormap": "jet",
                     "clim": [
@@ -1381,7 +1381,7 @@ class TestUserDefinition(object):
                 }
             },
             "Arange": {
-                "node": "core.algorithm.utility.Arange"
+                "node": "core.algorithms.utility.Arange"
             },
             "podpac_version": "3.2.0",
             "podpac_output_node": "Arithmetic"
@@ -1390,7 +1390,7 @@ class TestUserDefinition(object):
         ordered_json = """
         {
             "SinCoords": {
-                "node": "core.algorithm.utility.SinCoords",
+                "node": "core.algorithms.utility.SinCoords",
                 "style": {
                     "colormap": "jet",
                     "clim": [
@@ -1400,10 +1400,10 @@ class TestUserDefinition(object):
                 }
             },
             "Arange": {
-                "node": "core.algorithm.utility.Arange"
+                "node": "core.algorithms.utility.Arange"
             },
              "Arithmetic": {
-                "node": "core.algorithm.generic.Arithmetic",
+                "node": "core.algorithms.generic.Arithmetic",
                 "attrs": {
                     "eqn": "a+b",
                     "params": {
@@ -1426,7 +1426,7 @@ class TestUserDefinition(object):
         wrong_name_json = """
         {
             "SinCoords": {
-                "node": "core.algorithm.utility.SinCoords",
+                "node": "core.algorithms.utility.SinCoords",
                 "style": {
                     "colormap": "jet",
                     "clim": [
@@ -1436,10 +1436,10 @@ class TestUserDefinition(object):
                 }
             },
             "Arange": {
-                "node": "core.algorithm.utility.Arange"
+                "node": "core.algorithms.utility.Arange"
             },
              "Arithmetic": {
-                "node": "core.algorithm.generic.Arithmetic",
+                "node": "core.algorithms.generic.Arithmetic",
                 "attrs": {
                     "eqn": "a+b",
                     "params": {

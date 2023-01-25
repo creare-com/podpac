@@ -98,7 +98,7 @@ nodeA = podpac.data.Rasterio(source="elevation.tif", interpolation="cubic")
 nodeB = podpac.datalib.TerrainTiles(tile_format='geotiff', zoom=8) 
 
 # average the two data sources together point-wise
-alg_node = podpac.algorithm.Arithmetic(A=nodeA, B=nodeB, eqn='(A + B) / 2')
+alg_node = podpac.algorithms.Arithmetic(A=nodeA, B=nodeB, eqn='(A + B) / 2')
 ```
 
 Evaluate pipelines at arbitrary PODPAC coordinates.
@@ -142,7 +142,7 @@ settings["AWS_ACCESS_KEY_ID"] = "access key id"
 settings["AWS_SECRET_ACCESS_KEY"] = "secrect access key"
 
 # create example data source node and AWS node
-node = podpac.algorithm.SinCoords()
+node = podpac.algorithms.SinCoords()
 aws_node = podpac.managers.aws.Lambda(source=node)
 
 # build AWS cloud resources to run analysis

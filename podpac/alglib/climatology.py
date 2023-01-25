@@ -15,7 +15,7 @@ h5py = lazy_module("h5py")
 
 # Internal dependencies
 import podpac
-from podpac.core.algorithm.stats import DayOfYearWindow
+from podpac.core.algorithms.stats import DayOfYearWindow
 
 # Set up logging
 _log = logging.getLogger(__name__)

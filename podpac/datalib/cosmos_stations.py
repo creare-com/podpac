@@ -23,7 +23,7 @@ bs4 = lazy_module("bs4")
 import podpac
 from podpac.core.utils import _get_from_url, cached_property
 from podpac.data import DataSource
-from podpac.compositor import TileCompositorRaw
+from podpac.compositors import TileCompositorRaw
 from podpac.interpolators import InterpolationMixin
 
 _logger = logging.getLogger(__name__)

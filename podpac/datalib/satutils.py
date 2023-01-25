@@ -19,7 +19,7 @@ satsearch = lazy_module("satsearch")
 
 # Internal dependencies
 import podpac
-from podpac.compositor import TileCompositor
+from podpac.compositors import TileCompositor
 from podpac.core.data.rasterio_source import RasterioRaw
 from podpac.core.units import UnitsDataArray
 from podpac.authentication import S3Mixin
@@ -79,7 +79,7 @@ class SatUtils(S3Mixin, TileCompositor):
     PODPAC DataSource node to access the data using sat-utils developed by Development Seed
     See https://github.com/sat-utils
 
-    See :class:`podpac.compositor.OrderedCompositor` for more information.
+    See :class:`podpac.compositors.OrderedCompositor` for more information.
 
     Parameters
     ----------

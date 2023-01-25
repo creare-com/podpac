@@ -119,7 +119,7 @@ Split/Apply/Combine nodes with algorithms
     :toctree: api/
     :template: class.rst
 
-    podpac.algorithm.Algorithm
+    podpac.algorithms.Algorithm
 
 .. rubric:: General Purpose
 
@@ -127,10 +127,10 @@ Split/Apply/Combine nodes with algorithms
     :toctree: api/
     :template: class.rst
 
-    podpac.algorithm.Arithmetic
-    podpac.algorithm.SinCoords
-    podpac.algorithm.Arange
-    podpac.algorithm.CoordData
+    podpac.algorithms.Arithmetic
+    podpac.algorithms.SinCoords
+    podpac.algorithms.Arange
+    podpac.algorithms.CoordData
 
 .. rubric:: Statistical Methods
 
@@ -138,18 +138,18 @@ Split/Apply/Combine nodes with algorithms
     :toctree: api/
     :template: class.rst
 
-    podpac.algorithm.Min
-    podpac.algorithm.Max
-    podpac.algorithm.Sum
-    podpac.algorithm.Count
-    podpac.algorithm.Mean
-    podpac.algorithm.Median
-    podpac.algorithm.Variance
-    podpac.algorithm.StandardDeviation
-    podpac.algorithm.Skew
-    podpac.algorithm.Kurtosis
-    podpac.algorithm.DayOfYear
-    podpac.algorithm.GroupReduce
+    podpac.algorithms.Min
+    podpac.algorithms.Max
+    podpac.algorithms.Sum
+    podpac.algorithms.Count
+    podpac.algorithms.Mean
+    podpac.algorithms.Median
+    podpac.algorithms.Variance
+    podpac.algorithms.StandardDeviation
+    podpac.algorithms.Skew
+    podpac.algorithms.Kurtosis
+    podpac.algorithms.DayOfYear
+    podpac.algorithms.GroupReduce
 
 .. rubric:: Coordinates Modification
 
@@ -157,8 +157,8 @@ Split/Apply/Combine nodes with algorithms
     :toctree: api/
     :template: class.rst
 
-    podpac.algorithm.ExpandCoordinates
-    podpac.algorithm.SelectCoordinates
+    podpac.algorithms.CoordinatesExpander
+    podpac.algorithms.CoordinatesSelector
 
 .. rubric:: Signal Processing
 
@@ -166,9 +166,9 @@ Split/Apply/Combine nodes with algorithms
     :toctree: api/
     :template: class.rst
 
-    podpac.algorithm.Convolution
-    podpac.algorithm.SpatialConvolution
-    podpac.algorithm.TimeConvolution
+    podpac.algorithms.Convolution
+    podpac.algorithms.SpatialConvolution
+    podpac.algorithms.TimeConvolution
 
 Compositor Nodes
 ----------------
@@ -179,9 +179,9 @@ Stitch multiple data sources together
     :toctree: api/
     :template: class.rst
 
-    podpac.compositor.OrderedCompositor
-    podpac.compositor.UniformTileCompositor
-    podpac.compositor.UniformTileMixin
+    podpac.compositors.OrderedCompositor
+    podpac.compositors.UniformTileCompositor
+    podpac.compositors.UniformTileMixin
 
 
 Datalib

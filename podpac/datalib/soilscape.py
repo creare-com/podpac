@@ -554,7 +554,7 @@ class SoilSCAPENode(podpac.core.data.dataset_source.DatasetRaw):
         return "soil_moist_20min_{site}_n{node}".format(site=self.site, node=self.node)
 
 
-class SoilSCAPE20minRaw(podpac.compositor.TileCompositorRaw):
+class SoilSCAPE20minRaw(podpac.compositors.TileCompositorRaw):
     """Raw SoilSCAPE 20min soil moisture data for an entire site.
 
     Data is loaded from the THREDDS https fileserver.

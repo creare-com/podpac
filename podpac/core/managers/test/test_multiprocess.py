@@ -4,7 +4,7 @@ import pytest
 from multiprocessing import Queue
 
 from podpac.core.coordinates import Coordinates
-from podpac.core.algorithm.utility import Arange
+from podpac.core.algorithms.utility import Arange
 from podpac.core.managers.multi_process import Process, _f
 
 

@@ -26,7 +26,7 @@ h5py = lazy_module("h5py")
 
 # Internal dependencies
 from podpac import Coordinates, Node
-from podpac.compositor import OrderedCompositor
+from podpac.compositors import OrderedCompositor
 from podpac.data import DataSource
 from podpac.interpolators import InterpolationMixin
 from podpac import authentication
