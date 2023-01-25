@@ -157,8 +157,8 @@ Split/Apply/Combine nodes with algorithms
     :toctree: api/
     :template: class.rst
 
-    podpac.algorithms.ExpandCoordinates
-    podpac.algorithms.SelectCoordinates
+    podpac.algorithms.CoordinatesExpander
+    podpac.algorithms.CoordinatesSelector
 
 .. rubric:: Signal Processing
 

@@ -8,7 +8,7 @@ import podpac
 from podpac.core.data.datasource import DataSource
 from podpac.core.data.array_source import Array
 from podpac.core.algorithms.utility import Arange
-from podpac.core.algorithms.coord_select import ExpandCoordinates, SelectCoordinates, YearSubstituteCoordinates
+from podpac.core.algorithms.coord_select import CoordinatesExpander, CoordinatesSelector, YearSubstituteCoordinates
 
 
 def setup_module(module):
@@ -34,68 +34,68 @@ class MyDataSource(DataSource):
 
 
 # TODO add assertions to tests
-class TestExpandCoordinates(object):
+class TestCoordinatesExpander(object):
     def test_no_expansion(self):
-        node = ExpandCoordinates(source=Arange())
+        node = CoordinatesExpander(source=Arange())
         o = node.eval(COORDS)
 
     def test_time_expansion(self):
-        node = ExpandCoordinates(source=Arange(), time=("-5,D", "0,D", "1,D"))
+        node = CoordinatesExpander(source=Arange(), time=("-5,D", "0,D", "1,D"))
         o = node.eval(COORDS)
 
     def test_spatial_expansion(self):
-        node = ExpandCoordinates(source=Arange(), lat=(-1, 1, 0.1))
+        node = CoordinatesExpander(source=Arange(), lat=(-1, 1, 0.1))
         o = node.eval(COORDS)
 
     def test_time_expansion_implicit_coordinates(self):
-        node = ExpandCoordinates(source=MyDataSource(), time=("-15,D", "0,D"))
+        node = CoordinatesExpander(source=MyDataSource(), time=("-15,D", "0,D"))
         o = node.eval(COORDS)
 
-        node = ExpandCoordinates(source=MyDataSource(), time=("-15,Y", "0,D", "1,Y"))
+        node = CoordinatesExpander(source=MyDataSource(), time=("-15,Y", "0,D", "1,Y"))
         o = node.eval(COORDS)
 
-        node = ExpandCoordinates(source=MyDataSource(), time=("-5,M", "0,D", "1,M"))
+        node = CoordinatesExpander(source=MyDataSource(), time=("-5,M", "0,D", "1,M"))
         o = node.eval(COORDS)
 
         # Behaviour a little strange on these?
-        node = ExpandCoordinates(source=MyDataSource(), time=("-15,Y", "0,D", "4,Y"))
+        node = CoordinatesExpander(source=MyDataSource(), time=("-15,Y", "0,D", "4,Y"))
         o = node.eval(COORDS)
 
-        node = ExpandCoordinates(source=MyDataSource(), time=("-15,Y", "0,D", "13,M"))
+        node = CoordinatesExpander(source=MyDataSource(), time=("-15,Y", "0,D", "13,M"))
         o = node.eval(COORDS)
 
-        node = ExpandCoordinates(source=MyDataSource(), time=("-144,M", "0,D", "13,M"))
+        node = CoordinatesExpander(source=MyDataSource(), time=("-144,M", "0,D", "13,M"))
         o = node.eval(COORDS)
 
     def test_spatial_expansion_ultiple_outputs(self):
         multi = Array(source=np.random.random(COORDS.shape + (2,)), coordinates=COORDS, outputs=["a", "b"])
-        node = ExpandCoordinates(source=multi, lat=(-1, 1, 0.1))
+        node = CoordinatesExpander(source=multi, lat=(-1, 1, 0.1))
         o = node.eval(COORDS)
 
 
-class TestSelectCoordinates(object):
+class TestCoordinatesSelector(object):
     def test_no_expansion(self):
-        node = SelectCoordinates(source=Arange())
+        node = CoordinatesSelector(source=Arange())
         o = node.eval(COORDS)
 
     def test_time_selection(self):
-        node = SelectCoordinates(source=Arange(), time=("2017-08-01", "2017-09-30", "1,D"))
+        node = CoordinatesSelector(source=Arange(), time=("2017-08-01", "2017-09-30", "1,D"))
         o = node.eval(COORDS)
 
     def test_spatial_selection(self):
-        node = SelectCoordinates(source=Arange(), lat=(46, 56, 1))
+        node = CoordinatesSelector(source=Arange(), lat=(46, 56, 1))
         o = node.eval(COORDS)
 
     def test_time_selection_implicit_coordinates(self):
-        node = SelectCoordinates(source=MyDataSource(), time=("2011-01-01", "2011-02-01"))
+        node = CoordinatesSelector(source=MyDataSource(), time=("2011-01-01", "2011-02-01"))
         o = node.eval(COORDS)
 
-        node = SelectCoordinates(source=MyDataSource(), time=("2011-01-01", "2017-01-01", "1,Y"))
+        node = CoordinatesSelector(source=MyDataSource(), time=("2011-01-01", "2017-01-01", "1,Y"))
         o = node.eval(COORDS)
 
     def test_spatial_selection_multiple_outputs(self):
         multi = Array(source=np.random.random(COORDS.shape + (2,)), coordinates=COORDS, outputs=["a", "b"])
-        node = SelectCoordinates(source=multi, lat=(46, 56, 1))
+        node = CoordinatesSelector(source=multi, lat=(46, 56, 1))
         o = node.eval(COORDS)
 
 

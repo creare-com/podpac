@@ -24,8 +24,8 @@ from podpac.core.algorithms.stats import (
     ResampleReduce,
 )
 from podpac.core.algorithms.coord_select import (
-    ExpandCoordinates,
-    SelectCoordinates,
+    CoordinatesExpander,
+    CoordinatesSelector,
     YearSubstituteCoordinates,
     TransformTimeUnits,
 )

@@ -99,7 +99,7 @@ class ModifyCoordinates(UnaryAlgorithm):
         return output
 
 
-class ExpandCoordinates(ModifyCoordinates):
+class CoordinatesExpander(ModifyCoordinates):
     """Evaluate a source node with expanded coordinates.
 
     This is normally used in conjunction with a reduce operation
@@ -185,7 +185,7 @@ class ExpandCoordinates(ModifyCoordinates):
         return ArrayCoordinates1d(np.concatenate([c.coordinates for c in cs]), **coords1d.properties)
 
 
-class SelectCoordinates(ModifyCoordinates):
+class CoordinatesSelector(ModifyCoordinates):
     """Evaluate a source node with select coordinates.
 
     While this is simple to do when
@@ -234,7 +234,7 @@ class SelectCoordinates(ModifyCoordinates):
             available_coordinates = self.coordinates_source.find_coordinates()
             if len(available_coordinates) != 1:
                 raise ValueError(
-                    "SelectCoordinates Node cannot determine the step size between bounds for dimension"
+                    "CoordinatesSelector Node cannot determine the step size between bounds for dimension"
                     + "{} because source node (source.find_coordinates()) has {} different coordinates.".format(
                         dim, len(available_coordinates)
                     )
