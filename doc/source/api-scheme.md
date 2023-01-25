@@ -16,7 +16,7 @@ All Coordinates names must be:
 Where a "Core Directory" is located inside podpac/core/*
 All directory names must be:
 1. Nouns
-2. Pluarl
+2. Plural
 
 ### Package Rules:
 
@@ -24,6 +24,6 @@ Where a "Package" is loaded by podpac.*
 
 All package names must be:
 1. Nouns
-2. Pluarl
+2. Plural
 *AND*
 3. All packages must match their corresponding `podpac.core.*` directory name.
