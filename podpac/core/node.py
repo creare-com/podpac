@@ -206,8 +206,8 @@ class Node(tl.HasTraits):
                         self.set_trait(name, tkwargs.pop(name))
                     trait.read_only = True
 
-            # Call traitlets constructor
-            super(Node, self).__init__(**tkwargs)
+        # Call traitlets constructor
+        super(Node, self).__init__(**tkwargs)
 
         self._traits_initialized_guard = True
 
@@ -862,12 +862,12 @@ class Node(tl.HasTraits):
         # look for podpac_output_node attribute
         if output_node is None:
             return list(nodes.values())[-1]
-        
 
         if output_node not in nodes:
-                raise ValueError(
-                    "Invalid definition for value 'podpac_output_node': reference to nonexistent node '%s' in lookup_attrs" % (output_node)
-                )
+            raise ValueError(
+                "Invalid definition for value 'podpac_output_node': reference to nonexistent node '%s' in lookup_attrs"
+                % (output_node)
+            )
         return nodes[output_node]
 
     @classmethod
@@ -1165,21 +1165,22 @@ class Node(tl.HasTraits):
         spec.update(getattr(cls, "_ui_spec", {}))
         return spec
 
+
 def _lookup_input(nodes, name, value, definition):
-    '''check if inputs of a node are stored in nodes, if not add them
+    """check if inputs of a node are stored in nodes, if not add them
 
     Parameters
     -----------
     nodes: OrderedDict
         Keys: Node names (strings)
         Values: Node objects
-    
+
     name: string
         the Node whose inputs are being checked
-    
+
     value: string, list, dictionary:
-        the Node (or collection of Nodes) which is being looked 
-    
+        the Node (or collection of Nodes) which is being looked
+
     definition: pipeline definition
 
     Returns
@@ -1188,7 +1189,7 @@ def _lookup_input(nodes, name, value, definition):
 
     Note: this function calles _process_kwargs, which alters nodes by loading a Node if it is not yet in nodes.
 
-    '''
+    """
     # containers
     if isinstance(value, list):
         return [_lookup_input(nodes, name, elem, definition) for elem in value]
@@ -1208,7 +1209,7 @@ def _lookup_input(nodes, name, value, definition):
         for found_name, d in definition.items():
             if value != found_name:
                 continue
-            # Load the node into nodes  
+            # Load the node into nodes
             _process_kwargs(found_name, d, definition, nodes)
 
             break
@@ -1224,6 +1225,7 @@ def _lookup_input(nodes, name, value, definition):
         node = deepcopy(node)
 
     return node
+
 
 def _lookup_attr(nodes, name, value):
     # containers
@@ -1264,19 +1266,19 @@ def _lookup_attr(nodes, name, value):
 
 
 def _process_kwargs(name, d, definition, nodes):
-    '''create a node and add it to nodes
+    """create a node and add it to nodes
 
     Parameters
     -----------
     nodes: OrderedDict
         Keys: Node names (strings)
         Values: Node objects
-    
+
     name: string
         the Node which will be created
-    
+
     d: the definition of the node to be created
-    
+
     definition: pipeline definition
 
     Returns
@@ -1284,8 +1286,8 @@ def _process_kwargs(name, d, definition, nodes):
     Nothing, but loads the node with name "name" and definition "d" into nodes
 
 
-    '''
-     # get node class
+    """
+    # get node class
     module_root = d.get("plugin", "podpac")
     node_string = "%s.%s" % (module_root, d["node"])
     module_name, node_name = node_string.rsplit(".", 1)
@@ -1297,8 +1299,7 @@ def _process_kwargs(name, d, definition, nodes):
         node_class = getattr(module, node_name)
     except AttributeError:
         raise ValueError(
-            "Invalid definition for node '%s': class '%s' not found in module '%s'"
-            % (name, node_name, module_name)
+            "Invalid definition for node '%s': class '%s' not found in module '%s'" % (name, node_name, module_name)
         )
 
     kwargs = {}
@@ -1306,7 +1307,7 @@ def _process_kwargs(name, d, definition, nodes):
         kwargs[k] = v
 
     for k, v in d.get("inputs", {}).items():
-        kwargs[k]= _lookup_input(nodes, name, v, definition)
+        kwargs[k] = _lookup_input(nodes, name, v, definition)
 
     for k, v in d.get("lookup_attrs", {}).items():
         kwargs[k] = _lookup_attr(nodes, name, v)
@@ -1340,7 +1341,7 @@ def _process_kwargs(name, d, definition, nodes):
             raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
 
     nodes[name] = node_class(**kwargs)
-    
+
 
 # --------------------------------------------------------#
 #  Mixins
