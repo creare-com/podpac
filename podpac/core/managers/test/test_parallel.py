@@ -11,7 +11,7 @@ import pytest
 
 from podpac import settings
 from podpac.core.coordinates import Coordinates
-from podpac.core.algorithm.utility import CoordData
+from podpac.core.algorithms.utility import CoordData
 from podpac.core.managers.parallel import Parallel, ParallelOutputZarr, ParallelAsync, ParallelAsyncOutputZarr
 from podpac.core.managers.multi_process import Process
 

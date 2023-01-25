@@ -7,8 +7,8 @@ import numpy as np
 import podpac
 from podpac.core.data.datasource import DataSource
 from podpac.core.data.array_source import Array
-from podpac.core.algorithm.utility import Arange
-from podpac.core.algorithm.coord_select import ExpandCoordinates, SelectCoordinates, YearSubstituteCoordinates
+from podpac.core.algorithms.utility import Arange
+from podpac.core.algorithms.coord_select import ExpandCoordinates, SelectCoordinates, YearSubstituteCoordinates
 
 
 def setup_module(module):

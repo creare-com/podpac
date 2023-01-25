@@ -10,7 +10,7 @@ import traitlets as tl
 
 # Internal dependencies
 from podpac.core.coordinates import Coordinates
-from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.algorithms.algorithm import Algorithm
 from podpac.core.style import Style
 
 

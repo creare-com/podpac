@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 
 import podpac
-from podpac.core.algorithm.utility import Arange, CoordData, SinCoords
+from podpac.core.algorithms.utility import Arange, CoordData, SinCoords
 
 
 class TestArange(object):

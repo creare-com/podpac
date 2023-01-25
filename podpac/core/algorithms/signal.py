@@ -14,7 +14,7 @@ from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.coordinates import add_coord
 from podpac.core.node import Node
-from podpac.core.algorithm.algorithm import UnaryAlgorithm
+from podpac.core.algorithms.algorithm import UnaryAlgorithm
 from podpac.core.utils import common_doc, ArrayTrait, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC
 

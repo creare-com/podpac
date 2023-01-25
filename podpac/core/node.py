@@ -1143,9 +1143,9 @@ class Node(tl.HasTraits):
         dig into this and create node specific styling. This will have to be done under each
         node. But may be difficult to add style to each node?
 
-        Example: podpac.core.algorithm.utility.SinCoords.Style ----> returns a tl.Instance
+        Example: podpac.core.algorithmsutility.SinCoords.Style ----> returns a tl.Instance
         BUT if I do:
-        podpac.core.algorithm.utility.SinCoords().style.json ---> outputs style
+        podpac.core.algorithmsutility.SinCoords().style.json ---> outputs style
 
         ERROR if no parenthesis are given. So how can this be done without instantiating the class?
 

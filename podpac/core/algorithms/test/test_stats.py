@@ -7,13 +7,13 @@ import scipy.stats
 import traitlets as tl
 
 import podpac
-from podpac.core.algorithm.utility import Arange
+from podpac.core.algorithms.utility import Arange
 from podpac.core.data.array_source import Array
-from podpac.core.algorithm.stats import Reduce
-from podpac.core.algorithm.stats import Min, Max, Sum, Count, Mean, Variance, Skew, Kurtosis, StandardDeviation
-from podpac.core.algorithm.generic import Arithmetic
-from podpac.core.algorithm.stats import Median, Percentile
-from podpac.core.algorithm.stats import GroupReduce, DayOfYear, DayOfYearWindow
+from podpac.core.algorithms.stats import Reduce
+from podpac.core.algorithms.stats import Min, Max, Sum, Count, Mean, Variance, Skew, Kurtosis, StandardDeviation
+from podpac.core.algorithms.generic import Arithmetic
+from podpac.core.algorithms.stats import Median, Percentile
+from podpac.core.algorithms.stats import GroupReduce, DayOfYear, DayOfYearWindow
 
 
 def setup_module():

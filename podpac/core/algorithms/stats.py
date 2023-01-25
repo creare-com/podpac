@@ -19,7 +19,7 @@ from six import string_types
 import podpac
 from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
-from podpac.core.algorithm.algorithm import UnaryAlgorithm, Algorithm
+from podpac.core.algorithms.algorithm import UnaryAlgorithm, Algorithm
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC
 

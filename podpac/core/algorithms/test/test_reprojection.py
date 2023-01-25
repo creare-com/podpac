@@ -9,7 +9,7 @@ import traitlets as tl
 import podpac
 from podpac import Coordinates, clinspace
 from podpac.data import Array
-from podpac.core.algorithm.reprojection import Reproject
+from podpac.core.algorithms.reprojection import Reproject
 
 
 class TestReprojection(object):

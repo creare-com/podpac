@@ -67,7 +67,7 @@ class TestTileCompositor(object):
         # error
         with podpac.settings:
             podpac.settings.set_unsafe_eval(True)
-            d = podpac.algorithm.Arithmetic(eqn="a+2", a=a)
+            d = podpac.algorithms.Arithmetic(eqn="a+2", a=a)
         node = TileCompositorRaw(sources=[a, b, c, d])
         with pytest.raises(ValueError, match="Cannot get composited source data"):
             node.get_source_data()

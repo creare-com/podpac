@@ -20,7 +20,7 @@ from podpac import settings
 from podpac import Coordinates
 from podpac.core.node import Node, NodeException
 from podpac.core.utils import NodeTrait
-from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.algorithms.algorithm import Algorithm
 
 if sys.version_info.major == 2:
 

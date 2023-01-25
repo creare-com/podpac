@@ -8,6 +8,11 @@ All node names must be:
 1. Nouns
 2. Singular
 
+### Implementation File Riles
+All implementation file names must be:
+1. Nouns
+2. Singular
+
 ### Coordinates Rules
 All Coordinates names must be:
 1. Nouns
@@ -17,6 +22,7 @@ Where a "Core Directory" is located inside podpac/core/*
 All directory names must be:
 1. Nouns
 2. Plural
+
 
 ### Package Rules:
 

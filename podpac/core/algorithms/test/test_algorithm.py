@@ -6,7 +6,7 @@ import numpy as np
 import xarray as xr
 
 import podpac
-from podpac.core.algorithm.algorithm import BaseAlgorithm, Algorithm, UnaryAlgorithm
+from podpac.core.algorithms.algorithm import BaseAlgorithm, Algorithm, UnaryAlgorithm
 
 
 class TestBaseAlgorithm(object):

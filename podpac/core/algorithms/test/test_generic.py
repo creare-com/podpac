@@ -8,11 +8,11 @@ import numpy as np
 import xarray as xr
 
 import podpac
-from podpac.core.algorithm.utility import Arange, SinCoords
-from podpac.core.algorithm.generic import GenericInputs, Arithmetic, Generic, Mask, Combine
+from podpac.core.algorithms.utility import Arange, SinCoords
+from podpac.core.algorithms.generic import GenericInputs, Arithmetic, Generic, Mask, Combine
 
 if sys.version_info.major == 2:
-    from podpac.core.algorithm.generic import PermissionError
+    from podpac.core.algorithms.generic import PermissionError
 
 
 class TestGenericInputs(object):
