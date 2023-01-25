@@ -3,7 +3,7 @@ import numpy as np
 
 import podpac
 from podpac.core.data.array_source import ArrayRaw
-from podpac.core.compositor.tile_compositor import TileCompositorRaw, TileCompositor
+from podpac.core.compositors.tile_compositor import TileCompositorRaw, TileCompositor
 
 
 class TestTileCompositor(object):

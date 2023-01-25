@@ -4,7 +4,7 @@ import pytest
 
 import podpac
 from podpac.core.data.array_source import Array
-from podpac.core.compositor.ordered_compositor import OrderedCompositor
+from podpac.core.compositors.ordered_compositor import OrderedCompositor
 
 COORDS = podpac.Coordinates(
     [podpac.clinspace(45, 0, 16), podpac.clinspace(-70, -65, 16), podpac.clinspace(0, 1, 2)],

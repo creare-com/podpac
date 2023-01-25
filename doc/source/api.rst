@@ -179,9 +179,9 @@ Stitch multiple data sources together
     :toctree: api/
     :template: class.rst
 
-    podpac.compositor.OrderedCompositor
-    podpac.compositor.UniformTileCompositor
-    podpac.compositor.UniformTileMixin
+    podpac.compositors.OrderedCompositor
+    podpac.compositors.UniformTileCompositor
+    podpac.compositors.UniformTileMixin
 
 
 Datalib

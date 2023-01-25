@@ -6,7 +6,7 @@ import traitlets as tl
 from podpac.core.node import NodeException
 from podpac.core.units import UnitsDataArray
 from podpac.core.utils import common_doc
-from podpac.core.compositor.compositor import COMMON_COMPOSITOR_DOC, BaseCompositor
+from podpac.core.compositors.compositor import COMMON_COMPOSITOR_DOC, BaseCompositor
 
 
 @common_doc(COMMON_COMPOSITOR_DOC)

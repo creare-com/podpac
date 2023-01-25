@@ -4,7 +4,7 @@ import numpy as np
 import podpac
 from podpac.core.data.datasource import DataSource
 from podpac.core.data.array_source import Array
-from podpac.core.compositor.compositor import BaseCompositor
+from podpac.core.compositors.compositor import BaseCompositor
 
 COORDS = podpac.Coordinates(
     [podpac.clinspace(45, 0, 16), podpac.clinspace(-70, -65, 16), podpac.clinspace(0, 1, 2)],

@@ -20,7 +20,7 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.interpolation.interpolation_manager import InterpolationException
 from podpac.core.interpolation.interpolation import Interpolate, InterpolationMixin
 from podpac.core.data.array_source import Array, ArrayRaw
-from podpac.core.compositor.tile_compositor import TileCompositorRaw
+from podpac.core.compositors.tile_compositor import TileCompositorRaw
 from podpac.core.interpolation.scipy_interpolator import ScipyGrid
 
 

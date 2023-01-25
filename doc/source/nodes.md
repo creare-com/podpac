@@ -241,7 +241,7 @@ Additional properties and examples for each of the core node types are provided 
 
  * The `node` path should include the submodule path and the node class. The submodule path is omitted for top-level classes. For example:
    - `"node": "datalib.smap.SMAP"` is equivalent to `from podpac.datalib.smap import SMAP`.
-   - `"node": "compositor.OrderedCompositor"` is equivalent to `from podpac.compositor import OrderedCompositor`.
+   - `"node": "compositor.OrderedCompositor"` is equivalent to `from podpac.compositorsimport OrderedCompositor`.
  * The `plugin` path replaces 'podpac' in the full node path. For example
    - `"plugin": "path.to.myplugin", "node": "mymodule.MyCustomNode"` is equivalent to `from path.to.myplugin.mymodule import MyCustomNode`.
    - `"plugin": "myplugin", "node": "MyCustomNode"` is equivalent to `from myplugin import MyCustomNode`
