@@ -2202,3 +2202,28 @@ class TestCoordinatesMethodSimplify(object):
 
         # unstacked uniform -> unstacked uniform
         assert c3.simplify() == c3
+
+    def test_resolution(self):
+        
+        lat = [0, 1, 2]
+        lon = [10, 40, 30]
+        time = ['2018-01-01', '2018-01-02']
+        alt = [10, 3, -10]
+        
+
+        # Test Unstacked Coords
+        c = Coordinates([lat, lon], dims=['lat','lon'])
+        print(c.horizontal_resolution())
+        
+        # Test Stacked Coords
+        c = Coordinates([[lat, lon]], dims=['lat_lon'])
+        print(c.horizontal_resolution())
+
+        '''
+        # Test Stacked/Unstacked Coords
+        c = Coordinates([[lat, lon], alt], dims=['lat_lon', 'alt'])
+        print(c.horizontal_resolution())
+        c = Coordinates([[lat, lon], time], dims=['lat_lon', 'time'])
+        print(c.horizontal_resolution())
+        '''
+        

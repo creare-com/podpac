@@ -19,6 +19,7 @@ import xarray.core.coordinates
 from six import string_types
 import pyproj
 import logging
+from scipy import spatial
 
 import podpac
 from podpac.core.settings import settings
@@ -1501,12 +1502,55 @@ class Coordinates(tl.HasTraits):
 
         return all(c.issubset(other) for c in self.values())
 
-    def is_stacked(self, dim):
-        if dim not in self.udims:
-            raise ValueError("Dimension {} is not in self.dims={}".format(dim, self.dims))
-        elif dim not in self.dims:
-            return True
-        return False
+    def is_stacked(self, dim): #re-wrote to be able to iterate through c.dims
+        match (dim in self.dims) + (dim in self.udims):
+            case 0: # both false
+                raise ValueError("Dimension {} is not in self.dims={}".format(dim, self.dims))
+            case 1: # one true, one false
+                return True
+            case 2: # both true
+                return False
+
+    def horizontal_resolution(self, units='m'):
+        
+        resolution_dict = OrderedDict()
+
+        # utility functions
+        def _get_shortest_distance(tree, query_point):
+            dd, ii = tree.query(query_point, k=2)
+            return dd[1]
+        
+        # BROKEN: doesn't work for stacked corods
+        def _get_unit_name(self, dim):
+            def _get_axis_index(self, dim):
+                for i in range(len(self.CRS.axis_info)):
+                    if self.CRS.axis_info[i].abbrev==dim:
+                        return i
+                return ValueError("Dimension {} not found in CRS.axis_info.".format(dim))
+            return self.CRS.axis_info[_get_axis_index(self, dim)].unit_name
+
+        # For each dimension
+        for dim in self.dims:
+            # if the dimension is stacked:
+            if self.is_stacked(dim):
+                # make KDTree
+                t = spatial.KDTree(self[dim].coordinates)
+                total_distance = 0
+                for point in self[dim].coordinates:
+                    total_distance += _get_shortest_distance(t, point)
+                resolution = total_distance / self[dim].size
+                # store resolution and units
+                resolution_dict[dim] = (resolution,  _get_unit_name(self, dim.split('_')[0]))
+            else:
+                resolution = (self.bounds[dim][1] - self.bounds[dim][0]) / self.get(dim).size
+                resolution_dict[dim] = (resolution,  _get_unit_name(self, dim))
+        
+        # TODO: Convert resolution to desired units
+
+
+        return resolution_dict
+
+
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods
