@@ -1520,14 +1520,16 @@ class Coordinates(tl.HasTraits):
     def horizontal_resolution(self):
         # dictionary:
         resolution_dict = OrderedDict()
+        ellipsoid_tuple = (self.CRS.ellipsoid.semi_major_metre/1000, self.CRS.ellipsoid.semi_minor_metre/1000, 1 / self.CRS.ellipsoid.inverse_flattening)
 
 
         '''Check if a dim::str is horizontal'''
         def check_horizontal(dim):
             for term in dim.split('_'):
-                if term == 'lat' or term == 'lon':
-                    return True
-            return False
+                if term != 'lat' or term != 'lon':
+                    return False
+            return True
+            
 
         '''Return resolution for stacked coordinates'''
         def stacked_resolution(dim):
@@ -1540,7 +1542,7 @@ class Coordinates(tl.HasTraits):
                     if point1.all() == point2.all():
                         continue
                     # calculate distance in meters
-                    distance = geodesic(point1, point2).m
+                    distance = geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m
                     # only add min distance
                     if distance < min_distance:
                         min_distance = distance
@@ -1554,7 +1556,7 @@ class Coordinates(tl.HasTraits):
         def unstacked_resolution(dim):
             top_bound = (self.bounds[dim][1], 0)
             bottom_bound = (self.bounds[dim][0], 0)
-            return ((geodesic(top_bound, bottom_bound).m)/ self[dim].size) * podpac.units('metre')
+            return ((geodesic(top_bound, bottom_bound, ellipsoid=ell_name).m)/ self[dim].size) * podpac.units('metre')
 
         for dim in self.dims:
             # Is the dim lat/lon?
