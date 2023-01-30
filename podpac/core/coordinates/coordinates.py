@@ -20,6 +20,8 @@ from six import string_types
 import pyproj
 import logging
 from scipy import spatial
+import math
+from geopy.distance import geodesic
 
 import podpac
 from podpac.core.settings import settings
@@ -1511,45 +1513,62 @@ class Coordinates(tl.HasTraits):
             case 2: # both true
                 return False
 
-    def horizontal_resolution(self, units='m'):
-        
+    '''
+    Calculate horizontal resolution of coordinate system.
+    Assumes horizontal coords are in degrees.
+    '''
+    def horizontal_resolution(self):
+        # dictionary:
         resolution_dict = OrderedDict()
 
-        # utility functions
-        def _get_shortest_distance(tree, query_point):
-            dd, ii = tree.query(query_point, k=2)
-            return dd[1]
-        
-        # BROKEN: doesn't work for stacked corods
-        def _get_unit_name(self, dim):
-            def _get_axis_index(self, dim):
-                for i in range(len(self.CRS.axis_info)):
-                    if self.CRS.axis_info[i].abbrev==dim:
-                        return i
-                return ValueError("Dimension {} not found in CRS.axis_info.".format(dim))
-            return self.CRS.axis_info[_get_axis_index(self, dim)].unit_name
 
-        # For each dimension
+        '''Check if a dim::str is horizontal'''
+        def check_horizontal(dim):
+            for term in dim.split('_'):
+                if term == 'lat' or term == 'lon':
+                    return True
+            return False
+
+        '''Return resolution for stacked coordinates'''
+        def stacked_resolution(dim):
+            sum = 0
+            # Brute Force implementatiom
+            for point1 in self[dim].coordinates:
+                min_distance = float('inf')
+                for point2 in self[dim].coordinates:
+                    # check if not current point
+                    if point1.all() == point2.all():
+                        continue
+                    # calculate distance in meters
+                    distance = geodesic(point1, point2).m
+                    # only add min distance
+                    if distance < min_distance:
+                        min_distance = distance
+                # add min_distance
+                if min_distance != float('inf'):
+                    sum += min_distance
+            # return sum / total_points
+            return (sum / self[dim].size) * podpac.units('metre')
+
+        '''Return resolution for unstacked coordiantes'''
+        def unstacked_resolution(dim):
+            top_bound = (self.bounds[dim][1], 0)
+            bottom_bound = (self.bounds[dim][0], 0)
+            return ((geodesic(top_bound, bottom_bound).m)/ self[dim].size) * podpac.units('metre')
+
         for dim in self.dims:
-            # if the dimension is stacked:
+            # Is the dim lat/lon?
+            if not check_horizontal(dim):
+                continue
+            # stacked coordinate resolutions
             if self.is_stacked(dim):
-                # make KDTree
-                t = spatial.KDTree(self[dim].coordinates)
-                total_distance = 0
-                for point in self[dim].coordinates:
-                    total_distance += _get_shortest_distance(t, point)
-                resolution = total_distance / self[dim].size
-                # store resolution and units
-                resolution_dict[dim] = (resolution,  _get_unit_name(self, dim.split('_')[0]))
-            else:
-                resolution = (self.bounds[dim][1] - self.bounds[dim][0]) / self.get(dim).size
-                resolution_dict[dim] = (resolution,  _get_unit_name(self, dim))
-        
-        # TODO: Convert resolution to desired units
-
-
+                print("{} is stacked!".format(dim))
+                resolution_dict[dim] = stacked_resolution(dim)
+            else: # unstacked resolution
+                resolution_dict[dim] = unstacked_resolution(dim)
+                print("{} is NOT stacked!".format(dim))
+            
         return resolution_dict
-
 
 
     # ------------------------------------------------------------------------------------------------------------------
