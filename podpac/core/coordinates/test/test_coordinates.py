@@ -8,6 +8,7 @@ import numpy as np
 from numpy.testing import assert_equal, assert_array_equal
 import xarray as xr
 import pyproj
+from collections import OrderedDict
 
 import podpac
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -2206,29 +2207,32 @@ class TestCoordinatesMethodSimplify(object):
 
 class TestResolutions(object):
     def test_resolution(self):
-        
-        lat = [0, 1, 2]
-        lon = [10, 40, 30]
-        time = ['2018-01-01', '2018-01-02']
-        alt = [10, 3, -10]
-        
 
-        # Test Unstacked Coords
-        c = Coordinates([lat, lon], dims=['lat','lon'])
-        print(c.horizontal_resolution())
         
-        # Test Stacked Coords
-        c = Coordinates([[lat, lon]], dims=['lat_lon'])
-        print(c.horizontal_resolution())
-
-     
-        # Test Stacked/Unstacked Coords
-        c = Coordinates([[lat, lon], alt], dims=['lat_lon', 'alt'])
-        print(c.horizontal_resolution())
-        c = Coordinates([[lat, lon], time], dims=['lat_lon', 'time'])
-        print(c.horizontal_resolution())
-        c = Coordinates([time,[lat, lon]], dims=['time', 'lat_lon'])
-        print(c.horizontal_resolution())
-
+        
+        '''Unstacked Coordinates'''
+        # Intl Ellipsis
+        c = podpac.Coordinates([podpac.clinspace(0, 90, 11, 'lat'), podpac.clinspace(0, 90, 20, 'lon')], crs='+proj=latlon +zone=9 +north +ellps=intl +no_defs')
+        assert (c.horizontal_resolution() == OrderedDict([('lat', 909298.936271768*podpac.units('m')), ('lon', 500114.41494947235*podpac.units('m'))]))
+        # WGS84 Ellipsis
+        c = podpac.Coordinates([podpac.clinspace(0, 90, 11, 'lat'), podpac.clinspace(0, 90, 20, 'lon')], crs='+proj=latlon +zone=9 +north +ellps=WGS84 +no_defs')
+        assert (c.horizontal_resolution() == OrderedDict([('lat', 909269.611755702*podpac.units('m')), ('lon', 500098.2864656361*podpac.units('m'))]))
          
-        
+        '''Stacked Coordinates'''
+        lat = [0, 1, 2, 3, 4, 5, 6]
+        lon = [10, 20, 30, 50, 60, 80, 100]
+        c = Coordinates([[lat, lon]], dims=['lat_lon'], crs='+proj=latlon +zone=9 +north +ellps=WGS84 +no_defs')
+        assert (c.horizontal_resolution() == OrderedDict([('lat_lon', 4619360.82436145*podpac.units('m'))]))
+
+        '''Stacked and Unstacked Coordinates'''
+        time = ['2018-01-01', '2018-01-02']
+        c_time = Coordinates([[lat, lon], time], dims=[['lat_lon'], 'time'], crs='+proj=latlon +zone=9 +north +ellps=WGS84 +no_defs')
+        assert (c.horizontal_resolution() == c_time.horizontal_resolution())
+
+        '''Kilometer Units'''
+        assert(c.horizontal_resolution("km") == OrderedDict([('lat_lon', 4619.36082436145*podpac.units("km"))]))
+
+        '''Invalid Arguments'''
+        # Invalid Units
+        with pytest.raises(ValueError):
+            c.horizontal_resolution(units="degree")
