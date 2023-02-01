@@ -1515,22 +1515,29 @@ class Coordinates(tl.HasTraits):
 
     '''
     Calculate horizontal resolution of coordinate system.
-    Assumes horizontal coords are in degrees.
-    '''
-    def horizontal_resolution(self):
-        # dictionary:
-        resolution_dict = OrderedDict()
-        ellipsoid_tuple = (self.CRS.ellipsoid.semi_major_metre/1000, self.CRS.ellipsoid.semi_minor_metre/1000, 1 / self.CRS.ellipsoid.inverse_flattening)
+    Assumes horizontal coords are in degrees.'''
+    def horizontal_resolution(self, units = 'm'):
+        
+        '''---------------------------------------------------------------------'''
+        ''' Utility Functions '''
+
+        '''Return distance of 2 points in desired unit measurement'''
+        def calculate_distance(point1, point2):
+            if units in ['m', "metre", "meter"]:
+                return geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m
+            elif units in ['km', "kilometre", "kilometer"]:
+                return geodesic(point1, point2, ellipsoid=ellipsoid_tuple).km
+            else:
+                return geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m
 
 
         '''Check if a dim::str is horizontal'''
         def check_horizontal(dim):
             for term in dim.split('_'):
-                if term != 'lat' or term != 'lon':
-                    return False
-            return True
+                if term == 'lat' or term == 'lon':
+                    return True
+            return False
             
-
         '''Return resolution for stacked coordinates'''
         def stacked_resolution(dim):
             sum = 0
@@ -1542,7 +1549,7 @@ class Coordinates(tl.HasTraits):
                     if point1.all() == point2.all():
                         continue
                     # calculate distance in meters
-                    distance = geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m
+                    distance = calculate_distance(point1, point2)
                     # only add min distance
                     if distance < min_distance:
                         min_distance = distance
@@ -1550,25 +1557,43 @@ class Coordinates(tl.HasTraits):
                 if min_distance != float('inf'):
                     sum += min_distance
             # return sum / total_points
-            return (sum / self[dim].size) * podpac.units('metre')
+            return (sum / self[dim].size) * podpac.units(units)
 
         '''Return resolution for unstacked coordiantes'''
         def unstacked_resolution(dim):
             top_bound = (self.bounds[dim][1], 0)
             bottom_bound = (self.bounds[dim][0], 0)
-            return ((geodesic(top_bound, bottom_bound, ellipsoid=ell_name).m)/ self[dim].size) * podpac.units('metre')
+            return (calculate_distance(top_bound, bottom_bound)/ self[dim].size) * podpac.units(units)
 
+        '''---------------------------------------------------------------------'''
+        ''' Function Code '''
+        # dictionary:
+        resolution_dict = OrderedDict()
+        ellipsoid_tuple = (self.CRS.ellipsoid.semi_major_metre/1000, self.CRS.ellipsoid.semi_minor_metre/1000, 1 / self.CRS.ellipsoid.inverse_flattening)
+
+        units = units.replace('s', '')
+        if units not in ['m', "metre", "meter",'km', "kilometre", "kilometer"]:
+            return ValueError("Valid options for desired units: m and km")
+
+         # Check the units.
+        for axis in self.CRS.axis_info:
+            if check_horizontal(axis.abbrev):
+                if (axis.unit_name != "degree"):
+                    return ValueError("Units of horizontal axes must be in degrees")
+
+        # main execution loop
         for dim in self.dims:
             # Is the dim lat/lon?
             if not check_horizontal(dim):
                 continue
             # stacked coordinate resolutions
             if self.is_stacked(dim):
-                print("{} is stacked!".format(dim))
+                # print("{} is stacked!".format(dim))
                 resolution_dict[dim] = stacked_resolution(dim)
             else: # unstacked resolution
+                # print("{} is NOT stacked!".format(dim))
                 resolution_dict[dim] = unstacked_resolution(dim)
-                print("{} is NOT stacked!".format(dim))
+                
             
         return resolution_dict
 
