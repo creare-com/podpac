@@ -1523,13 +1523,9 @@ class Coordinates(tl.HasTraits):
 
         '''Return distance of 2 points in desired unit measurement'''
         def calculate_distance(point1, point2):
-            if units in ['m', "metre", "meter"]:
-                return geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m
-            elif units in ['km', "kilometre", "kilometer"]:
-                return geodesic(point1, point2, ellipsoid=ellipsoid_tuple).km
-            else:
-                return geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m
-
+            
+            return (geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m * podpac.units("metre)").to(podpac.units(units)))
+           
 
         '''Check if a dim::str is horizontal'''
         def check_horizontal(dim):
@@ -1571,9 +1567,7 @@ class Coordinates(tl.HasTraits):
         resolution_dict = OrderedDict()
         ellipsoid_tuple = (self.CRS.ellipsoid.semi_major_metre/1000, self.CRS.ellipsoid.semi_minor_metre/1000, 1 / self.CRS.ellipsoid.inverse_flattening)
 
-        units = units.replace('s', '')
-        if units not in ['m', "metre", "meter",'km', "kilometre", "kilometer"]:
-            return ValueError("Valid options for desired units: m and km")
+        # TODO: UTM Projection
 
          # Check the units.
         for axis in self.CRS.axis_info:
