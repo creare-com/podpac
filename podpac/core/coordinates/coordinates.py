@@ -20,7 +20,6 @@ from six import string_types
 import pyproj
 import logging
 from scipy import spatial
-import math
 from geopy.distance import geodesic
 
 import podpac
@@ -1516,15 +1515,14 @@ class Coordinates(tl.HasTraits):
     '''
     Calculate horizontal resolution of coordinate system.
     Assumes horizontal coords are in degrees.'''
-    def horizontal_resolution(self, units = 'm'):
+    def horizontal_resolution(self, units = "metre"):
         
         '''---------------------------------------------------------------------'''
         ''' Utility Functions '''
 
         '''Return distance of 2 points in desired unit measurement'''
-        def calculate_distance(point1, point2):
-            
-            return (geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m * podpac.units("metre)").to(podpac.units(units)))
+        def calculate_distance(point1, point2, is_utm = False):
+            return ((geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m) * podpac.units("metre")).to(podpac.units(units))
            
 
         '''Check if a dim::str is horizontal'''
@@ -1539,30 +1537,50 @@ class Coordinates(tl.HasTraits):
             sum = 0
             # Brute Force implementatiom
             for point1 in self[dim].coordinates:
-                min_distance = float('inf')
+                nearest_neighbor =0
+                min_distance = float('inf') * podpac.units(units)
                 for point2 in self[dim].coordinates:
                     # check if not current point
-                    if point1.all() == point2.all():
+                    if np.array_equiv(point1,point2):
+                        print(point1)
+                        print(point2)
                         continue
                     # calculate distance in meters
-                    distance = calculate_distance(point1, point2)
+                    distance = calculate_distance(point1, point2) 
                     # only add min distance
                     if distance < min_distance:
+                        nearest_neighbor = point2
                         min_distance = distance
                 # add min_distance
-                if min_distance != float('inf'):
+                if min_distance != float('inf')*podpac.units(units):
+                    print(min_distance)
                     sum += min_distance
+                print(point1)
             # return sum / total_points
-            return (sum / self[dim].size) * podpac.units(units)
+            return (sum / self[dim].size)
+
+        '''Uses a KDTree to return approximate stacked resolution with some errors.
+        Errors arise from spatial.KDTree's use of euclidean distance for a metric.'''
+        def kdtree_stacked_resolution(dim):
+            tree = spatial.KDTree(self[dim].coordinates + [90.,180.], boxsize=[0., 360.0000000000001])
+            sum_distance = 0
+            for point in tree.data:
+                dd, ii = tree.query(point, k=2) # get nearest neighbor
+                sum_distance += calculate_distance(point - [90., 180.], tree.data[ii[1]] - [90., 180.]) # calculate distance
+            return sum_distance/len(tree.data)
+
+
 
         '''Return resolution for unstacked coordiantes'''
         def unstacked_resolution(dim):
             top_bound = (self.bounds[dim][1], 0)
             bottom_bound = (self.bounds[dim][0], 0)
-            return (calculate_distance(top_bound, bottom_bound)/ self[dim].size) * podpac.units(units)
+            return (calculate_distance(top_bound, bottom_bound)/ self[dim].size)
+
 
         '''---------------------------------------------------------------------'''
-        ''' Function Code '''
+
+
         # dictionary:
         resolution_dict = OrderedDict()
         ellipsoid_tuple = (self.CRS.ellipsoid.semi_major_metre/1000, self.CRS.ellipsoid.semi_minor_metre/1000, 1 / self.CRS.ellipsoid.inverse_flattening)
@@ -1582,10 +1600,9 @@ class Coordinates(tl.HasTraits):
                 continue
             # stacked coordinate resolutions
             if self.is_stacked(dim):
-                # print("{} is stacked!".format(dim))
+                # stacked_resolution(dim)
                 resolution_dict[dim] = stacked_resolution(dim)
             else: # unstacked resolution
-                # print("{} is NOT stacked!".format(dim))
                 resolution_dict[dim] = unstacked_resolution(dim)
                 
             
