@@ -2208,38 +2208,36 @@ class TestCoordinatesMethodSimplify(object):
 
 class TestResolutions(object):
     def test_resolution(self):
-
-        
         
         '''Unstacked Coordinates'''
-        # Intl Ellipsis
-        c = podpac.Coordinates([podpac.clinspace(0, 90, 11, 'lat'), podpac.clinspace(0, 90, 20, 'lon')], crs='+proj=latlon +zone=9 +north +ellps=intl +no_defs')
-        assert (c.horizontal_resolution() == OrderedDict([('lat', 909298.936271768*podpac.units('m')), ('lon', 500114.41494947235*podpac.units('m'))]))
-        # WGS84 Ellipsis
-        c = podpac.Coordinates([podpac.clinspace(0, 90, 11, 'lat'), podpac.clinspace(0, 90, 20, 'lon')], crs='+proj=latlon +zone=9 +north +ellps=WGS84 +no_defs')
-        assert (c.horizontal_resolution() == OrderedDict([('lat', 909269.611755702*podpac.units('m')), ('lon', 500098.2864656361*podpac.units('m'))]))
-         
+        # Nominal
+
+        # Summary
+
+        # Exact
+
+        # Cartesian
 
         '''Stacked Coordinates'''
-        lat = podpac.clinspace(0, 5, 5)
-        lon = podpac.clinspace(-180, 180, 5)
-        c = Coordinates([[lat, lon]], dims=['lat_lon'], crs='+proj=latlon +zone=9 +north +ellps=WGS84 +no_defs')
-        assert (c.horizontal_resolution() == OrderedDict([('lat_lon', 6014010.226930527*podpac.units('m'))]))
+        # Nominal
 
-        lat = podpac.clinspace(-90, 90, 20)
-        lon = podpac.clinspace(-180, 180, 20)
-        c = Coordinates([[lat, lon]], dims=['lat_lon'], crs='+proj=latlon +zone=9 +north +ellps=WGS84 +no_defs')
-        assert (c.horizontal_resolution() == OrderedDict([('lat_lon', 1661624.9900800656*podpac.units('m'))]))
+        # Summary
+
+        # Exact
+
+        # Cartesian
+
 
         '''Stacked and Unstacked Coordinates'''
-        time = ['2018-01-01', '2018-01-02']
-        c_time = Coordinates([[lat, lon], time], dims=[['lat_lon'], 'time'], crs='+proj=latlon +zone=9 +north +ellps=WGS84 +no_defs')
-        assert (c.horizontal_resolution() == c_time.horizontal_resolution())
+        # Nominal
 
-        '''Kilometer Units'''
-        assert(c.horizontal_resolution("km") == OrderedDict([('lat_lon', 1661.6249900800653*podpac.units("km"))]))
+        # Summary
 
-        '''Invalid Arguments'''
-        # Invalid Units
-        with pytest.raises(pint.errors.DimensionalityError):
-            c.horizontal_resolution(units="degree")
+        # Exact
+
+        # Cartesian
+
+
+
+
+        

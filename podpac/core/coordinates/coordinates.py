@@ -1544,33 +1544,6 @@ class Coordinates(tl.HasTraits):
             return False
             
         ''' STACKED COORDINATE FUNCTIONS '''
-        
-        '''Return resolution for stacked coordinates'''
-        def brute_stacked_resolution(dim):
-            sum = 0
-            # Brute Force implementatiom
-            for point1 in self[dim].coordinates:
-                nearest_neighbor =0
-                min_distance = float('inf') * podpac.units(units)
-                for point2 in self[dim].coordinates:
-                    # check if not current point
-                    if np.array_equiv(point1,point2):
-                        print(point1)
-                        print(point2)
-                        continue
-                    # calculate distance in meters
-                    distance = calculate_distance(point1, point2) 
-                    # only add min distance
-                    if distance < min_distance:
-                        nearest_neighbor = point2
-                        min_distance = distance
-                # add min_distance
-                if min_distance != float('inf')*podpac.units(units):
-                    print(min_distance)
-                    sum += min_distance
-                print(point1)
-            # return sum / total_points
-            return (sum / self[dim].size)
 
         '''Uses a KDTree to return approximate stacked resolution with some errors.
         Errors arise from spatial.KDTree's use of euclidean distance for a metric.'''
@@ -1635,8 +1608,6 @@ class Coordinates(tl.HasTraits):
             return diff *podpac.units(units)
 
         '''---------------------------------------------------------------------'''
-
-
 
         # dictionary:
         resolution_dict = OrderedDict()
