@@ -9,6 +9,7 @@ from numpy.testing import assert_equal, assert_array_equal
 import xarray as xr
 import pyproj
 from collections import OrderedDict
+import pint
 
 import podpac
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -2218,11 +2219,17 @@ class TestResolutions(object):
         c = podpac.Coordinates([podpac.clinspace(0, 90, 11, 'lat'), podpac.clinspace(0, 90, 20, 'lon')], crs='+proj=latlon +zone=9 +north +ellps=WGS84 +no_defs')
         assert (c.horizontal_resolution() == OrderedDict([('lat', 909269.611755702*podpac.units('m')), ('lon', 500098.2864656361*podpac.units('m'))]))
          
+
         '''Stacked Coordinates'''
-        lat = [0, 1, 2, 3, 4, 5, 6]
-        lon = [10, 20, 30, 50, 60, 80, 100]
+        lat = podpac.clinspace(0, 5, 5)
+        lon = podpac.clinspace(-180, 180, 5)
         c = Coordinates([[lat, lon]], dims=['lat_lon'], crs='+proj=latlon +zone=9 +north +ellps=WGS84 +no_defs')
-        assert (c.horizontal_resolution() == OrderedDict([('lat_lon', 4619360.82436145*podpac.units('m'))]))
+        assert (c.horizontal_resolution() == OrderedDict([('lat_lon', 6014010.226930527*podpac.units('m'))]))
+
+        lat = podpac.clinspace(-90, 90, 20)
+        lon = podpac.clinspace(-180, 180, 20)
+        c = Coordinates([[lat, lon]], dims=['lat_lon'], crs='+proj=latlon +zone=9 +north +ellps=WGS84 +no_defs')
+        assert (c.horizontal_resolution() == OrderedDict([('lat_lon', 1661624.9900800656*podpac.units('m'))]))
 
         '''Stacked and Unstacked Coordinates'''
         time = ['2018-01-01', '2018-01-02']
@@ -2230,9 +2237,9 @@ class TestResolutions(object):
         assert (c.horizontal_resolution() == c_time.horizontal_resolution())
 
         '''Kilometer Units'''
-        assert(c.horizontal_resolution("km") == OrderedDict([('lat_lon', 4619.36082436145*podpac.units("km"))]))
+        assert(c.horizontal_resolution("km") == OrderedDict([('lat_lon', 1661.6249900800653*podpac.units("km"))]))
 
         '''Invalid Arguments'''
         # Invalid Units
-        with pytest.raises(ValueError):
+        with pytest.raises(pint.errors.DimensionalityError):
             c.horizontal_resolution(units="degree")
