@@ -22,6 +22,7 @@ import logging
 from scipy import spatial
 from geopy.distance import geodesic
 import math
+import utm
 
 import podpac
 from podpac.core.settings import settings
@@ -1529,7 +1530,10 @@ class Coordinates(tl.HasTraits):
 
         '''Return distance of 2 points in desired unit measurement'''
         def calculate_distance(point1, point2, is_utm = False):
-            return ((geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m) * podpac.units("metre")).to(podpac.units(units))
+            if self.CRS.coordinate_system.name == "cartesian":
+                return math.dist(point1, point2) * podpac.units(units)
+            else:
+                return ((geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m) * podpac.units("metre")).to(podpac.units(units))
            
 
         '''Check if a dim::str is horizontal'''
@@ -1633,11 +1637,12 @@ class Coordinates(tl.HasTraits):
         '''---------------------------------------------------------------------'''
 
 
+
         # dictionary:
         resolution_dict = OrderedDict()
-        ellipsoid_tuple = (self.CRS.ellipsoid.semi_major_metre/1000, self.CRS.ellipsoid.semi_minor_metre/1000, 1 / self.CRS.ellipsoid.inverse_flattening)
 
-        # TODO: UTM Projection
+        # ellipsoid Tuple
+        ellipsoid_tuple = (self.CRS.ellipsoid.semi_major_metre/1000, self.CRS.ellipsoid.semi_minor_metre/1000, 1 / self.CRS.ellipsoid.inverse_flattening)
 
          # Check the units.
         for axis in self.CRS.axis_info:
