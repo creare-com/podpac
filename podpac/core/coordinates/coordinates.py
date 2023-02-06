@@ -21,6 +21,7 @@ import pyproj
 import logging
 from scipy import spatial
 from geopy.distance import geodesic
+import math
 
 import podpac
 from podpac.core.settings import settings
@@ -1514,8 +1515,15 @@ class Coordinates(tl.HasTraits):
 
     '''
     Calculate horizontal resolution of coordinate system.
-    Assumes horizontal coords are in degrees.'''
-    def horizontal_resolution(self, units = "metre"):
+    Assumes horizontal coords are in degrees.
+    
+    Support different types!
+        - "nominal" <-- this is wrong but cheap to calculate. Give a 'nominal' resolution over the entire domain
+        - "summary" <-- This is still approximate, gives the mean and standard deviation to each point
+        - "full" <-- min distance between every point (dx, dy, basically)
+        - "full_exact" <-- uses brute-force for the stacked coordinates
+    '''
+    def horizontal_resolution(self, units = "metre", type="nominal"):
         
         '''---------------------------------------------------------------------'''
         ''' Utility Functions '''
@@ -1532,8 +1540,10 @@ class Coordinates(tl.HasTraits):
                     return True
             return False
             
+        ''' STACKED COORDINATE FUNCTIONS '''
+        
         '''Return resolution for stacked coordinates'''
-        def stacked_resolution(dim):
+        def brute_stacked_resolution(dim):
             sum = 0
             # Brute Force implementatiom
             for point1 in self[dim].coordinates:
@@ -1561,7 +1571,7 @@ class Coordinates(tl.HasTraits):
 
         '''Uses a KDTree to return approximate stacked resolution with some errors.
         Errors arise from spatial.KDTree's use of euclidean distance for a metric.'''
-        def kdtree_stacked_resolution(dim):
+        def nominal_stacked_resolution(dim):
             tree = spatial.KDTree(self[dim].coordinates + [90.,180.], boxsize=[0., 360.0000000000001])
             sum_distance = 0
             for point in tree.data:
@@ -1569,14 +1579,57 @@ class Coordinates(tl.HasTraits):
                 sum_distance += calculate_distance(point - [90., 180.], tree.data[ii[1]] - [90., 180.]) # calculate distance
             return sum_distance/len(tree.data)
 
+        '''Return the approximate mean resolution and std.deviation using a KDTree'''
+        def summary_stacked_resolution(dim):
+            tree = spatial.KDTree(self[dim].coordinates + [90.,180.], boxsize=[0., 360.0000000000001])
+            sum_distance = 0
+            for point in tree.data:
+                dd, ii = tree.query(point, k=2) # get nearest neighbor
+                sum_distance += calculate_distance(point - [90., 180.], tree.data[ii[1]] - [90., 180.]) # calculate distance
+            avg_distance = sum_distance/len(tree.data)
+            # calculate standard deviation
+            std_dev = 0
+            for point in tree.data:
+                dd, ii = tree.query(point, k=2) # get nearest neighbor
+                std_dev += (calculate_distance(point - [90., 180.], tree.data[ii[1]] - [90., 180.]) - avg_distance)**2
+            std_dev /= len(tree.data)
+            std_dev = math.sqrt(std_dev.magnitude)
+            return (avg_distance, std_dev)
+
+        '''Returns the exact distance between every point using brute force'''
+        def full_stacked_resolution(dim):
+            distance_matrix = np.zeros((len(self[dim].coordinates),len(self[dim].coordinates)))
+            for i in range(len(self[dim].coordinates)):
+                for j in range(len(self[dim].coordinates)):
+                    distance_matrix[i][j] = calculate_distance(self[dim].coordinates[i],self[dim].coordinates[j]).magnitude
+            return distance_matrix *podpac.units(units)
+            
 
 
-        '''Return resolution for unstacked coordiantes'''
-        def unstacked_resolution(dim):
+        ''' UNSTACKED COORDINATE FUNCTIONS '''
+
+        '''Return resolution for unstacked coordiantes using the bounds'''
+        def nominal_unstacked_resolution(dim):
             top_bound = (self.bounds[dim][1], 0)
             bottom_bound = (self.bounds[dim][0], 0)
             return (calculate_distance(top_bound, bottom_bound)/ self[dim].size)
 
+        '''Return summary resolution for the dimension.'''
+        def summary_unstacked_resolution(dim):
+            diff = np.zeros(len(self[dim].coordinates)-1)
+            for i in range(len(diff)):
+                top_bound = (self[dim].coordinates[i+1], 0)
+                bottom_bound = (self[dim].coordinates[i], 0)
+                diff[i] = calculate_distance(top_bound, bottom_bound).magnitude
+            return (np.average(diff) * podpac.units(units), np.std(diff) * podpac.units(units))
+
+        def full_unstacked_resolution(dim):
+            diff = np.zeros(len(self[dim].coordinates)-1)
+            for i in range(len(diff)):
+                top_bound = (self[dim].coordinates[i+1], 0)
+                bottom_bound = (self[dim].coordinates[i], 0)
+                diff[i] = calculate_distance(top_bound, bottom_bound).magnitude
+            return diff *podpac.units(units)
 
         '''---------------------------------------------------------------------'''
 
@@ -1601,11 +1654,26 @@ class Coordinates(tl.HasTraits):
             # stacked coordinate resolutions
             if self.is_stacked(dim):
                 # stacked_resolution(dim)
-                resolution_dict[dim] = stacked_resolution(dim)
+                match type:
+                    case "nominal": 
+                        resolution_dict[dim] = nominal_stacked_resolution(dim)
+                    case "summary":
+                        resolution_dict[dim] = summary_stacked_resolution(dim)
+                    case "full":
+                        resolution_dict[dim] = full_stacked_resolution(dim)
+                    case _:
+                        return ValueError("Invalid value for type: {}".format(type))
             else: # unstacked resolution
-                resolution_dict[dim] = unstacked_resolution(dim)
+                match type:
+                    case "nominal": 
+                        resolution_dict[dim] = nominal_unstacked_resolution(dim)
+                    case "summary":
+                        resolution_dict[dim] =  summary_unstacked_resolution(dim)
+                    case "full":
+                        resolution_dict[dim] = full_unstacked_resolution(dim)
+                    case _:
+                        return ValueError("Invalid value for type: {}".format(type))
                 
-            
         return resolution_dict
 
 
