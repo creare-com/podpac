@@ -1521,7 +1521,6 @@ class Coordinates(tl.HasTraits):
         - "nominal" <-- this is wrong but cheap to calculate. Give a 'nominal' resolution over the entire domain
         - "summary" <-- This is still approximate, gives the mean and standard deviation to each point
         - "full" <-- min distance between every point (dx, dy, basically)
-        - "full_exact" <-- uses brute-force for the stacked coordinates
     '''
     def horizontal_resolution(self, units = "metre", type="nominal"):
         
