@@ -11,16 +11,17 @@ https://daymet.ornl.gov/
 Daymet data is defined in Lamert Conformal Conic (LCC) Projection system.
 """
 
-from podpac.interpolators import InterpolationMixin
+
 from podpac.core.data.datasource import DataSource
 import OrderedDict
 import traitlets as tl
+from podpac.core.data.rasterio_source import Rasterio
 
 # create logger for module1
 _logger = logging.getLogger(__name__)
 
 
-class Daymet(InterpolationMixin, Datasource):
+class Daymet(Datasource):
     ''' Datasource to handle Daymet
 
     Daymet is accessed over HTTP, and the response is a NetCDF file.
@@ -56,3 +57,5 @@ class Daymet(InterpolationMixin, Datasource):
         - accept: The format of the subset data returned by the NCSS: "netcdf" for netCDF v3 format is the only option currently available
 
     '''
+
+    
