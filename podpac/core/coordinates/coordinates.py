@@ -1506,13 +1506,13 @@ class Coordinates(tl.HasTraits):
         return all(c.issubset(other) for c in self.values())
 
     def is_stacked(self, dim):  # re-wrote to be able to iterate through c.dims
-        match (dim in self.dims) + (dim in self.udims):
-            case 0:  # both false
-                raise ValueError("Dimension {} is not in self.dims={}".format(dim, self.dims))
-            case 1:  # one true, one false
-                return True
-            case 2:  # both true
-                return False
+        value = (dim in self.dims) + (dim in self.udims)
+        if value == 0:
+            raise ValueError("Dimension {} is not in self.dims={}".format(dim, self.dims))
+        elif value == 1:  # one true, one false
+            return True
+        elif value ==  2:  # both true
+            return False
 
     def horizontal_resolution(self, units="metre", type="nominal"):
         """
@@ -1732,24 +1732,22 @@ class Coordinates(tl.HasTraits):
             # stacked coordinate resolutions
             if self.is_stacked(dim):
                 # stacked_resolution(dim)
-                match type:
-                    case "nominal":
-                        resolution_dict[dim] = nominal_stacked_resolution(dim)
-                    case "summary":
-                        resolution_dict[dim] = summary_stacked_resolution(dim)
-                    case "full":
-                        resolution_dict[dim] = full_stacked_resolution(dim)
-                    case _:
-                        return ValueError("Invalid value for type: {}".format(type))
+                if type == "nominal":
+                    resolution_dict[dim] = nominal_stacked_resolution(dim)
+                elif type == "summary":
+                    resolution_dict[dim] = summary_stacked_resolution(dim)
+                elif type == "full":
+                    resolution_dict[dim] = full_stacked_resolution(dim)
+                else:
+                    return ValueError("Invalid value for type: {}".format(type))
             else:  # unstacked resolution
-                match type:
-                    case "nominal":
+                    if type == "nominal":
                         resolution_dict[dim] = nominal_unstacked_resolution(dim)
-                    case "summary":
+                    elif type == "summary":
                         resolution_dict[dim] = summary_unstacked_resolution(dim)
-                    case "full":
+                    elif type == "full":
                         resolution_dict[dim] = full_unstacked_resolution(dim)
-                    case _:
+                    else:
                         return ValueError("Invalid value for type: {}".format(type))
 
         return resolution_dict
