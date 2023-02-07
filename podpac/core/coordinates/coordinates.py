@@ -1514,40 +1514,91 @@ class Coordinates(tl.HasTraits):
             case 2: # both true
                 return False
 
-    '''
-    Calculate horizontal resolution of coordinate system.
-    Assumes horizontal coords are in degrees.
     
-    Support different types!
-        - "nominal" <-- this is wrong but cheap to calculate. Give a 'nominal' resolution over the entire domain
-        - "summary" <-- This is still approximate, gives the mean and standard deviation to each point
-        - "full" <-- min distance between every point (dx, dy, basically)
-    '''
     def horizontal_resolution(self, units = "metre", type="nominal"):
+        '''
+        Calculate horizontal resolution of coordinate system.
         
-        '''---------------------------------------------------------------------'''
-        ''' Utility Functions '''
+        Parameters
+        ----------
+        units : str
+            The desired unit the returned resolution should be in. Supports any unit supported by podpac.units
+        type : str
+            The kind of horizontal resolution that should be returned. Supported values are:
+            - "nominal" <-- this is wrong but cheap to calculate. Give a 'nominal' resolution over the entire domain
+            - "summary" <-- This is still approximate, gives the mean and standard deviation to each point
+            - "full" <-- min distance between every point (dx, dy, basically)
 
-        '''Return distance of 2 points in desired unit measurement'''
-        def calculate_distance(point1, point2, is_utm = False):
+        Returns
+        -------
+        OrderedDict
+            A dictionary with:
+            keys : str
+                dimension names
+            values 
+                resolution (format determined by 'type' parameter)
+        
+        Raises
+        ------
+        ValueError
+            If the 'type' is not one of the supported resolution types
+
+        '''
+
+        
+        def calculate_distance(point1, point2):
+            '''Return distance of 2 points in desired unit measurement
+            
+            Parameters
+            ----------
+            point1 : tuple
+            point2 : tuple
+
+            Returns
+            -------
+            float
+                The distance between point1 and point2, according to the current coordinate system's distance metric, using the desired units
+            '''
             if self.CRS.coordinate_system.name == "cartesian":
                 return math.dist(point1, point2) * podpac.units(units)
             else:
                 return ((geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m) * podpac.units("metre")).to(podpac.units(units))
            
 
-        '''Check if a dim::str is horizontal'''
+        
         def check_horizontal(dim):
+            '''Check if a dimension is horizontal
+            
+            Parameters
+            ----------
+            dim : str
+                the name of the dimension
+            
+            Returns
+            -------
+            bool
+                Whether or not the current dimension is horizontal or not
+            '''
             for term in dim.split('_'):
                 if term == 'lat' or term == 'lon':
                     return True
             return False
             
-        ''' STACKED COORDINATE FUNCTIONS '''
 
-        '''Uses a KDTree to return approximate stacked resolution with some errors.
-        Errors arise from spatial.KDTree's use of euclidean distance for a metric.'''
+        
         def nominal_stacked_resolution(dim):
+            '''Use a KDTree to return approximate stacked resolution with some loss of accuracy.
+            
+            Parameters
+            ----------
+            dim : str
+                The name of the dimension to return the resolution of. Should be stacked.
+
+            Returns
+            -------
+            The average min distance of every point
+            
+            '''
             tree = spatial.KDTree(self[dim].coordinates + [90.,180.], boxsize=[0., 360.0000000000001])
             sum_distance = 0
             for point in tree.data:
@@ -1555,8 +1606,20 @@ class Coordinates(tl.HasTraits):
                 sum_distance += calculate_distance(point - [90., 180.], tree.data[ii[1]] - [90., 180.]) # calculate distance
             return sum_distance/len(tree.data)
 
-        '''Return the approximate mean resolution and std.deviation using a KDTree'''
+        
         def summary_stacked_resolution(dim):
+            '''Return the approximate mean resolution and std.deviation using a KDTree
+            
+            Parameters
+            ----------
+            dim : str
+                The name of the dimension to return the resolution of. Should be stacked.
+
+            Returns
+            -------
+            tuple
+                Average min distance of every point and standard deviation of those min distances
+            '''
             tree = spatial.KDTree(self[dim].coordinates + [90.,180.], boxsize=[0., 360.0000000000001])
             sum_distance = 0
             for point in tree.data:
@@ -1572,8 +1635,19 @@ class Coordinates(tl.HasTraits):
             std_dev = math.sqrt(std_dev.magnitude)
             return (avg_distance, std_dev)
 
-        '''Returns the exact distance between every point using brute force'''
+        
         def full_stacked_resolution(dim):
+            '''Returns the exact distance between every point using brute force
+            
+            Parameters
+            ----------
+            dim : str
+                The dimension to return the resolution of. Should be stacked.
+
+            Returns
+            -------
+            distance matrix of size (NxN), where N is the number of points in the dimension
+            '''
             distance_matrix = np.zeros((len(self[dim].coordinates),len(self[dim].coordinates)))
             for i in range(len(self[dim].coordinates)):
                 for j in range(len(self[dim].coordinates)):
@@ -1581,17 +1655,38 @@ class Coordinates(tl.HasTraits):
             return distance_matrix *podpac.units(units)
             
 
-
-        ''' UNSTACKED COORDINATE FUNCTIONS '''
-
-        '''Return resolution for unstacked coordiantes using the bounds'''
+        
         def nominal_unstacked_resolution(dim):
+            '''Return resolution for unstacked coordiantes using the bounds
+            
+            Parameters
+            ----------
+            dim : str
+                The dimenion to return the resolution of. Should be unstacked.
+            
+            Returns
+            --------
+            The average distance between each grid square for this dimension
+            '''
             top_bound = (self.bounds[dim][1], 0)
             bottom_bound = (self.bounds[dim][0], 0)
             return (calculate_distance(top_bound, bottom_bound)/ self[dim].size)
 
-        '''Return summary resolution for the dimension.'''
+        
         def summary_unstacked_resolution(dim):
+            '''Return summary resolution for the dimension.
+            
+            Parameters
+            ----------
+            dim : str
+                The dimension to return the resolution of. Should be unstacked.
+
+            Returns
+            -------
+            tuple
+                the average distance between grid squares
+                the standard deviation of those distances
+            '''
             diff = np.zeros(len(self[dim].coordinates)-1)
             for i in range(len(diff)):
                 top_bound = (self[dim].coordinates[i+1], 0)
@@ -1600,6 +1695,17 @@ class Coordinates(tl.HasTraits):
             return (np.average(diff) * podpac.units(units), np.std(diff) * podpac.units(units))
 
         def full_unstacked_resolution(dim):
+            ''' Calculate full resolution of unstacked dimension
+
+            Parameters
+            ----------
+            dim : str
+                The dimension to return the resolution of. Should be unstacked.
+
+            Returns
+            -------
+            An array of every distance between each grid point
+            '''
             diff = np.zeros(len(self[dim].coordinates)-1)
             for i in range(len(diff)):
                 top_bound = (self[dim].coordinates[i+1], 0)
@@ -1614,12 +1720,6 @@ class Coordinates(tl.HasTraits):
 
         # ellipsoid Tuple
         ellipsoid_tuple = (self.CRS.ellipsoid.semi_major_metre/1000, self.CRS.ellipsoid.semi_minor_metre/1000, 1 / self.CRS.ellipsoid.inverse_flattening)
-
-         # Check the units.
-        for axis in self.CRS.axis_info:
-            if check_horizontal(axis.abbrev):
-                if (axis.unit_name != "degree"):
-                    return ValueError("Units of horizontal axes must be in degrees")
 
         # main execution loop
         for dim in self.dims:
