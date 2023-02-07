@@ -1511,7 +1511,7 @@ class Coordinates(tl.HasTraits):
             raise ValueError("Dimension {} is not in self.dims={}".format(dim, self.dims))
         elif value == 1:  # one true, one false
             return True
-        elif value ==  2:  # both true
+        elif value == 2:  # both true
             return False
 
     def horizontal_resolution(self, units="metre", type="nominal"):
@@ -1619,21 +1619,17 @@ class Coordinates(tl.HasTraits):
             """
             tree = spatial.KDTree(self[dim].coordinates + [90.0, 180.0], boxsize=[0.0, 360.0000000000001])
             sum_distance = 0
+            sum_distance_sq = 0
             for point in tree.data:
                 dd, ii = tree.query(point, k=2)  # get nearest neighbor
-                sum_distance += calculate_distance(
+                distance = calculate_distance(
                     point - [90.0, 180.0], tree.data[ii[1]] - [90.0, 180.0]
                 )  # calculate distance
+                sum_distance += distance
+                sum_distance_sq += distance**2
             avg_distance = sum_distance / len(tree.data)
-            # calculate standard deviation
-            std_dev = 0
-            for point in tree.data:
-                dd, ii = tree.query(point, k=2)  # get nearest neighbor
-                std_dev += (
-                    calculate_distance(point - [90.0, 180.0], tree.data[ii[1]] - [90.0, 180.0]) - avg_distance
-                ) ** 2
-            std_dev /= len(tree.data)
-            std_dev = math.sqrt(std_dev.magnitude)
+            variance = (sum_distance_sq / len(tree.data)) - (avg_distance**2)
+            std_dev = math.sqrt(variance.magnitude)
             return (avg_distance, std_dev)
 
         def full_stacked_resolution(dim):
@@ -1741,14 +1737,14 @@ class Coordinates(tl.HasTraits):
                 else:
                     return ValueError("Invalid value for type: {}".format(type))
             else:  # unstacked resolution
-                    if type == "nominal":
-                        resolution_dict[dim] = nominal_unstacked_resolution(dim)
-                    elif type == "summary":
-                        resolution_dict[dim] = summary_unstacked_resolution(dim)
-                    elif type == "full":
-                        resolution_dict[dim] = full_unstacked_resolution(dim)
-                    else:
-                        return ValueError("Invalid value for type: {}".format(type))
+                if type == "nominal":
+                    resolution_dict[dim] = nominal_unstacked_resolution(dim)
+                elif type == "summary":
+                    resolution_dict[dim] = summary_unstacked_resolution(dim)
+                elif type == "full":
+                    resolution_dict[dim] = full_unstacked_resolution(dim)
+                else:
+                    return ValueError("Invalid value for type: {}".format(type))
 
         return resolution_dict
 
