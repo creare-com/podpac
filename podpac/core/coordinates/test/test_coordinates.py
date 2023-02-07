@@ -2210,34 +2210,74 @@ class TestResolutions(object):
     def test_resolution(self):
         
         '''Unstacked Coordinates'''
+        c = podpac.Coordinates([podpac.clinspace(0, 90, 11, 'lat'), podpac.clinspace(0, 90, 20, 'lon')])
+
         # Nominal
+        assert (c.horizontal_resolution(type="nominal") == OrderedDict([('lat', 909269.611755702* podpac.units("metre")),
+             ('lon', 500098.2864656361* podpac.units("metre"))]))
 
         # Summary
+        assert (c.horizontal_resolution(type="summary") == OrderedDict([('lat',
+              (1000196.5729312723* podpac.units("metre"),
+               3548.2348372254723* podpac.units("metre"))),
+             ('lon',
+              (526419.2489111959* podpac.units("metre"),
+               1873.0586112168473* podpac.units("metre")))]))
+            
+        # Full
+        answer = OrderedDict([('lat',
+              ([ 995250.27739564,  995731.65748247,  996648.35979764,
+                      997912.37572808,  999401.70757391, 1000971.65042421,
+                     1002468.54050245, 1003744.78599167, 1004673.71796683,
+                     1005162.65644982]) * podpac.units("m")),
+             ('lon',
+              ([523784.85224537, 523856.27075792, 523997.2071627 , 524203.90698729,
+                     524470.85470098, 524790.91101581, 525155.49233879, 525554.78910432,
+                     525978.01872173, 526413.70781726, 526849.99736995, 527274.96329269,
+                     527676.94406298, 528044.86624478, 528368.55824467, 528639.04248812,
+                     528848.79644537, 528991.97361553, 529064.57669647]) * podpac.units("m"))])
+        assert answer['lat'].all() == c.horizontal_resolution(type="full")['lat'].all() and answer['lon'].all() == c.horizontal_resolution(type="full")['lon'].all()
 
-        # Exact
-
-        # Cartesian
+        
 
         '''Stacked Coordinates'''
+        lat = podpac.clinspace(-90, 90, 5)
+        lon = podpac.clinspace(-180, 180, 5)
+
+        c = Coordinates([[lat, lon]], dims=['lat_lon'])
         # Nominal
+        assert c.horizontal_resolution(type="nominal") == OrderedDict([('lat_lon', 7014367.35521632 * podpac.units("m"))])
 
         # Summary
+        assert c.horizontal_resolution(type="summary") == OrderedDict([('lat_lon',
+              (7014367.35521632 * podpac.units("m"), 2446239.274648156))])
 
-        # Exact
+        # Full
+        answer = OrderedDict([('lat_lon',
+              ([[       0.        ,  5017021.35133498, 10001965.72931272,
+                      14986910.10729047, 20003931.45862544],
+                     [ 5017021.35133498,        0.        , 10010386.36103833,
+                      20003931.45862544, 14986910.10729047],
+                     [10001965.72931272, 10010386.36103833,        0.        ,
+                      10010386.36103833, 10001965.72931272],
+                     [14986910.10729047, 20003931.45862544, 10010386.36103833,
+                             0.        ,  5017021.35133498],
+                     [20003931.45862544, 14986910.10729047, 10001965.72931272,
+                       5017021.35133498,        0.        ]]) * podpac.units("m"))])
+
+        assert c.horizontal_resolution(type="full")['lat_lon'].all() == answer['lat_lon'].all()
 
         # Cartesian
+        c = podpac.Coordinates([[podpac.clinspace(0, 90, 20, 'lat'), podpac.clinspace(0, 90, 20, 'lon')]], dims = ['lat_lon'], crs='+proj=utm +zone=9 +north +ellps=WGS84 +datum=WGS84 +units=m +no_defs')
 
+        assert c.horizontal_resolution() == OrderedDict([('lat_lon', 6.6989063480830735 * podpac.units("m"))])
 
         '''Stacked and Unstacked Coordinates'''
+        time = ['2018-01-01', '2018-01-02']
+        c = Coordinates([[lat, lon], time], dims=['lat_lon', 'time'])
         # Nominal
-
-        # Summary
-
-        # Exact
-
-        # Cartesian
-
-
+        assert c.horizontal_resolution() == OrderedDict([('lat_lon', 7014367.35521632 * podpac.units("m"))])
+        
 
 
         
