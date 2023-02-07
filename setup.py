@@ -26,8 +26,8 @@ install_requires = [
     "lazy-import>=0.2.2",
     "psutil",
     "affine",
-    "utm",
     "geopy",
+    "math"
 ]
 
 if sys.version_info.major == 2:
