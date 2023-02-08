@@ -1558,11 +1558,22 @@ class Coordinates(tl.HasTraits):
                 The distance between point1 and point2, according to the current coordinate system's distance metric, using the desired units
             """
             if self.CRS.coordinate_system.name == "cartesian":
-                return math.dist(point1, point2) * podpac.units(units)
+                return np.linalg.norm(point1 - point2, axis=-1) * podpac.units(units)
             else:
-                return ((geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m) * podpac.units("metre")).to(
-                    podpac.units(units)
-                )
+                if not isinstance(point1, tuple) and point1.size > 2 :
+                    distances = np.empty(len(point1))
+                    for i in range(len(point1)):
+                        distances[i] = ((geodesic(point1[i], point2[i], ellipsoid=ellipsoid_tuple).m) 
+                    )
+                    return distances* podpac.units("metre").to(podpac.units(units))
+                if not isinstance(point2, tuple) and point2.size > 2:
+                    distances = np.empty(len(point2))
+                    for i in range(len(point2)):
+                        distances[i] = geodesic(point1, point2[i], ellipsoid=ellipsoid_tuple).m
+                    return distances * podpac.units("metre").to(podpac.units(units))
+                else:
+                    return (geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m) * podpac.units("metre").to(podpac.units(units))
+
 
         def check_horizontal(dim):
             """Check if a dimension is horizontal
@@ -1595,14 +1606,11 @@ class Coordinates(tl.HasTraits):
             The average min distance of every point
 
             """
-            tree = spatial.KDTree(self[dim].coordinates + [90.0, 180.0], boxsize=[0.0, 360.0000000000001])
-            sum_distance = 0
-            for point in tree.data:
-                dd, ii = tree.query(point, k=2)  # get nearest neighbor
-                sum_distance += calculate_distance(
-                    point - [90.0, 180.0], tree.data[ii[1]] - [90.0, 180.0]
-                )  # calculate distance
-            return sum_distance / len(tree.data)
+            tree = spatial.KDTree(self[dim].coordinates + [0, 180.0], boxsize=[0.0, 360.0000000000001])
+            return np.average(calculate_distance(tree.data - [0, 180.0], tree.data[tree.query(tree.data, k=2)[1][:,1]] - [0, 180.0]))
+
+
+
 
         def summary_stacked_resolution(dim):
             """Return the approximate mean resolution and std.deviation using a KDTree
@@ -1617,20 +1625,9 @@ class Coordinates(tl.HasTraits):
             tuple
                 Average min distance of every point and standard deviation of those min distances
             """
-            tree = spatial.KDTree(self[dim].coordinates + [90.0, 180.0], boxsize=[0.0, 360.0000000000001])
-            sum_distance = 0
-            sum_distance_sq = 0
-            for point in tree.data:
-                dd, ii = tree.query(point, k=2)  # get nearest neighbor
-                distance = calculate_distance(
-                    point - [90.0, 180.0], tree.data[ii[1]] - [90.0, 180.0]
-                )  # calculate distance
-                sum_distance += distance
-                sum_distance_sq += distance**2
-            avg_distance = sum_distance / len(tree.data)
-            variance = (sum_distance_sq / len(tree.data)) - (avg_distance**2)
-            std_dev = math.sqrt(variance.magnitude)
-            return (avg_distance, std_dev)
+            tree = spatial.KDTree(self[dim].coordinates + [0, 180.0], boxsize=[0.0, 360.0000000000001])
+            distances = (calculate_distance(tree.data - [0, 180.0], tree.data[tree.query(tree.data, k=2)[1][:,1]] - [0, 180.0]))
+            return (np.average(distances), np.std(distances))
 
         def full_stacked_resolution(dim):
             """Returns the exact distance between every point using brute force
@@ -1646,10 +1643,7 @@ class Coordinates(tl.HasTraits):
             """
             distance_matrix = np.zeros((len(self[dim].coordinates), len(self[dim].coordinates)))
             for i in range(len(self[dim].coordinates)):
-                for j in range(len(self[dim].coordinates)):
-                    distance_matrix[i][j] = calculate_distance(
-                        self[dim].coordinates[i], self[dim].coordinates[j]
-                    ).magnitude
+                distance_matrix[i,:] = calculate_distance(self[dim].coordinates[i], self[dim].coordinates[:]).magnitude
             return distance_matrix * podpac.units(units)
 
         def nominal_unstacked_resolution(dim):
