@@ -27,7 +27,6 @@ install_requires = [
     "psutil",
     "affine",
     "geopy",
-    "math"
 ]
 
 if sys.version_info.major == 2:

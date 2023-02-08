@@ -21,7 +21,7 @@ import pyproj
 import logging
 from scipy import spatial
 from geopy.distance import geodesic
-import math
+
 
 
 import podpac
