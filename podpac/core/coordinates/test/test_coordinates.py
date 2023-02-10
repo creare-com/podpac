@@ -2213,11 +2213,11 @@ class TestResolutions(object):
         c = podpac.Coordinates([podpac.clinspace(0, 90, 11, 'lat'), podpac.clinspace(0, 90, 20, 'lon')])
 
         # Nominal
-        assert (c.horizontal_resolution(type="nominal") == OrderedDict([('lat', 909269.611755702* podpac.units("metre")),
+        assert (c.horizontal_resolution(restype="nominal") == OrderedDict([('lat', 909269.611755702* podpac.units("metre")),
              ('lon', 334511.6466271357* podpac.units("metre"))]))
 
         # Summary
-        assert (c.horizontal_resolution(type="summary") == OrderedDict([('lat',
+        assert (c.horizontal_resolution(restype="summary") == OrderedDict([('lat',
               (1000196.5729312722* podpac.units("metre"),
                3548.2348372254723* podpac.units("metre"))),
              ('lon',
@@ -2384,7 +2384,7 @@ class TestResolutions(object):
                            0.        ,      0.        ,      0.        ,
                            0.        ,      0.        ,      0.        ,
                            0.        ]) * podpac.units("m"))])
-        assert answer['lat'].all() == c.horizontal_resolution(type="full")['lat'].all() and answer['lon'].all() == c.horizontal_resolution(type="full")['lon'].all()
+        assert answer['lat'].all() == c.horizontal_resolution(restype="full")['lat'].all() and answer['lon'].all() == c.horizontal_resolution(restype="full")['lon'].all()
 
         
 
@@ -2394,10 +2394,10 @@ class TestResolutions(object):
 
         c = Coordinates([[lat, lon]], dims=['lat_lon'])
         # Nominal
-        assert (c.horizontal_resolution(type="nominal") == OrderedDict([('lat_lon', 7014367.35521632 * podpac.units("m"))]))
+        assert (c.horizontal_resolution(restype="nominal") == OrderedDict([('lat_lon', 7014367.35521632 * podpac.units("m"))]))
 
         # Summary
-        assert c.horizontal_resolution(type="summary") == OrderedDict([('lat_lon',
+        assert c.horizontal_resolution(restype="summary") == OrderedDict([('lat_lon',
               (7014367.35521632 * podpac.units("m"), 2446239.274648156 * podpac.units("m")))])
 
         # Full
@@ -2413,7 +2413,7 @@ class TestResolutions(object):
                      [20003931.45862544, 14986910.10729047, 10001965.72931272,
                        5017021.35133498,        0.        ]]) * podpac.units("m"))])
 
-        assert c.horizontal_resolution(type="full")['lat_lon'].all() == answer['lat_lon'].all()
+        assert c.horizontal_resolution(restype="full")['lat_lon'].all() == answer['lat_lon'].all()
 
         # Cartesian
         c = podpac.Coordinates([[podpac.clinspace(0, 90, 20, 'lat'), podpac.clinspace(0, 90, 20, 'lon')]], dims = ['lat_lon'], crs='+proj=utm +zone=9 +north +ellps=WGS84 +datum=WGS84 +units=m +no_defs')

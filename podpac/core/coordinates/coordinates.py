@@ -1514,7 +1514,7 @@ class Coordinates(tl.HasTraits):
         elif value == 2:  # both true
             return False
 
-    def horizontal_resolution(self, units="metre", type="nominal"):
+    def horizontal_resolution(self, units="metre", restype="nominal"):
         """
         Calculate horizontal resolution of coordinate system.
 
@@ -1688,35 +1688,6 @@ class Coordinates(tl.HasTraits):
             else:
                 return ValueError("Unknown dim: {}".format(dim))
 
-            # if dim == 'lat':
-            #     # Top bounds
-            #     top_bounds = self[dim].coordinates[1:]
-            #     top_bounds = np.stack([top_bounds, self['lon'].coordinates[1:]], axis=1)
-
-            #     # Bottom bounds
-            #     bottom_bounds = self[dim].coordinates[:-1]
-            #     bottom_bounds = np.stack([bottom_bounds, self['lon'].coordinates[1:]], axis=1)
-
-            #     # differences:
-            #     diff = calculate_distance(top_bounds, bottom_bounds).magnitude
-
-            #     # Return standard deviation and average
-            #     return (np.average(diff)*podpac.units(units), np.std(diff)*podpac.units(units))
-            # elif dim == 'lon':
-            #     # top bounds
-            #     top_bounds = np.stack([self['lat'].coordinates[1:], self[dim].coordinates[1:]], axis=1) # use exact lat values
-
-            #     # Bottom bounds
-            #     bottom_bounds = np.stack([self['lat'].coordinates[:-1], self[dim].coordinates[:-1]], axis=1) # use exact lat values
-
-            #     # differences
-            #     diff = calculate_distance(top_bounds, bottom_bounds).magnitude
-
-            #     # Return standard deviation and average
-            #     return (np.average(diff)*podpac.units(units), np.std(diff)*podpac.units(units))
-            # else:
-            #     return ValueError("Unknown dim: {}".format(dim))
-
         def full_unstacked_resolution(dim):
             """Calculate full resolution of unstacked dimension
 
@@ -1754,29 +1725,6 @@ class Coordinates(tl.HasTraits):
             else:
                 return ValueError("Unknown dim: {}".format(dim))
 
-            # if dim == 'lat':
-            #     # Top bounds
-            #     top_bounds = self[dim].coordinates[1:]
-            #     top_bounds = np.stack([top_bounds, np.zeros(top_bounds.shape[0])], axis=1)
-
-            #     # Bottom bounds
-            #     bottom_bounds = self[dim].coordinates[:-1]
-            #     bottom_bounds = np.stack([bottom_bounds, np.zeros(bottom_bounds.shape[0])], axis=1)
-
-            #     # Return differences
-            #     return calculate_distance(top_bounds, bottom_bounds)
-            # elif dim == 'lon':
-            #     # top bounds
-            #     top_bounds = np.stack([self['lat'].coordinates[1:], self[dim].coordinates[1:]], axis=1) # use exact lat values
-
-            #     # Bottom bounds
-            #     bottom_bounds = np.stack([self['lat'].coordinates[:-1], self[dim].coordinates[:-1]], axis=1) # use exact lat values
-
-            #     # Return differences
-            #     return calculate_distance(top_bounds, bottom_bounds)
-            # else:
-            #     return ValueError("Unknown dim: {}".format(dim))
-
 
         """---------------------------------------------------------------------"""
 
@@ -1790,28 +1738,37 @@ class Coordinates(tl.HasTraits):
             1 / self.CRS.ellipsoid.inverse_flattening,
         )
 
+        # validate dims:
+
         # main execution loop
         for dim in self.dims:
             # Is the dim lat/lon?
             if not check_horizontal(dim):
                 continue
+            # Put this check inside the loop to avoid checking if stacked coords
+            if dim == "lat":
+                if "lon" not in self.dims:
+                    return ValueError("Need both lat and lon for resolution.")
+            if dim == "lon":
+                if "lat" not in self.dims:
+                    return ValueError("Need both lat and lon for resolution.")
             # stacked coordinate resolutions
             if self.is_stacked(dim):
                 # stacked_resolution(dim)
-                if type == "nominal":
+                if restype == "nominal":
                     resolution_dict[dim] = nominal_stacked_resolution(dim)
-                elif type == "summary":
+                elif restype == "summary":
                     resolution_dict[dim] = summary_stacked_resolution(dim)
-                elif type == "full":
+                elif restype == "full":
                     resolution_dict[dim] = full_stacked_resolution(dim)
                 else:
                     return ValueError("Invalid value for type: {}".format(type))
             else:  # unstacked resolution
-                if type == "nominal":
+                if restype == "nominal":
                     resolution_dict[dim] = nominal_unstacked_resolution(dim)
-                elif type == "summary":
+                elif restype == "summary":
                     resolution_dict[dim] = summary_unstacked_resolution(dim)
-                elif type == "full":
+                elif restype == "full":
                     resolution_dict[dim] = full_unstacked_resolution(dim)
                 else:
                     return ValueError("Invalid value for type: {}".format(type))
