@@ -1525,8 +1525,8 @@ class Coordinates(tl.HasTraits):
         type : str
             The kind of horizontal resolution that should be returned. Supported values are:
             - "nominal" <-- this is wrong but cheap to calculate. Give a 'nominal' resolution over the entire domain
-            - "summary" <-- This is still approximate, gives the mean and standard deviation to each point
-            - "full" <-- min distance between every point (dx, dy, basically)
+            - "summary" <-- Gives the exact mean and standard deviation for unstacked coordinates, some error for stacked coordinates
+            - "full" <-- Gives exact grid differences if unstacked coordiantes or distance matrix if stacked coordinnates
 
         Returns
         -------
@@ -1658,9 +1658,15 @@ class Coordinates(tl.HasTraits):
             --------
             The average distance between each grid square for this dimension
             """
-            top_bound = (self.bounds[dim][1], 0)
-            bottom_bound = (self.bounds[dim][0], 0)
-            return calculate_distance(top_bound, bottom_bound) / self[dim].size
+            if dim == 'lat':
+                return (calculate_distance((self[dim].bounds[0],0), (self[dim].bounds[1],0)).magnitude / self[dim].size) * podpac.units(units)
+            elif dim == 'lon':
+                # Get median lat:
+                # need this because of difference in circumference
+                median_lat = ((self['lat'].bounds[1] - self['lat'].bounds[0]) / 2)  + self['lat'].bounds[0]
+                return (calculate_distance((median_lat, self[dim].bounds[0]), (median_lat, self[dim].bounds[1])).magnitude / self[dim].size) * podpac.units(units)
+            else:
+                return ValueError("Unknown dim: {}".format(dim))
 
         def summary_unstacked_resolution(dim):
             """Return summary resolution for the dimension.
@@ -1676,12 +1682,40 @@ class Coordinates(tl.HasTraits):
                 the average distance between grid squares
                 the standard deviation of those distances
             """
-            diff = np.zeros(len(self[dim].coordinates) - 1)
-            for i in range(len(diff)):
-                top_bound = (self[dim].coordinates[i + 1], 0)
-                bottom_bound = (self[dim].coordinates[i], 0)
-                diff[i] = calculate_distance(top_bound, bottom_bound).magnitude
-            return (np.average(diff) * podpac.units(units), np.std(diff) * podpac.units(units))
+            if dim == "lat" or dim == "lon":
+                full_res = full_unstacked_resolution(dim).magnitude
+                return (np.average(full_res)* podpac.units(units), np.std(full_res) * podpac.units(units))
+            else:
+                return ValueError("Unknown dim: {}".format(dim))
+
+            # if dim == 'lat':
+            #     # Top bounds
+            #     top_bounds = self[dim].coordinates[1:]
+            #     top_bounds = np.stack([top_bounds, self['lon'].coordinates[1:]], axis=1)
+
+            #     # Bottom bounds
+            #     bottom_bounds = self[dim].coordinates[:-1]
+            #     bottom_bounds = np.stack([bottom_bounds, self['lon'].coordinates[1:]], axis=1)
+
+            #     # differences:
+            #     diff = calculate_distance(top_bounds, bottom_bounds).magnitude
+
+            #     # Return standard deviation and average
+            #     return (np.average(diff)*podpac.units(units), np.std(diff)*podpac.units(units))
+            # elif dim == 'lon':
+            #     # top bounds
+            #     top_bounds = np.stack([self['lat'].coordinates[1:], self[dim].coordinates[1:]], axis=1) # use exact lat values
+
+            #     # Bottom bounds
+            #     bottom_bounds = np.stack([self['lat'].coordinates[:-1], self[dim].coordinates[:-1]], axis=1) # use exact lat values
+
+            #     # differences
+            #     diff = calculate_distance(top_bounds, bottom_bounds).magnitude
+
+            #     # Return standard deviation and average
+            #     return (np.average(diff)*podpac.units(units), np.std(diff)*podpac.units(units))
+            # else:
+            #     return ValueError("Unknown dim: {}".format(dim))
 
         def full_unstacked_resolution(dim):
             """Calculate full resolution of unstacked dimension
@@ -1693,14 +1727,56 @@ class Coordinates(tl.HasTraits):
 
             Returns
             -------
-            An array of every distance between each grid point
+            A matrix of distances
             """
-            diff = np.zeros(len(self[dim].coordinates) - 1)
-            for i in range(len(diff)):
-                top_bound = (self[dim].coordinates[i + 1], 0)
-                bottom_bound = (self[dim].coordinates[i], 0)
-                diff[i] = calculate_distance(top_bound, bottom_bound).magnitude
-            return diff * podpac.units(units)
+            if dim == "lat":
+                M = self['lat'].coordinates.size
+                N = self['lon'].coordinates.size
+                diff= np.zeros((N,M-1)) 
+                for i in range(N):
+                    lat_values= self['lat'].coordinates
+                    lon_value = self['lon'].coordinates[i]
+                    top_bounds = np.stack([lat_values[1:], np.full((lat_values[1:]).shape[0], lon_value)], axis=1) # use exact lat values
+                    bottom_bounds = np.stack([lat_values[:-1], np.full((lat_values[:-1]).shape[0], lon_value)], axis=1) # use exact lat values
+                    diff[i] = calculate_distance(top_bounds, bottom_bounds).magnitude    
+                return diff * podpac.units(units)
+            elif dim == "lon":
+                M = self['lat'].coordinates.size
+                N = self['lon'].coordinates.size
+                diff= np.zeros((M,N-1)) 
+                for i in range(M):
+                    lat_value= self['lat'].coordinates[i]
+                    lon_values = self['lon'].coordinates
+                    top_bounds = np.stack([np.full((lon_values[1:]).shape[0], lat_value), lon_values[1:]], axis=1) # use exact lat values
+                    bottom_bounds = np.stack([np.full((lon_values[:-1]).shape[0], lat_value), lon_values[:-1]], axis=1) # use exact lat values
+                    diff[i] = calculate_distance(top_bounds, bottom_bounds).magnitude
+                return diff * podpac.units(units)
+            else:
+                return ValueError("Unknown dim: {}".format(dim))
+
+            # if dim == 'lat':
+            #     # Top bounds
+            #     top_bounds = self[dim].coordinates[1:]
+            #     top_bounds = np.stack([top_bounds, np.zeros(top_bounds.shape[0])], axis=1)
+
+            #     # Bottom bounds
+            #     bottom_bounds = self[dim].coordinates[:-1]
+            #     bottom_bounds = np.stack([bottom_bounds, np.zeros(bottom_bounds.shape[0])], axis=1)
+
+            #     # Return differences
+            #     return calculate_distance(top_bounds, bottom_bounds)
+            # elif dim == 'lon':
+            #     # top bounds
+            #     top_bounds = np.stack([self['lat'].coordinates[1:], self[dim].coordinates[1:]], axis=1) # use exact lat values
+
+            #     # Bottom bounds
+            #     bottom_bounds = np.stack([self['lat'].coordinates[:-1], self[dim].coordinates[:-1]], axis=1) # use exact lat values
+
+            #     # Return differences
+            #     return calculate_distance(top_bounds, bottom_bounds)
+            # else:
+            #     return ValueError("Unknown dim: {}".format(dim))
+
 
         """---------------------------------------------------------------------"""
 
