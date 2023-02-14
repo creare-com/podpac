@@ -23,7 +23,6 @@ from scipy import spatial
 from geopy.distance import geodesic
 
 
-
 import podpac
 from podpac.core.settings import settings
 from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param, cached_property
@@ -1516,7 +1515,9 @@ class Coordinates(tl.HasTraits):
 
     def horizontal_resolution(self, units="metre", restype="nominal"):
         """
-        Calculate horizontal resolution of coordinate system.
+        Return horizontal resolution of coordinate system.
+        This function handles mainly edge case sanitation.
+        It calls StackedCoordiantes and Coordinates1d 'horizontal_resolution' methods to get the actual values.
 
         Parameters
         ----------
@@ -1540,240 +1541,40 @@ class Coordinates(tl.HasTraits):
         Raises
         ------
         ValueError
-            If the 'type' is not one of the supported resolution types
+            If the 'restype' is not one of the supported resolution types
 
         """
 
-        def calculate_distance(point1, point2):
-            """Return distance of 2 points in desired unit measurement
-
-            Parameters
-            ----------
-            point1 : tuple
-            point2 : tuple
-
-            Returns
-            -------
-            float
-                The distance between point1 and point2, according to the current coordinate system's distance metric, using the desired units
-            """
-            if self.CRS.coordinate_system.name == "cartesian":
-                return np.linalg.norm(point1 - point2, axis=-1) * podpac.units(units)
-            else:
-                if not isinstance(point1, tuple) and point1.size > 2 :
-                    distances = np.empty(len(point1))
-                    for i in range(len(point1)):
-                        distances[i] = ((geodesic(point1[i], point2[i], ellipsoid=ellipsoid_tuple).m) 
-                    )
-                    return distances* podpac.units("metre").to(podpac.units(units))
-                if not isinstance(point2, tuple) and point2.size > 2:
-                    distances = np.empty(len(point2))
-                    for i in range(len(point2)):
-                        distances[i] = geodesic(point1, point2[i], ellipsoid=ellipsoid_tuple).m
-                    return distances * podpac.units("metre").to(podpac.units(units))
-                else:
-                    return (geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m) * podpac.units("metre").to(podpac.units(units))
-
-
-        def check_horizontal(dim):
-            """Check if a dimension is horizontal
-
-            Parameters
-            ----------
-            dim : str
-                the name of the dimension
-
-            Returns
-            -------
-            bool
-                Whether or not the current dimension is horizontal or not
-            """
-            for term in dim.split("_"):
-                if term == "lat" or term == "lon":
-                    return True
-            return False
-
-        def nominal_stacked_resolution(dim):
-            """Use a KDTree to return approximate stacked resolution with some loss of accuracy.
-
-            Parameters
-            ----------
-            dim : str
-                The name of the dimension to return the resolution of. Should be stacked.
-
-            Returns
-            -------
-            The average min distance of every point
-
-            """
-            tree = spatial.KDTree(self[dim].coordinates + [0, 180.0], boxsize=[0.0, 360.0000000000001])
-            return np.average(calculate_distance(tree.data - [0, 180.0], tree.data[tree.query(tree.data, k=2)[1][:,1]] - [0, 180.0]))
-
-
-
-
-        def summary_stacked_resolution(dim):
-            """Return the approximate mean resolution and std.deviation using a KDTree
-
-            Parameters
-            ----------
-            dim : str
-                The name of the dimension to return the resolution of. Should be stacked.
-
-            Returns
-            -------
-            tuple
-                Average min distance of every point and standard deviation of those min distances
-            """
-            tree = spatial.KDTree(self[dim].coordinates + [0, 180.0], boxsize=[0.0, 360.0000000000001])
-            distances = (calculate_distance(tree.data - [0, 180.0], tree.data[tree.query(tree.data, k=2)[1][:,1]] - [0, 180.0]))
-            return (np.average(distances), np.std(distances))
-
-        def full_stacked_resolution(dim):
-            """Returns the exact distance between every point using brute force
-
-            Parameters
-            ----------
-            dim : str
-                The dimension to return the resolution of. Should be stacked.
-
-            Returns
-            -------
-            distance matrix of size (NxN), where N is the number of points in the dimension
-            """
-            distance_matrix = np.zeros((len(self[dim].coordinates), len(self[dim].coordinates)))
-            for i in range(len(self[dim].coordinates)):
-                distance_matrix[i,:] = calculate_distance(self[dim].coordinates[i], self[dim].coordinates[:]).magnitude
-            return distance_matrix * podpac.units(units)
-
-        def nominal_unstacked_resolution(dim):
-            """Return resolution for unstacked coordiantes using the bounds
-
-            Parameters
-            ----------
-            dim : str
-                The dimenion to return the resolution of. Should be unstacked.
-
-            Returns
-            --------
-            The average distance between each grid square for this dimension
-            """
-            if dim == 'lat':
-                return (calculate_distance((self[dim].bounds[0],0), (self[dim].bounds[1],0)).magnitude / self[dim].size) * podpac.units(units)
-            elif dim == 'lon':
-                # Get median lat:
-                # need this because of difference in circumference
-                median_lat = ((self['lat'].bounds[1] - self['lat'].bounds[0]) / 2)  + self['lat'].bounds[0]
-                return (calculate_distance((median_lat, self[dim].bounds[0]), (median_lat, self[dim].bounds[1])).magnitude / self[dim].size) * podpac.units(units)
-            else:
-                return ValueError("Unknown dim: {}".format(dim))
-
-        def summary_unstacked_resolution(dim):
-            """Return summary resolution for the dimension.
-
-            Parameters
-            ----------
-            dim : str
-                The dimension to return the resolution of. Should be unstacked.
-
-            Returns
-            -------
-            tuple
-                the average distance between grid squares
-                the standard deviation of those distances
-            """
-            if dim == "lat" or dim == "lon":
-                full_res = full_unstacked_resolution(dim).magnitude
-                return (np.average(full_res)* podpac.units(units), np.std(full_res) * podpac.units(units))
-            else:
-                return ValueError("Unknown dim: {}".format(dim))
-
-        def full_unstacked_resolution(dim):
-            """Calculate full resolution of unstacked dimension
-
-            Parameters
-            ----------
-            dim : str
-                The dimension to return the resolution of. Should be unstacked.
-
-            Returns
-            -------
-            A matrix of distances
-            """
-            if dim == "lat":
-                M = self['lat'].coordinates.size
-                N = self['lon'].coordinates.size
-                diff= np.zeros((N,M-1)) 
-                for i in range(N):
-                    lat_values= self['lat'].coordinates
-                    lon_value = self['lon'].coordinates[i]
-                    top_bounds = np.stack([lat_values[1:], np.full((lat_values[1:]).shape[0], lon_value)], axis=1) # use exact lat values
-                    bottom_bounds = np.stack([lat_values[:-1], np.full((lat_values[:-1]).shape[0], lon_value)], axis=1) # use exact lat values
-                    diff[i] = calculate_distance(top_bounds, bottom_bounds).magnitude    
-                return diff * podpac.units(units)
-            elif dim == "lon":
-                M = self['lat'].coordinates.size
-                N = self['lon'].coordinates.size
-                diff= np.zeros((M,N-1)) 
-                for i in range(M):
-                    lat_value= self['lat'].coordinates[i]
-                    lon_values = self['lon'].coordinates
-                    top_bounds = np.stack([np.full((lon_values[1:]).shape[0], lat_value), lon_values[1:]], axis=1) # use exact lat values
-                    bottom_bounds = np.stack([np.full((lon_values[:-1]).shape[0], lat_value), lon_values[:-1]], axis=1) # use exact lat values
-                    diff[i] = calculate_distance(top_bounds, bottom_bounds).magnitude
-                return diff * podpac.units(units)
-            else:
-                return ValueError("Unknown dim: {}".format(dim))
-
-
-        """---------------------------------------------------------------------"""
-
-        # dictionary:
-        resolution_dict = OrderedDict()
-
-        # ellipsoid Tuple
+        # ellipsoid tuple to pass to geodesic
         ellipsoid_tuple = (
             self.CRS.ellipsoid.semi_major_metre / 1000,
             self.CRS.ellipsoid.semi_minor_metre / 1000,
             1 / self.CRS.ellipsoid.inverse_flattening,
         )
 
-        # validate dims:
-
         # main execution loop
-        for dim in self.dims:
-            # Is the dim lat/lon?
-            if not check_horizontal(dim):
-                continue
-            # Put this check inside the loop to avoid checking if stacked coords
-            if dim == "lat":
-                if "lon" not in self.dims:
-                    return ValueError("Need both lat and lon for resolution.")
-            if dim == "lon":
-                if "lat" not in self.dims:
-                    return ValueError("Need both lat and lon for resolution.")
-            # stacked coordinate resolutions
-            if self.is_stacked(dim):
-                # stacked_resolution(dim)
-                if restype == "nominal":
-                    resolution_dict[dim] = nominal_stacked_resolution(dim)
-                elif restype == "summary":
-                    resolution_dict[dim] = summary_stacked_resolution(dim)
-                elif restype == "full":
-                    resolution_dict[dim] = full_stacked_resolution(dim)
-                else:
-                    return ValueError("Invalid value for type: {}".format(type))
-            else:  # unstacked resolution
-                if restype == "nominal":
-                    resolution_dict[dim] = nominal_unstacked_resolution(dim)
-                elif restype == "summary":
-                    resolution_dict[dim] = summary_unstacked_resolution(dim)
-                elif restype == "full":
-                    resolution_dict[dim] = full_unstacked_resolution(dim)
-                else:
-                    return ValueError("Invalid value for type: {}".format(type))
+        resolutions = OrderedDict()  # To return
+        for name, dim in self.items():
+            if dim.is_stacked:
+                for stack_name in dim.dims:  # make sure ['lat_lon'] is stacked before returning horizontal_resolution
+                    if stack_name != "lat" and stack_name != "lon":  # check for valid stacking
+                        raise ValueError(
+                            "Must be lat and lon stacked, cannot return resolution for stacked {}".format(stack_name)
+                        )
+                resolutions[name] = dim.horizontal_resolution(
+                    ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                )
+            else:
+                if (
+                    name == "lat" or name == "lon"
+                ):  # need to do this inside of loop in case of stacked [[alt,time]] but unstacked [lat, lon]
+                    if "lat" not in self.dims:  # require latitude
+                        raise ValueError("Latitude required for horizontal resolution.")
+                    resolutions[name] = dim.horizontal_resolution(
+                        self["lat"], ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                    )
 
-        return resolution_dict
+        return resolutions
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods

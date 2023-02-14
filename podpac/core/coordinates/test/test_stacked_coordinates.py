@@ -981,3 +981,43 @@ class TestStackedCoordinatesMethods(object):
 
         assert c.reshape((4, 3)) == StackedCoordinates([lat.reshape((4, 3)), lon.reshape((4, 3))])
         assert c.flatten().reshape((3, 4)) == c
+
+    def test_horizontal_resolution(self):
+        """Test Horizontal Resolution of Stacked Coordinates. Edge cases are handled in Coordinates.py"""
+        lat = podpac.clinspace(-80, 80, 5)
+        lat.name = "lat"  # normally assigned when creating Coords object
+        lon = podpac.clinspace(-180, 180, 5)
+        lon.name = "lon"
+        c = StackedCoordinates([lat, lon])
+
+        # Sample Ellipsoid Tuple
+        ell_tuple = (6378.137, 6356.752314245179, 0.0033528106647474805)
+
+        # Sample Coordinate name:
+        coord_name = "ellipsoidal"
+
+        # Nominal resolution:
+        np.testing.assert_almost_equal(
+            c.horizontal_resolution(ell_tuple, coord_name, restype="nominal").magnitude, 7397047.845631437
+        )
+
+        # Summary resolution
+        np.testing.assert_almost_equal(
+            c.horizontal_resolution(ell_tuple, coord_name, restype="summary")[0].magnitude, 7397047.845631437
+        )
+        np.testing.assert_almost_equal(
+            c.horizontal_resolution(ell_tuple, coord_name, restype="summary")[1].magnitude, 2134971.4571846593
+        )
+
+        # Full resolution
+        distance_matrix = [
+            [0.0, 5653850.95046188, 11118791.58668857, 14351078.11393555, 17770279.74387375],
+            [5653850.95046188, 0.0, 10011843.18838578, 20003931.45862544, 14351078.11393555],
+            [11118791.58668857, 10011843.18838578, 0.0, 10011843.18838578, 11118791.58668857],
+            [14351078.11393555, 20003931.45862544, 10011843.18838578, 0.0, 5653850.95046188],
+            [17770279.74387375, 14351078.11393555, 11118791.58668857, 5653850.95046188, 0.0],
+        ]
+
+        np.testing.assert_array_almost_equal(
+            c.horizontal_resolution(ell_tuple, coord_name, restype="full"), distance_matrix
+        )

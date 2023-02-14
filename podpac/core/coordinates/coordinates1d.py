@@ -10,10 +10,12 @@ import copy
 import numpy as np
 import traitlets as tl
 
+import podpac
 from podpac.core.utils import ArrayTrait, TupleTrait
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord, divide_delta, lower_precision_time_bounds
 from podpac.core.coordinates.utils import Dimension
+from podpac.core.coordinates.utils import calculate_distance
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
 
@@ -186,6 +188,10 @@ class Coordinates1d(BaseCoordinates):
     @property
     def _full_properties(self):
         return {"name": self.name}
+
+    @property
+    def is_stacked(self):
+        return False
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -423,3 +429,118 @@ class Coordinates1d(BaseCoordinates):
                 other_coordinates = other_coordinates.astype(my_coordinates.dtype)
 
         return set(my_coordinates).issubset(other_coordinates)
+
+    def horizontal_resolution(self, latitude, ellipsoid_tuple, coordinate_name, restype="nominal", units="meter"):
+        """Return the horizontal resolution of a Uniform 1D Coordinate
+
+        Parameters
+        ----------
+        latitude: Coordinates1D
+            The latitude coordiantes of the current coordinate system, required for both lat and lon resolution.
+        ellipsoid_tuple: tuple
+            a tuple containing ellipsoid information from the the original coordinates to pass to geopy
+        coordinate_name: str
+            "cartesian" or "ellipsoidal", to tell calculate_distance what kind of calculation to do
+        restype: str
+            The kind of horizontal resolution that should be returned. Supported values are:
+            - "nominal" <-- returns average resolution based upon bounds and number of grid squares
+            - "summary" <-- Gives the exact mean and standard deviation of grid square resolutions
+            - "full" <-- Gives exact grid differences.
+
+        Returns
+        -------
+        float * (podpac.unit)
+            if restype == "nominal", return average distance in desired units
+        tuple * (podpac.unit)
+            if restype == "summary", return average distance and standard deviation in desired units
+        np.ndarray * (podpac.unit)
+            if restype == "full", give full resolution. 1D array for latitude, MxN matrix for longitude.
+        """
+
+        def nominal_unstacked_resolution():
+            """Return resolution for unstacked coordiantes using the bounds
+
+            Returns
+            --------
+            The average distance between each grid square for this dimension
+            """
+            if self.name == "lat":
+                return (
+                    calculate_distance(
+                        (self.bounds[0], 0), (self.bounds[1], 0), ellipsoid_tuple, coordinate_name, units
+                    ).magnitude
+                    / self.size
+                ) * podpac.units(units)
+            elif self.name == "lon":
+                median_lat = ((latitude.bounds[1] - latitude.bounds[0]) / 2) + latitude.bounds[0]
+                return (
+                    calculate_distance(
+                        (median_lat, self.bounds[0]),
+                        (median_lat, self.bounds[1]),
+                        ellipsoid_tuple,
+                        coordinate_name,
+                        units,
+                    ).magnitude
+                    / self.size
+                ) * podpac.units(units)
+            else:
+                return ValueError("Unknown dim: {}".format(self.name))
+
+        def summary_unstacked_resolution():
+            """Return summary resolution for the dimension.
+
+            Returns
+            -------
+            tuple
+                the average distance between grid squares
+                the standard deviation of those distances
+            """
+            if self.name == "lat" or self.name == "lon":
+                full_res = full_unstacked_resolution().magnitude
+                return (np.average(full_res) * podpac.units(units), np.std(full_res) * podpac.units(units))
+            else:
+                return ValueError("Unknown dim: {}".format(self.name))
+
+        def full_unstacked_resolution():
+            """Calculate full resolution of unstacked dimension
+
+            Returns
+            -------
+            A matrix of distances
+            """
+            if self.name == "lat":
+                top_bounds = np.stack(
+                    [latitude.coordinates[1:], np.full((latitude.coordinates[1:]).shape[0], 0)], axis=1
+                )  # use exact lat values
+                bottom_bounds = np.stack(
+                    [latitude.coordinates[:-1], np.full((latitude.coordinates[:-1]).shape[0], 0)], axis=1
+                )  # use exact lat values
+                return calculate_distance(top_bounds, bottom_bounds, ellipsoid_tuple, coordinate_name, units)
+            elif self.name == "lon":
+                M = latitude.coordinates.size
+                N = self.size
+                diff = np.zeros((M, N - 1))
+                for i in range(M):
+                    lat_value = latitude.coordinates[i]
+                    lon_values = self.coordinates
+                    top_bounds = np.stack(
+                        [np.full((lon_values[1:]).shape[0], lat_value), lon_values[1:]], axis=1
+                    )  # use exact lat values
+                    bottom_bounds = np.stack(
+                        [np.full((lon_values[:-1]).shape[0], lat_value), lon_values[:-1]], axis=1
+                    )  # use exact lat values
+                    diff[i] = calculate_distance(
+                        top_bounds, bottom_bounds, ellipsoid_tuple, coordinate_name, units
+                    ).magnitude
+                return diff * podpac.units(units)
+            else:
+                raise ValueError("Unknown dim: {}".format(self.name))
+
+        if restype == "nominal":
+            return nominal_unstacked_resolution()
+        elif restype == "summary":
+            return summary_unstacked_resolution()
+        elif restype == "full":
+            return full_unstacked_resolution()
+        else:
+            raise ValueError("Invalid value for type: {}".format(restype))
