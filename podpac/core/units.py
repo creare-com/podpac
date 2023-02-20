@@ -2,8 +2,8 @@
 
 Attributes
 ----------
-ureg : TYPE
-    Description
+ureg : UnitsRegistry
+    pint UnitRegistry
 """
 
 from copy import deepcopy
