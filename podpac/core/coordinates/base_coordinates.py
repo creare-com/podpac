@@ -68,7 +68,7 @@ class BaseCoordinates(tl.HasTraits):
     def full_definition(self):
         """Coordinates definition, containing all properties. For internal use."""
         raise NotImplementedError
-    
+
     @property
     def is_stacked(self):
         """stacked or unstacked property"""
@@ -111,10 +111,9 @@ class BaseCoordinates(tl.HasTraits):
         """Report if these coordinates are a subset of other coordinates."""
         raise NotImplementedError
 
-    def horizontal_resolution(self, latitude, restype="nominal", units="meter"):
+    def horizontal_resolution(self, latitude, ellipsoid_tuple, coordinate_name, restype="nominal", units="meter"):
         """Get horizontal resolution of coordiantes."""
         raise NotImplementedError
-
 
     def __getitem__(self, index):
         raise NotImplementedError

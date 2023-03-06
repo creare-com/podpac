@@ -105,7 +105,7 @@ class TestCoordinates1d(object):
         coord_name = "ellipsoidal"
 
         # Resolution: nominal
-        assert lat.horizontal_resolution(lat, ell_tuple, coord_name) == 3554055.948774749 * podpac.units("meter")
+        assert lat.horizontal_resolution(lat, ell_tuple, coord_name) == 4442569.935968436 * podpac.units("meter")
         assert lon.horizontal_resolution(lat, ell_tuple, coord_name) == 0.0 * podpac.units("meter")
 
         # Resolution: summary

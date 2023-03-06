@@ -998,15 +998,15 @@ class TestStackedCoordinatesMethods(object):
 
         # Nominal resolution:
         np.testing.assert_almost_equal(
-            c.horizontal_resolution(ell_tuple, coord_name, restype="nominal").magnitude, 7397047.845631437
+            c.horizontal_resolution(None, ell_tuple, coord_name, restype="nominal").magnitude, 7397047.845631437
         )
 
         # Summary resolution
         np.testing.assert_almost_equal(
-            c.horizontal_resolution(ell_tuple, coord_name, restype="summary")[0].magnitude, 7397047.845631437
+            c.horizontal_resolution(None, ell_tuple, coord_name, restype="summary")[0].magnitude, 7397047.845631437
         )
         np.testing.assert_almost_equal(
-            c.horizontal_resolution(ell_tuple, coord_name, restype="summary")[1].magnitude, 2134971.4571846593
+            c.horizontal_resolution(None, ell_tuple, coord_name, restype="summary")[1].magnitude, 2134971.4571846593
         )
 
         # Full resolution
@@ -1019,5 +1019,31 @@ class TestStackedCoordinatesMethods(object):
         ]
 
         np.testing.assert_array_almost_equal(
-            c.horizontal_resolution(ell_tuple, coord_name, restype="full"), distance_matrix
+            c.horizontal_resolution(None, ell_tuple, coord_name, restype="full"), distance_matrix
+        )
+
+        # Test different order of lat/lon still works
+        c2 = StackedCoordinates([lon, lat])
+        np.testing.assert_equal(
+            c.horizontal_resolution(None, ell_tuple, "lat").magnitude,
+            c2.horizontal_resolution(None, ell_tuple, "lat").magnitude,
+        )
+
+        # Test multiple stacked coordinates
+        alt = podpac.clinspace(0, 1, 5, "alt")
+
+        c2 = StackedCoordinates([lon, alt, lat])
+        np.testing.assert_equal(
+            c.horizontal_resolution(None, ell_tuple, "lat").magnitude,
+            c2.horizontal_resolution(None, ell_tuple, "lat").magnitude,
+        )
+        c2 = StackedCoordinates([alt, lon, lat])
+        np.testing.assert_equal(
+            c.horizontal_resolution(None, ell_tuple, "lat").magnitude,
+            c2.horizontal_resolution(None, ell_tuple, "lat").magnitude,
+        )
+        c2 = StackedCoordinates([lat, alt, lon])
+        np.testing.assert_equal(
+            c.horizontal_resolution(None, ell_tuple, "lat").magnitude,
+            c2.horizontal_resolution(None, ell_tuple, "lat").magnitude,
         )

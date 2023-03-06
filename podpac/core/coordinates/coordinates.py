@@ -1513,21 +1513,19 @@ class Coordinates(tl.HasTraits):
         elif value == 2:  # both true
             return False
 
-    def horizontal_resolution(self, units="metre", restype="nominal"):
+    def horizontal_resolution(self, units="meter", restype="nominal"):
         """
-        Return horizontal resolution of coordinate system.
-        This function handles mainly edge case sanitation.
-        It calls StackedCoordiantes and Coordinates1d 'horizontal_resolution' methods to get the actual values.
+        Returns horizontal resolution of coordinate system.
 
         Parameters
         ----------
         units : str
-            The desired unit the returned resolution should be in. Supports any unit supported by podpac.units
-        type : str
+            The desired unit the returned resolution should be in. Supports any unit supported by podpac.units (i.e. pint). Default is 'meter'.
+        restype : str
             The kind of horizontal resolution that should be returned. Supported values are:
-            - "nominal" <-- this is wrong but cheap to calculate. Give a 'nominal' resolution over the entire domain
-            - "summary" <-- Gives the exact mean and standard deviation for unstacked coordinates, some error for stacked coordinates
-            - "full" <-- Gives exact grid differences if unstacked coordiantes or distance matrix if stacked coordinnates
+            - "nominal" <-- Returns a number. Gives a 'nominal' resolution over the entire domain. This is wrong but fast.
+            - "summary" <-- Returns a tuple (mean, standard deviation). Gives the exact mean and standard deviation for unstacked coordinates, some error for stacked coordinates
+            - "full" <-- Returns a 1 or 2-D array. Gives exact grid differences if unstacked coordinates or distance matrix if stacked coordinates
 
         Returns
         -------
@@ -1543,7 +1541,13 @@ class Coordinates(tl.HasTraits):
         ValueError
             If the 'restype' is not one of the supported resolution types
 
+
         """
+        # This function handles mainly edge case sanitation.
+        # It calls StackedCoordinates and Coordinates1d 'horizontal_resolution' methods to get the actual values.
+
+        if "lat" not in self.udims:  # require latitude
+            raise ValueError("Latitude required for horizontal resolution.")
 
         # ellipsoid tuple to pass to geodesic
         ellipsoid_tuple = (
@@ -1556,23 +1560,26 @@ class Coordinates(tl.HasTraits):
         resolutions = OrderedDict()  # To return
         for name, dim in self.items():
             if dim.is_stacked:
-                for stack_name in dim.dims:  # make sure ['lat_lon'] is stacked before returning horizontal_resolution
-                    if stack_name != "lat" and stack_name != "lon":  # check for valid stacking
-                        raise ValueError(
-                            "Must be lat and lon stacked, cannot return resolution for stacked {}".format(stack_name)
-                        )
-                resolutions[name] = dim.horizontal_resolution(
-                    ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
-                )
-            else:
-                if (
-                    name == "lat" or name == "lon"
-                ):  # need to do this inside of loop in case of stacked [[alt,time]] but unstacked [lat, lon]
-                    if "lat" not in self.dims:  # require latitude
-                        raise ValueError("Latitude required for horizontal resolution.")
+                if "lat" in dim.dims and "lon" in dim.dims:
                     resolutions[name] = dim.horizontal_resolution(
+                        None, ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                    )
+                elif "lat" in dim.dims:
+                    # Calling self['lat'] forces UniformCoordinates1d, even if stacked
+                    resolutions["lat"] = self["lat"].horizontal_resolution(
                         self["lat"], ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
                     )
+                elif "lon" in dim.dims:
+                    # Calling self['lon'] forces UniformCoordinates1d, even if stacked
+                    resolutions["lon"] = self["lon"].dim.horizontal_resolution(
+                        self["lat"], ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                    )
+            elif (
+                name == "lat" or name == "lon"
+            ):  # need to do this inside of loop in case of stacked [[alt,time]] but unstacked [lat, lon]
+                resolutions[name] = dim.horizontal_resolution(
+                    self["lat"], ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                )
 
         return resolutions
 

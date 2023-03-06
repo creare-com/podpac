@@ -469,7 +469,7 @@ class Coordinates1d(BaseCoordinates):
                     calculate_distance(
                         (self.bounds[0], 0), (self.bounds[1], 0), ellipsoid_tuple, coordinate_name, units
                     ).magnitude
-                    / self.size
+                    / (self.size - 1)
                 ) * podpac.units(units)
             elif self.name == "lon":
                 median_lat = ((latitude.bounds[1] - latitude.bounds[0]) / 2) + latitude.bounds[0]
@@ -481,7 +481,7 @@ class Coordinates1d(BaseCoordinates):
                         coordinate_name,
                         units,
                     ).magnitude
-                    / self.size
+                    / (self.size - 1)
                 ) * podpac.units(units)
             else:
                 return ValueError("Unknown dim: {}".format(self.name))

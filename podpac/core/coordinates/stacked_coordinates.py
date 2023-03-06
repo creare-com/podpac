@@ -708,7 +708,7 @@ class StackedCoordinates(BaseCoordinates):
 
         return True
 
-    def horizontal_resolution(self, ellipsoid_tuple, coordinate_name, restype="nominal", units="meter"):
+    def horizontal_resolution(self, latitude, ellipsoid_tuple, coordinate_name, restype="nominal", units="meter"):
         """Return the horizontal resolution of a Uniform 1D Coordinate
 
         Parameters
@@ -737,6 +737,7 @@ class StackedCoordinates(BaseCoordinates):
             if unknown restype
 
         """
+        order = tuple([self.dims.index(d) for d in ["lat", "lon"]])
 
         def nominal_stacked_resolution():
             """Use a KDTree to return approximate stacked resolution with some loss of accuracy.
@@ -746,7 +747,7 @@ class StackedCoordinates(BaseCoordinates):
             The average min distance of every point
 
             """
-            tree = spatial.KDTree(self.coordinates + [0, 180.0], boxsize=[0.0, 360.0000000000001])
+            tree = spatial.KDTree(self.coordinates[:, order] + [0, 180.0], boxsize=[0.0, 360.0000000000001])
             return np.average(
                 calculate_distance(
                     tree.data - [0, 180.0],
@@ -765,7 +766,7 @@ class StackedCoordinates(BaseCoordinates):
             tuple
                 Average min distance of every point and standard deviation of those min distances
             """
-            tree = spatial.KDTree(self.coordinates + [0, 180.0], boxsize=[0.0, 360.0000000000001])
+            tree = spatial.KDTree(self.coordinates[:, order] + [0, 180.0], boxsize=[0.0, 360.0000000000001])
             distances = calculate_distance(
                 tree.data - [0, 180.0],
                 tree.data[tree.query(tree.data, k=2)[1][:, 1]] - [0, 180.0],
@@ -785,7 +786,7 @@ class StackedCoordinates(BaseCoordinates):
             distance_matrix = np.zeros((len(self.coordinates), len(self.coordinates)))
             for i in range(len(self.coordinates)):
                 distance_matrix[i, :] = calculate_distance(
-                    self.coordinates[i], self.coordinates[:], ellipsoid_tuple, coordinate_name, units
+                    self.coordinates[i, order], self.coordinates[:, order], ellipsoid_tuple, coordinate_name, units
                 ).magnitude
             return distance_matrix * podpac.units(units)
 

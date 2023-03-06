@@ -2218,12 +2218,7 @@ class TestResolutions(object):
         time = ["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04", "2018-01-05"]
 
         # Invalid stacked dims check:
-        c = Coordinates([[lat, time]], dims=["lat_time"])
-        with pytest.raises(ValueError):
-            c.horizontal_resolution()
-
-        # Stacked and Unstacked valid Check:
-        c = Coordinates([[lat, time], lon], dims=["lat_time", "lon"])
+        c = Coordinates([[lon, time]], dims=["lon_time"])
         with pytest.raises(ValueError):
             c.horizontal_resolution()
 
@@ -2236,9 +2231,26 @@ class TestResolutions(object):
         c = Coordinates([[lat, lon]], dims=["lat_lon"])
         c.horizontal_resolution()
 
+        c = Coordinates([[lon, lat]], dims=["lon_lat"])
+        c.horizontal_resolution()
+
         # Corect name for restype:
         with pytest.raises(ValueError):
             c.horizontal_resolution(restype="whateverIwant")
 
         # Unstacked
-        c = Coordinates([[lat, lon]], dims=["lat_lon"])
+        c = Coordinates([lat, lon], dims=["lat", "lon"])
+        c.horizontal_resolution()
+
+        c = Coordinates([lat, lon], dims=["lat", "lon"])
+        c.horizontal_resolution(restype="summary")
+
+        # Mixed stacked, unstacked, but still valid
+        # Stacked and Unstacked valid Check:
+        c = Coordinates([[lat, time], lon], dims=["lat_time", "lon"])
+        c2 = Coordinates([lat, lon], dims=["lat", "lon"])
+        np.testing.assert_array_equal(c.horizontal_resolution(), c2.horizontal_resolution())
+        # Lat only
+        c = Coordinates([[lat, time]], dims=["lat_time"])
+        c2 = Coordinates([lat], dims=["lat"])
+        np.testing.assert_array_equal(c.horizontal_resolution(), c2.horizontal_resolution())
