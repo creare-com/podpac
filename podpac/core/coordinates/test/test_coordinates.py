@@ -8,6 +8,8 @@ import numpy as np
 from numpy.testing import assert_equal, assert_array_equal
 import xarray as xr
 import pyproj
+from collections import OrderedDict
+import pint
 
 import podpac
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -2202,3 +2204,53 @@ class TestCoordinatesMethodSimplify(object):
 
         # unstacked uniform -> unstacked uniform
         assert c3.simplify() == c3
+
+
+class TestResolutions(object):
+    def test_horizontal_resolution(self):
+        """Test edge cases of resolutions, and that Resolutions are returned correctly in an OrderedDict.
+        StackedCoordinates and Coordiantes1d handle the resolution calculations, so correctness of the resolutions are tested there.
+        """
+
+        # Dimensions
+        lat = podpac.clinspace(-80, 80, 5)
+        lon = podpac.clinspace(-180, 180, 5)
+        time = ["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04", "2018-01-05"]
+
+        # Invalid stacked dims check:
+        c = Coordinates([[lon, time]], dims=["lon_time"])
+        with pytest.raises(ValueError):
+            c.horizontal_resolution()
+
+        # Require latitude
+        c = Coordinates([lon], dims=["lon"])
+        with pytest.raises(ValueError):
+            c.horizontal_resolution()
+
+        # Valid dims check:
+        c = Coordinates([[lat, lon]], dims=["lat_lon"])
+        c.horizontal_resolution()
+
+        c = Coordinates([[lon, lat]], dims=["lon_lat"])
+        c.horizontal_resolution()
+
+        # Corect name for restype:
+        with pytest.raises(ValueError):
+            c.horizontal_resolution(restype="whateverIwant")
+
+        # Unstacked
+        c = Coordinates([lat, lon], dims=["lat", "lon"])
+        c.horizontal_resolution()
+
+        c = Coordinates([lat, lon], dims=["lat", "lon"])
+        c.horizontal_resolution(restype="summary")
+
+        # Mixed stacked, unstacked, but still valid
+        # Stacked and Unstacked valid Check:
+        c = Coordinates([[lat, time], lon], dims=["lat_time", "lon"])
+        c2 = Coordinates([lat, lon], dims=["lat", "lon"])
+        np.testing.assert_array_equal(c.horizontal_resolution(), c2.horizontal_resolution())
+        # Lat only
+        c = Coordinates([[lat, time]], dims=["lat_time"])
+        c2 = Coordinates([lat], dims=["lat"])
+        np.testing.assert_array_equal(c.horizontal_resolution(), c2.horizontal_resolution())

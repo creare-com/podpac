@@ -19,6 +19,9 @@ import xarray.core.coordinates
 from six import string_types
 import pyproj
 import logging
+from scipy import spatial
+from geopy.distance import geodesic
+
 
 import podpac
 from podpac.core.settings import settings
@@ -1501,12 +1504,84 @@ class Coordinates(tl.HasTraits):
 
         return all(c.issubset(other) for c in self.values())
 
-    def is_stacked(self, dim):
-        if dim not in self.udims:
+    def is_stacked(self, dim):  # re-wrote to be able to iterate through c.dims
+        value = (dim in self.dims) + (dim in self.udims)
+        if value == 0:
             raise ValueError("Dimension {} is not in self.dims={}".format(dim, self.dims))
-        elif dim not in self.dims:
+        elif value == 1:  # one true, one false
             return True
-        return False
+        elif value == 2:  # both true
+            return False
+
+    def horizontal_resolution(self, units="meter", restype="nominal"):
+        """
+        Returns horizontal resolution of coordinate system.
+
+        Parameters
+        ----------
+        units : str
+            The desired unit the returned resolution should be in. Supports any unit supported by podpac.units (i.e. pint). Default is 'meter'.
+        restype : str
+            The kind of horizontal resolution that should be returned. Supported values are:
+            - "nominal" <-- Returns a number. Gives a 'nominal' resolution over the entire domain. This is wrong but fast.
+            - "summary" <-- Returns a tuple (mean, standard deviation). Gives the exact mean and standard deviation for unstacked coordinates, some error for stacked coordinates
+            - "full" <-- Returns a 1 or 2-D array. Gives exact grid differences if unstacked coordinates or distance matrix if stacked coordinates
+
+        Returns
+        -------
+        OrderedDict
+            A dictionary with:
+            keys : str
+                dimension names
+            values
+                resolution (format determined by 'type' parameter)
+
+        Raises
+        ------
+        ValueError
+            If the 'restype' is not one of the supported resolution types
+
+
+        """
+        # This function handles mainly edge case sanitation.
+        # It calls StackedCoordinates and Coordinates1d 'horizontal_resolution' methods to get the actual values.
+
+        if "lat" not in self.udims:  # require latitude
+            raise ValueError("Latitude required for horizontal resolution.")
+
+        # ellipsoid tuple to pass to geodesic
+        ellipsoid_tuple = (
+            self.CRS.ellipsoid.semi_major_metre / 1000,
+            self.CRS.ellipsoid.semi_minor_metre / 1000,
+            1 / self.CRS.ellipsoid.inverse_flattening,
+        )
+
+        # main execution loop
+        resolutions = OrderedDict()  # To return
+        for name, dim in self.items():
+            if dim.is_stacked:
+                if "lat" in dim.dims and "lon" in dim.dims:
+                    resolutions[name] = dim.horizontal_resolution(
+                        None, ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                    )
+                elif "lat" in dim.dims:
+                    # Calling self['lat'] forces UniformCoordinates1d, even if stacked
+                    resolutions["lat"] = self["lat"].horizontal_resolution(
+                        self["lat"], ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                    )
+                elif "lon" in dim.dims:
+                    # Calling self['lon'] forces UniformCoordinates1d, even if stacked
+                    resolutions["lon"] = self["lon"].dim.horizontal_resolution(
+                        self["lat"], ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                    )
+            elif (
+                name == "lat" or name == "lon"
+            ):  # need to do this inside of loop in case of stacked [[alt,time]] but unstacked [lat, lon]
+                resolutions[name] = dim.horizontal_resolution(
+                    self["lat"], ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                )
+
+        return resolutions
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods

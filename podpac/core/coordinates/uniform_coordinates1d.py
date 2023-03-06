@@ -541,3 +541,5 @@ class UniformCoordinates1d(Coordinates1d):
             return self[I], I
         else:
             return self[I]
+
+    
