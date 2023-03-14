@@ -365,12 +365,12 @@ class TestAlgorithm(object):
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
             podpac.settings["RAM_CACHE_ENABLED"] = True
             podpac.settings.set_unsafe_eval(True)
-            A = MyPow(source=array_node, exponent=2)
-            B = MyPow(source=array_node, exponent=2)
-            C = MyPow(source=array_node, exponent=2)
-            D = MyPow(source=array_node, exponent=2)
-            E = MyPow(source=array_node, exponent=2)
-            F = MyPow(source=array_node, exponent=2)
+            A = MyPow(source=array_node, exponent=2).cache()
+            B = MyPow(source=array_node, exponent=2).cache()
+            C = MyPow(source=array_node, exponent=2).cache()
+            D = MyPow(source=array_node, exponent=2).cache()
+            E = MyPow(source=array_node, exponent=2).cache()
+            F = MyPow(source=array_node, exponent=2).cache()
 
             node2 = MySum(A=A, B=B, C=C, D=D, E=E, F=F)
             om = node2.eval(coords)
