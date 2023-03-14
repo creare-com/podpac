@@ -528,13 +528,14 @@ class TestDataSource(object):
                 source=np.ones((3, 4)),
                 coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"]),
                 cache_ctrl=["ram"],
-            )
+            ).cache()
             coords1 = podpac.Coordinates([range(3), range(4), "2012-05-19"], ["lat", "lon", "time"])
             coords2 = podpac.Coordinates([range(3), range(4), "2019-09-10"], ["lat", "lon", "time"])
 
             # retrieve from cache on the second evaluation
             node.eval(coords1)
             assert not node._from_cache
+            
 
             node.eval(coords1)
             assert node._from_cache
@@ -551,7 +552,7 @@ class TestDataSource(object):
                 source=np.ones((3, 4)),
                 coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"], crs="EPSG:4326"),
                 cache_ctrl=["ram"],
-            )
+            ).cache()
 
             # retrieve from cache on the second evaluation
             node.eval(node.coordinates)

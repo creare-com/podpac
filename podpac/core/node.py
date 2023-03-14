@@ -281,22 +281,12 @@ class Node(tl.HasTraits):
 
         if settings["DEBUG"]:
             self._requested_coordinates = coordinates
-        item = "output"
+        
+        # Caching is now done explicitly with a Caching node
+        data = self._eval(coordinates, **kwargs)
 
-        # get standardized coordinates for caching
-        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims)).simplify()
-
-        if not self.force_eval and self.cache_output and self.has_cache(item, cache_coordinates):
-            data = self.get_cache(item, cache_coordinates)
-            if output is not None:
-                order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
-                output.transpose(*order)[:] = data
-            self._from_cache = True
-        else:
-            data = self._eval(coordinates, **kwargs)
-            if self.cache_output:
-                self.put_cache(data, item, cache_coordinates)
-            self._from_cache = False
+        # Set the cache flag
+        self._from_cache = False
 
         # extract single output, if necessary
         # subclasses should extract single outputs themselves if possible, but this provides a backup
@@ -463,6 +453,14 @@ class Node(tl.HasTraits):
         """
         return probe_node(self, lat, lon, time, alt, crs)
 
+    def cache(self):
+        """
+        Returns
+        -------
+        podpac.data.CachingNode
+            Caching node for the current node's data source
+        """
+        return podpac.data.CachingNode(source=self)
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
     # -----------------------------------------------------------------------------------------------------------------
