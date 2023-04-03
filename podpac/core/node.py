@@ -123,7 +123,6 @@ class Node(tl.HasTraits):
     Additional attributes are available for debugging after evaluation, including:
      * ``_requested_coordinates``: the requested coordinates of the most recent call to eval
      * ``_output``: the output of the most recent call to eval
-     * ``_from_cache``: whether the most recent call to eval used the cache
      * ``_multi_threaded``: whether the most recent call to eval was executed using multiple threads
     """
 
@@ -273,8 +272,6 @@ class Node(tl.HasTraits):
         # Caching is now done explicitly with a Caching node
         data = self._eval(coordinates, **kwargs)
 
-        # Set the cache flag
-        self._from_cache = False
 
         # extract single output, if necessary
         # subclasses should extract single outputs themselves if possible, but this provides a backup

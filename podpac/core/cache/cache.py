@@ -28,10 +28,8 @@ class CachingNode(Node):
     cache_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
     _relevant_dimensions =tl.Instance(list, allow_none=True, default_value=None)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
-
-    @property
-    def _from_cache(self):
-        return self.source._from_cache
+    _from_cache = tl.Bool(allow_none=True, default_value=False)
+    
     
     @property
     def coordinates(self):
@@ -77,7 +75,7 @@ class CachingNode(Node):
         item = "output"
 
         # Use self.source.coordinates if not none:
-        if self.source.coordiantes is not None:
+        if self.source.coordinates is not None:
             coordinates = self.cache_coordinates
 
         # Check if coordinates were passed in
@@ -101,7 +99,7 @@ class CachingNode(Node):
             if output is not None:
                 order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
                 output.transpose(*order)[:] = data
-            self.source._from_cache = True
+            self._from_cache = True
             if extra is not None:
                 return data.transpose(*(coordinates.drop(extra)).dims)
             else:
@@ -109,6 +107,7 @@ class CachingNode(Node):
 
         # Evaluate the node
         data = self.source.eval(coordinates, **kwargs)
+        self._from_cache = False 
 
         # Get relevant dimensions to cache
         self._relevant_dimensions = list(data.dims)
