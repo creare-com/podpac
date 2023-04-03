@@ -438,14 +438,25 @@ class Node(tl.HasTraits):
         """
         return probe_node(self, lat, lon, time, alt, crs)
 
-    def cache(self):
+    def cache(self, cache_type=None, **kwargs):
         """
+        Parameters
+        ----------------
+        cache_type: enum, optional
+            Default is None, which uses the podpac.settings.DEFAULT_CACHE. Otherwise, can accept a list or single string
+            with one or more of "ram", "disk", "s3"
+        **kwargs: dict
+            Other keyword arguments passed directly to the `Cache` Node.            
         Returns
         -------
         podpac.data.CachingNode
             Caching node for the current node's data source
         """
-        return podpac.data.CachingNode(source=self)
+        # Shortcut for users to make setting the cache_ctrl simpler:
+        if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
+            kwargs["cache_ctrl"] = podpac.core.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
+        
+        return podpac.data.CachingNode(source=self, cache_type=cache_type, **kwargs)
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
     # -----------------------------------------------------------------------------------------------------------------

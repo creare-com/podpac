@@ -5,6 +5,7 @@ import traitlets as tl
 from podpac.core.coordinates import Coordinates
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl, S3CacheStore, DiskCacheStore
 from podpac.core.managers.multi_threading import thread_manager
+from podpac import settings
 
 
 class CachingNode(Node):
@@ -29,15 +30,16 @@ class CachingNode(Node):
     _relevant_dimensions =tl.Instance(list, allow_none=True, default_value=None)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
     _from_cache = tl.Bool(allow_none=True, default_value=False)
-    
-    
-    @property
-    def coordinates(self):
-        return self.source.coordinates
+    cache_type = tl.Enum(["ram", "disk", "s3"], default_value=None)
+
     
     @tl.default("cache_ctrl")
     def _cache_ctrl_default(self):
         return get_default_cache_ctrl()
+    
+    @tl.default("cache_type")
+    def _cache_type_default(self):
+        return settings.DEFAULT_CACHE
 
     def eval(self, coordinates, **kwargs):
         """
@@ -57,10 +59,6 @@ class CachingNode(Node):
             The output of evaluating the node at the given coordinates.
         """
         
-        # Shortcut for users to make setting the cache_ctrl simpler:
-        if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
-            kwargs["cache_ctrl"] = make_cache_ctrl(kwargs["cache_ctrl"])
-        
         # Get the output from kwargs, if available
         output = kwargs.get("output", None)
 
@@ -75,8 +73,8 @@ class CachingNode(Node):
         item = "output"
 
         # Use self.source.coordinates if not none:
-        if self.source.coordinates is not None:
-            coordinates = self.cache_coordinates
+        if trait_is_defined(self.source, "coordinates") and self.source.coordinates is not None:
+            coordinates = self.source.coordinates.intersect(coordinates)
 
         # Check if coordinates were passed in
         if trait_is_defined(self, "cache_coordinates") and self.cache_coordinates is not None:
