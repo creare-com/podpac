@@ -1,11 +1,19 @@
 import time
 import numpy as np
 from data_gen import *
+from tensorflow.keras.models import load_model
 
+MLP_MODEL = "models/mlp.h5"
 
-# Example method (replace with your own methods)
+# Brute Force -- computing s(f(x,y))
 def brute_force(x, y):
     return np.mean(f(x,y))
+
+# Multi-layer Perceptron
+def mlp(x, y):
+    model = load_model(MLP_MODEL)
+    return model.predict(np.array([np.hstack([x,y])]))[0][0]
+    
 
 # Benchmarking tool
 def benchmark(methods, x, y, f, n_runs=10):
@@ -44,12 +52,14 @@ def benchmark(methods, x, y, f, n_runs=10):
 
 # Define methods to benchmark
 methods = {
-    'brute_force': brute_force
+    'brute_force': brute_force,
+    'multilayer_perceptron': mlp
 }
 
 # Generate toy data
 n_samples = 1000
 x, y = generate_data(n_samples)
+
 
 # Run the benchmark
 results = benchmark(methods, x, y, f)
