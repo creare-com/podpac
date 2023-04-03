@@ -13,8 +13,7 @@ import traitlets as tl
 import pandas as pd  # Core dependency of xarray
 
 from podpac.core.utils import common_doc, ArrayTrait
-from podpac.core.cache import CacheCtrl
-from podpac.core.node import NoCacheMixin
+from podpac.core.cache import CacheCtrl, NoCacheMixin
 from podpac.core.coordinates import Coordinates
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.interpolation.interpolation import InterpolationMixin
