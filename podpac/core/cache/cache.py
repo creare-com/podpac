@@ -17,15 +17,15 @@ class CachingNode(Node):
         The source node to cache.
     cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
         Class that controls caching. If not provided, uses default based on settings.
-    _coordinates : podpac.Coordinates, optional
-        The coordinates to use for evaluating the node.
+    cache_coordinates : podpac.Coordinate, optional
+        Coordinates that should be used for caching. If not provided. self.source.coordinates will be used, if it exists. Otherwise, use the request coordinates for the cache.  
     _relevant_dimensions : list, optional
         The relevant dimensions for caching.
     """
 
 
     source = NodeTrait(allow_none=True).tag(attr=True, required=True)  # if has a coordinates
-    _coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
+    cache_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
     _relevant_dimensions =tl.Instance(list, allow_none=True, default_value=None)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
 
@@ -76,24 +76,28 @@ class CachingNode(Node):
         # Set the item to output
         item = "output"
 
+        # Use self.source.coordinates if not none:
+        if self.source.coordiantes is not None:
+            coordinates = self.cache_coordinates
+
         # Check if coordinates were passed in
-        if trait_is_defined(self, "_coordinates") and self._coordinates is not None:
-            coordinates=self._coordinates
+        if trait_is_defined(self, "cache_coordinates") and self.cache_coordinates is not None:
+            coordinates=self.cache_coordinates
             self._relevant_dimensions = list(coordinates.dims)
 
         # Get standardized coordinates for caching
-        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims)).simplify()
+        to_cache_coords = coordinates.transpose(*sorted(coordinates.dims)).simplify()
 
         # Cache the relevant dims
         extra = None
         if self._relevant_dimensions is not None:
-            extra = list(set(cache_coordinates.dims) - set(self._relevant_dimensions)) # drop extra dims
-            cache_coordinates = cache_coordinates.drop(extra)
+            extra = list(set(to_cache_coords.dims) - set(self._relevant_dimensions)) # drop extra dims
+            to_cache_coords = to_cache_coords.drop(extra)
 
 
         # Check the cache
-        if not self.source.force_eval and self.source.cache_output and self.has_cache(item, cache_coordinates):
-            data = self.get_cache(item, cache_coordinates)
+        if not self.source.force_eval and self.source.cache_output and self.has_cache(item, to_cache_coords):
+            data = self.get_cache(item, to_cache_coords)
             if output is not None:
                 order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
                 output.transpose(*order)[:] = data
@@ -108,11 +112,11 @@ class CachingNode(Node):
 
         # Get relevant dimensions to cache
         self._relevant_dimensions = list(data.dims)
-        extra = list(set(cache_coordinates.dims) - set(self._relevant_dimensions)) # drop extra dims
+        extra = list(set(to_cache_coords.dims) - set(self._relevant_dimensions)) # drop extra dims
 
         # Cache the output
         if self.source.cache_output:
-            self.put_cache(data, item, cache_coordinates.drop(extra))
+            self.put_cache(data, item, to_cache_coords.drop(extra))
         
 
         return data
