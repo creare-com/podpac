@@ -17,14 +17,14 @@ def generate_data(N, data_gen):
     y = []
 
     for _ in range(N):
-        data = np.hstack(data_gen.generate_data(1000))
+        data = np.hstack(data_gen.generate_data(1024))
         X.append(data)
-        y.append(np.mean(data_gen.f(data[:1000], data[1000:])))
+        y.append(np.mean(data_gen.f(data[:1024], data[1024:])))
 
     return np.array(X), np.array(y)
 
 # Create training and validation data
-N_train = 10000  # Number of training datapoints
+N_train = 1000  # Number of training datapoints
 N_val = 20  # Number of validation datapoints
 
 X_train, y_train = generate_data(N_train, data_gen)

@@ -5,6 +5,11 @@ from tensorflow.keras.models import load_model
 
 MLP_MODEL = "models/mlp.h5"
 
+# Constants
+CNN_MODEL = 'models/cnn.h5'
+WIDTH = 32
+HEIGHT = 32
+
 # Brute Force -- computing s(f(x,y))
 def brute_force(x, y):
     return np.mean(f(x,y))
@@ -14,6 +19,23 @@ def mlp(x, y):
     model = load_model(MLP_MODEL)
     return model.predict(np.array([np.hstack([x,y])]))[0][0]
     
+    
+# Convolutional Neural Network
+def cnn(x, y):
+    # Load the trained CNN model
+    model = load_model(CNN_MODEL)
+
+    # Reshape x and y into the format expected by the CNN
+    x_data = x.reshape(HEIGHT, WIDTH)
+    y_data = y.reshape(HEIGHT, WIDTH)
+    data = np.stack([x_data, y_data], axis=-1)  # shape: (height, width, 2)
+    input_data = np.expand_dims(data, axis=0)  # shape: (1, height, width, 2)
+
+    # Perform prediction using the model
+    prediction = model.predict(input_data)[0][0]
+
+    return prediction
+
 
 # Benchmarking tool
 def benchmark(methods, x, y, f, n_runs=10):
@@ -53,11 +75,12 @@ def benchmark(methods, x, y, f, n_runs=10):
 # Define methods to benchmark
 methods = {
     'brute_force': brute_force,
-    'multilayer_perceptron': mlp
+    'multilayer_perceptron': mlp,
+    'convolutional': cnn
 }
 
 # Generate toy data
-n_samples = 1000
+n_samples = WIDTH*HEIGHT
 x, y = generate_data(n_samples)
 
 
