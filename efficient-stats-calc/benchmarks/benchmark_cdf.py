@@ -7,8 +7,7 @@ sys.path.append(os.path.abspath('.'))
 from data_gen import *
 import data_gen
 from tensorflow.keras.models import load_model
-from scipy.stats import gaussian_kde
-from scipy.integrate import cumtrapz
+
 
 import time
 
@@ -108,3 +107,5 @@ for method, result in results.items():
     print(f"{method}:")
     print(f"  Average execution time: {result['average_execution_time']:.6f} seconds")
     print(f"  Average error: {result['average_error']:.6f}")
+
+
