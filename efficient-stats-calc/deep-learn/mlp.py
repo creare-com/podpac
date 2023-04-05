@@ -7,7 +7,6 @@ from tensorflow.keras.optimizers import Adam
 import sys
 import os
 sys.path.append(os.path.abspath('.'))
-import data_gen
 from data_gen import load_cdf_data
 
 
