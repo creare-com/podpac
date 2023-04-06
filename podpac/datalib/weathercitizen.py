@@ -26,7 +26,6 @@ import pandas as pd
 import numpy as np
 import requests
 
-from podpac.interpolators import InterpolationMixin
 from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
@@ -39,7 +38,7 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"  # always UTC  (ISO 8601 / RFC 3339 format
 _logger = logging.getLogger(__name__)
 
 
-class WeatherCitizen(InterpolationMixin, DataSource):
+class WeatherCitizen(DataSource):
     """DataSource to handle WeatherCitizen data
 
     Attributes

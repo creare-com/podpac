@@ -8,6 +8,7 @@ from podpac.core.cache.utils import CacheWildCard, CacheException
 from podpac.core.cache.ram_cache_store import RamCacheStore
 from podpac.core.cache.disk_cache_store import DiskCacheStore
 from podpac.core.cache.s3_cache_store import S3CacheStore
+import traitlets as tl
 
 
 _CACHE_STORES = {"ram": RamCacheStore, "disk": DiskCacheStore, "s3": S3CacheStore}
@@ -293,3 +294,34 @@ class CacheCtrl(object):
 
         for c in self._cache_stores:
             c.cleanup()
+
+
+    
+# --------------------------------------------------------#
+#  Mixins
+# --------------------------------------------------------#
+
+
+class NoCacheMixin(tl.HasTraits):
+    """Mixin to use no cache by default."""
+
+    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+
+    @tl.default("cache_ctrl")
+    def _cache_ctrl_default(self):
+        return CacheCtrl([])
+
+
+class DiskCacheMixin(tl.HasTraits):
+    """Mixin to add disk caching to the Node by default."""
+
+    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+
+    @tl.default("cache_ctrl")
+    def _cache_ctrl_default(self):
+        # get the default cache_ctrl and addd a disk cache store if necessary
+        default_ctrl = get_default_cache_ctrl()
+        stores = default_ctrl._cache_stores
+        if not any(isinstance(store, DiskCacheStore) for store in default_ctrl._cache_stores):
+            stores.append(DiskCacheStore())
+        return CacheCtrl(stores)

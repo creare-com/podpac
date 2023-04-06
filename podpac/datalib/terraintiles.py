@@ -42,9 +42,8 @@ import traitlets as tl
 import numpy as np
 
 import podpac
-from podpac.core.data.rasterio_source import RasterioRaw
-from podpac.compositor import TileCompositorRaw
-from podpac.interpolators import InterpolationMixin
+from podpac.core.data.rasterio_source import Rasterio
+from podpac.compositor import TileCompositor
 from podpac.interpolators import RasterioInterpolator, ScipyGrid, ScipyPoint
 from podpac.utils import cached_property
 from podpac.authentication import S3Mixin
@@ -74,7 +73,7 @@ ZOOM_SIZES = [
 ]
 
 
-class TerrainTilesSourceRaw(RasterioRaw):
+class TerrainTilesSourceRaw(Rasterio):
     """DataSource to handle individual TerrainTiles raster files
 
     Parameters
@@ -133,7 +132,7 @@ class TerrainTilesSourceRaw(RasterioRaw):
         return coordinates
 
 
-class TerrainTilesComposite(TileCompositorRaw):
+class TerrainTiles(TileCompositor):
     """Terrain Tiles gridded elevation tiles data library
 
     Hosted on AWS S3
@@ -256,40 +255,6 @@ class TerrainTilesComposite(TileCompositorRaw):
             )
             for url in urls
         ]
-
-
-class TerrainTiles(InterpolationMixin, TerrainTilesComposite):
-    """Terrain Tiles gridded elevation tiles data library
-
-    Hosted on AWS S3
-    https://registry.opendata.aws/terrain-tiles/
-
-    Description
-        Gridded elevation tiles
-    Resource type
-        S3 Bucket
-    Amazon Resource Name (ARN)
-        arn:aws:s3:::elevation-tiles-prod
-    AWS Region
-        us-east-1
-
-    Documentation: https://mapzen.com/documentation/terrain-tiles/
-
-    Parameters
-    ----------
-    zoom : int
-        Zoom level of tiles. Defaults to 6.
-    tile_format : str
-        One of ['geotiff', 'terrarium', 'normal']. Defaults to 'geotiff'
-        PODPAC node can only evaluate 'geotiff' formats.
-        Other tile_formats can be specified for :meth:`download`
-        No support for 'skadi' formats at this time.
-    bucket : str
-        Bucket of the terrain tiles.
-        Defaults to 'elevation-tiles-prod'
-    """
-
-    pass
 
 
 ############

@@ -28,7 +28,6 @@ h5py = lazy_module("h5py")
 from podpac import Coordinates, Node
 from podpac.compositor import OrderedCompositor
 from podpac.data import DataSource
-from podpac.interpolators import InterpolationMixin
 from podpac import authentication
 from podpac import settings
 from podpac import cached_property
@@ -43,7 +42,7 @@ _log = logging.getLogger(__name__)
 BASE_URL = "https://n5eil01u.ecs.nsidc.org/egi/request"
 
 
-class EGI(InterpolationMixin, DataSource):
+class EGI(DataSource):
     """
     PODPAC DataSource node to access the NASA EGI Programmatic Interface
     https://developer.earthdata.nasa.gov/sdps/programmatic-access-docs#cmrparameters

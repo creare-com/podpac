@@ -23,8 +23,8 @@ bs4 = lazy_module("bs4")
 import podpac
 from podpac.core.utils import _get_from_url, cached_property
 from podpac.data import DataSource
-from podpac.compositor import TileCompositorRaw
-from podpac.interpolators import InterpolationMixin
+from podpac.compositor import TileCompositor
+
 
 _logger = logging.getLogger(__name__)
 
@@ -152,7 +152,7 @@ class COSMOSStation(DataSource):
         return _convert_str_to_vals(properties)
 
 
-class COSMOSStationsRaw(TileCompositorRaw):
+class COSMOSStations(TileCompositor):
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/")
     stations_url = tl.Unicode("sitesNoLegend.js")
     dims = ["lat", "lon", "time"]
@@ -385,19 +385,13 @@ class COSMOSStationsRaw(TileCompositorRaw):
         return [self.stations_data["items"][i] for i in inds]
 
 
-class COSMOSStations(InterpolationMixin, COSMOSStationsRaw):
-    @tl.default("interpolation")
-    def _interpolation_default(self):
-        return {"method": "nearest", "params": {"use_selector": False, "remove_nan": False, "time_scale": "1,M"}}
-
-
 if __name__ == "__main__":
     bounds = {"lat": [40, 46], "lon": [-78, -68]}
     cs = COSMOSStations(
         cache_ctrl=["ram", "disk"],
         interpolation={"method": "nearest", "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M"}},
     )
-    csr = COSMOSStationsRaw(
+    csr = COSMOSStations(
         cache_ctrl=["ram", "disk"],
         interpolation={"method": "nearest", "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M"}},
     )

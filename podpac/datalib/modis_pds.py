@@ -12,10 +12,9 @@ import traitlets as tl
 
 import podpac
 from podpac.utils import cached_property
-from podpac.compositor import TileCompositorRaw
-from podpac.core.data.rasterio_source import RasterioRaw
+from podpac.compositor import TileCompositor
+from podpac.core.data.rasterio_source import Rasterio
 from podpac.authentication import S3Mixin
-from podpac.interpolators import InterpolationMixin
 
 _logger = logging.getLogger(__name__)
 
@@ -102,7 +101,7 @@ def get_tile_coordinates(h, v):
     return podpac.Coordinates([lat, lon], crs=CRS)
 
 
-class MODISSource(RasterioRaw):
+class MODISSource(Rasterio):
     """
     Individual MODIS data tile using AWS OpenData, with caching.
 
@@ -179,7 +178,7 @@ class MODISSource(RasterioRaw):
         return podpac.coordinates.merge_dims([spatial_coords, time_coords])
 
 
-class MODISComposite(S3Mixin, TileCompositorRaw):
+class MODIS(S3Mixin, TileCompositor):
     """MODIS whole-world compositor.
     For documentation about the data, start here: https://ladsweb.modaps.eosdis.nasa.gov/search/order/1
     For information about the bands, see here: https://modis.gsfc.nasa.gov/about/specifications.php
@@ -250,11 +249,6 @@ class MODISComposite(S3Mixin, TileCompositorRaw):
             sources.extend(valid_sources)
         self.set_trait("sources", sources)
         return sources
-
-
-class MODIS(InterpolationMixin, MODISComposite):
-    pass
-
 
 if __name__ == "__main__":
     from matplotlib import pyplot

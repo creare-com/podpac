@@ -27,9 +27,8 @@ from podpac.core import common_test_utils as ctu
 from podpac.core.utils import ArrayTrait, NodeTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.style import Style
-from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore
+from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore, NoCacheMixin, DiskCacheMixin
 from podpac.core.node import Node, NodeException, NodeDefinitionError
-from podpac.core.node import NoCacheMixin, DiskCacheMixin
 
 
 class TestNode(object):

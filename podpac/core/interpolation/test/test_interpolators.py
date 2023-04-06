@@ -20,24 +20,23 @@ from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeigh
 from podpac.core.interpolation.rasterio_interpolator import RasterioInterpolator
 from podpac.core.interpolation.scipy_interpolator import ScipyGrid, ScipyPoint
 from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
-from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
-class MockArrayDataSource(InterpolationMixin, DataSource):
+class MockArrayDataSource(DataSource):
     data = ArrayTrait().tag(attr=True)
     coordinates = tl.Instance(Coordinates).tag(attr=True)
 
     def get_data(self, coordinates, coordinates_index):
-        return self.create_output_array(coordinates, data=self.data[coordinates_index])
+        return self.create_output_array(coordinates, data=self.data[coordinates_index]).interpolate()
 
 
-class MockArrayDataSourceXR(InterpolationMixin, DataSource):
+class MockArrayDataSourceXR(DataSource):
     data = ArrayTrait().tag(attr=True)
     coordinates = tl.Instance(Coordinates).tag(attr=True)
 
     def get_data(self, coordinates, coordinates_index):
         dataxr = self.create_output_array(self.coordinates, data=self.data)
-        return self.create_output_array(coordinates, data=dataxr[coordinates_index].data)
+        return self.create_output_array(coordinates, data=dataxr[coordinates_index].data).interpolate()
 
 
 class TestNone(object):
