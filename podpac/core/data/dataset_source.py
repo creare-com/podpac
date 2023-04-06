@@ -4,12 +4,11 @@ import traitlets as tl
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin, LoadFileMixin
-from podpac.core.interpolation.interpolation import InterpolationMixin
 from podpac.core.coordinates.coordinates import Coordinates
 
 
 @common_doc(COMMON_DATA_DOC)
-class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
+class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
     """Create a DataSource node using xarray.open_dataset.
 
     Attributes
@@ -94,8 +93,3 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
             return Coordinates.from_xarray(self.dataset, crs=self.crs)
         return super().get_coordinates()
 
-
-class Dataset(InterpolationMixin, DatasetRaw):
-    """xarray dataset source with interpolation."""
-
-    pass

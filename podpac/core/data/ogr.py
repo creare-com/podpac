@@ -11,10 +11,9 @@ ogr = lazy_module("osgeo.ogr")
 from podpac import Node, Coordinates, cached_property, settings, clinspace
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
-from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
-class OGRRaw(Node):
+class OGR(Node):
     """ """
 
     source = tl.Unicode().tag(attr=True, required=True)
@@ -149,7 +148,3 @@ class OGRRaw(Node):
         data = band.ReadAsArray(buf_type=gdal.GDT_Float64).copy()
         data[data == nan_val] = np.nan
         return data
-
-
-class OGR(InterpolationMixin, OGRRaw):
-    interpolation = "nearest"

@@ -33,6 +33,7 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.managers.multi_threading import thread_manager
 
+
 _logger = logging.getLogger(__name__)
 
 COMMON_NODE_DOC = {
@@ -273,7 +274,6 @@ class Node(tl.HasTraits):
         # Caching is now done explicitly with a Caching node
         data = self._eval(coordinates, **kwargs)
 
-
         # extract single output, if necessary
         # subclasses should extract single outputs themselves if possible, but this provides a backup
         if "output" in data.dims and self.output is not None:
@@ -460,6 +460,9 @@ class Node(tl.HasTraits):
         if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
             kwargs["cache_ctrl"] = podpac.core.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
         return podpac.data.CachingNode(source=self, cache_type=cache_type, **kwargs)
+    
+    def interpolate(self, **kwargs):
+        return podpac.interpolators.Interpolate(source=self, **kwargs)
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
     # -----------------------------------------------------------------------------------------------------------------

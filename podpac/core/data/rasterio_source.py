@@ -21,13 +21,13 @@ from podpac.core.coordinates import UniformCoordinates1d, Coordinates, merge_dim
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource
 from podpac.core.authentication import S3Mixin
-from podpac.core.interpolation.interpolation import InterpolationMixin
+
 
 _logger = logging.getLogger(__name__)
 
 
 @common_doc(COMMON_DATA_DOC)
-class RasterioRaw(S3Mixin, BaseFileSource):
+class Rasterio(S3Mixin, BaseFileSource):
     """Create a DataSource using rasterio.
 
     Attributes
@@ -321,8 +321,3 @@ class RasterioRaw(S3Mixin, BaseFileSource):
 
         return matches
 
-
-class Rasterio(InterpolationMixin, RasterioRaw):
-    """Rasterio datasource with interpolation."""
-
-    pass

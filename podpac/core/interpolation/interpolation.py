@@ -1,5 +1,4 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
-from podpac.core.cache import cache_ctrl
 
 import traitlets as tl
 from copy import deepcopy
@@ -20,40 +19,6 @@ from podpac.core.cache.cache_ctrl import CacheCtrl
 from podpac.core.data.datasource import DataSource
 
 _logger = logging.getLogger(__name__)
-
-
-class InterpolationMixin(tl.HasTraits):
-    # interpolation = InterpolationTrait().tag(attr=True, required=False, default = "nearesttt")
-    interpolation = InterpolationTrait().tag(attr=True)
-
-    _interp_node = None
-
-    @property
-    def _repr_keys(self):
-        return super()._repr_keys + ["interpolation"]
-
-    def _eval(self, coordinates, output=None, _selector=None):
-        node = Interpolate(
-            interpolation=self.interpolation,
-            source_id=self.hash,
-            force_eval=True,
-            cache_ctrl=CacheCtrl([]),
-            style=self.style,
-        )
-        node._set_interpolation()
-        selector = node._interpolation.select_coordinates
-        node._source_xr = super()._eval(coordinates, _selector=selector)
-        self._interp_node = node
-        if isinstance(self, DataSource):
-            # This is required to ensure that the output coordinates
-            # match the requested coordinates to floating point precision
-            r = node.eval(self._requested_coordinates, output=output)
-        else:
-            r = node.eval(coordinates, output=output)
-        # Helpful for debugging
-        self._from_cache = node._from_cache
-        return r
-
 
 class Interpolate(Node):
     """Node to used to interpolate from self.source.coordinates to the user-specified, evaluated coordinates.
