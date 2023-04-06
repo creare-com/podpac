@@ -351,6 +351,7 @@ def _get_from_url(url, session=None):
     return r
 
 
+
 def cached_property(*args, **kwargs):
     """
     Decorator that creates a property that is cached.
@@ -405,14 +406,14 @@ def cached_property(*args, **kwargs):
         def wrapper(self):
             if hasattr(self, key):
                 value = getattr(self, key)
-            elif use_cache_ctrl and self.has_cache(key):
-                value = self.get_cache(key)
+            elif use_cache_ctrl and self.has_property_cache(key):
+                value = self.get_property_cache(key)
                 setattr(self, key, value)
             else:
                 value = fn(self)
                 setattr(self, key, value)
                 if use_cache_ctrl:
-                    self.put_cache(value, key, expires=expires)
+                    self.put_property_cache(value, key, expires=expires)
             return value
 
         return wrapper
@@ -421,6 +422,7 @@ def cached_property(*args, **kwargs):
         return d(args[0])
     else:
         return d
+
 
 
 def ind2slice(Is):

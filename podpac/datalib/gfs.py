@@ -10,7 +10,7 @@ from lazy_import import lazy_module
 s3fs = lazy_module("s3fs")
 
 # Internal imports
-from podpac.core.data.rasterio_source import RasterioRaw
+from podpac.core.data.rasterio_source import Rasterio
 from podpac.core.authentication import S3Mixin
 from podpac.coordinates import Coordinates
 from podpac.utils import cached_property, DiskCacheMixin
@@ -19,7 +19,7 @@ from podpac.compositor import TileCompositor
 BUCKET = "noaa-gfs-pds"
 
 
-class GFSSourceRaw(DiskCacheMixin, RasterioRaw):
+class GFSSourceRaw(DiskCacheMixin, Rasterio):
     """Raw GFS data from S3
 
     Attributes

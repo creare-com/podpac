@@ -124,7 +124,7 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
         Note: CSV files have StackedCoordinates.
         """
 
-        coords = super(CSVRaw, self).get_coordinates()
+        coords = super(CSV, self).get_coordinates()
         if len(coords) == 1:
             return coords
         stacked = StackedCoordinates(list(coords.values()))

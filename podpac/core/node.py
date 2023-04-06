@@ -32,6 +32,8 @@ from podpac.core.utils import hash_alg
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.managers.multi_threading import thread_manager
+from podpac.core.cache import CacheCtrl
+
 
 
 _logger = logging.getLogger(__name__)
@@ -136,6 +138,10 @@ class Node(tl.HasTraits):
     cache_output = tl.Bool()
     _from_cache = False
     force_eval = tl.Bool(False)
+    
+    property_cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+    
+    
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     # e.g. data sources use ['source']
@@ -674,6 +680,100 @@ class Node(tl.HasTraits):
             return True
         return self.hash != other.hash
 
+    # -----------------------------------------------------------------------------------------------------------------
+    # Caching Interface
+    # -----------------------------------------------------------------------------------------------------------------
+
+
+    def get_property_cache(self, key, coordinates=None):
+        """
+        Get cached data for this node.
+        Parameters
+        ----------
+        key : str
+            Key for the cached data, e.g. 'output'
+        coordinates : podpac.Coordinates, optional
+            Coordinates for which the cached data should be retrieved. Omit for coordinate-independent data.
+        Returns
+        -------
+        data : any
+            The cached data.
+        Raises
+        ------
+        NodeException
+            Cached data not found.
+        """
+
+        try:
+            self.definition
+        except NodeDefinitionError as e:
+            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+
+        if self.property_cache_ctrl is None or not self.has_property_cache(key, coordinates=coordinates):
+            raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
+
+        return self.cache_ctrl.get(self, key, coordinates=coordinates)
+
+    def put_property_cache(self, data, key, coordinates=None, expires=None, overwrite=True):
+        """
+        Cache data for this node.
+        Parameters
+        ----------
+        data : any
+            The data to cache.
+        key : str
+            Unique key for the data, e.g. 'output'
+        coordinates : podpac.Coordinates, optional
+            Coordinates that the cached data depends on. Omit for coordinate-independent data.
+        expires : float, datetime, timedelta
+            Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
+        overwrite : bool, optional
+            Overwrite existing data, default True.
+        Raises
+        ------
+        NodeException
+            Cached data already exists (and overwrite is False)
+        """
+
+        try:
+            self.definition
+        except NodeDefinitionError as e:
+            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+
+        if self.property_cache_ctrl is None:
+            return
+
+        if not overwrite and self.has_property_cache(key, coordinates=coordinates):
+            raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
+
+        with thread_manager.cache_lock:
+            self.property_cache_ctrl.put(self, data, key, coordinates=coordinates, expires=expires, update=overwrite)
+
+    def has_property_cache(self, key, coordinates=None):
+        """
+        Check for cached data for this node.
+        Parameters
+        ----------
+        key : str
+            Key for the cached data, e.g. 'output'
+        coordinates : podpac.Coordinates, optional
+            Coordinates for which the cached data should be retrieved. Omit for coordinate-independent data.
+        Returns
+        -------
+        bool
+            True if there is cached data for this node, key, and coordinates.
+        """
+
+        try:
+            self.definition
+        except NodeDefinitionError as e:
+            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+
+        if self.property_cache_ctrl is None:
+            return False
+
+        with thread_manager.cache_lock:
+            return self.property_cache_ctrl.has(self, key, coordinates=coordinates)    
     
     # --------------------------------------------------------#
     #  Class Methods (Deserialization)
