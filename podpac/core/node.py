@@ -133,6 +133,7 @@ class Node(tl.HasTraits):
 
     dtype = tl.Enum([float], default_value=float)
     cache_output = tl.Bool()
+    _from_cache = False
     force_eval = tl.Bool(False)
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
@@ -458,7 +459,6 @@ class Node(tl.HasTraits):
         # Shortcut for users to make setting the cache_ctrl simpler:
         if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
             kwargs["cache_ctrl"] = podpac.core.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
-        
         return podpac.data.CachingNode(source=self, cache_type=cache_type, **kwargs)
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization

@@ -6,6 +6,7 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl, S3CacheStore, DiskCacheStore
 from podpac.core.managers.multi_threading import thread_manager
 from podpac import settings
+from podpac.core.cache.cache_ctrl import _CACHE_STORES
 
 
 class CachingNode(Node):
@@ -30,16 +31,15 @@ class CachingNode(Node):
     _relevant_dimensions =tl.Instance(list, allow_none=True, default_value=None)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
     _from_cache = tl.Bool(allow_none=True, default_value=False)
-    cache_type = tl.Enum(["ram", "disk", "s3"], default_value=None)
+    cache_type = tl.Union([tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default=None)
 
     
     @tl.default("cache_ctrl")
     def _cache_ctrl_default(self):
-        return get_default_cache_ctrl()
-    
-    @tl.default("cache_type")
-    def _cache_type_default(self):
-        return settings.DEFAULT_CACHE
+        if self.cache_type is None:
+            return get_default_cache_ctrl()
+        return make_cache_ctrl(self.cache_type)
+
 
     def eval(self, coordinates, **kwargs):
         """
@@ -98,6 +98,7 @@ class CachingNode(Node):
                 order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
                 output.transpose(*order)[:] = data
             self._from_cache = True
+            self.source._from_cache = self._from_cache
             if extra is not None:
                 return data.transpose(*(coordinates.drop(extra)).dims)
             else:
@@ -106,6 +107,7 @@ class CachingNode(Node):
         # Evaluate the node
         data = self.source.eval(coordinates, **kwargs)
         self._from_cache = False 
+        self.source._from_cache = self._from_cache
 
         # Get relevant dimensions to cache
         self._relevant_dimensions = list(data.dims)
