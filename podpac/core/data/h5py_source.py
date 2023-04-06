@@ -7,11 +7,10 @@ h5py = lazy_module("h5py")
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin
-from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 @common_doc(COMMON_DATA_DOC)
-class H5PYRaw(FileKeysMixin, BaseFileSource):
+class H5PY(FileKeysMixin, BaseFileSource):
     """Create a DataSource node using h5py.
 
     Attributes
@@ -121,8 +120,3 @@ class H5PYRaw(FileKeysMixin, BaseFileSource):
         keys = sorted(list(set(keys)))
         return keys
 
-
-class H5PY(InterpolationMixin, H5PYRaw):
-    """h5py datasource with interpolation."""
-
-    pass
