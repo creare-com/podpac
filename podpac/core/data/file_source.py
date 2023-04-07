@@ -91,14 +91,14 @@ class LoadFileMixin(S3Mixin):
     @cached_property
     def _dataset_caching_node(self):
         # stub node containing only the source node attr
-        return BaseFileSource(source=self.source, cache_ctrl=self.cache_ctrl)
+        return BaseFileSource(source=self.source, cache_ctrl=self.property_cache_ctrl)
 
     @cached_property
     def dataset(self):
         # get from the cache
         # use the _dataset_caching_node "stub" here because the only node attr we care about is the source
-        if self.cache_dataset and self._dataset_caching_node.has_cache(key="dataset"):
-            data = self._dataset_caching_node.get_cache(key="dataset")
+        if self.cache_dataset and self._dataset_caching_node.has_property_cache(key="dataset"):
+            data = self._dataset_caching_node.get_property_cache(key="dataset")
             self._file = BytesIO(data)
             return self._open(self._file, cache=False)
 
@@ -124,7 +124,7 @@ class LoadFileMixin(S3Mixin):
 
     def _open(self, f, cache=True):
         if self.cache_dataset and cache:
-            self._dataset_caching_node.put_cache(f.read(), key="dataset", expires=self.dataset_expires)
+            self._dataset_caching_node.put_property_cache(f.read(), key="dataset", expires=self.dataset_expires)
             f.seek(0)
         return self.open_dataset(f)
 

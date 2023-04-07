@@ -59,7 +59,7 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
         return xr.open_dataset(fp, decode_cf=self.decode_cf)
 
     def close_dataset(self):
-        super(DatasetRaw, self).close_dataset()
+        super(Dataset, self).close_dataset()
         self.dataset.close()
 
     @cached_property

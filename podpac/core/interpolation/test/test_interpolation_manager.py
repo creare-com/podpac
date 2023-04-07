@@ -334,7 +334,7 @@ class TestInterpolation(object):
         assert np.all(outdata == srcdata)
 
 
-class TestHeterogenousInterpolation(object):
+class TestHeterogenousInterpolation(object): # I don't think heterogeneou interpolation works with current .interpolate() scheme.
     DATA = np.arange(64).reshape((4, 4, 4))
     COORDS = Coordinates(
         [[0, 1, 2, 3], [0, 1, 2, 3], ["2020-01-01", "2020-01-05", "2020-01-09", "2020-01-13"]],
@@ -372,7 +372,7 @@ class TestHeterogenousInterpolation(object):
 
     def test_mixed(self):
         interpolation = [{"method": "nearest", "dims": ["time"]}, {"method": "bilinear", "dims": ["lat", "lon"]}]
-        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation).interpolate()
 
         assert node.eval(self.C1)[0, 0, 0] == 21.0
         assert node.eval(self.C2)[0, 0, 0] == 25.4
@@ -388,7 +388,7 @@ class TestHeterogenousInterpolation(object):
 
         # other order
         interpolation = [{"method": "bilinear", "dims": ["lat", "lon"]}, {"method": "nearest", "dims": ["time"]}]
-        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation).interpolate()
 
         assert node.eval(self.C1)[0, 0, 0] == 21.0
         assert node.eval(self.C2)[0, 0, 0] == 25.4
@@ -404,7 +404,7 @@ class TestHeterogenousInterpolation(object):
 
     def test_mixed_linear_time(self):
         interpolation = [{"method": "bilinear", "dims": ["time"]}, {"method": "nearest", "dims": ["lat", "lon"]}]
-        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation).interpolate()
 
         assert node.eval(self.C1)[0, 0, 0] == 21.0
         assert node.eval(self.C2)[0, 0, 0] == 21.0

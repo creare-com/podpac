@@ -32,8 +32,8 @@ from podpac.core.utils import hash_alg
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.managers.multi_threading import thread_manager
-from podpac.core.cache import CacheCtrl
-
+from podpac.core.cache import CacheCtrl, make_cache_ctrl, get_default_cache_ctrl
+from podpac.core.cache.cache_ctrl import _CACHE_STORES
 
 
 _logger = logging.getLogger(__name__)
@@ -139,10 +139,9 @@ class Node(tl.HasTraits):
     _from_cache = False
     force_eval = tl.Bool(False)
     
+    property_cache_type = tl.Union([tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default_value=None)
     property_cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
     
-    
-
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     # e.g. data sources use ['source']
     _repr_keys = []
@@ -172,7 +171,12 @@ class Node(tl.HasTraits):
     @tl.default("cache_output")
     def _cache_output_default(self):
         return settings["CACHE_NODE_OUTPUT_DEFAULT"]
-
+    
+    @tl.default("property_cache_ctrl")
+    def _property_cache_ctrl_default(self):
+        if self.property_cache_type is None:
+            return get_default_cache_ctrl()
+        return make_cache_ctrl(self.property_cache_type)
 
     # debugging
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
@@ -709,7 +713,7 @@ class Node(tl.HasTraits):
         if self.property_cache_ctrl is None or not self.has_property_cache(key, coordinates=coordinates):
             raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
 
-        return self.cache_ctrl.get(self, key, coordinates=coordinates)
+        return self.property_cache_ctrl.get(self, key, coordinates=coordinates)
 
     def put_property_cache(self, data, key, coordinates=None, expires=None, overwrite=True):
         """
@@ -771,6 +775,40 @@ class Node(tl.HasTraits):
 
         with thread_manager.cache_lock:
             return self.property_cache_ctrl.has(self, key, coordinates=coordinates)    
+        
+    
+    def rem_property_cache(self, key, coordinates=None, mode="all"):
+        """
+        Clear cached data for this node.
+
+        Parameters
+        ----------
+        key : str
+            Delete cached objects with this key. If `'*'`, cached data is deleted for all keys.
+        coordinates : podpac.Coordinates, str, optional
+            Default is None. Delete cached objects for these coordinates. If `'*'`, cached data is deleted for all
+            coordinates, including coordinate-independent data. If None, will only affect coordinate-independent data.
+        mode: str, optional
+            Specify which cache stores are affected. Default 'all'.
+
+
+        See Also
+        ---------
+        `podpac.core.cache.cache.CacheCtrl.clear` to remove ALL cache for ALL nodes.
+        """
+
+        try:
+            self.definition
+        except NodeDefinitionError as e:
+            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+
+        if self.property_cache_ctrl is None:
+            return
+
+        self.property_cache_ctrl.rem(self, item=key, coordinates=coordinates, mode=mode)
+
+    
+
     
     # --------------------------------------------------------#
     #  Class Methods (Deserialization)

@@ -133,13 +133,13 @@ class TestDataSource(object):
         c = MyDataSource(cache_coordinates=False, cache_ctrl=["ram"])
         d = MyDataSource(cache_coordinates=True, cache_ctrl=[])
 
-        a.rem_cache("*")
-        b.rem_cache("*")
-        c.rem_cache("*")
-        d.rem_cache("*")
+        a.rem_property_cache("*")
+        b.rem_property_cache("*")
+        c.rem_property_cache("*")
+        d.rem_property_cache("*")
 
         # get_coordinates called once
-        assert not a.has_cache("coordinates")
+        assert not a.has_property_cache("coordinates")
         assert a.get_coordinates_called == 0
         assert isinstance(a.coordinates, Coordinates)
         assert a.get_coordinates_called == 1
@@ -147,10 +147,10 @@ class TestDataSource(object):
         assert a.get_coordinates_called == 1
 
         # coordinates is cached to a, b, and c
-        assert a.has_cache("coordinates")
-        assert b.has_cache("coordinates")
-        assert c.has_cache("coordinates")
-        assert not d.has_cache("coordinates")
+        assert a.has_property_cache("coordinates") # having problems with the property cache here.
+        assert b.has_property_cache("coordinates")
+        assert c.has_property_cache("coordinates")
+        assert not d.has_property_cache("coordinates")
 
         # b: use cache, get_coordinates not called
         assert b.get_coordinates_called == 0
@@ -526,9 +526,8 @@ class TestDataSource(object):
 
             node = podpac.data.Array(
                 source=np.ones((3, 4)),
-                coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"]),
-                cache_ctrl=["ram"],
-            ).cache()
+                coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"])
+            ).cache(cache_tpe=["ram"])
             coords1 = podpac.Coordinates([range(3), range(4), "2012-05-19"], ["lat", "lon", "time"])
             coords2 = podpac.Coordinates([range(3), range(4), "2019-09-10"], ["lat", "lon", "time"])
 
@@ -550,19 +549,18 @@ class TestDataSource(object):
 
             node = podpac.core.data.array_source.Array(
                 source=np.ones((3, 4)),
-                coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"], crs="EPSG:4326"),
-                cache_ctrl=["ram"],
-            ).cache()
+                coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"], crs="EPSG:4326")
+            ).cache(cache_type=["ram"])
 
             # retrieve from cache on the second evaluation
-            node.eval(node.coordinates)
+            node.eval(node.source.coordinates)
             assert not node._from_cache
 
-            node.eval(node.coordinates)
+            node.eval(node.source.coordinates)
             assert node._from_cache
 
             # also retrieve from cache with different crs
-            node.eval(node.coordinates.transform("EPSG:4326"))
+            node.eval(node.source.coordinates.transform("EPSG:4326"))
             assert node._from_cache
 
     def test_get_source_data(self):

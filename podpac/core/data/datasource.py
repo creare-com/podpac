@@ -215,14 +215,14 @@ class DataSource(Node):
 
         if self._coordinates is not None:
             nc = self._coordinates
-        elif self.cache_coordinates and self.has_cache("coordinates"):
-            nc = self.get_cache("coordinates")
+        elif self.cache_coordinates and self.has_property_cache("coordinates"):
+            nc = self.get_property_cache("coordinates")
             self.set_trait("_coordinates", nc)
         else:
             nc = self.get_coordinates()
             self.set_trait("_coordinates", nc)
             if self.cache_coordinates:
-                self.put_cache(nc, "coordinates")
+                self.put_property_cache(nc, "coordinates")
         return nc
 
     @property
