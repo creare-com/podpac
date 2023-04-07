@@ -118,7 +118,7 @@ class TestYearSubstituteCoordinates(object):
             coordinates=podpac.Coordinates(
                 [podpac.crange("2018-01-01", "2018-01-02", "1,D"), podpac.clinspace(45, 66, 3)], dims=["time", "lat"]
             ),
-        )
+        ).interpolate()
         node = YearSubstituteCoordinates(source=source, year="2018")
         o = node.eval(COORDS)
         assert o.time.dt.year.data[0] == 2018
@@ -130,14 +130,14 @@ class TestYearSubstituteCoordinates(object):
             coordinates=podpac.Coordinates(
                 [podpac.crange("2018-01-01", "2018-01-02", "1,D"), podpac.clinspace(45, 66, 3)], dims=["time", "lat"]
             ),
-        )
+        ).interpolate()
         node = YearSubstituteCoordinates(source=source, year="2018", substitute_eval_coords=True)
         o = node.eval(COORDS)
         assert o.time.dt.year.data[0] == 2017
         np.testing.assert_array_equal(o["time"], COORDS["time"].coordinates)
 
     def test_year_substitution_multiple_outputs(self):
-        multi = Array(source=np.random.random(COORDS.shape + (2,)), coordinates=COORDS, outputs=["a", "b"])
+        multi = Array(source=np.random.random(COORDS.shape + (2,)), coordinates=COORDS, outputs=["a", "b"]).interpolate()
         node = YearSubstituteCoordinates(source=multi, year="2018")
         o = node.eval(COORDS)
         assert o.time.dt.year.data[0] == 2018

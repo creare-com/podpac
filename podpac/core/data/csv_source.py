@@ -54,7 +54,7 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     @tl.default("data_key")
     def _default_data_key(self):
-        return super(CSVRaw, self)._default_data_key()
+        return super(CSV, self)._default_data_key()
 
     @tl.validate("data_key")
     def _validate_data_key(self, d):

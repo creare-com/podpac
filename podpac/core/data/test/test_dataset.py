@@ -56,10 +56,10 @@ class TestDataset(object):
         node.close_dataset()
 
     def test_get_data_array_indexing(self):
-        node = Dataset(source=self.source, time_key="day", data_key="data")
-        out = node.eval(node.coordinates.transpose("time", "lat", "lon")[:, [0, 2]])
+        node = Dataset(source=self.source, time_key="day", data_key="data").interpolate()
+        out = node.eval(node.source.coordinates.transpose("time", "lat", "lon")[:, [0, 2]])
         np.testing.assert_array_equal(out, self.data[:, [0, 2]])
-        node.close_dataset()
+        node.source.close_dataset()
 
     def test_get_data_multiple(self):
         node = Dataset(source=self.source, time_key="day", data_key=["data", "other"])

@@ -21,6 +21,7 @@ from podpac.core.interpolation.interpolation_manager import InterpolationExcepti
 from podpac.core.interpolation.interpolation import Interpolate
 from podpac.core.data.array_source import Array
 from podpac.core.interpolation.scipy_interpolator import ScipyGrid
+from podpac.core.compositor import TileCompositor
 
 
 class TestInterpolationMixin(object):
@@ -145,10 +146,10 @@ class TestInterpolationBehavior(object):
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=DeprecationWarning)
             node.eval(Coordinates([[0.5, 1.5]], ["time"]))
-        assert "interpolation parameter 'fake_param' was ignored" in caplog.text
+        assert "interpolation parameter 'fake_param' was ignored" in caplog.text 
         assert "interpolation parameter 'spatial_tolerance' was ignored" not in caplog.text
 
-    def test_silent_nearest_neighbor_interp_bug_issue412(self):
+    def test_silent_nearest_neighbor_interp_bug_issue412(self): # not sure about these bug-specific issues. Need to do more research about interpolate.
         node = podpac.data.Array(
             source=[0, 1, 2],
             coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),

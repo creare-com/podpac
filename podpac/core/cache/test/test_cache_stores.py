@@ -36,7 +36,7 @@ class BaseCacheStoreTests(object):
     def test_init(self):
         store = self.Store()
 
-    def test_disabled(self):
+    def test_disabled(self): # this is the only test that passes for S3 because I don't have a bucket set up
         podpac.settings[self.enabled_setting] = False
         with pytest.raises(CacheException, match="cache is disabled"):
             store = self.Store()

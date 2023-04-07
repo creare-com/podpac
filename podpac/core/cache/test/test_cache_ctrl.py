@@ -353,7 +353,7 @@ def test_clear_cache():
         podpac.settings["DEFAULT_CACHE"] = ["ram"]
 
         # fill the default cache
-        node = podpac.algorithm.Arange()
+        node = podpac.algorithm.Arange().cache()
         node.put_cache(0, "mykey")
         assert node.has_cache("mykey")
 
@@ -367,4 +367,4 @@ def test_cache_cleanup():
         # make a default cache
         podpac.settings["DEFAULT_CACHE"] = ["ram"]
 
-        cache_cleanup()
+        cache_cleanup() # this fails. Not sure whats happening with the "_thread_local" object in ram_cache_store.py
