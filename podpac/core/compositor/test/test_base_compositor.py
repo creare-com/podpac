@@ -112,7 +112,7 @@ class TestBaseCompositor(object):
         assert len(selected) == 0
 
     def test_iteroutputs_empty(self):
-        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME]).interpolate() # not sure about iterouputs & adding an interpolator
+        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME]).interpolate() # implemented __getattr__ but still assertion erro
         outputs = node.iteroutputs(podpac.Coordinates([-1, -1, -1], dims=["lat", "lon", "time"]))
         np.testing.assert_array_equal(next(outputs), [[[np.nan]]])
         np.testing.assert_array_equal(next(outputs), [[[np.nan]]])
