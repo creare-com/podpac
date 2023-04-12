@@ -20,6 +20,8 @@ from podpac.core.data.datasource import DataSource
 
 _logger = logging.getLogger(__name__)
 
+
+
 class Interpolate(Node):
     """Node to used to interpolate from self.source.coordinates to the user-specified, evaluated coordinates.
 
@@ -93,6 +95,16 @@ class Interpolate(Node):
     _requested_source_coordinates_index = tl.Tuple()
     _requested_source_data = tl.Instance(UnitsDataArray)
     _evaluated_coordinates = tl.Instance(Coordinates)
+    
+    
+
+    def __getattr__(self, name):
+        # Check if the interpolation node has the method
+        if hasattr(self.__dict__, name):
+            return getattr(self, name)
+        # Only call the method on the wrapped node if the interpolator doesn't implement it
+        else:
+            return getattr(self.source, name)
 
     @tl.default("style")
     def _default_style(self):  # Pass through source style by default
@@ -191,6 +203,8 @@ class Interpolate(Node):
         ValueError
             Cannot evaluate these coordinates
         """
+        self._set_interpolation()
+        _selector = self._interpolation.select_coordinates
 
         _logger.debug("Evaluating {} data source".format(self.__class__.__name__))
 

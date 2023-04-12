@@ -127,6 +127,8 @@ class TestDataSource(object):
             def get_coordinates(self):
                 self.get_coordinates_called += 1
                 return Coordinates([])
+            
+        # unsure about how the property cache 100% works. Why not cache coordiantes>
 
         a = MyDataSource(cache_coordinates=True, cache_ctrl=["ram"])
         b = MyDataSource(cache_coordinates=True, cache_ctrl=["ram"])

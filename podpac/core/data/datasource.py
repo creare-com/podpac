@@ -221,6 +221,7 @@ class DataSource(Node):
         else:
             nc = self.get_coordinates()
             self.set_trait("_coordinates", nc)
+            print("get_coordinates", nc)
             if self.cache_coordinates:
                 self.put_property_cache(nc, "coordinates")
         return nc
