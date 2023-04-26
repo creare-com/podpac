@@ -27,7 +27,7 @@ class MockArrayDataSource(DataSource):
     coordinates = tl.Instance(Coordinates).tag(attr=True)
 
     def get_data(self, coordinates, coordinates_index):
-        return self.create_output_array(coordinates, data=self.data[coordinates_index]).interpolate()
+        return self.create_output_array(coordinates, data=self.data[coordinates_index])
 
 
 class MockArrayDataSourceXR(DataSource):
@@ -36,7 +36,7 @@ class MockArrayDataSourceXR(DataSource):
 
     def get_data(self, coordinates, coordinates_index):
         dataxr = self.create_output_array(self.coordinates, data=self.data)
-        return self.create_output_array(coordinates, data=dataxr[coordinates_index].data).interpolate()
+        return self.create_output_array(coordinates, data=dataxr[coordinates_index].data)
 
 
 class TestNone(object):
@@ -73,18 +73,16 @@ class TestNone(object):
         node = podpac.data.Array(
             source=[0, 1, 2],
             coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),
-            interpolation="none",
-        )
+        ).interpolate(interpolation="none")
         o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
-        np.testing.assert_array_equal(o.data, node.source)
+        np.testing.assert_array_equal(o.data, node.source.source)
 
     def test_none_heterogeneous(self):
         # Heterogeneous
         node = podpac.data.Array(
             source=[[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]],
             coordinates=podpac.Coordinates([[1, 5, 9, 13], [0, 1, 2]], dims=["lat", "lon"]),
-            interpolation=[{"method": "none", "dims": ["lat"]}, {"method": "linear", "dims": ["lon"]}],
-        )
+        ).interpolate(interpolation=[{"method": "none", "dims": ["lat"]}, {"method": "linear", "dims": ["lon"]}])
         o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 2), [0.5, 1.5]], dims=["lat", "lon"]))
         np.testing.assert_array_equal(
             o.data,
@@ -102,8 +100,7 @@ class TestNone(object):
         node = podpac.data.Array(
             source=[[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]],
             coordinates=podpac.Coordinates([[1, 5, 9, 13], [0, 1, 2]], dims=["lat", "lon"]),
-            interpolation=[{"method": "linear", "dims": ["lon"]}, {"method": "none", "dims": ["lat"]}],
-        )
+        ).interpolate(interpolation=[{"method": "linear", "dims": ["lon"]}, {"method": "none", "dims": ["lat"]}])
         o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 2), [0.5, 1.5]], dims=["lat", "lon"]))
         np.testing.assert_array_equal(
             o.data,
@@ -123,20 +120,18 @@ class TestNone(object):
         node = podpac.data.Array(
             source=[0, 1, 2],
             coordinates=podpac.Coordinates([[[1, 5, 9], [1, 5, 9]]], dims=[["lat", "lon"]]),
-            interpolation=[{"method": "none", "dims": ["lon", "lat"]}],
-        )
+        ).interpolate(interpolation=[{"method": "none", "dims": ["lon", "lat"]}])
         o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1), podpac.crange(1, 9, 1)], dims=["lon", "lat"]))
-        np.testing.assert_array_equal(o.data, node.source)
+        np.testing.assert_array_equal(o.data, node.source.source)
 
         #  source                      eval
         #  lat, lon                    lat_lon
         node = podpac.data.Array(
             source=[[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]],
             coordinates=podpac.Coordinates([[1, 5, 9, 13], [0, 1, 2]], dims=["lat", "lon"]),
-            interpolation=[{"method": "none", "dims": ["lat", "lon"]}],
-        )
+        ).interpolate(interpolation=[{"method": "none", "dims": ["lat", "lon"]}])
         o = node.eval(podpac.Coordinates([[podpac.crange(1, 9, 2), podpac.crange(1, 9, 2)]], dims=[["lat", "lon"]]))
-        np.testing.assert_array_equal(o.data, node.source[:-1, 1:])
+        np.testing.assert_array_equal(o.data, node.source.source[:-1, 1:])
 
 
 class TestNearest(object):
@@ -232,8 +227,8 @@ class TestNearest(object):
 
     def test_nearest_select_issue445(self):
         sc = Coordinates([clinspace(-59.9, 89.9, 100, name="lat"), clinspace(-179.9, 179.9, 100, name="lon")])
-        node = podpac.data.Array(
-            interpolation="nearest_preview", source=np.arange(sc.size).reshape(sc.shape), coordinates=sc
+        node = podpac.data.Array(source=np.arange(sc.size).reshape(sc.shape), coordinates=sc).interpolate(
+            interpolation="nearest_preview"
         )
         coords = Coordinates([-61, 72], dims=["lat", "lon"])
         out = node.eval(coords)
@@ -247,7 +242,7 @@ class TestNearest(object):
             # unstacked 1D
             source = np.random.rand(5)
             coords_src = Coordinates([np.linspace(0, 10, 5)], dims=["lat"])
-            node = MockArrayDataSource(data=source, coordinates=coords_src, interpolation=interpolation)
+            node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(interpolation=interpolation)
 
             coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9]], dims=["lat"])
             output = node.eval(coords_dst)
@@ -261,7 +256,7 @@ class TestNearest(object):
             coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
             coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
-            node = MockArrayDataSource(data=source, coordinates=coords_src, interpolation=interpolation)
+            node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(interpolation=interpolation)
             output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
@@ -274,8 +269,7 @@ class TestNearest(object):
             node = MockArrayDataSource(
                 data=source,
                 coordinates=coords_src,
-                interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
-            )
+            ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
             coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
             output = node.eval(coords_dst)
 
@@ -289,8 +283,7 @@ class TestNearest(object):
             node = MockArrayDataSource(
                 data=source,
                 coordinates=coords_src,
-                interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
-            )
+            ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
             coords_dst = Coordinates([np.linspace(1, 9, 3), np.linspace(1, 9, 3)], dims=["lat", "lon"])
 
             output = node.eval(coords_dst)
@@ -304,8 +297,7 @@ class TestNearest(object):
             node = MockArrayDataSource(
                 data=source,
                 coordinates=coords_src,
-                interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
-            )
+            ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
             coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
 
             output = node.eval(coords_dst)
@@ -319,8 +311,7 @@ class TestNearest(object):
             node = MockArrayDataSource(
                 data=source,
                 coordinates=coords_src,
-                interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
-            )
+            ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
             coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
 
             output = node.eval(coords_dst)
@@ -334,8 +325,7 @@ class TestNearest(object):
             node = MockArrayDataSource(
                 data=source,
                 coordinates=coords_src,
-                interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
-            )
+            ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
             coords_dst = Coordinates(
                 [[1, 2.4, 3.9], [[1, 2.4, 3.9], [1, 2.4, 3.9]], [1, 2.4, 3.9]], dims=["lon", "alt_time", "lat"]
             )
@@ -352,8 +342,7 @@ class TestNearest(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "nearest", "params": {"spatial_tolerance": 1.1}},
-        )
+        ).interpolate(interpolation={"method": "nearest", "params": {"spatial_tolerance": 1.1}})
 
         coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9]], dims=["lat"])
         output = node.eval(coords_dst)
@@ -370,8 +359,7 @@ class TestNearest(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "nearest", "params": {"spatial_tolerance": 1.1}},
-        )
+        ).interpolate(interpolation={"method": "nearest", "params": {"spatial_tolerance": 1.1}})
 
         coords_dst = Coordinates([[[1, 1.2, 1.5, 5, 9], [1, 1.2, 1.5, 5, 9]]], dims=[["lat", "lon"]])
         output = node.eval(coords_dst)
@@ -389,13 +377,11 @@ class TestNearest(object):
         coords_src = Coordinates(
             [np.linspace(0, 10, 5), clinspace("2018-01-01", "2018-01-09", 5)], dims=["lat", "time"]
         )
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
             interpolation={
                 "method": "nearest",
                 "params": {"spatial_tolerance": 1.1, "time_tolerance": np.timedelta64(1, "D")},
-            },
+            }
         )
 
         coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9], clinspace("2018-01-01", "2018-01-09", 3)], dims=["lat", "time"])
@@ -418,8 +404,8 @@ class TestNearest(object):
         coords_src = Coordinates(
             [[np.linspace(0, 10, 5), clinspace("2018-01-01", "2018-01-09", 5)]], dims=[["lat", "time"]]
         )
-        node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "nearest", "interpolators": [NearestNeighbor]}
+        node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(
+            interpolation={"method": "nearest", "interpolators": [NearestNeighbor]}
         )
 
         coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9], clinspace("2018-01-01", "2018-01-09", 3)], dims=["lat", "time"])
@@ -438,9 +424,7 @@ class TestNearest(object):
         )
         coords_dst = Coordinates([5.1, "2018-01-02T11", 1], dims=["lat", "time", "alt"])
 
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
             interpolation={
                 "method": "nearest",
                 "interpolators": [NearestNeighbor],
@@ -451,14 +435,12 @@ class TestNearest(object):
                     "remove_nan": True,
                     "use_selector": False,
                 },
-            },
+            }
         )
         output = node.eval(coords_dst)
         assert output == source[2, 2, 0]
 
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
             interpolation={
                 "method": "nearest",
                 "interpolators": [NearestNeighbor],
@@ -469,14 +451,12 @@ class TestNearest(object):
                     "remove_nan": True,
                     "use_selector": False,
                 },
-            },
+            }
         )
         output = node.eval(coords_dst)
         assert output == source[2, 1, 1]
 
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
             interpolation={
                 "method": "nearest",
                 "interpolators": [NearestNeighbor],
@@ -487,7 +467,7 @@ class TestNearest(object):
                     "remove_nan": True,
                     "use_selector": False,
                 },
-            },
+            }
         )
         output = node.eval(coords_dst)
         assert output == source[3, 1, 0]
@@ -499,23 +479,19 @@ class TestNearest(object):
         coords_src = Coordinates(
             [[np.linspace(0, 10, 5), clinspace("2018-01-01", "2018-01-09", 5)]], dims=[["lat", "time"]]
         )
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [NearestNeighbor], "params": {"remove_nan": False}},
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
+            interpolation={"method": "nearest", "interpolators": [NearestNeighbor], "params": {"remove_nan": False}}
         )
         coords_dst = Coordinates([[5.1]], dims=["lat"])
         output = node.eval(coords_dst)
         assert np.isnan(output)
 
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
             interpolation={
                 "method": "nearest",
                 "interpolators": [NearestNeighbor],
                 "params": {"remove_nan": True, "use_selector": False},
-            },
+            }
         )
         output = node.eval(coords_dst)
         assert (
@@ -526,23 +502,19 @@ class TestNearest(object):
         source = np.random.rand(5, 3)
         source[2, 1] = np.nan
         coords_src = Coordinates([np.linspace(0, 10, 5), [1, 2, 3]], dims=["lat", "time"])
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [NearestNeighbor], "params": {"remove_nan": False}},
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
+            interpolation={"method": "nearest", "interpolators": [NearestNeighbor], "params": {"remove_nan": False}}
         )
         coords_dst = Coordinates([5.1, 2.01], dims=["lat", "time"])
         output = node.eval(coords_dst)
         assert np.isnan(output)
 
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
             interpolation={
                 "method": "nearest",
                 "interpolators": [NearestNeighbor],
                 "params": {"remove_nan": True, "use_selector": False},
-            },
+            }
         )
         output = node.eval(coords_dst)
         assert output == source[2, 2]
@@ -551,22 +523,18 @@ class TestNearest(object):
         source = np.random.rand(5)
         coords_src = Coordinates([[1, 2, 3, 4, 5]], ["alt"])
         coords_dst = Coordinates([[-0.5, 1.1, 2.6]], ["alt"])
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
             interpolation={
                 "method": "nearest",
                 "interpolators": [NearestNeighbor],
                 "params": {"respect_bounds": False},
-            },
+            }
         )
         output = node.eval(coords_dst)
         np.testing.assert_array_equal(output.data, source[[0, 0, 2]])
 
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [NearestNeighbor], "params": {"respect_bounds": True}},
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
+            interpolation={"method": "nearest", "interpolators": [NearestNeighbor], "params": {"respect_bounds": True}}
         )
         output = node.eval(coords_dst)
         np.testing.assert_array_equal(output.data[1:], source[[0, 2]])
@@ -586,52 +554,42 @@ class TestNearest(object):
             ["lat_lon", "time"],
         )
         coords_dst = Coordinates([np.arange(4) + 0.2, np.arange(1, 4) - 0.2, [0.5]], ["lat", "lon", "time"])
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
             interpolation={
                 "method": "nearest",
                 "interpolators": [NearestNeighbor],
-            },
+            }
         )
         output = node.eval(coords_dst)
         np.testing.assert_array_equal(output, source[:4, 1:, :1])
 
         # Using 'xarray' coordinates type
-        node = MockArrayDataSourceXR(
-            data=source,
-            coordinates=coords_src,
-            coordinate_index_type="xarray",
+        node = MockArrayDataSourceXR(data=source, coordinates=coords_src, coordinate_index_type="xarray",).interpolate(
             interpolation={
                 "method": "nearest",
                 "interpolators": [NearestNeighbor],
-            },
+            }
         )
         output = node.eval(coords_dst)
         np.testing.assert_array_equal(output, source[:4, 1:, :1])
 
         # Using 'slice' coordinates type
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
-            coordinate_index_type="slice",
+        node = MockArrayDataSource(data=source, coordinates=coords_src, coordinate_index_type="slice",).interpolate(
             interpolation={
                 "method": "nearest",
                 "interpolators": [NearestNeighbor],
-            },
+            }
         )
         output = node.eval(coords_dst)
         np.testing.assert_array_equal(output, source[:4, 1:, :1])
 
         # Without Time
         source = np.random.rand(5, 4)
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src.drop("time"),
+        node = MockArrayDataSource(data=source, coordinates=coords_src.drop("time"),).interpolate(
             interpolation={
                 "method": "nearest",
                 "interpolators": [NearestNeighbor],
-            },
+            }
         )
         output = node.eval(coords_dst)
         np.testing.assert_array_equal(output, source[:4, 1:])
@@ -713,8 +671,7 @@ class TestInterpolateRasterioInterpolator(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "min", "interpolators": [RasterioInterpolator]},
-        )
+        ).interpolate(interpolation={"method": "min", "interpolators": [RasterioInterpolator]})
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
@@ -725,8 +682,7 @@ class TestInterpolateRasterioInterpolator(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "max", "interpolators": [RasterioInterpolator]},
-        )
+        ).interpolate(interpolation={"method": "max", "interpolators": [RasterioInterpolator]})
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
         assert np.all(output.lat.values == coords_dst["lat"].coordinates)
@@ -737,9 +693,8 @@ class TestInterpolateRasterioInterpolator(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "bilinear", "interpolators": [RasterioInterpolator]},
             boundary={"lat": 2.5, "lon": 1.25},
-        )
+        ).interpolate(interpolation={"method": "bilinear", "interpolators": [RasterioInterpolator]})
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
         assert np.all(output.lat.values == coords_dst["lat"].coordinates)
@@ -757,8 +712,7 @@ class TestInterpolateRasterioInterpolator(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [RasterioInterpolator]},
-        )
+        ).interpolate(interpolation={"method": "nearest", "interpolators": [RasterioInterpolator]})
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
@@ -779,8 +733,9 @@ class TestInterpolateScipyGrid(object):
 
         # try one specific rasterio case to measure output
         node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "nearest", "interpolators": [ScipyGrid]}
-        )
+            data=source,
+            coordinates=coords_src,
+        ).interpolate(interpolation={"method": "nearest", "interpolators": [ScipyGrid]})
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
@@ -791,8 +746,8 @@ class TestInterpolateScipyGrid(object):
         assert output.data[1, 3] == 8.0
         assert np.isnan(output.data[0, 4])  # TODO: how to handle outside bounds
 
-        node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "cubic_spline", "interpolators": [ScipyGrid]}
+        node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(
+            interpolation={"method": "cubic_spline", "interpolators": [ScipyGrid]}
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
@@ -800,8 +755,8 @@ class TestInterpolateScipyGrid(object):
         assert int(output.data[0, 0]) == 2
         assert int(output.data[2, 4]) == 16
 
-        node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "bilinear", "interpolators": [ScipyGrid]}
+        node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(
+            interpolation={"method": "bilinear", "interpolators": [ScipyGrid]}
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
@@ -820,10 +775,8 @@ class TestInterpolateScipyGrid(object):
         coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5), [2, 3, 5]], dims=["lat", "lon", "time"])
         coords_dst = Coordinates([clinspace(1, 11, 5), clinspace(1, 11, 5), [2, 3, 4]], dims=["lat", "lon", "time"])
 
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
-            interpolation=[{"method": "nearest", "interpolators": [ScipyGrid]}, {"method": "linear", "dims": ["time"]}],
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
+            interpolation=[{"method": "nearest", "interpolators": [ScipyGrid]}, {"method": "linear", "dims": ["time"]}]
         )
         output = node.eval(coords_dst)
 
@@ -855,13 +808,11 @@ class TestInterpolateScipyGrid(object):
             [clinspace(1, 11, 5), clinspace(1, 11, 5), [2, 3, 4], [1]], dims=["lat", "lon", "time", "alt"]
         )
 
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
             interpolation=[
                 {"method": "nearest", "interpolators": [ScipyGrid]},
                 {"method": "linear", "dims": ["time", "alt"]},
-            ],
+            ]
         )
         output = node.eval(coords_dst)
 
@@ -879,8 +830,8 @@ class TestInterpolateScipyGrid(object):
         coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
         coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
-        node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "nearest", "interpolators": [ScipyGrid]}
+        node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(
+            interpolation={"method": "nearest", "interpolators": [ScipyGrid]}
         )
         output = node.eval(coords_dst)
 
@@ -895,8 +846,8 @@ class TestInterpolateScipyGrid(object):
         coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
         coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
-        node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "nearest", "interpolators": [ScipyGrid]}
+        node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(
+            interpolation={"method": "nearest", "interpolators": [ScipyGrid]}
         )
         output = node.eval(coords_dst)
 
@@ -911,8 +862,8 @@ class TestInterpolateScipyGrid(object):
         coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
         coords_dst = Coordinates([[[0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]]], dims=["lat_lon"])
 
-        node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "nearest", "interpolators": [ScipyGrid]}
+        node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(
+            interpolation={"method": "nearest", "interpolators": [ScipyGrid]}
         )
         output = node.eval(coords_dst)
 
@@ -932,8 +883,8 @@ class TestInterpolateScipyPoint(object):
         source = np.random.rand(6)
         coords_src = Coordinates([[[0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]]], dims=["lat_lon"])
         coords_dst = Coordinates([[[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]], dims=["lat_lon"])
-        node = MockArrayDataSource(
-            data=source, coordinates=coords_src, interpolation={"method": "nearest", "interpolators": [ScipyPoint]}
+        node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(
+            interpolation={"method": "nearest", "interpolators": [ScipyPoint]}
         )
 
         output = node.eval(coords_dst)
@@ -966,7 +917,7 @@ class TestXarrayInterpolator(object):
         # unstacked 1D
         source = np.random.rand(5)
         coords_src = Coordinates([np.linspace(0, 10, 5)], dims=["lat"])
-        node = MockArrayDataSource(data=source, coordinates=coords_src, interpolation=interpolation)
+        node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(interpolation=interpolation)
 
         coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9]], dims=["lat"])
         output = node.eval(coords_dst)
@@ -980,7 +931,7 @@ class TestXarrayInterpolator(object):
         coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
         coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
-        node = MockArrayDataSource(data=source, coordinates=coords_src, interpolation=interpolation)
+        node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(interpolation=interpolation)
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
@@ -994,8 +945,7 @@ class TestXarrayInterpolator(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]},
-        )
+        ).interpolate(interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]})
         coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
 
         with pytest.raises(InterpolationException):
@@ -1008,8 +958,7 @@ class TestXarrayInterpolator(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]},
-        )
+        ).interpolate(interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]})
         coords_dst = Coordinates([np.linspace(1, 9, 3), np.linspace(1, 9, 3)], dims=["lat", "lon"])
 
         with pytest.raises(InterpolationException):
@@ -1021,8 +970,7 @@ class TestXarrayInterpolator(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]},
-        )
+        ).interpolate(interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]})
         coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
 
         output = node.eval(coords_dst)
@@ -1040,8 +988,7 @@ class TestXarrayInterpolator(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]},
-        )
+        ).interpolate(interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]})
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
@@ -1052,10 +999,8 @@ class TestXarrayInterpolator(object):
         assert output.data[1, 3] == 8.0
         assert np.isnan(output.data[0, 4])  # TODO: how to handle outside bounds
 
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
-            interpolation={"method": "linear", "interpolators": [XarrayInterpolator], "params": {"fill_nan": True}},
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
+            interpolation={"method": "linear", "interpolators": [XarrayInterpolator], "params": {"fill_nan": True}}
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
@@ -1063,10 +1008,8 @@ class TestXarrayInterpolator(object):
         assert int(output.data[0, 0]) == 2
         assert int(output.data[2, 3]) == 15
 
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
-            interpolation={"method": "slinear", "interpolators": [XarrayInterpolator], "params": {"fill_nan": True}},
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
+            interpolation={"method": "slinear", "interpolators": [XarrayInterpolator], "params": {"fill_nan": True}}
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
@@ -1076,14 +1019,12 @@ class TestXarrayInterpolator(object):
         assert np.isnan(output.data[4, 4])
 
         # Check extrapolation
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
             interpolation={
                 "method": "linear",
                 "interpolators": [XarrayInterpolator],
                 "params": {"fill_nan": True, "fill_value": "extrapolate"},
-            },
+            }
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
@@ -1103,8 +1044,7 @@ class TestXarrayInterpolator(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]},
-        )
+        ).interpolate(interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]})
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
@@ -1124,8 +1064,7 @@ class TestXarrayInterpolator(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]},
-        )
+        ).interpolate(interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]})
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
@@ -1142,8 +1081,7 @@ class TestXarrayInterpolator(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]},
-        )
+        ).interpolate(interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]})
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
@@ -1160,8 +1098,7 @@ class TestXarrayInterpolator(object):
         node = MockArrayDataSource(
             data=source,
             coordinates=coords_src,
-            interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]},
-        )
+        ).interpolate(interpolation={"method": "nearest", "interpolators": [XarrayInterpolator]})
         output = node.eval(coords_dst)
 
         assert isinstance(output, UnitsDataArray)
@@ -1179,10 +1116,8 @@ class TestXarrayInterpolator(object):
         coords_dst = Coordinates([clinspace(1, 11, 5), clinspace(1, 11, 5)], dims=["lat", "lon"])
 
         # Ensure nan present
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
-            interpolation={"method": "linear", "interpolators": [XarrayInterpolator], "params": {"fill_nan": False}},
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
+            interpolation={"method": "linear", "interpolators": [XarrayInterpolator], "params": {"fill_nan": False}}
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
@@ -1190,10 +1125,8 @@ class TestXarrayInterpolator(object):
         assert np.all(np.isnan(output.data[1:3, 1:3]))
 
         # Ensure nan gone
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
-            interpolation={"method": "linear", "interpolators": [XarrayInterpolator], "params": {"fill_nan": True}},
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
+            interpolation={"method": "linear", "interpolators": [XarrayInterpolator], "params": {"fill_nan": True}}
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)
@@ -1202,10 +1135,8 @@ class TestXarrayInterpolator(object):
 
         # Ensure nan gone, flip lat-lon on source
         coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lon", "lat"])
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
-            interpolation={"method": "linear", "interpolators": [XarrayInterpolator], "params": {"fill_nan": True}},
+        node = MockArrayDataSource(data=source, coordinates=coords_src,).interpolate(
+            interpolation={"method": "linear", "interpolators": [XarrayInterpolator], "params": {"fill_nan": True}}
         )
         output = node.eval(coords_dst)
         assert isinstance(output, UnitsDataArray)

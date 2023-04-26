@@ -317,9 +317,9 @@ class TestCachedPropertyDecorator(object):
                 self.my_cache_ctrl_property_called += 1
                 return 30
 
-        a = MyNode(cache_ctrl=["ram"])
-        b = MyNode(cache_ctrl=["ram"])
-        c = MyNode(cache_ctrl=[])
+        a = MyNode().cache(cache_ctrl=["ram"])
+        b = MyNode().cache(cache_ctrl=["ram"])
+        c = MyNode().cache(cache_ctrl=[])
 
         a.rem_cache(key="*")
         b.rem_cache(key="*")

@@ -610,7 +610,7 @@ class SoilSCAPE20min(podpac.compositor.TileCompositor):
         return SoilSCAPENode(
             site=site,
             node=node,
-            cache_ctrl=self.cache_ctrl,
+            property_cache_ctrl=self.property_cache_ctrl,
             dataset_expires=self.dataset_expires,
             data_key=self.data_key,
         )

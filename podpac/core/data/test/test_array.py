@@ -15,20 +15,20 @@ class TestArray(object):
     coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
 
     def test_data_array(self):
-        node = Array(source=self.data, coordinates=self.coordinates)
+        node = Array(source=self.data, coordinates=self.coordinates).interpolate()
 
     def test_data_list(self):
         # list is coercable to array
-        node = Array(source=[0, 1, 1], coordinates=self.coordinates)
+        node = Array(source=[0, 1, 1], coordinates=self.coordinates).interpolate()
 
     def test_invalid_data(self):
         with pytest.raises(ValueError, match="Array 'source' data must be numerical"):
-            node = Array(source=["a", "b"], coordinates=self.coordinates)
+            node = Array(source=["a", "b"], coordinates=self.coordinates).interpolate()
 
     def test_get_data(self):
         """defined get_data function"""
 
-        node = Array(source=self.data, coordinates=self.coordinates)
+        node = Array(source=self.data, coordinates=self.coordinates).interpolate()
         output = node.eval(self.coordinates)
 
         assert isinstance(output, UnitsDataArray)
@@ -37,7 +37,7 @@ class TestArray(object):
 
     def test_get_data_multiple(self):
         data = np.random.rand(11, 11, 2)
-        node = Array(source=data, coordinates=self.coordinates, outputs=["a", "b"])
+        node = Array(source=data, coordinates=self.coordinates, outputs=["a", "b"]).interpolate()
         output = node.eval(self.coordinates)
         assert isinstance(output, UnitsDataArray)
         assert output.dims == ("lat", "lon", "output")
@@ -52,13 +52,13 @@ class TestArray(object):
         np.testing.assert_array_equal(output, data[:, :, 1])
 
     def test_coordinates(self):
-        node = Array(source=self.data, coordinates=self.coordinates)
+        node = Array(source=self.data, coordinates=self.coordinates).interpolate()
         assert node.coordinates
 
-        node = Array(source=self.data)
+        node = Array(source=self.data).interpolate()
         with pytest.raises(tl.TraitError):
             node.coordinates
 
     def test_no_cache(self):
-        node = Array()
-        assert len(node.cache_ctrl._cache_stores) == 0
+        node = Array().interpolate()
+        assert len(node.source.cache_ctrl._cache_stores) == 0

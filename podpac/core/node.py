@@ -138,10 +138,12 @@ class Node(tl.HasTraits):
     cache_output = tl.Bool()
     _from_cache = False
     force_eval = tl.Bool(False)
-    
-    property_cache_type = tl.Union([tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default_value=None)
+
+    property_cache_type = tl.Union(
+        [tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default_value=None
+    )
     property_cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
-    
+
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     # e.g. data sources use ['source']
     _repr_keys = []
@@ -171,7 +173,7 @@ class Node(tl.HasTraits):
     @tl.default("cache_output")
     def _cache_output_default(self):
         return settings["CACHE_NODE_OUTPUT_DEFAULT"]
-    
+
     @tl.default("property_cache_ctrl")
     def _property_cache_ctrl_default(self):
         if self.property_cache_type is None:
@@ -280,7 +282,7 @@ class Node(tl.HasTraits):
 
         if settings["DEBUG"]:
             self._requested_coordinates = coordinates
-        
+
         # Caching is now done explicitly with a Caching node
         data = self._eval(coordinates, **kwargs)
 
@@ -460,7 +462,7 @@ class Node(tl.HasTraits):
             Default is None, which uses the podpac.settings.DEFAULT_CACHE. Otherwise, can accept a list or single string
             with one or more of "ram", "disk", "s3"
         **kwargs: dict
-            Other keyword arguments passed directly to the `Cache` Node.            
+            Other keyword arguments passed directly to the `Cache` Node.
         Returns
         -------
         podpac.data.CachingNode
@@ -468,11 +470,12 @@ class Node(tl.HasTraits):
         """
         # Shortcut for users to make setting the cache_ctrl simpler:
         if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
-            kwargs["cache_ctrl"] = podpac.core.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
+            kwargs["cache_ctrl"] = podpac.core.cache.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
         return podpac.data.CachingNode(source=self, cache_type=cache_type, **kwargs)
-    
-    def interpolate(self, **kwargs):
-        return podpac.interpolators.Interpolate(source=self, **kwargs)
+
+    def interpolate(self, interpolation="nearest", **kwargs):
+        return podpac.interpolators.Interpolate(source=self, interpolation=interpolation, **kwargs)
+
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
     # -----------------------------------------------------------------------------------------------------------------
@@ -688,7 +691,6 @@ class Node(tl.HasTraits):
     # Caching Interface
     # -----------------------------------------------------------------------------------------------------------------
 
-
     def get_property_cache(self, key, coordinates=None):
         """
         Get cached data for this node.
@@ -777,9 +779,8 @@ class Node(tl.HasTraits):
             return False
 
         with thread_manager.cache_lock:
-            return self.property_cache_ctrl.has(self, key, coordinates=coordinates)    
-        
-    
+            return self.property_cache_ctrl.has(self, key, coordinates=coordinates)
+
     def rem_property_cache(self, key, coordinates=None, mode="all"):
         """
         Clear cached data for this node.
@@ -810,9 +811,6 @@ class Node(tl.HasTraits):
 
         self.property_cache_ctrl.rem(self, item=key, coordinates=coordinates, mode=mode)
 
-    
-
-    
     # --------------------------------------------------------#
     #  Class Methods (Deserialization)
     # --------------------------------------------------------#
@@ -1346,9 +1344,6 @@ def _process_kwargs(name, d, definition, nodes):
             raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
 
     nodes[name] = node_class(**kwargs)
-
-
-
 
 
 # --------------------------------------------------------#

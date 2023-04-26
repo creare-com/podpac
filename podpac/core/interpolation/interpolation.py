@@ -21,7 +21,6 @@ from podpac.core.data.datasource import DataSource
 _logger = logging.getLogger(__name__)
 
 
-
 class Interpolate(Node):
     """Node to used to interpolate from self.source.coordinates to the user-specified, evaluated coordinates.
 
@@ -95,16 +94,15 @@ class Interpolate(Node):
     _requested_source_coordinates_index = tl.Tuple()
     _requested_source_data = tl.Instance(UnitsDataArray)
     _evaluated_coordinates = tl.Instance(Coordinates)
-    
-    
 
-    def __getattr__(self, name):
-        # Check if the interpolation node has the method
-        if hasattr(self.__dict__, name):
-            return getattr(self, name)
-        # Only call the method on the wrapped node if the interpolator doesn't implement it
-        else:
-            return getattr(self.source, name)
+    # def __getattr__(self, name):
+    #     # Check if the interpolation node has the method
+    #     if name in self.__dict__ or name in Node.__dict__ or name.startswith("_podpac_cached_property_"):
+    #         return getattr(self, name)
+    #     # Only call the method on the wrapped node if the interpolator doesn't implement it
+    #     else:
+    #         print(f"calling source method '{name}'")
+    #         return getattr(self.source, name)
 
     @tl.default("style")
     def _default_style(self):  # Pass through source style by default
@@ -130,6 +128,16 @@ class Interpolate(Node):
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
+
+    @property
+    def outputs(self):
+        """ Pass through outputs from source """
+        return self.source.outputs
+
+    @property
+    def coordinates(self):
+        """ Pass through coordinates from source """
+        return self.source.coordinates
 
     @property
     def interpolation_class(self):
@@ -236,7 +244,7 @@ class Interpolate(Node):
 
         if output is None:
             if "output" in source_out.dims:
-                self.set_trait("outputs", source_out.coords["output"].data.tolist())
+                self.source.set_trait("outputs", source_out.coords["output"].data.tolist())
             output = self.create_output_array(coordinates)
 
         if source_out.size == 0:  # short cut

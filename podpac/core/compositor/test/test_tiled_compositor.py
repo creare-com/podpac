@@ -23,7 +23,7 @@ class TestTileCompositor(object):
         b = Array(source=np.arange(5) + 200, coordinates=podpac.Coordinates([[5, 6, 7, 8, 9]], dims=["lat"]))
         c = Array(source=np.arange(5) + 300, coordinates=podpac.Coordinates([[10, 11, 12, 13, 14]], dims=["lat"]))
 
-        node = TileCompositor(sources=[a, b, c], interpolation="bilinear")
+        node = TileCompositor(sources=[a, b, c]).interpolate(interpolation="bilinear")
 
         output = node.eval(podpac.Coordinates([[3.5, 4.5, 5.5]], dims=["lat"]))
         np.testing.assert_array_equal(output["lat"], [3.5, 4.5, 5.5])
