@@ -24,27 +24,6 @@ from podpac.core.interpolation.scipy_interpolator import ScipyGrid
 from podpac.core.compositor import TileCompositor
 
 
-class TestInterpolationMixin(object):
-    def test_interpolation_mixin(self):
-        class InterpArray(InterpolationMixin, ArrayRaw):
-            pass
-
-        data = np.random.rand(4, 5)
-        native_coords = Coordinates([np.linspace(0, 3, 4), np.linspace(0, 4, 5)], ["lat", "lon"])
-        coords = Coordinates([np.linspace(0, 3, 7), np.linspace(0, 4, 9)], ["lat", "lon"])
-
-        iarr_src = InterpArray(source=data, coordinates=native_coords, interpolation="bilinear")
-        arr_src = Array(source=data, coordinates=native_coords, interpolation="bilinear").interpolate()
-        arrb_src = Array(source=data, coordinates=native_coords)
-
-        iaso = iarr_src.eval(coords)
-        aso = arr_src.eval(coords)
-        abso = arrb_src.eval(coords)
-
-        np.testing.assert_array_equal(iaso.data, aso.data)
-        np.testing.assert_array_equal(abso.data, data)
-
-
 class TestInterpolation(object):
     s1 = Array(
         source=np.random.rand(9, 15),
@@ -68,6 +47,7 @@ class TestInterpolation(object):
         assert o.shape == (17, 29)
 
     def test_interpolation_definition(self):
+        self.interp.rem_property_cache("*")
         node = Node.from_json(self.interp.json)
         o1 = node.eval(self.coords)
         o2 = self.interp.eval(self.coords)
@@ -137,32 +117,30 @@ class TestInterpolationBehavior(object):
         assert o3.data[0] == 0
 
     def test_ignored_interpolation_params_issue340(self, caplog):
-        node = Array(
-            source=[0, 1, 2],
-            coordinates=Coordinates([[0, 2, 1]], dims=["time"]),
-            interpolation={"method": "nearest", "params": {"fake_param": 1.1, "spatial_tolerance": 1}},
-        ).interpolate()
+        node = Array(source=[0, 1, 2], coordinates=Coordinates([[0, 2, 1]], dims=["time"])).interpolate(
+            interpolation={"method": "nearest", "params": {"fake_param": 1.1, "spatial_tolerance": 1}}
+        )
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=DeprecationWarning)
             node.eval(Coordinates([[0.5, 1.5]], ["time"]))
-        assert "interpolation parameter 'fake_param' was ignored" in caplog.text 
+        assert "interpolation parameter 'fake_param' was ignored" in caplog.text
         assert "interpolation parameter 'spatial_tolerance' was ignored" not in caplog.text
 
-    def test_silent_nearest_neighbor_interp_bug_issue412(self): # not sure about these bug-specific issues. Need to do more research about interpolate.
+    def test_silent_nearest_neighbor_interp_bug_issue412(
+        self,
+    ):  # not sure about these bug-specific issues. Need to do more research about interpolate.
         node = podpac.data.Array(
             source=[0, 1, 2],
             coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),
-            interpolation=[{"method": "bilinear", "dims": ["lat"], "interpolators": [ScipyGrid]}],
-        ).interpolate()
+        ).interpolate(interpolation=[{"method": "bilinear", "dims": ["lat"], "interpolators": [ScipyGrid]}])
         with pytest.raises(InterpolationException, match="can't be handled"):
             o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
 
         node = podpac.data.Array(
             source=[0, 1, 2],
             coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),
-            interpolation=[{"method": "bilinear", "dims": ["lat"]}],
-        ).interpolate()
+        ).interpolate(interpolation=[{"method": "bilinear", "dims": ["lat"]}])
         o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
         assert_array_equal(o.data, np.linspace(0, 2, 9))
 

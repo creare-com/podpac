@@ -239,7 +239,7 @@ class TerrainTiles(TileCompositor):
         # Share the s3 connection
         sample_source = TerrainTilesSourceRaw(
             source=urls[0],
-            cache_ctrl=self.cache_ctrl,
+            property_cache_ctrl=self.property_cache_ctrl,
             force_eval=self.force_eval,
             cache_output=self.cache_output,
             cache_dataset=True,
@@ -248,7 +248,7 @@ class TerrainTiles(TileCompositor):
             TerrainTilesSourceRaw(
                 source=url,
                 s3=sample_source.s3,
-                cache_ctrl=self.cache_ctrl,
+                property_cache_ctrl=self.property_cache_ctrl,
                 force_eval=self.force_eval,
                 cache_output=self.cache_output,
                 cache_dataset=True,
@@ -484,7 +484,7 @@ def _mercator_to_tilespace(xm, ym, zoom):
         (x, y) int tile coordinates
     """
 
-    tiles = 2**zoom
+    tiles = 2 ** zoom
     diameter = 2 * np.pi
     x = int(tiles * (xm + np.pi) / diameter)
     y = int(tiles * (np.pi - ym) / diameter)

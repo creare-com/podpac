@@ -19,7 +19,7 @@ class TestLandsat8(object):
         node = podpac.datalib.satutils.Landsat8(
             stac_api_url=STAC_API_URL,
             asset="B01",
-        )
+        ).interpolate()
         output = node.eval(c)
         assert np.isfinite(output).sum() > 0
 

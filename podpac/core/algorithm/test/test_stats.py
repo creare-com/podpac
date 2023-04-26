@@ -27,7 +27,7 @@ def setup_module():
     a[3, 0, 0] = np.nan
     a[0, 3, 0] = np.nan
     a[0, 0, 3] = np.nan
-    source = Array(source=a, coordinates=coords)
+    source = Array(source=a, coordinates=coords).interpolate()
     data = source.eval(coords)
 
     ab = np.stack([a, 2 * a], -1)

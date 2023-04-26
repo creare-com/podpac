@@ -15,18 +15,17 @@ from podpac.core.algorithm.reprojection import Reproject
 class TestReprojection(object):
     source_coords = Coordinates([clinspace(0, 8, 9, "lat"), clinspace(0, 8, 9, "lon")])
     coarse_coords = Coordinates([clinspace(0, 8, 3, "lat"), clinspace(0, 8, 3, "lon")])
-    source = Array(source=np.arange(81).reshape(9, 9), coordinates=source_coords, interpolation="nearest")
-    source_coarse = Array(
-        source=[[0, 4, 8], [36, 40, 44], [72, 76, 80]], coordinates=coarse_coords, interpolation="bilinear"
+    source = Array(source=np.arange(81).reshape(9, 9), coordinates=source_coords).interpolate(interpolation="nearest")
+    source_coarse = Array(source=[[0, 4, 8], [36, 40, 44], [72, 76, 80]], coordinates=coarse_coords).interpolate(
+        interpolation="bilinear"
     )
     source_coarse2 = Array(
         source=[[0, 4, 8], [36, 40, 44], [72, 76, 80]],
-        coordinates=coarse_coords.transform("EPSG:3857"),
-        interpolation="bilinear",
-    )
+        coordinates=coarse_coords.transform("EPSG:3857").transform("EPSG:4326").transform("EPSG:3857"),
+    ).interpolate(interpolation={"method": "bilinear", "params": {"fill_value": "extrapolate"}})
 
     def test_reprojection_Coordinates(self):
-        reproject = Reproject(source=self.source, interpolation="bilinear", coordinates=self.coarse_coords)
+        reproject = Reproject(source=self.source, coordinates=self.coarse_coords, interpolation="bilinear")
         o1 = reproject.eval(self.source_coords)
         o2 = self.source_coarse.eval(self.source_coords)
 
@@ -37,7 +36,7 @@ class TestReprojection(object):
         assert_array_equal(o1.data, o3.data)
 
     def test_reprojection_source_coords(self):
-        reproject = Reproject(source=self.source, interpolation="bilinear", coordinates=self.source_coarse)
+        reproject = Reproject(source=self.source, coordinates=self.source_coarse, interpolation="bilinear")
         o1 = reproject.eval(self.coarse_coords)
         o2 = self.source_coarse.eval(self.coarse_coords)
 
@@ -48,7 +47,7 @@ class TestReprojection(object):
         assert_array_equal(o1.data, o3.data)
 
     def test_reprojection_source_dict(self):
-        reproject = Reproject(source=self.source, interpolation="bilinear", coordinates=self.coarse_coords.definition)
+        reproject = Reproject(source=self.source, coordinates=self.coarse_coords.definition, interpolation="bilinear")
         o1 = reproject.eval(self.coarse_coords)
         o2 = self.source_coarse.eval(self.coarse_coords)
 
@@ -59,7 +58,7 @@ class TestReprojection(object):
         assert_array_equal(o1.data, o3.data)
 
     def test_reprojection_source_str(self):
-        reproject = Reproject(source=self.source, interpolation="bilinear", coordinates=self.coarse_coords.json)
+        reproject = Reproject(source=self.source, coordinates=self.coarse_coords.json, interpolation="bilinear")
         o1 = reproject.eval(self.coarse_coords)
         o2 = self.source_coarse.eval(self.coarse_coords)
 
@@ -73,8 +72,8 @@ class TestReprojection(object):
         # same eval and source but different reproject
         reproject = Reproject(
             source=self.source,
-            interpolation={"method": "bilinear", "params": {"fill_value": "extrapolate"}},
             coordinates=self.coarse_coords.transform("EPSG:3857"),
+            interpolation={"method": "bilinear", "params": {"fill_value": "extrapolate"}},
         )
         o1 = reproject.eval(self.source_coords)
         # We have to use a second source here because the reprojected source
@@ -93,7 +92,7 @@ class TestReprojection(object):
         assert_almost_equal(o1.data, o2.data, decimal=13)
 
         # same source and reproject but different eval
-        reproject = Reproject(source=self.source, interpolation="bilinear", coordinates=self.coarse_coords)
+        reproject = Reproject(source=self.source, coordinates=self.coarse_coords, interpolation="bilinear")
         o1 = reproject.eval(self.source_coords.transform("EPSG:3857"))
         o2 = self.source_coarse.eval(self.source_coords.transform("EPSG:3857"))
         assert_almost_equal(o1.data, o2.data, decimal=13)

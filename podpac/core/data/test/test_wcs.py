@@ -146,7 +146,7 @@ class TestWCS(object):
     def test_eval_grid(self):
         c = COORDS
 
-        node = MockWCS(source="mock", layer="mock")
+        node = MockWCS(source="mock", layer="mock").interpolate()
         output = node.eval(c)
         assert output.shape == (100, 100)
         assert output.data.sum() == 1256581.0
@@ -154,7 +154,7 @@ class TestWCS(object):
     def test_eval_nonuniform(self):
         c = COORDS[[0, 10, 99], [0, 99]]
 
-        node = MockWCS(source="mock", layer="mock")
+        node = MockWCS(source="mock", layer="mock").interpolate()
         output = node.eval(c)
         assert output.shape == (3, 2)
         assert output.data.sum() == 0
@@ -162,7 +162,7 @@ class TestWCS(object):
     def test_eval_uniform_stacked(self):
         c = podpac.Coordinates([[COORDS["lat"], COORDS["lon"]]], dims=["lat_lon"])
 
-        node = MockWCS(source="mock", layer="mock")
+        node = MockWCS(source="mock", layer="mock").interpolate()
         output = node.eval(c)
         assert output.shape == (100,)
         # MPU Note: changed from 14350.0 to 12640.0 based on np.diag(node.eval(COORDS)).sum()

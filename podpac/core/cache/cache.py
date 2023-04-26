@@ -20,21 +20,20 @@ class CachingNode(Node):
     cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
         Class that controls caching. If not provided, uses default based on settings.
     cache_coordinates : podpac.Coordinate, optional
-        Coordinates that should be used for caching. If not provided. self.source.coordinates will be used, if it exists. Otherwise, use the request coordinates for the cache.  
+        Coordinates that should be used for caching. If not provided. self.source.coordinates will be used, if it exists. Otherwise, use the request coordinates for the cache.
     _relevant_dimensions : list, optional
         The relevant dimensions for caching.
     """
 
-
     source = NodeTrait(allow_none=True).tag(attr=True, required=True)  # if has a coordinates
     cache_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
-    _relevant_dimensions =tl.Instance(list, allow_none=True, default_value=None)
+    _relevant_dimensions = tl.Instance(list, allow_none=True, default_value=None)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
     _from_cache = tl.Bool(allow_none=True, default_value=False)
-    cache_type = tl.Union([tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default=None)
+    cache_type = tl.Union(
+        [tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default=None
+    )
 
-    
-    
     def __getattr__(self, name):
         # Check if the interpolation node has the method
         if hasattr(self.__dict__, name):
@@ -43,13 +42,40 @@ class CachingNode(Node):
         else:
             return getattr(self.source, name)
 
-    
     @tl.default("cache_ctrl")
     def _cache_ctrl_default(self):
         if self.cache_type is None:
             return get_default_cache_ctrl()
         return make_cache_ctrl(self.cache_type)
 
+    # ------------------------------------------------------------------------------------------------------------------
+    # Properties
+    # ------------------------------------------------------------------------------------------------------------------
+    @property
+    def outputs(self):
+        # Explicitly pass through outputs
+        return self.source.outputs
+
+    @property
+    def coordinates(self):
+        # Explicitly pass through coordinates
+        return self.source.coordinates
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Methods
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def find_coordinates(self):
+        """
+        Get the available coordinates for the Node. For a DataSource, this is just the coordinates.
+
+        Returns
+        -------
+        coords_list : list
+            singleton list containing the coordinates (Coordinates object)
+        """
+        # Pass through find_coordinates from the source
+        return self.source.find_coordinates()
 
     def eval(self, coordinates, **kwargs):
         """
@@ -68,7 +94,7 @@ class CachingNode(Node):
         podpac.UnitsDataArray
             The output of evaluating the node at the given coordinates.
         """
-        
+
         # Get the output from kwargs, if available
         output = kwargs.get("output", None)
 
@@ -88,7 +114,7 @@ class CachingNode(Node):
 
         # Check if coordinates were passed in
         if trait_is_defined(self, "cache_coordinates") and self.cache_coordinates is not None:
-            coordinates=self.cache_coordinates
+            coordinates = self.cache_coordinates
             self._relevant_dimensions = list(coordinates.dims)
 
         # Get standardized coordinates for caching
@@ -97,9 +123,8 @@ class CachingNode(Node):
         # Cache the relevant dims
         extra = None
         if self._relevant_dimensions is not None:
-            extra = list(set(to_cache_coords.dims) - set(self._relevant_dimensions)) # drop extra dims
+            extra = list(set(to_cache_coords.dims) - set(self._relevant_dimensions))  # drop extra dims
             to_cache_coords = to_cache_coords.drop(extra)
-
 
         # Check the cache
         if not self.source.force_eval and self.source.cache_output and self.has_cache(item, to_cache_coords):
@@ -116,20 +141,22 @@ class CachingNode(Node):
 
         # Evaluate the node
         data = self.source.eval(coordinates, **kwargs)
-        self._from_cache = False 
+        self._from_cache = False
         self.source._from_cache = self._from_cache
 
         # Get relevant dimensions to cache
         self._relevant_dimensions = list(data.dims)
-        extra = list(set(to_cache_coords.dims) - set(self._relevant_dimensions)) # drop extra dims
+        extra = list(set(to_cache_coords.dims) - set(self._relevant_dimensions))  # drop extra dims
 
         # Cache the output
         if self.source.cache_output:
             self.put_cache(data, item, to_cache_coords.drop(extra))
-        
 
         return data
-    
+
+    def _eval(self, coordinates, output=None, _selector=None):
+        pass  # Nothing to do here
+
     # -----------------------------------------------------------------------------------------------------------------
     # Caching Interface
     # -----------------------------------------------------------------------------------------------------------------
@@ -260,5 +287,3 @@ class CachingNode(Node):
             return
 
         self.cache_ctrl.rem(self, item=key, coordinates=coordinates, mode=mode)
-
-    

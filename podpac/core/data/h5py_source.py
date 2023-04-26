@@ -58,7 +58,7 @@ class H5PY(FileKeysMixin, BaseFileSource):
 
     def close_dataset(self):
         """Closes the file."""
-        super(H5PYRaw, self).close_dataset()
+        super(H5PY, self).close_dataset()
         self.dataset.close()
 
     # -------------------------------------------------------------------------
@@ -119,4 +119,3 @@ class H5PY(FileKeysMixin, BaseFileSource):
             return keys
         keys = sorted(list(set(keys)))
         return keys
-
