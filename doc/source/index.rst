@@ -12,7 +12,7 @@ PODPAC
     <a href="https://github.com/creare-com/podpac-examples/tree/develop/notebooks" class="fa fa-github"> Explore Jupyter Notebooks</a>
     <br><br>
 
-PODPAC is a python library that builds 
+PODPAC is a python library that builds
 on the `scientific python ecosystem <https://www.scipy.org/about.html#the-scipy-ecosystem>`_
 to enable simple, reproducible geospatial analyses that run locally or in the cloud.
 
@@ -45,7 +45,7 @@ Purpose
 -------
 
 Data wrangling and processing of geospatial data should be seamless
-so that earth scientists can focus on science. 
+so that earth scientists can focus on science.
 The purpose of PODPAC is to facilitate:
 
 * Access of data products
@@ -80,7 +80,7 @@ The purpose of PODPAC is to facilitate:
     design
     dependencies
     nodes
-    coordinates  
+    coordinates
     cache
     datasets
     interpolation
