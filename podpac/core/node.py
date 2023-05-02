@@ -452,17 +452,14 @@ class Node(tl.HasTraits):
             Default is None. The CRS of the request.
 
         Returns
+        ---------
         dict
             A dictionary that contains the following for each node:
-            ```
-            {
-                "active": bool,   # If the node is being used or not
-                "value": float,   # The value of the node evaluated at that point
-                "inputs": list,   # List of names of input nodes (based on definition)
-                "name": str,      # node.style.name or self.base_ref if the style name is empty
-                "node_hash": str, # The node's hash
-            }
-            ```
+                * "active": bool,   # If the node is being used or not
+                * "value": float,   # The value of the node evaluated at that point
+                * "inputs": list,   # List of names of input nodes (based on definition)
+                * "name": str,      # node.style.name or self.base_ref if the style name is empty
+                * "node_hash": str, # The node's hash
         """
         return probe_node(self, lat, lon, time, alt, crs)
 

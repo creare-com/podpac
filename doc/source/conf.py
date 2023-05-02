@@ -50,6 +50,7 @@ extensions = [
     "sphinx.ext.extlinks",
     "sphinx.ext.githubpages",
     "sphinx.ext.doctest",
+    "sphinx_rtd_theme",
     "myst_parser",
 ]
 
@@ -132,8 +133,8 @@ html_theme = "sphinx_rtd_theme"
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-html_theme_options = {"canonical_url": "https://podpac.org", "logo_only": True}
-
+html_theme_options = {"logo_only": True}
+html_baseurl = "https://podpac.org"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
