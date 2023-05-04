@@ -233,14 +233,6 @@ Utilities
     podpac.authentication.RequestsSessionMixin
     podpac.authentication.S3Mixin
 
-
-.. rubric:: Settings
-
-.. autosummary::
-    :toctree: api/
-    :template: class.rst
-
-
 .. rubric:: Utils
 
 .. autosummary::
