@@ -240,8 +240,6 @@ Utilities
     :toctree: api/
     :template: class.rst
 
-    podpac.settings
-
 
 .. rubric:: Utils
 
