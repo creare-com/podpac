@@ -373,7 +373,7 @@ if __name__ == '__main__':
 
         # Plot the results
         plt.figure(figsize=(10,6))
-        plt.loglog(bin_counts, mse_values, marker='o')
+        plt.semilogy(bin_counts, mse_values, marker='o')
         plt.title('Mean Squared Error vs Number of Bins')
         plt.xlabel('Number of Bins')
         plt.ylabel('Mean Squared Error')
