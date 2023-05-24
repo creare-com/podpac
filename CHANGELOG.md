@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.2.1
+### Bugfixes
+* Fixed documentation build
+* Fixed nearest neighbor interpolation bug where same pixel could
+  give different values due to rounding ambiguity (0.5-->0, 1.5-->2)
+
 ## 3.2.0
 
 ### Features
