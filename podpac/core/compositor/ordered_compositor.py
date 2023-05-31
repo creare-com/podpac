@@ -22,11 +22,12 @@ class OrderedCompositor(BaseCompositor):
     source_coordinates : :class:`podpac.Coordinates`
         Coordinates that make each source unique. Must the same size as ``sources`` and single-dimensional. Optional.
     multithreading : bool, optional
-        Default is True. If True, will always evaluate the compositor in serial, ignoring any MULTITHREADING settings
+        Default is False. If False, will always evaluate the compositor in serial, ignoring any MULTITHREADING settings
 
     """
 
     multithreading = tl.Bool(False)
+    return_index = tl.Int(0)
 
     @common_doc(COMMON_COMPOSITOR_DOC)
     def composite(self, coordinates, data_arrays, result=None):
@@ -45,6 +46,8 @@ class OrderedCompositor(BaseCompositor):
         -------
         {eval_return} This composites the sources together until there are no nans or no more sources.
         """
+        
+        self.return_index = 0
 
         if result is None:
             result = self.create_output_array(coordinates)
@@ -71,6 +74,8 @@ class OrderedCompositor(BaseCompositor):
             # stop if the results are full
             if np.all(mask):
                 break
+            
+            self.return_index += 1
 
         return result
 
