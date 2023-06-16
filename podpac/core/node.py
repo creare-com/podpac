@@ -34,7 +34,7 @@ from podpac.core.style import Style
 from podpac.core.managers.multi_threading import thread_manager
 from podpac.core.cache import CacheCtrl, make_cache_ctrl, get_default_cache_ctrl
 from podpac.core.cache.cache_ctrl import _CACHE_STORES
-
+from podpac.core.cache import ZarrCache, HashCache
 
 _logger = logging.getLogger(__name__)
 
@@ -455,23 +455,20 @@ class Node(tl.HasTraits):
         return probe_node(self, lat, lon, time, alt, crs)
 
     def cache(self, cache_type=None, **kwargs):
-        """
-        Parameters
-        ----------------
-        cache_type: enum, optional
-            Default is None, which uses the podpac.settings.DEFAULT_CACHE. Otherwise, can accept a list or single string
-            with one or more of "ram", "disk", "s3"
-        **kwargs: dict
-            Other keyword arguments passed directly to the `Cache` Node.
-        Returns
-        -------
-        podpac.data.CachingNode
-            Caching node for the current node's data source
-        """
-        # Shortcut for users to make setting the cache_ctrl simpler:
-        if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
-            kwargs["cache_ctrl"] = podpac.core.cache.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
-        return podpac.data.CachingNode(source=self, cache_type=cache_type, **kwargs)
+        # Decide whether to use the ZarrCache or HashCache
+        if cache_type is None:
+            if self.coordinates == None:
+                return HashCache(**kwargs)
+            else:
+                return ZarrCache(**kwargs)
+        elif cache_type == "zarr":
+            if self.coordinates == None:
+                raise ValueError("Cannot use ZarrCache without coordinates")
+            else: 
+                return ZarrCache(**kwargs)
+        elif cache_type == "hash":
+            return HashCache(**kwargs)
+                
 
     def interpolate(self, interpolation="nearest", **kwargs):
         return podpac.interpolators.Interpolate(source=self, interpolation=interpolation, **kwargs)

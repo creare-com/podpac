@@ -9,7 +9,7 @@ from podpac import settings
 from podpac.core.cache.cache_ctrl import _CACHE_STORES
 
 
-class CachingNode(Node):
+class HashCache(Node):
     """
     A node that caches the output of another node.
 
