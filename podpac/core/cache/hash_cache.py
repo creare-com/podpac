@@ -25,7 +25,7 @@ class HashCache(Node):
         The relevant dimensions for caching.
     """
 
-    source = NodeTrait(allow_none=True).tag(attr=True, required=True)  # if has a coordinates
+    source = NodeTrait(allow_none=True).tag(attr=True, required=True)  
     cache_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
     _relevant_dimensions = tl.Instance(list, allow_none=True, default_value=None)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
