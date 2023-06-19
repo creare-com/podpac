@@ -34,7 +34,7 @@ from podpac.core.style import Style
 from podpac.core.managers.multi_threading import thread_manager
 from podpac.core.cache import CacheCtrl, make_cache_ctrl, get_default_cache_ctrl
 from podpac.core.cache.cache_ctrl import _CACHE_STORES
-from podpac.core.cache import ZarrCache, HashCache
+
 
 _logger = logging.getLogger(__name__)
 
@@ -453,18 +453,28 @@ class Node(tl.HasTraits):
 
     def cache(self, cache_type=None, **kwargs):
         # Decide whether to use the ZarrCache or HashCache
+        # check is self.coordinates exists
+        if not self.has_trait("coordinates"):
+            return podpac.caches.HashCache(source=self, **kwargs)
+        
         if cache_type is None:
             if self.coordinates == None:
-                return HashCache(**kwargs)
+                if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
+                    kwargs["cache_ctrl"] = podpac.core.cache.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
+                return podpac.caches.HashCache(source=self, **kwargs)
             else:
-                return ZarrCache(**kwargs)
+                return podpac.caches.ZarrCache(source=self, **kwargs)
         elif cache_type == "zarr":
             if self.coordinates == None:
                 raise ValueError("Cannot use ZarrCache without coordinates")
             else: 
-                return ZarrCache(**kwargs)
+                return podpac.caches.ZarrCache(source=self, **kwargs)
         elif cache_type == "hash":
-            return HashCache(**kwargs)
+            if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
+                kwargs["cache_ctrl"] = podpac.core.cache.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
+            return podpac.caches.HashCache(source=self, **kwargs)
+        else:
+            raise ValueError("Invalid cache type: %s. Valid cache types: zarr, hash" % cache_type)
                 
 
     def interpolate(self, interpolation="nearest", **kwargs):
