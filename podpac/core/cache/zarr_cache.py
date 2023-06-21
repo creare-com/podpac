@@ -1,55 +1,53 @@
 # Create a PODPAC node out of a zarr archive
-import numpy as np
 import podpac
 from podpac.data import Zarr
 from podpac.core.interpolation.selector import Selector
-import zarr
-from podpac.core.node import Node, NodeDefinitionError, NodeException
+from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
-from podpac.core.utils import trait_is_defined
+
+import numpy as np
 import traitlets as tl
+import zarr
+import uuid
 
 class ZarrCache(Node):
     """
-    ZarrCache class which extends the Node class from PODPAC.
-    This class provides functionality for creating a PODPAC node from a zarr archive.
-    It manages the caching of the data in a zarr format and implements the logic to fill the cache with missing data.
+    A PODPAC Node which uses Zarr archives to cache data from a source node.
     
     Attributes
     ----------
-    source : NodeTrait
-        Source PODPAC node.
+    source : Node
+        The data source node.
     zarr_path_data : str
-        Path to the zarr file that will store the data.
+        The path to the Zarr archive for storing data.
     zarr_path_bool : str
-        Path to the zarr file that will store the boolean mask indicating the presence of data.
+        The path to the Zarr archive for storing boolean indicators of data availability.
     group_data : zarr.hierarchy.Group
-        Zarr group for storing the data.
+        The Zarr group for storing data.
     group_bool : zarr.hierarchy.Group
-        Zarr group for storing the boolean mask.
+        The Zarr group for storing boolean indicators of data availability.
     selector : Selector
-        Selector instance for data interpolation.
-
-    Methods
-    -------
-    create_empty_zarr() -> None
-        Create an empty zarr archive with the same shape as the source and a boolean mask.
-    get_source_data(request_coords) -> np.ndarray
-        Fetch data from the source for the specified coordinates.
-    fill_zarr(data, request_coords) -> None
-        Fill the zarr cache with data at the specified coordinates.
-    subselect_has(request_coords) -> podpac.Coordinates
-        Fetch the coordinates in the requested coordinates for which the zarr cache does not have data yet.
-    eval(request_coords) -> np.ndarray
-        Evaluate the data at the requested coordinates, fetching missing data from the source node and filling the zarr cache as necessary.
+        Selector for selecting coordinates.
+        
+    _z_node : Zarr
+        Zarr node for data.
+    _z_bool : Zarr
+        Zarr node for boolean indicators.
+    _from_cache : bool
+        Flag indicating whether the data was retrieved from the cache.
     """
-    
+
+    # Public Traits    
     source = NodeTrait(allow_none=True).tag(attr=True, required=True)
     zarr_path_data = tl.Unicode().tag(attr=True, required=True)
     zarr_path_bool = tl.Unicode().tag(attr=True, required=True)
     group_data = tl.Instance(zarr.hierarchy.Group).tag(attr=True)
     group_bool = tl.Instance(zarr.hierarchy.Group).tag(attr=True)
     selector = tl.Instance(Selector, allow_none=True).tag(attr=True)
+
+    # Private Traits
+    _z_node = tl.Instance(Zarr).tag(attr=True)
+    _z_bool = tl.Instance(Zarr).tag(attr=True)
     _from_cache = tl.Bool(allow_none=True, default_value=False)
     
     
@@ -59,43 +57,95 @@ class ZarrCache(Node):
     
     @tl.default('zarr_path_data')
     def _default_zarr_path_data(self):
-        return podpac.settings.cache_path + '/zarr_cache_data.zarr' # perhaps add a uuid to this string to allow for multiple zarr caches?
+        unique_id = uuid.uuid4()
+        return f"{podpac.settings.cache_path}/zarr_cache_data_{unique_id}.zarr"
     
     @tl.default('zarr_path_bool')
     def _default_zarr_path_bool(self):
-        return podpac.settings.cache_path + '/zarr_cache_bool.zarr' # perhaps add a uuid to this string to allow for multiple zarr caches?
+        unique_id = uuid.uuid4()
+        return f"{podpac.settings.cache_path}/zarr_cache_bool_{unique_id}.zarr"
     
-  
     @tl.default('group_data')
     def _default_group_data(self):
-        group = zarr.open(self.zarr_path_data, mode='a')
-        if 'data' not in group:
-            shape = self.source.coordinates.shape
-            group.create_dataset('data', shape=shape, dtype='float64', fill_value=np.nan)  # adjust dtype as necessary
-        return group
+        try:
+            group = zarr.open(self.zarr_path_data, mode='a')
+            if 'data' not in group:
+                shape = self.source.coordinates.shape
+                group.create_dataset('data', shape=shape, dtype='float64', fill_value=np.nan)  # adjust dtype as necessary
+            print(group)
+            return group
+        except Exception as e:
+            raise ValueError(f"Failed to open zarr data group. Original error: {e}")
 
     @tl.default('group_bool')
     def _default_group_bool(self):
-        group = zarr.open(self.zarr_path_bool, mode='a')
-        if 'contains' not in group:
-            shape = self.source.coordinates.shape
-            group.create_dataset('contains', shape=shape, dtype='bool', fill_value=False)
-        return group
+        try:
+            group = zarr.open(self.zarr_path_bool, mode='a')
+            if 'contains' not in group:
+                shape = self.source.coordinates.shape
+                group.create_dataset('contains', shape=shape, dtype='bool', fill_value=False)
+            return group
+        except Exception as e:
+            raise ValueError(f"Failed to open zarr boolean group. Original error: {e}")
 
-  
-  
-    def create_empty_zarr(self):
-        """
-        Create an empty zarr archive and a boolean mask with the same shape as the source.
+    @tl.default('_z_node')
+    def _default_z_node(self):
+        try:
+            self.group_data  # ensure group exists
+            return Zarr(source=self.zarr_path_data, coordinates=self.source.coordinates, file_mode="r+")
+        except Exception as e:
+            raise ValueError(f"Failed to create Zarr node. Original error: {e}")
+        
+    @tl.default ('_z_bool')
+    def _default_z_bool(self):
+        try:
+            self.group_bool # ensure group exists
+            return Zarr(source=self.zarr_path_bool, coordinates=self.source.coordinates, file_mode="r+")
+        except Exception as e:
+            raise ValueError(f"Failed to create Zarr boolean node. Original error: {e}")
 
-        This method initializes a zarr archive with an empty data array and a boolean mask indicating the presence of data.
-        Both arrays have the same shape as the source. The data array is filled with NaNs, while the boolean mask is filled with False.
+    
+    def validate_request_coords(self, request_coords):
         """
-        data_shape = self.source.shape
-        empty_data = np.empty(data_shape)
-        false_bool = np.zeros(data_shape, dtype=bool)
-        self.group_data.array('data', empty_data, chunks=empty_data.shape, dtype='f8')
-        self.group_bool.array('contains', false_bool, chunks=empty_data.shape, dtype='bool')
+        Validate that the request coordinates are in the source's coordinate system.
+
+        Parameters
+        ----------
+        request_coords : podpac.Coordinates
+            The coordinates at which data is requested.
+
+        Returns
+        -------
+        bool
+            True if the requested coordinates are in the source's coordinate system, False otherwise.
+        """
+        for dim in self.source.coordinates.dims:
+            if ((request_coords[dim].bounds[0]) < (self.source.coordinates[dim].bounds[0]) or 
+                (request_coords[dim].bounds[1]) > (self.source.coordinates[dim].bounds[1])):
+                return False
+        return True
+    
+    def _create_slices(self, c3, index_arrays):
+        """
+        Create slices for the given coordinates and index arrays.
+
+        Parameters
+        ----------
+        c3 : podpac.Coordinates
+            The coordinates.
+        index_arrays : list of np.ndarray
+            The index arrays.
+
+        Returns
+        -------
+        slices : dict
+            The slices for the given coordinates and index arrays.
+        """
+        slices = {}
+        for dim, indices in zip(c3.keys(), index_arrays):
+            indices = indices.flatten()  # convert to 1D array
+            slices[dim] = slice(indices[0], indices[-1]+1)
+        return slices
 
     def get_source_data(self, request_coords):
         """
@@ -115,28 +165,42 @@ class ZarrCache(Node):
         return data
 
     def fill_zarr(self, data, request_coords):
+        """
+        Fill the Zarr cache with data at the specified coordinates.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            The data to be stored in the Zarr cache.
+        request_coords : podpac.Coordinates
+            The coordinates at which the data should be stored in the Zarr cache.
+        """
         c3, index_arrays = self.selector.select(self.source.coordinates, request_coords)
-        slices = {}
-        for dim, indices in zip(c3.keys(), index_arrays):
-            indices = indices.flatten()  # convert to 1D array
-            slices[dim] = slice(indices[0], indices[-1]+1)
+        slices = self._create_slices(c3, index_arrays)
 
-        z_node = Zarr(source=self.zarr_path_data, coordinates=self.source.coordinates, file_mode="r+")
-        z_bool = Zarr(source=self.zarr_path_bool, coordinates=self.source.coordinates, file_mode="r+")
-
-        z_node.dataset['data'][tuple(slices.get(dim) for dim in self.source.coordinates.dims)] = data
-        z_bool.dataset['contains'][tuple(slices.get(dim) for dim in self.source.coordinates.dims)] = True
+        self._z_node.dataset['data'][tuple(slices.get(dim) for dim in self.source.coordinates.dims)] = data
+        self._z_bool.dataset['contains'][tuple(slices.get(dim) for dim in self.source.coordinates.dims)] = True
 
     def subselect_has(self, request_coords):
-        z_bool = Zarr(source=self.zarr_path_bool, coordinates=self.source.coordinates, file_mode="r")
+        """
+        Fetch the coordinates for which the Zarr cache does not have data yet.
+
+        Parameters
+        ----------
+        request_coords : podpac.Coordinates
+            The coordinates at which data is requested.
+
+        Returns
+        -------
+        false_coords : podpac.Coordinates or None
+            The subset of the requested coordinates for which the Zarr cache does not have data yet.
+            If the Zarr cache has data for all requested coordinates, returns None.
+        """
         
         c3, index_arrays = self.selector.select(self.source.coordinates, request_coords)
-        slices = {}
-        for dim, indices in zip(c3.keys(), index_arrays):
-            indices = indices.flatten()  # convert to 1D array
-            slices[dim] = slice(indices[0], indices[-1]+1)
+        slices = self._create_slices(c3, index_arrays)
         
-        bool_data = z_bool.dataset['contains'][tuple(slices.get(dim) for dim in self.source.coordinates.dims)]
+        bool_data = self._z_bool.dataset['contains'][tuple(slices.get(dim) for dim in self.source.coordinates.dims)]
         
         # check if all values are True
         if np.all(bool_data):
@@ -144,14 +208,33 @@ class ZarrCache(Node):
         
         false_indices = np.where(bool_data == False)
         
+        false_indices_unique = tuple(np.unique(indices) for indices in false_indices)
+
+                    
         false_coords = {}
-        for dim, indices in zip(['lat', 'lon', 'time'], false_indices):
+        for dim, indices in zip(self.source.coordinates.dims, false_indices_unique):
             false_coords[dim] = self.source.coordinates[dim][indices]
         
         return podpac.Coordinates([false_coords.get(dim) for dim in self.source.coordinates.dims], dims=self.source.coordinates.dims)
 
     def eval(self, request_coords):
+        """
+        Evaluate the data at the requested coordinates, fetching missing data from the source node and filling the Zarr cache as necessary.
+
+        Parameters
+        ----------
+        request_coords : podpac.Coordinates
+            The coordinates at which data is requested.
+
+        Returns
+        -------
+        data : np.ndarray
+            The data at the requested coordinates.
+        """
         self._from_cache = False
+        
+        if not self.validate_request_coords(request_coords):
+            raise ValueError("Requested coordinates are not in the source's coordinate bounds.")
         
         subselect_coords = self.subselect_has(request_coords)
         
@@ -161,13 +244,9 @@ class ZarrCache(Node):
             missing_data = self.get_source_data(subselect_coords)
             self.fill_zarr(missing_data, subselect_coords)
         
-        z_node = Zarr(source=self.zarr_path_data, coordinates=self.source.coordinates, file_mode="r")
         c3, index_arrays = self.selector.select(self.source.coordinates, request_coords)
-        slices = {}
-        for dim, indices in zip(c3.keys(), index_arrays):
-            indices = indices.flatten()  # convert to 1D array
-            slices[dim] = slice(indices[0], indices[-1]+1)
+        slices = self._create_slices(c3, index_arrays)
 
-        data = z_node.dataset['data'][tuple(slices.get(dim) for dim in self.source.coordinates.dims)]
+        data = self._z_node.dataset['data'][tuple(slices.get(dim) for dim in self.source.coordinates.dims)]
 
         return data
