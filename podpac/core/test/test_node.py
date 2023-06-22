@@ -372,7 +372,7 @@ class TestNodeEval(object):
 
         coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
 
-        node = MyNode(cache_output=True).cache("ram")
+        node = MyNode(cache_output=True).cache(cache_type="ram")
 
         # first eval
         o1 = node.eval(coords)
