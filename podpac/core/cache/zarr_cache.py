@@ -5,10 +5,12 @@ from podpac.core.interpolation.selector import Selector
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
 
+import shutil
 import numpy as np
 import traitlets as tl
 import zarr
 import uuid
+from math import ceil
 
 class ZarrCache(Node):
     """
@@ -44,6 +46,8 @@ class ZarrCache(Node):
     group_data = tl.Instance(zarr.hierarchy.Group).tag(attr=True)
     group_bool = tl.Instance(zarr.hierarchy.Group).tag(attr=True)
     selector = tl.Instance(Selector, allow_none=True).tag(attr=True)
+    uid = tl.Instance(uuid.UUID, allow_none=True).tag(attr=True)
+    chunk_divisor = tl.Int(allow_none=True, default_value=10).tag(attr=True)
 
     # Private Traits
     _z_node = tl.Instance(Zarr).tag(attr=True)
@@ -57,13 +61,11 @@ class ZarrCache(Node):
     
     @tl.default('zarr_path_data')
     def _default_zarr_path_data(self):
-        unique_id = uuid.uuid4()
-        return f"{podpac.settings.cache_path}/zarr_cache_data_{unique_id}.zarr"
+        return f"{podpac.settings.cache_path}/zarr_cache_data_{self.uid}.zarr"
     
     @tl.default('zarr_path_bool')
     def _default_zarr_path_bool(self):
-        unique_id = uuid.uuid4()
-        return f"{podpac.settings.cache_path}/zarr_cache_bool_{unique_id}.zarr"
+        return f"{podpac.settings.cache_path}/zarr_cache_bool_{self.uid}.zarr"
     
     @tl.default('group_data')
     def _default_group_data(self):
@@ -71,7 +73,7 @@ class ZarrCache(Node):
             group = zarr.open(self.zarr_path_data, mode='a')
             if 'data' not in group:
                 shape = self.source.coordinates.shape
-                group.create_dataset('data', shape=shape, dtype='float64', fill_value=np.nan)  # adjust dtype as necessary
+                group.create_dataset('data', shape=shape, chunks = list(ceil(e / self.chunk_divisor) for e in shape), dtype='float64', fill_value=np.nan)  # adjust dtype as necessary
             print(group)
             return group
         except Exception as e:
@@ -83,7 +85,7 @@ class ZarrCache(Node):
             group = zarr.open(self.zarr_path_bool, mode='a')
             if 'contains' not in group:
                 shape = self.source.coordinates.shape
-                group.create_dataset('contains', shape=shape, dtype='bool', fill_value=False)
+                group.create_dataset('contains', shape=shape, chunks=list(ceil(e / self.chunk_divisor) for e in shape), dtype='bool', fill_value=False)
             return group
         except Exception as e:
             raise ValueError(f"Failed to open zarr boolean group. Original error: {e}")
@@ -104,6 +106,10 @@ class ZarrCache(Node):
         except Exception as e:
             raise ValueError(f"Failed to create Zarr boolean node. Original error: {e}")
 
+
+    @tl.default('uid')
+    def _default_uid(self):
+        return uuid.uuid4()
     
     def validate_request_coords(self, request_coords):
         """

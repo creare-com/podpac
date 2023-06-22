@@ -33,6 +33,7 @@ class TestZarrCache:
 
         # Check the data retrieved from the Zarr cache is identical to the filled data
         np.testing.assert_allclose(data_filled, data_retrieved)
+        assert node_retrieved._from_cache
 
     def test_ZarrCache_missing_data(self, source):
 
@@ -70,3 +71,4 @@ class TestZarrCache:
         expected_missing_coords = Coordinates([np.linspace(6, 7, 2), source.coordinates['lon'], source.coordinates['time']], ['lat', 'lon', 'time'])
 
         assert missing_coords == expected_missing_coords
+
