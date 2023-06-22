@@ -47,7 +47,7 @@ class ZarrCache(Node):
     group_bool = tl.Instance(zarr.hierarchy.Group).tag(attr=True)
     selector = tl.Instance(Selector, allow_none=True).tag(attr=True)
     uid = tl.Instance(uuid.UUID, allow_none=True).tag(attr=True)
-    chunk_divisor = tl.Int(allow_none=True, default_value=10).tag(attr=True)
+    chunks = tl.List(allow_none=True).tag(attr=True)
 
     # Private Traits
     _z_node = tl.Instance(Zarr).tag(attr=True)
@@ -73,7 +73,7 @@ class ZarrCache(Node):
             group = zarr.open(self.zarr_path_data, mode='a')
             if 'data' not in group:
                 shape = self.source.coordinates.shape
-                group.create_dataset('data', shape=shape, chunks = list(ceil(e / self.chunk_divisor) for e in shape), dtype='float64', fill_value=np.nan)  # adjust dtype as necessary
+                group.create_dataset('data', shape=shape, chunks = self.chunks if self.chunks is not None else True, dtype='float64', fill_value=np.nan)  # adjust dtype as necessary
             print(group)
             return group
         except Exception as e:
@@ -82,10 +82,11 @@ class ZarrCache(Node):
     @tl.default('group_bool')
     def _default_group_bool(self):
         try:
-            group = zarr.open(self.zarr_path_bool, mode='a')
+            group = zarr.open(self.zarr_path_bool, mode='a') # no need to close, see https://zarr.readthedocs.io/en/stable/tutorial.html#persistent-arrays
             if 'contains' not in group:
                 shape = self.source.coordinates.shape
-                group.create_dataset('contains', shape=shape, chunks=list(ceil(e / self.chunk_divisor) for e in shape), dtype='bool', fill_value=False)
+                
+                group.create_dataset('contains', shape=shape, chunks=self.chunks if self.chunks is not None else True, dtype='bool', fill_value=False)
             return group
         except Exception as e:
             raise ValueError(f"Failed to open zarr boolean group. Original error: {e}")
@@ -111,7 +112,7 @@ class ZarrCache(Node):
     def _default_uid(self):
         return uuid.uuid4()
     
-    def validate_request_coords(self, request_coords):
+    def _validate_request_coords(self, request_coords):
         """
         Validate that the request coordinates are in the source's coordinate system.
 
@@ -152,6 +153,10 @@ class ZarrCache(Node):
             indices = indices.flatten()  # convert to 1D array
             slices[dim] = slice(indices[0], indices[-1]+1)
         return slices
+
+    def clear_cache(self):
+        raise NotImplementedError
+
 
     def get_source_data(self, request_coords):
         """
@@ -239,7 +244,7 @@ class ZarrCache(Node):
         """
         self._from_cache = False
         
-        if not self.validate_request_coords(request_coords):
+        if not self._validate_request_coords(request_coords):
             raise ValueError("Requested coordinates are not in the source's coordinate bounds.")
         
         subselect_coords = self.subselect_has(request_coords)

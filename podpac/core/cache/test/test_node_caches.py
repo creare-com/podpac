@@ -72,3 +72,29 @@ class TestZarrCache:
 
         assert missing_coords == expected_missing_coords
 
+    def test_ZarrCache_clear_cache(self, source):
+
+        # Initialize ZarrCache node
+        node = ZarrCache(source=source)
+        coords = source.coordinates
+
+        # Eval the node, this will also fill the Zarr cache with source data
+        node.eval(coords)
+
+        # Clear the cache
+        node.clear_cache()
+
+        # Create a new node instance with same configuration
+        node_retrieved = ZarrCache(source=source, 
+                                zarr_path_data=node.zarr_path_data, 
+                                zarr_path_bool=node.zarr_path_bool)
+        
+        # Since we have cleared the cache, it should be empty
+        # All elements in the data array should be NaN, and all elements in the boolean array should be False
+        np.testing.assert_array_equal(np.isnan(node_retrieved._z_node.dataset['data'][:]), True)
+        np.testing.assert_array_equal(node_retrieved._z_bool.dataset['contains'][:], False)
+
+        # An eval attempt should not be able to retrieve from the cache 
+        node_retrieved.eval(coords)
+        assert not node_retrieved._from_cache
+      
