@@ -21,13 +21,13 @@ class HashCache(Node):
         Class that controls caching. If not provided, uses default based on settings.
     cache_coordinates : podpac.Coordinate, optional
         Coordinates that should be used for caching. If not provided. self.source.coordinates will be used, if it exists. Otherwise, use the request coordinates for the cache.
-    _relevant_dimensions : list, optional
+    relevant_dimensions : list, optional
         The relevant dimensions for caching.
     """
 
     source = NodeTrait(allow_none=True).tag(attr=True, required=True)  
     cache_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
-    _relevant_dimensions = tl.Instance(list, allow_none=True, default_value=None)
+    relevant_dimensions = tl.Instance(list, allow_none=True, default_value=None)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
     _from_cache = tl.Bool(allow_none=True, default_value=False)
     cache_type = tl.Union(
@@ -108,22 +108,21 @@ class HashCache(Node):
         # Set the item to output
         item = "output"
 
-        # Use self.source.coordinates if not none:
-        if trait_is_defined(self.source, "coordinates") and self.source.coordinates is not None:
-            coordinates = self.source.coordinates.intersect(coordinates)
 
-        # Check if coordinates were passed in
         if trait_is_defined(self, "cache_coordinates") and self.cache_coordinates is not None:
             coordinates = self.cache_coordinates
-            self._relevant_dimensions = list(coordinates.dims)
+            self.relevant_dimensions = list(coordinates.dims)
+        elif trait_is_defined(self.source, "coordinates") and self.source.coordinates is not None:
+             # Use self.source.coordinates if not none:
+            coordinates = self.source.coordinates.intersect(coordinates)
 
         # Get standardized coordinates for caching
         to_cache_coords = coordinates.transpose(*sorted(coordinates.dims)).simplify()
 
         # Cache the relevant dims
         extra = None
-        if self._relevant_dimensions is not None:
-            extra = list(set(to_cache_coords.dims) - set(self._relevant_dimensions))  # drop extra dims
+        if self.relevant_dimensions is not None:
+            extra = list(set(to_cache_coords.dims) - set(self.relevant_dimensions))  # drop extra dims
             to_cache_coords = to_cache_coords.drop(extra)
 
         # Check the cache
@@ -145,8 +144,8 @@ class HashCache(Node):
         self.source._from_cache = self._from_cache
 
         # Get relevant dimensions to cache
-        self._relevant_dimensions = list(data.dims)
-        extra = list(set(to_cache_coords.dims) - set(self._relevant_dimensions))  # drop extra dims
+        self.relevant_dimensions = list(data.dims)
+        extra = list(set(to_cache_coords.dims) - set(self.relevant_dimensions))  # drop extra dims
 
         # Cache the output
         if self.source.cache_output:

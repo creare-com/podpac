@@ -5,12 +5,10 @@ from podpac.core.interpolation.selector import Selector
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
 
-import shutil
 import numpy as np
 import traitlets as tl
 import zarr
 import uuid
-from math import ceil
 
 class ZarrCache(Node):
     """
@@ -30,6 +28,10 @@ class ZarrCache(Node):
         The Zarr group for storing boolean indicators of data availability.
     selector : Selector
         Selector for selecting coordinates.
+    uid: uuid.UUID
+        Unique identifier for the cache.
+    chunks: list
+        Chunk size for the Zarr array. If None, the default chunk size is used.
         
     _z_node : Zarr
         Zarr node for data.
@@ -74,7 +76,6 @@ class ZarrCache(Node):
             if 'data' not in group:
                 shape = self.source.coordinates.shape
                 group.create_dataset('data', shape=shape, chunks = self.chunks if self.chunks is not None else True, dtype='float64', fill_value=np.nan)  # adjust dtype as necessary
-            print(group)
             return group
         except Exception as e:
             raise ValueError(f"Failed to open zarr data group. Original error: {e}")
