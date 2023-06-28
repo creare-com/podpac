@@ -40,6 +40,13 @@ class HashCache(Node):
         if self.cache_type is None:
             return get_default_cache_ctrl()
         return make_cache_ctrl(self.cache_type)
+    
+    @tl.default("relevant_dimensions")
+    def _relevant_dimensions_default(self):
+        if self.has_cache("relevant_dimensions"):
+            return self.get_cache("relevant_dimensions")
+        else:
+            return None
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -53,6 +60,8 @@ class HashCache(Node):
     def coordinates(self):
         # Explicitly pass through coordinates
         return self.source.coordinates
+    
+
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -101,13 +110,14 @@ class HashCache(Node):
         # Set the item to output
         item = "output"
 
-
-        if trait_is_defined(self, "cache_coordinates") and self.cache_coordinates is not None:
-            coordinates = self.cache_coordinates
-            self.relevant_dimensions = list(coordinates.dims)
-        elif trait_is_defined(self.source, "coordinates") and self.source.coordinates is not None:
-             # Use self.source.coordinates if not none:
-            coordinates = self.source.coordinates.intersect(coordinates)
+        # Deprecated by ZarrCache
+        # if trait_is_defined(self, "cache_coordinates") and self.cache_coordinates is not None:
+        #     coordinates = self.cache_coordinates.intersect(coordinates)
+        #     self.relevant_dimensions = list(coordinates.dims)
+        # elif trait_is_defined(self.source, "coordinates") and self.source.coordinates is not None:
+        #     # Use self.source.coordinates if not none:
+        #     coordinates = self.source.coordinates.intersect(coordinates)
+        #     self.relevant_dimensions = list(coordinates.dims)
 
         # Get standardized coordinates for caching
         to_cache_coords = coordinates.transpose(*sorted(coordinates.dims)).simplify()
@@ -143,6 +153,7 @@ class HashCache(Node):
         # Cache the output
         if self.source.cache_output:
             self.put_cache(data, item, to_cache_coords.drop(extra))
+            self.put_cache(self.relevant_dimensions, "relevant_dimensions")
 
         return data
 
