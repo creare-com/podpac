@@ -34,13 +34,6 @@ class HashCache(Node):
         [tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default=None
     )
 
-    def __getattr__(self, name):
-        # Check if the interpolation node has the method
-        if hasattr(self.__dict__, name):
-            return getattr(self, name)
-        # Only call the method on the wrapped node if the interpolator doesn't implement it
-        else:
-            return getattr(self.source, name)
 
     @tl.default("cache_ctrl")
     def _cache_ctrl_default(self):

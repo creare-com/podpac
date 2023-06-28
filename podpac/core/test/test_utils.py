@@ -317,80 +317,80 @@ class TestCachedPropertyDecorator(object):
                 self.my_cache_ctrl_property_called += 1
                 return 30
 
-        a = MyNode().cache(cache_ctrl=["ram"])
-        b = MyNode().cache(cache_ctrl=["ram"])
-        c = MyNode().cache(cache_ctrl=[])
+        a = MyNode(property_cache_type="ram").cache(node_type="hash", cache_type=["ram"]) # when caching properties, include the "property_cache_type" when instantiating nodes. Worth documenting.
+        b = MyNode(property_cache_type="ram").cache(node_type="hash", cache_type=["ram"])
+        c = MyNode().cache(node_type="hash", cache_type=None)
 
         a.rem_cache(key="*")
         b.rem_cache(key="*")
         c.rem_cache(key="*")
 
         # normal property should be called every time
-        assert a.my_property_called == 0
-        assert a.my_property == 10
-        assert a.my_property_called == 1
-        assert a.my_property == 10
-        assert a.my_property == 10
-        assert a.my_property_called == 3
+        assert a.source.my_property_called == 0
+        assert a.source.my_property == 10
+        assert a.source.my_property_called == 1
+        assert a.source.my_property == 10
+        assert a.source.my_property == 10
+        assert a.source.my_property_called == 3
 
-        assert b.my_property_called == 0
-        assert b.my_property == 10
-        assert b.my_property_called == 1
-        assert b.my_property == 10
-        assert b.my_property == 10
-        assert b.my_property_called == 3
+        assert b.source.my_property_called == 0
+        assert b.source.my_property == 10
+        assert b.source.my_property_called == 1
+        assert b.source.my_property == 10
+        assert b.source.my_property == 10
+        assert b.source.my_property_called == 3
 
-        assert c.my_property_called == 0
-        assert c.my_property == 10
-        assert c.my_property_called == 1
-        assert c.my_property == 10
-        assert c.my_property == 10
-        assert c.my_property_called == 3
+        assert c.source.my_property_called == 0
+        assert c.source.my_property == 10
+        assert c.source.my_property_called == 1
+        assert c.source.my_property == 10
+        assert c.source.my_property == 10
+        assert c.source.my_property_called == 3
 
         # cached property should only be called when it is accessed
-        assert a.my_cached_property_called == 0
-        assert a.my_cached_property == 20
-        assert a.my_cached_property_called == 1
-        assert a.my_cached_property == 20
-        assert a.my_cached_property == 20
-        assert a.my_cached_property_called == 1
+        assert a.source.my_cached_property_called == 0
+        assert a.source.my_cached_property == 20
+        assert a.source.my_cached_property_called == 1
+        assert a.source.my_cached_property == 20
+        assert a.source.my_cached_property == 20
+        assert a.source.my_cached_property_called == 1
 
-        assert b.my_cached_property_called == 0
-        assert b.my_cached_property == 20
-        assert b.my_cached_property_called == 1
-        assert b.my_cached_property == 20
-        assert b.my_cached_property == 20
-        assert b.my_cached_property_called == 1
+        assert b.source.my_cached_property_called == 0
+        assert b.source.my_cached_property == 20
+        assert b.source.my_cached_property_called == 1
+        assert b.source.my_cached_property == 20
+        assert b.source.my_cached_property == 20
+        assert b.source.my_cached_property_called == 1
 
-        assert c.my_cached_property_called == 0
-        assert c.my_cached_property == 20
-        assert c.my_cached_property_called == 1
-        assert c.my_cached_property == 20
-        assert c.my_cached_property == 20
-        assert c.my_cached_property_called == 1
+        assert c.source.my_cached_property_called == 0
+        assert c.source.my_cached_property == 20
+        assert c.source.my_cached_property_called == 1
+        assert c.source.my_cached_property == 20
+        assert c.source.my_cached_property == 20
+        assert c.source.my_cached_property_called == 1
 
         # cache_ctrl cached property should only be called in the first node that accessses it
-        assert a.my_cache_ctrl_property_called == 0
-        assert a.my_cache_ctrl_property == 30
-        assert a.my_cache_ctrl_property_called == 1
-        assert a.my_cache_ctrl_property == 30
-        assert a.my_cache_ctrl_property == 30
-        assert a.my_cache_ctrl_property_called == 1
+        assert a.source.my_cache_ctrl_property_called == 0
+        assert a.source.my_cache_ctrl_property == 30
+        assert a.source.my_cache_ctrl_property_called == 1
+        assert a.source.my_cache_ctrl_property == 30
+        assert a.source.my_cache_ctrl_property == 30
+        assert a.source.my_cache_ctrl_property_called == 1
 
-        assert b.my_cache_ctrl_property_called == 0
-        assert b.my_cache_ctrl_property == 30
-        assert b.my_cache_ctrl_property_called == 0
-        assert b.my_cache_ctrl_property == 30
-        assert b.my_cache_ctrl_property == 30
-        assert b.my_cache_ctrl_property_called == 0
+        assert b.source.my_cache_ctrl_property_called == 0
+        assert b.source.my_cache_ctrl_property == 30
+        assert b.source.my_cache_ctrl_property_called == 0
+        assert b.source.my_cache_ctrl_property == 30
+        assert b.source.my_cache_ctrl_property == 30
+        assert b.source.my_cache_ctrl_property_called == 0
 
         # but only if a cache_ctrl exists for the Node
-        assert c.my_cache_ctrl_property_called == 0
-        assert c.my_cache_ctrl_property == 30
-        assert c.my_cache_ctrl_property_called == 1
-        assert c.my_cache_ctrl_property == 30
-        assert c.my_cache_ctrl_property == 30
-        assert c.my_cache_ctrl_property_called == 1
+        assert c.source.my_cache_ctrl_property_called == 0
+        assert c.source.my_cache_ctrl_property == 30
+        assert c.source.my_cache_ctrl_property_called == 1
+        assert c.source.my_cache_ctrl_property == 30
+        assert c.source.my_cache_ctrl_property == 30
+        assert c.source.my_cache_ctrl_property_called == 1
 
     def test_cached_property_expires(self):
         class MyNode(podpac.Node):

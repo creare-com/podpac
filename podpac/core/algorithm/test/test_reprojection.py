@@ -68,7 +68,7 @@ class TestReprojection(object):
         o3 = node.eval(self.coarse_coords)
         assert_array_equal(o1.data, o3.data)
 
-    def test_reprojection_Coordinates_crs(self):
+    def test_reprojection_Coordinates_crs(self): # not sure why this is failing?
         # same eval and source but different reproject
         reproject = Reproject(
             source=self.source,

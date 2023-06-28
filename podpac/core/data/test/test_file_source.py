@@ -106,14 +106,14 @@ class TestLoadFile(object):
             node = MockLoadFile(source="file:///%s" % path, cache_dataset=True, dataset_expires="1,D").cache()
             node.cache_ctrl.clear()
             node.source.dataset
-            assert node._dataset_caching_node.has_property_cache("dataset")  # # don't know about the datasource cache
+            assert node.source._dataset_caching_node.has_property_cache("dataset")  # # don't know about the datasource cache
 
             # expired
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
             node = MockLoadFile(source="file:///%s" % path, cache_dataset=True, dataset_expires="-1,D").cache()
             node.cache_ctrl.clear()
-            node.dataset
-            assert not node._dataset_caching_node.has_property_cache("dataset")
+            node.source.dataset
+            assert not node.source._dataset_caching_node.has_property_cache("dataset")
 
 
 # ---------------------------------------------------------------------------------------------------------------------
