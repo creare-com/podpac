@@ -4,6 +4,36 @@ from podpac import Coordinates
 from podpac.data import Array
 from podpac.caches import ZarrCache
 
+
+
+
+
+class TestHashCache:
+    
+    
+    
+    def test_relevant_dimensions_cache(self):
+        
+        lat = np.linspace(0, 10, 11)
+        lon = np.linspace(0, 10, 11)
+        time = ['2018-01-01', '2018-01-02']
+        coords_time = Coordinates([lat, lon, time], ['lat', 'lon', 'time'])
+        
+        
+        hash_node = Array(source = np.random.rand(coords_time.shape[0], coords_time.shape[1]), coordinates = coords_time.drop('time')).cache('hash', "ram")
+        hash_node.rem_cache('*')
+        hash_node.eval(coords_time)
+        
+        assert hash_node._from_cache == False
+        
+        hash_node.eval(coords_time)
+        
+        assert hash_node._from_cache == True
+        
+            
+    
+
+
 class TestZarrCache:
     
     @pytest.fixture
