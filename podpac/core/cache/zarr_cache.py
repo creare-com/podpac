@@ -43,6 +43,7 @@ class ZarrCache(Node):
 
     # Public Traits    
     source = NodeTrait(allow_none=True).tag(attr=True, required=True)
+    zarr_path = tl.Unicode().tag(attr=True, required=True)
     zarr_path_data = tl.Unicode().tag(attr=True, required=True)
     zarr_path_bool = tl.Unicode().tag(attr=True, required=True)
     group_data = tl.Instance(zarr.hierarchy.Group).tag(attr=True)
@@ -61,13 +62,17 @@ class ZarrCache(Node):
     def _default_selector(self):
         return Selector(method='nearest')
     
+    @tl.default('zarr_path')
+    def _default_zarr_path(self):
+        return f"{podpac.settings.cache_path}/zarr_cache_{self.uid}"
+    
     @tl.default('zarr_path_data')
     def _default_zarr_path_data(self):
-        return f"{podpac.settings.cache_path}/zarr_cache_data_{self.uid}.zarr"
+        return f"{self.zarr_path}/data.zarr"
     
     @tl.default('zarr_path_bool')
     def _default_zarr_path_bool(self):
-        return f"{podpac.settings.cache_path}/zarr_cache_bool_{self.uid}.zarr"
+        return f"{self.zarr_path}/bool.zarr"
     
     @tl.default('group_data')
     def _default_group_data(self):
