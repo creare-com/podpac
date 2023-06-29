@@ -44,8 +44,7 @@ class ZarrCache(Node):
     # Public Traits    
     source = NodeTrait(allow_none=True).tag(attr=True, required=True)
     zarr_path = tl.Unicode().tag(attr=True, required=True)
-    zarr_path_data = tl.Unicode().tag(attr=True, required=True)
-    zarr_path_bool = tl.Unicode().tag(attr=True, required=True)
+
     group_data = tl.Instance(zarr.hierarchy.Group).tag(attr=True)
     group_bool = tl.Instance(zarr.hierarchy.Group).tag(attr=True)
     selector = tl.Instance(Selector, allow_none=True).tag(attr=True)
@@ -56,6 +55,8 @@ class ZarrCache(Node):
     _z_node = tl.Instance(Zarr).tag(attr=True)
     _z_bool = tl.Instance(Zarr).tag(attr=True)
     _from_cache = tl.Bool(allow_none=True, default_value=False)
+    _zarr_path_data = tl.Unicode().tag(attr=True, required=True)
+    _zarr_path_bool = tl.Unicode().tag(attr=True, required=True)
     
     
     @tl.default('selector')
@@ -66,11 +67,11 @@ class ZarrCache(Node):
     def _default_zarr_path(self):
         return f"{podpac.settings.cache_path}/zarr_cache_{self.uid}"
     
-    @tl.default('zarr_path_data')
+    @tl.default('_zarr_path_data')
     def _default_zarr_path_data(self):
         return f"{self.zarr_path}/data.zarr"
     
-    @tl.default('zarr_path_bool')
+    @tl.default('_zarr_path_bool')
     def _default_zarr_path_bool(self):
         return f"{self.zarr_path}/bool.zarr"
     
@@ -101,7 +102,7 @@ class ZarrCache(Node):
     def _default_z_node(self):
         try:
             self.group_data  # ensure group exists
-            return Zarr(source=self.zarr_path_data, coordinates=self.source.coordinates, file_mode="r+")
+            return Zarr(source=self._zarr_path_data, coordinates=self.source.coordinates, file_mode="r+")
         except Exception as e:
             raise ValueError(f"Failed to create Zarr node. Original error: {e}")
         
@@ -109,7 +110,7 @@ class ZarrCache(Node):
     def _default_z_bool(self):
         try:
             self.group_bool # ensure group exists
-            return Zarr(source=self.zarr_path_bool, coordinates=self.source.coordinates, file_mode="r+")
+            return Zarr(source=self._zarr_path_bool, coordinates=self.source.coordinates, file_mode="r+")
         except Exception as e:
             raise ValueError(f"Failed to create Zarr boolean node. Original error: {e}")
 
