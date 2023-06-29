@@ -113,25 +113,6 @@ class ZarrCache(Node):
     def _default_uid(self):
         return uuid.uuid4()
     
-    def _validate_request_coords(self, request_coords):
-        """
-        Validate that the request coordinates are in the source's coordinate system.
-
-        Parameters
-        ----------
-        request_coords : podpac.Coordinates
-            The coordinates at which data is requested.
-
-        Returns
-        -------
-        bool
-            True if the requested coordinates are in the source's coordinate system, False otherwise.
-        """
-        for dim in self.source.coordinates.dims:
-            if ((request_coords[dim].bounds[0]) < (self.source.coordinates[dim].bounds[0]) or 
-                (request_coords[dim].bounds[1]) > (self.source.coordinates[dim].bounds[1])):
-                return False
-        return True
     
     def _create_slices(self, c3, index_arrays):
         """
@@ -232,6 +213,7 @@ class ZarrCache(Node):
     def eval(self, request_coords):
         """
         Evaluate the data at the requested coordinates, fetching missing data from the source node and filling the Zarr cache as necessary.
+        If requested coordinates are out of the source node's bounds, return an array filled with NaNs.
 
         Parameters
         ----------
@@ -241,24 +223,30 @@ class ZarrCache(Node):
         Returns
         -------
         data : np.ndarray
-            The data at the requested coordinates.
+            The data at the requested coordinates. If coordinates were outside of the source's bounds, those positions will be filled with np.nan.
         """
         self._from_cache = False
         
-        if not self._validate_request_coords(request_coords):
-            raise ValueError("Requested coordinates are not in the source's coordinate bounds.")
-        
-        subselect_coords = self.subselect_has(request_coords)
-        
-        if subselect_coords == None:
-            self._from_cache = True
-        else:
-            missing_data = self.get_source_data(subselect_coords)
-            self.fill_zarr(missing_data, subselect_coords)
-        
-        c3, index_arrays = self.selector.select(self.source.coordinates, request_coords)
-        slices = self._create_slices(c3, index_arrays)
+        # Create a NaN-filled array with the shape of the request coordinates
+        data_shape = [request_coords[d].size for d in request_coords.dims]
+        data = np.full(data_shape, np.nan, dtype='float64')
 
-        data = self._z_node.dataset['data'][tuple(slices.get(dim) for dim in self.source.coordinates.dims)]
+        # Find valid request coordinates that are within the source's bounds
+        valid_request_coords = request_coords.intersect(self.source.coordinates)
+
+        if valid_request_coords.size > 0:
+            subselect_coords = self.subselect_has(valid_request_coords)
+
+            if subselect_coords is None:
+                self._from_cache = True
+            else:
+                missing_data = self.get_source_data(subselect_coords)
+                self.fill_zarr(missing_data, subselect_coords)
+
+            c3, index_arrays = self.selector.select(self.source.coordinates, valid_request_coords)
+            slices = self._create_slices(c3, index_arrays)
+
+            # Use the slices to place data from Zarr cache into the correct location in the result array
+            data[tuple(slices.get(dim) for dim in valid_request_coords.dims)] = self._z_node.dataset['data'][tuple(slices.get(dim) for dim in self.source.coordinates.dims)]
 
         return data
