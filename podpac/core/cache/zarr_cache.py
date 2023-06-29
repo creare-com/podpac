@@ -63,6 +63,7 @@ class ZarrCache(Node):
     def _default_selector(self):
         return Selector(method='nearest')
     
+    #Because of the way Zarr Nodes work, If I have one zarr node for both groups (making them into arrays for the same group), every time I eval the zarr node, it evals both datasets/arrays. I don't necessarily want this, given that first I need to eval the Boolean array without evalling the data array, get the data from the server, then only eval the data array.
     @tl.default('zarr_path')
     def _default_zarr_path(self):
         return f"{podpac.settings.cache_path}/zarr_cache_{self.uid}"
