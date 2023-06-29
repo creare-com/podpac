@@ -66,6 +66,7 @@ class TestZarrCache:
         assert node_retrieved._from_cache
 
     def test_ZarrCache_missing_data(self, source):
+        import numpy.testing as npt
 
         # Initialize ZarrCache node
         node = ZarrCache(source=source)
@@ -74,9 +75,23 @@ class TestZarrCache:
         lat = np.linspace(0, 15, 16)  # goes up to 15 instead of 10
         request_coords = Coordinates([lat, source.coordinates['lon'], source.coordinates['time']], ['lat', 'lon', 'time'])
 
-        # Eval the node, this should raise a ValueError because some requested data is not available
-        with pytest.raises(ValueError):
-            node.eval(request_coords)
+        # Evaluate node with the requested coordinates
+        data = node.eval(request_coords)
+
+        # Get indices where the request coordinates intersect with the source coordinates
+        valid_request_coords = request_coords.intersect(source.coordinates)
+        valid_indices = np.where(np.isin(request_coords['lat'].coordinates, valid_request_coords['lat'].coordinates))
+
+        # Evaluate source at the valid coordinates
+        expected_valid_data = source.eval(valid_request_coords)
+
+        # Check if the valid data matches the expected data
+        npt.assert_array_equal(data[valid_indices], expected_valid_data)
+
+        # Check if the out-of-bounds data is filled with NaNs
+        invalid_indices = np.where(~np.isin(request_coords['lat'].coordinates, valid_request_coords['lat'].coordinates))
+        assert np.isnan(data[invalid_indices]).all()
+
 
     def test_ZarrCache_partial_caching(self, source):
         
