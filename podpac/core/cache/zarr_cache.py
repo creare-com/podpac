@@ -79,7 +79,7 @@ class ZarrCache(Node):
     @tl.default('group_data')
     def _default_group_data(self):
         try:
-            group = zarr.open(self.zarr_path_data, mode='a')
+            group = zarr.open(self._zarr_path_data, mode='a')
             if 'data' not in group:
                 shape = self.source.coordinates.shape
                 group.create_dataset('data', shape=shape, chunks = self.chunks if self.chunks is not None else True, dtype='float64', fill_value=np.nan)  # adjust dtype as necessary
@@ -90,7 +90,7 @@ class ZarrCache(Node):
     @tl.default('group_bool')
     def _default_group_bool(self):
         try:
-            group = zarr.open(self.zarr_path_bool, mode='a') # no need to close, see https://zarr.readthedocs.io/en/stable/tutorial.html#persistent-arrays
+            group = zarr.open(self._zarr_path_bool, mode='a') # no need to close, see https://zarr.readthedocs.io/en/stable/tutorial.html#persistent-arrays
             if 'contains' not in group:
                 shape = self.source.coordinates.shape
                 
@@ -118,7 +118,7 @@ class ZarrCache(Node):
 
     @tl.default('uid')
     def _default_uid(self):
-        return uuid.uuid4()
+        return uuid.uuid4() # self.hash() causes a circular dependency
     
     
     def _create_slices(self, c3, index_arrays):
