@@ -55,8 +55,8 @@ class TestZarrCache:
 
         # Create a new node instance with same configuration
         node_retrieved = ZarrCache(source=source, 
-                                zarr_path_data=node.zarr_path_data, 
-                                zarr_path_bool=node.zarr_path_bool)
+                                _zarr_path_data=node._zarr_path_data, 
+                                _zarr_path_bool=node._zarr_path_bool)
 
         # Retrieve data from the new node, which should come from the Zarr cache
         data_retrieved = node_retrieved.eval(coords)
