@@ -4,14 +4,14 @@ from podpac.data import Zarr
 from podpac.core.interpolation.selector import Selector
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
-from podpac.core.cache.cache_interface import CachingNode
+from podpac.core.cache.cache_interface import CacheNode
 
 
 import numpy as np
 import traitlets as tl
 import zarr
 
-class ZarrCache(CachingNode):
+class ZarrCache(CacheNode):
     """
     A PODPAC CachingNode which uses Zarr archives to cache data from a source node.
     
@@ -153,8 +153,9 @@ class ZarrCache(CachingNode):
             slices[dim] = slice(indices[0], indices[-1]+1)
         return slices
 
-    def clear_cache(self):
-        raise NotImplementedError
+    def rem_cache(self):
+        self.group_data['data'][:] = np.nan
+        self.group_bool['contains'][:] = False
 
 
     def get_source_data(self, request_coords):
