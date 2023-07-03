@@ -83,6 +83,7 @@ class ZarrCache(Node):
             if 'data' not in group:
                 shape = self.source.coordinates.shape
                 group.create_dataset('data', shape=shape, chunks = self.chunks if self.chunks is not None else True, dtype='float64', fill_value=np.nan)  # adjust dtype as necessary
+                self._create_coordinate_zarr_dataset(group)
             return group
         except Exception as e:
             raise ValueError(f"Failed to open zarr data group. Original error: {e}")
@@ -93,11 +94,12 @@ class ZarrCache(Node):
             group = zarr.open(self._zarr_path_bool, mode='a') # no need to close, see https://zarr.readthedocs.io/en/stable/tutorial.html#persistent-arrays
             if 'contains' not in group:
                 shape = self.source.coordinates.shape
-                
-                group.create_dataset('contains', shape=shape, chunks=self.chunks if self.chunks is not None else True, dtype='bool', fill_value=False)
+                group.create_dataset('contains', shape=shape, dtype='bool', fill_value=False)
+                self._create_coordinate_zarr_dataset(group)
             return group
         except Exception as e:
             raise ValueError(f"Failed to open zarr boolean group. Original error: {e}")
+    
 
     @tl.default('_z_node')
     def _default_z_node(self):
@@ -120,6 +122,23 @@ class ZarrCache(Node):
     def _default_uid(self):
         return uuid.uuid4() # self.hash() causes a circular dependency
     
+    
+    def _create_coordinate_zarr_dataset(self, group):
+        """
+        Create a Zarr dataset for storing coordinates.
+
+        Returns
+        -------
+        zarr.Dataset
+            The Zarr dataset for storing coordinates.
+        """
+        for dim in self.source.coordinates.dims:
+            if dim not in group:
+                if dim == 'time':
+                    group.create_dataset(dim, shape=self.source.coordinates[dim].shape,dtype='datetime64[D]') # Need to specify specific datetime. Need to write a function to detect the datetime type
+                else:
+                    group.create_dataset(dim, shape=self.source.coordinates[dim].shape,dtype='float64')
+                group[dim][:] = self.source.coordinates.xcoords[dim][1]
     
     def _create_slices(self, c3, index_arrays):
         """
