@@ -142,4 +142,14 @@ class TestZarrCache:
         # An eval attempt should not be able to retrieve from the cache 
         node_retrieved.eval(coords)
         assert not node_retrieved._from_cache
+        
+    def test_ZarrCache_get_coordinates(self, source):
+        
+        # Initialize ZarrCache node
+        node = ZarrCache(source=source)
+        coords = source.coordinates
+        
+        # Check Coordinates equality
+        assert node._z_node.get_coordinates() == coords
+        assert node._z_bool.get_coordinates() == coords
       
