@@ -4,20 +4,20 @@ from podpac.data import Zarr
 from podpac.core.interpolation.selector import Selector
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
+from podpac.core.cache.cache_interface import CachingNode
+
 
 import numpy as np
 import traitlets as tl
 import zarr
-import uuid
 
-class ZarrCache(Node):
+class ZarrCache(CachingNode):
     """
-    A PODPAC Node which uses Zarr archives to cache data from a source node.
+    A PODPAC CachingNode which uses Zarr archives to cache data from a source node.
     
     Attributes
     ----------
-    source : Node
-        The data source node.
+
     zarr_path_data : str
         The path to the Zarr archive for storing data.
     zarr_path_bool : str
@@ -28,8 +28,6 @@ class ZarrCache(Node):
         The Zarr group for storing boolean indicators of data availability.
     selector : Selector
         Selector for selecting coordinates.
-    uid: uuid.UUID
-        Unique identifier for the cache.
     chunks: list
         Chunk size for the Zarr array. If None, the default chunk size is used.
         
@@ -42,13 +40,11 @@ class ZarrCache(Node):
     """
 
     # Public Traits    
-    source = NodeTrait(allow_none=True).tag(attr=True, required=True)
     zarr_path = tl.Unicode().tag(attr=True, required=True)
 
     group_data = tl.Instance(zarr.hierarchy.Group).tag(attr=True)
     group_bool = tl.Instance(zarr.hierarchy.Group).tag(attr=True)
     selector = tl.Instance(Selector, allow_none=True).tag(attr=True)
-    uid = tl.Instance(uuid.UUID, allow_none=True).tag(attr=True)
     chunks = tl.List(allow_none=True).tag(attr=True)
 
     # Private Traits
@@ -117,11 +113,6 @@ class ZarrCache(Node):
         except Exception as e:
             raise ValueError(f"Failed to create Zarr boolean node. Original error: {e}")
 
-
-    @tl.default('uid')
-    def _default_uid(self):
-        return uuid.uuid4() # self.hash() causes a circular dependency
-    
     
     def _create_coordinate_zarr_dataset(self, group):
         """

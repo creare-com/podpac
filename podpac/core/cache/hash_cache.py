@@ -1,4 +1,4 @@
-from podpac.core.node import Node, NodeDefinitionError, NodeException
+from podpac.core.node import NodeDefinitionError, NodeException
 from podpac.core.utils import NodeTrait
 from podpac.core.utils import trait_is_defined
 import traitlets as tl
@@ -7,9 +7,10 @@ from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl
 from podpac.core.managers.multi_threading import thread_manager
 from podpac import settings
 from podpac.core.cache.cache_ctrl import _CACHE_STORES
+from podpac.core.cache.cache_interface import CachingNode
 
 
-class HashCache(Node):
+class HashCache(CachingNode):
     """
     A node that caches the output of another node.
 
@@ -25,7 +26,6 @@ class HashCache(Node):
         The relevant dimensions for caching.
     """
 
-    source = NodeTrait(allow_none=True).tag(attr=True, required=True)  
     cache_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
     relevant_dimensions = tl.Instance(list, allow_none=True, default_value=None)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
