@@ -7,10 +7,10 @@ from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl
 from podpac.core.managers.multi_threading import thread_manager
 from podpac import settings
 from podpac.core.cache.cache_ctrl import _CACHE_STORES
-from podpac.core.cache.cache_interface import CachingNode
+from podpac.core.cache.cache_interface import CacheNode
 
 
-class HashCache(CachingNode):
+class HashCache(CacheNode):
     """
     A node that caches the output of another node.
 

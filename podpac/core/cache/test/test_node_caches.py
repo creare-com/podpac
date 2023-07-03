@@ -117,7 +117,7 @@ class TestZarrCache:
 
         assert missing_coords == expected_missing_coords
 
-    def test_ZarrCache_clear_cache(self, source):
+    def test_ZarrCache_rem_cache(self, source):
 
         # Initialize ZarrCache node
         node = ZarrCache(source=source)
@@ -126,8 +126,8 @@ class TestZarrCache:
         # Eval the node, this will also fill the Zarr cache with source data
         node.eval(coords)
 
-        # Clear the cache
-        node.clear_cache()
+        # Rem the cache
+        node.rem_cache()
 
         # Create a new node instance with same configuration
         node_retrieved = ZarrCache(source=source, 
