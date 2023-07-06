@@ -460,7 +460,7 @@ class Node(tl.HasTraits):
         if not self.has_trait("coordinates"):
             return podpac.caches.HashCache(source=self, cache_type=cache_type, **kwargs)
         
-        if node_type is None or "hash":
+        if node_type is None or node_type == "hash":
             if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
                 kwargs["cache_ctrl"] = podpac.core.cache.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
             return podpac.caches.HashCache(source=self, cache_type=cache_type **kwargs)
