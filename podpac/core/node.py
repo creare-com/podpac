@@ -551,7 +551,7 @@ class Node(tl.HasTraits):
     def definition(self):
         """
         Full node definition.
-
+1
         Returns
         -------
         OrderedDict

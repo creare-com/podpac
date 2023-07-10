@@ -26,9 +26,10 @@ class CacheNode(Node):
     """
 
     source = NodeTrait(allow_none=True).tag(attr=True, required=True)  
-    uid = tl.Unicode().tag(attr=True)
+    uid = tl.Unicode(allow_none=True).tag(attr=True)
+    _uid = tl.Unicode()
 
-    @tl.default("uid")
+    @tl.default("_uid")
     def _default_uid(self):
         """
         Returns the default value for the 'uid' attribute, which is the hash of the CacheNode.
@@ -38,6 +39,8 @@ class CacheNode(Node):
         str
             The hash of the CacheNode.
         """
+        if self.uid:
+            return self.uid
         return self.hash
 
     
