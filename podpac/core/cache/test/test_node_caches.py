@@ -123,7 +123,7 @@ class TestZarrCache:
     def test_ZarrCache_rem_cache(self, source):
 
         # Initialize ZarrCache node
-        node = ZarrCache(source=source, uid="1")
+        node = ZarrCache(source=source)
         coords = source.coordinates
 
         # Eval the node, this will also fill the Zarr cache with source data
