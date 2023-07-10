@@ -134,7 +134,7 @@ class ZarrCache(CacheNode):
         for dim in self.source.coordinates.dims:
             if dim not in group:
                 if dim == 'time':
-                    group.create_dataset(dim, shape=self.source.coordinates[dim].shape,dtype='datetime64[D]') # Need to specify specific datetime. Need to write a function to detect the datetime type
+                    group.create_dataset(dim, shape=self.source.coordinates[dim].shape,dtype=str(self.source.coordinates['time'].bounds[0].dtype))
                 else:
                     group.create_dataset(dim, shape=self.source.coordinates[dim].shape,dtype='float64')
                 group[dim][:] = self.source.coordinates.xcoords[dim][1]
