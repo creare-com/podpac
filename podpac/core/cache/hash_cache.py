@@ -1,9 +1,8 @@
 from podpac.core.node import NodeDefinitionError, NodeException
-from podpac.core.utils import NodeTrait
-from podpac.core.utils import trait_is_defined
+
 import traitlets as tl
 from podpac.core.coordinates import Coordinates
-from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl, S3CacheStore, DiskCacheStore
+from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl
 from podpac.core.managers.multi_threading import thread_manager
 from podpac import settings
 from podpac.core.cache.cache_ctrl import _CACHE_STORES
@@ -47,6 +46,9 @@ class HashCache(CacheNode):
             return self.get_cache("relevant_dimensions")
         else:
             return None
+        
+
+    
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -61,6 +63,7 @@ class HashCache(CacheNode):
         # Explicitly pass through coordinates
         return self.source.coordinates
     
+   
 
 
     # ------------------------------------------------------------------------------------------------------------------

@@ -48,6 +48,7 @@ class TestZarrCache:
 
         # Initialize ZarrCache node
         node = ZarrCache(source=source)
+
         coords = source.coordinates
 
         # Eval the node, this will also fill the Zarr cache with source data
@@ -64,6 +65,8 @@ class TestZarrCache:
         # Check the data retrieved from the Zarr cache is identical to the filled data
         np.testing.assert_allclose(data_filled, data_retrieved)
         assert node_retrieved._from_cache
+        
+        
 
     def test_ZarrCache_missing_data(self, source):
         import numpy.testing as npt
@@ -120,7 +123,7 @@ class TestZarrCache:
     def test_ZarrCache_rem_cache(self, source):
 
         # Initialize ZarrCache node
-        node = ZarrCache(source=source)
+        node = ZarrCache(source=source, uid="1")
         coords = source.coordinates
 
         # Eval the node, this will also fill the Zarr cache with source data
@@ -131,8 +134,7 @@ class TestZarrCache:
 
         # Create a new node instance with same configuration
         node_retrieved = ZarrCache(source=source, 
-                                zarr_path_data=node.zarr_path_data, 
-                                zarr_path_bool=node.zarr_path_bool)
+                                zarr_path = node.zarr_path)
         
         # Since we have cleared the cache, it should be empty
         # All elements in the data array should be NaN, and all elements in the boolean array should be False

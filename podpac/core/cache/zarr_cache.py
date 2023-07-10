@@ -2,8 +2,6 @@
 import podpac
 from podpac.data import Zarr
 from podpac.core.interpolation.selector import Selector
-from podpac.core.node import Node
-from podpac.core.utils import NodeTrait
 from podpac.core.cache.cache_interface import CacheNode
 
 
@@ -40,29 +38,39 @@ class ZarrCache(CacheNode):
     """
 
     # Public Traits    
-    zarr_path = tl.Unicode().tag(attr=True, required=True)
-
-    group_data = tl.Instance(zarr.hierarchy.Group).tag(attr=True)
-    group_bool = tl.Instance(zarr.hierarchy.Group).tag(attr=True)
-    selector = tl.Instance(Selector, allow_none=True).tag(attr=True)
+    zarr_path = tl.Unicode()
+    base_path = tl.Unicode().tag(attr=True, required=True)
+    group_data = tl.Instance(zarr.hierarchy.Group)
+    group_bool = tl.Instance(zarr.hierarchy.Group)
     chunks = tl.List(allow_none=True).tag(attr=True)
+    selector_method = tl.Unicode(allow_none=True).tag(attr=True)
 
     # Private Traits
-    _z_node = tl.Instance(Zarr).tag(attr=True)
-    _z_bool = tl.Instance(Zarr).tag(attr=True)
+    _z_node = tl.Instance(Zarr)
+    _z_bool = tl.Instance(Zarr)
     _from_cache = tl.Bool(allow_none=True, default_value=False)
-    _zarr_path_data = tl.Unicode().tag(attr=True, required=True)
-    _zarr_path_bool = tl.Unicode().tag(attr=True, required=True)
+    _zarr_path_data = tl.Unicode()
+    _zarr_path_bool = tl.Unicode()
+    _selector = tl.Instance(Selector, allow_none=True)
+
     
     
-    @tl.default('selector')
+    @tl.default('_selector')
     def _default_selector(self):
-        return Selector(method='nearest')
+        return Selector(method=self.selector_method)
+    
+    @tl.default('selector_method')
+    def _default_selector_method(self):
+        return 'nearest'
+    
+    @tl.default('base_path')
+    def _default_base_path(self):
+        return podpac.settings.cache_path
     
     #Because of the way Zarr Nodes work, If I have one zarr node for both groups (making them into arrays for the same group), every time I eval the zarr node, it evals both datasets/arrays. I don't necessarily want this, given that first I need to eval the Boolean array without evalling the data array, get the data from the server, then only eval the data array.
     @tl.default('zarr_path')
     def _default_zarr_path(self):
-        return f"{podpac.settings.cache_path}/zarr_cache_{self.uid}"
+        return f"{self.base_path}/zarr_cache_{self._uid}"
     
     @tl.default('_zarr_path_data')
     def _default_zarr_path_data(self):
@@ -186,7 +194,7 @@ class ZarrCache(CacheNode):
         request_coords : podpac.Coordinates
             The coordinates at which the data should be stored in the Zarr cache.
         """
-        c3, index_arrays = self.selector.select(self.source.coordinates, request_coords)
+        c3, index_arrays = self._selector.select(self.source.coordinates, request_coords)
         slices = self._create_slices(c3, index_arrays)
 
         self._z_node.dataset['data'][tuple(slices.get(dim) for dim in self.source.coordinates.dims)] = data
@@ -208,7 +216,7 @@ class ZarrCache(CacheNode):
             If the Zarr cache has data for all requested coordinates, returns None.
         """
         
-        c3, index_arrays = self.selector.select(self.source.coordinates, request_coords)
+        c3, index_arrays = self._selector.select(self.source.coordinates, request_coords)
         slices = self._create_slices(c3, index_arrays)
         
         bool_data = self._z_bool.dataset['contains'][tuple(slices.get(dim) for dim in self.source.coordinates.dims)]
@@ -261,7 +269,7 @@ class ZarrCache(CacheNode):
                 missing_data = self.get_source_data(subselect_coords)
                 self.fill_zarr(missing_data, subselect_coords)
 
-            c3, index_arrays = self.selector.select(self.source.coordinates, valid_request_coords)
+            c3, index_arrays = self._selector.select(self.source.coordinates, valid_request_coords)
             slices = self._create_slices(c3, index_arrays)
 
             # Use the slices to place data from Zarr cache into the correct location in the result array
