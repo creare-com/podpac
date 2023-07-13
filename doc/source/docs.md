@@ -11,10 +11,10 @@ $ pip install sphinx
 $ pip install sphinx_rtd_theme
 ```
 
-- Install `recommonmark` to support markdown input files
+- Install `myst-parser` to support markdown input files
 
 ```bash
-$ pip install recommonmark
+$ pip install myst-parser
 ```
 
 ## Test
@@ -98,7 +98,7 @@ To stop the server simply press `^C`.
     + `/source/api/` - auto generated API documentation using `sphinx-autogen`
 - `/build` - generated documentation files
 
-## References 
+## References
 
 - [Sphinx docstring interpretation (autodoc)](http://www.sphinx-doc.org/en/stable/ext/autodoc.html#module-sphinx.ext.autodoc)
 - [Sphinx Themes](http://www.sphinx-doc.org/en/stable/theming.html)

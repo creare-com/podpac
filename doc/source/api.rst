@@ -50,7 +50,7 @@ Coordinates
 .. autosummary::
     :toctree: api/
     :template: function.rst
-    
+
     podpac.coordinates.crange
     podpac.coordinates.clinspace
     podpac.coordinates.merge_dims
@@ -87,9 +87,6 @@ Generic data source wrappers
     :template: class.rst
 
     podpac.data.DataSource
-    podpac.data.Interpolation
-    podpac.data.INTERPOLATION_DEFAULT
-    podpac.data.INTERPOLATION_METHODS
 
 
 Interpolators
@@ -101,7 +98,9 @@ Classes to manage interpolation
     :toctree: api/
     :template: class.rst
 
-    podpac.interpolation.Interpolation
+    podpac.core.interpolation.interpolation_manager.INTERPOLATION_DEFAULT
+    podpac.data.INTERPOLATION_METHODS
+    podpac.interpolators.Interpolate
     podpac.interpolators.Interpolator
     podpac.interpolators.NearestNeighbor
     podpac.interpolators.NearestPreview
@@ -119,6 +118,7 @@ Split/Apply/Combine nodes with algorithms
     :toctree: api/
     :template: class.rst
 
+    podpac.algorithm.UnaryAlgorithm
     podpac.algorithm.Algorithm
 
 .. rubric:: General Purpose
@@ -128,9 +128,13 @@ Split/Apply/Combine nodes with algorithms
     :template: class.rst
 
     podpac.algorithm.Arithmetic
+    podpac.algorithm.Generic
     podpac.algorithm.SinCoords
     podpac.algorithm.Arange
     podpac.algorithm.CoordData
+    podpac.algorithm.Mask
+    podpac.algorithm.Reproject
+    podpac.algorithm.ResampleReduce
 
 .. rubric:: Statistical Methods
 
@@ -159,6 +163,8 @@ Split/Apply/Combine nodes with algorithms
 
     podpac.algorithm.ExpandCoordinates
     podpac.algorithm.SelectCoordinates
+    podpac.algorithm.TransformTimeUnits
+    podpac.algorithm.YearSubstituteCoordinates
 
 .. rubric:: Signal Processing
 
@@ -167,8 +173,6 @@ Split/Apply/Combine nodes with algorithms
     :template: class.rst
 
     podpac.algorithm.Convolution
-    podpac.algorithm.SpatialConvolution
-    podpac.algorithm.TimeConvolution
 
 Compositor Nodes
 ----------------
@@ -180,9 +184,7 @@ Stitch multiple data sources together
     :template: class.rst
 
     podpac.compositor.OrderedCompositor
-    podpac.compositor.UniformTileCompositor
-    podpac.compositor.UniformTileMixin
-
+    podpac.compositor.TileCompositor
 
 Datalib
 -------
@@ -193,13 +195,19 @@ Interfaces to external data sources
     :toctree: api/
     :template: class.rst
 
-    podpac.datalib.SMAP
-    podpac.datalib.SMAPBestAvailable
-    podpac.datalib.SMAPSource
-    podpac.datalib.SMAPPorosity
-    podpac.datalib.SMAPProperties
-    podpac.datalib.SMAPWilt
-    podpac.datalib.SMAP_PRODUCT_MAP
+ podpac.datalib.COSMOSStations
+ podpac.datalib.DroughtCategory
+ podpac.datalib.DroughtMonitorCategory
+ podpac.datalib.EGI
+ podpac.datalib.GFS
+ podpac.datalib.GFSLatest
+ podpac.datalib.Landsat8
+ podpac.datalib.MODIS
+ podpac.datalib.SMAP
+ podpac.datalib.Sentinel2
+ podpac.datalib.SoilSCAPE20min
+ podpac.datalib.TerrainTiles
+ podpac.datalib.WeatherCitizen
 
 Managers
 --------
@@ -224,16 +232,6 @@ Utilities
 
     podpac.authentication.RequestsSessionMixin
     podpac.authentication.S3Mixin
-
-
-.. rubric:: Settings
-
-.. autosummary::
-    :toctree: api/
-    :template: class.rst
-
-    podpac.settings
-
 
 .. rubric:: Utils
 

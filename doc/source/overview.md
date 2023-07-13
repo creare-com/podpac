@@ -17,7 +17,7 @@ Load data from common data formats.
 import podpac
 
 # use `rasterio` to read geotif files
-node = podpac.data.Rasterio(source="tile.tif")  
+node = podpac.data.Rasterio(source="tile.tif")
 
 # use `zarr` to read Zarr files
 node = podpac.data.Zarr(source="tile.zarr", data_key="group/key", lat_key="group/lat", lon_key="group/lon")
@@ -48,9 +48,9 @@ node = podpac.datalib.SMAP(product='SPL4SMAU', username=username, password=passw
 node = podpac.datalib.GFS(parameter='SOIM', level='0-10 m DPTH', date="20200203", hour="1200")
 
 # access Intake Catalogues (https://github.com/intake/intake)
-node = podpac.datalib.IntakeCatalog(uri='intake/precip/catalog.yml', 
-                                    source='southern_rockies', 
-                                    field='precip', 
+node = podpac.datalib.IntakeCatalog(uri='intake/precip/catalog.yml',
+                                    source='southern_rockies',
+                                    field='precip',
                                     dims={'time': 'time'})
 
 # access data from terrain tiles (https://registry.opendata.aws/terrain-tiles/)
@@ -59,7 +59,7 @@ node = podpac.datalib.TerrainTiles(tile_format='geotiff', zoom=8)
 # ... and more each release
 ```
 
-Retrieve the raw source data array at full/native resolution. **Note**: Some data source are too large to fit in RAM, and calling this function can crash Python. 
+Retrieve the raw source data array at full/native resolution. **Note**: Some data source are too large to fit in RAM, and calling this function can crash Python.
 
 ```python
 # retrieve full source data
@@ -94,8 +94,8 @@ Build analysis pipelines from data sources and algorithms.
 import podpac
 
 # create two data source nodes
-nodeA = podpac.data.Rasterio(source="elevation.tif", interpolation="cubic")  
-nodeB = podpac.datalib.TerrainTiles(tile_format='geotiff', zoom=8) 
+nodeA = podpac.data.Rasterio(source="elevation.tif", interpolation="cubic")
+nodeB = podpac.datalib.TerrainTiles(tile_format='geotiff', zoom=8)
 
 # average the two data sources together point-wise
 alg_node = podpac.algorithm.Arithmetic(A=nodeA, B=nodeB, eqn='(A + B) / 2')
@@ -122,7 +122,7 @@ import podpac
 coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1, 2, 3]], dims=['lat', 'lon'], crs="EPSG:3857")
 
 # configure interpolation method as `bilinear` for a node
-node = podpac.data.Rasterio(source="elevation.tif", interpolation="bilinear")  
+node = podpac.data.Rasterio(source="elevation.tif", interpolation="bilinear")
 
 # evaluate node at coordinates with specified interpolation
 output = node.eval(coords)
