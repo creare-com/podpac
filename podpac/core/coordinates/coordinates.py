@@ -481,9 +481,15 @@ class Coordinates(tl.HasTraits):
             r = 1
 
         # Extract bounding box information and translate to PODPAC coordinates
+        size = np.array([_get_param(params, "HEIGHT"), _get_param(params, "WIDTH")], int)
         start = bbox[:2][::r]
-        stop = bbox[2::][::r]
-        size = np.array([_get_param(params, "WIDTH"), _get_param(params, "HEIGHT")], int)[::r]
+        stop = bbox[2:][::r]
+
+        # The bbox gives the edges of the pixels, but our coordinates use the
+        # box centers -- so we have to shrink the start/stop portions
+        dx = (stop - start) / (size)  # This should take care of signs
+        start = start + dx / 2
+        stop = stop - dx / 2
 
         coords["coords"] = [
             {"name": "lat", "start": stop[0], "stop": start[0], "size": size[0]},
