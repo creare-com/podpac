@@ -1,6 +1,6 @@
 # Create a PODPAC node out of a zarr archive
 import podpac
-from podpac.data import Zarr
+from podpac.data import Zarr, ZarrMemory
 from podpac.core.interpolation.selector import Selector
 from podpac.core.cache.cache_interface import CacheNode
 
@@ -44,7 +44,8 @@ class ZarrCache(CacheNode):
     group_bool = tl.Instance(zarr.hierarchy.Group)
     chunks = tl.List(allow_none=True).tag(attr=True)
     selector_method = tl.Unicode(allow_none=True).tag(attr=True)
-
+    cache_type = tl.Enum(["disk", "ram"], default_value="disk")
+    
     # Private Traits
     _z_node = tl.Instance(Zarr)
     _z_bool = tl.Instance(Zarr)
@@ -83,7 +84,10 @@ class ZarrCache(CacheNode):
     @tl.default('group_data')
     def _default_group_data(self):
         try:
-            group = zarr.open(self._zarr_path_data, mode='a')
+            if self.cache_type == "disk":
+                group = zarr.open(self._zarr_path_data, mode='a') # no need to close, see https://zarr.readthedocs.io/en/stable/tutorial.html#persistent-arrays
+            if self.cache_type == "ram":
+                group = zarr.group() # assumes ram not persistent
             if 'data' not in group:
                 shape = self.source.coordinates.shape
                 group.create_dataset('data', shape=shape, chunks = self.chunks if self.chunks is not None else True, dtype='float64', fill_value=np.nan)  # adjust dtype as necessary
@@ -95,7 +99,10 @@ class ZarrCache(CacheNode):
     @tl.default('group_bool')
     def _default_group_bool(self):
         try:
-            group = zarr.open(self._zarr_path_bool, mode='a') # no need to close, see https://zarr.readthedocs.io/en/stable/tutorial.html#persistent-arrays
+            if self.cache_type == "disk":
+                group = zarr.open(self._zarr_path_bool, mode='a') # no need to close, see https://zarr.readthedocs.io/en/stable/tutorial.html#persistent-arrays
+            if self.cache_type == "ram":
+                group = zarr.group() # assumes ram not persistent
             if 'contains' not in group:
                 shape = self.source.coordinates.shape
                 group.create_dataset('contains', shape=shape, dtype='bool', fill_value=False)
@@ -107,19 +114,34 @@ class ZarrCache(CacheNode):
 
     @tl.default('_z_node')
     def _default_z_node(self):
-        try:
-            self.group_data  # ensure group exists
-            return Zarr(source=self._zarr_path_data, coordinates=self.source.coordinates, file_mode="r+")
-        except Exception as e:
-            raise ValueError(f"Failed to create Zarr node. Original error: {e}")
+        if self.cache_type == "disk":
+            try:
+                self.group_data  # ensure group exists
+                return Zarr(source=self._zarr_path_data, coordinates=self.source.coordinates, file_mode="r+")
+            except Exception as e:
+                raise ValueError(f"Failed to create Zarr node. Original error: {e}")
+        elif self.cache_type == "ram":
+            try:
+                self.group_data  # ensure group exists
+                return ZarrMemory(dataset=self.group_data, coordinates=self.source.coordinates)
+            except Exception as e:
+                raise ValueError(f"Failed to create Zarr node. Original error: {e}")
         
     @tl.default ('_z_bool')
     def _default_z_bool(self):
-        try:
-            self.group_bool # ensure group exists
-            return Zarr(source=self._zarr_path_bool, coordinates=self.source.coordinates, file_mode="r+")
-        except Exception as e:
-            raise ValueError(f"Failed to create Zarr boolean node. Original error: {e}")
+        if self.cache_type == "disk":
+            try:
+                self.group_bool  # ensure group exists
+                return Zarr(source=self._zarr_path_bool, coordinates=self.source.coordinates, file_mode="r+")
+            except Exception as e:
+                raise ValueError(f"Failed to create Zarr node. Original error: {e}")
+        elif self.cache_type == "ram":
+            try:
+                self.group_bool  # ensure group exists
+                return ZarrMemory(dataset=self.group_bool, coordinates=self.source.coordinates)
+            except Exception as e:
+                raise ValueError(f"Failed to create Zarr node. Original error: {e}")
+        
 
     
     def _create_coordinate_zarr_dataset(self, group):

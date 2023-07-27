@@ -2,6 +2,8 @@ import os
 import traitlets as tl
 import numpy as np
 
+from io import BytesIO
+
 from lazy_import import lazy_module, lazy_class, lazy_function
 
 zarr = lazy_module("zarr")

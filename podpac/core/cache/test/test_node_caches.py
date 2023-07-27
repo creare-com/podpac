@@ -155,3 +155,17 @@ class TestZarrCache:
         assert node._z_node.get_coordinates() == coords
         assert node._z_bool.get_coordinates() == coords
       
+    def test_ZarrCache_ram(self, source):
+        node = source.cache(node_type="zarr", cache_type="ram")
+        coords = source.coordinates
+
+        # Eval the node, this will also fill the Zarr cache with source data
+        data_filled = node.eval(coords)
+        assert not node._from_cache
+        
+        # Retrieve data from the node again, which should come from the Zarr cache
+        data_retrieved = node.eval(coords)
+
+        # Check the data retrieved from the Zarr cache is identical to the filled data
+        np.testing.assert_allclose(data_filled, data_retrieved)
+        assert node._from_cache

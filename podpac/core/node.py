@@ -460,12 +460,12 @@ class Node(tl.HasTraits):
         if node_type is None or node_type == "hash":
             if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
                 kwargs["cache_ctrl"] = podpac.core.cache.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
-            return podpac.caches.HashCache(source=self, cache_type=cache_type **kwargs)
+            return podpac.caches.HashCache(source=self, cache_type=cache_type, **kwargs)
         elif node_type == "zarr":
             if self.coordinates == None:
                 raise ValueError("Cannot use ZarrCache without coordinates")
             else: 
-                return podpac.caches.ZarrCache(source=self, **kwargs)
+                return podpac.caches.ZarrCache(source=self, cache_type=cache_type, **kwargs)
         else:
             raise ValueError("Invalid cache type: %s. Valid cache types: zarr, hash" % cache_type)
                 
