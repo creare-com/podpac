@@ -481,6 +481,7 @@ class Coordinates(tl.HasTraits):
             r = 1
 
         # Extract bounding box information and translate to PODPAC coordinates
+        # Not, size does not get re-ordered, Height == Lat and width = lon -- ALWAYS
         size = np.array([_get_param(params, "HEIGHT"), _get_param(params, "WIDTH")], int)
         start = bbox[:2][::r]
         stop = bbox[2:][::r]
