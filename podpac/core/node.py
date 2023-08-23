@@ -454,26 +454,70 @@ class Node(tl.HasTraits):
         """
         return probe_node(self, lat, lon, time, alt, crs)
 
-    def cache(self, node_type = None, cache_type=None, **kwargs):
+    def cache(self, node_type="hash", cache_type="ram", uid=None, **kwargs):
+        """This is a convenience function that creates a Cache node following this Node.
+        This means that any evaluation of the output of this function is cached using the
+        requested caching method
+
+        Parameters
+        ----------
+        node_type : str, optional
+            One of "hash" or "Zarr", "hash" by default.
+        cache_type : str, optional
+            One of "ram" or "disk", controlling where the output is cached, by default "ram". "disk" caching uses
+            the path specified by the user in `podpac.settings.cache_path`.
+        uid : str, optional
+            A unique identifier for this node. This is used to extract data from the cache. By default uses
+            self.hash of the output `CacheNode` from this function.
+        **kwargs : dict
+            Any remaining key-word arguments are passed on to the constructor of the `CacheNode`.
+
+        Returns
+        -------
+        podpac.core.cache.cache_interface.CacheNode
+            The cache node using this node as its source.
+
+        Raises
+        ------
+        ValueError
+            When an invalid cache_type is specified
+        ValueError
+            If cache_type == 'zarr', but self.coordinates is None
+        """
+        if uid is not None:
+            kwargs["cache_uid"] = uid
+
         # Decide whether to use the ZarrCache or HashCache
         # check is self.coordinates exists
-        if not self.has_trait("coordinates"):
-            return podpac.caches.HashCache(source=self, cache_type=cache_type, **kwargs)
-        
-        if node_type is None or node_type == "hash":
+        if node_type == "hash":
             if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
                 kwargs["cache_ctrl"] = podpac.core.cache.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
             return podpac.caches.HashCache(source=self, cache_type=cache_type, **kwargs)
         elif node_type == "zarr":
-            if self.coordinates == None:
+            if not trait_is_defined(self, "coordinates") or self.coordinates is None:
                 raise ValueError("Cannot use ZarrCache without coordinates")
-            else: 
+            else:
                 return podpac.caches.ZarrCache(source=self, cache_type=cache_type, **kwargs)
         else:
             raise ValueError("Invalid cache type: %s. Valid cache types: zarr, hash" % cache_type)
-                
 
     def interpolate(self, interpolation="nearest", **kwargs):
+        """This is a convenient function that creates an Interpolation Node following this Node.
+        This means any evaluation of the output of this function will be interpolated to the
+        request coordinates.
+
+        Parameters
+        ----------
+        interpolation : str, optional
+            Interpolation type, see `podpac.interpolators.Interpolate` for options, by default "nearest"
+        **kwargs : dict
+            Additional key-word arguments passed on to the `Interpolate` node instantiation
+
+        Returns
+        -------
+        podpac.interpolators.Interpolate
+            The interpolation mode, using this node as its source
+        """
         return podpac.interpolators.Interpolate(source=self, interpolation=interpolation, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -553,12 +597,12 @@ class Node(tl.HasTraits):
     @cached_property
     def definition(self):
         """
-        Full node definition.
-1
-        Returns
-        -------
-        OrderedDict
-            Dictionary-formatted node definition.
+                Full node definition.
+        1
+                Returns
+                -------
+                OrderedDict
+                    Dictionary-formatted node definition.
         """
 
         if getattr(self, "_definition_guard", False):
