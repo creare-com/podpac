@@ -31,8 +31,10 @@ from podpac.core.utils import NodeTrait
 from podpac.core.utils import hash_alg
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
-from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl, S3CacheStore, DiskCacheStore
 from podpac.core.managers.multi_threading import thread_manager
+from podpac.core.cache import CacheCtrl, make_cache_ctrl, get_default_cache_ctrl
+from podpac.core.cache.cache_ctrl import _CACHE_STORES
+
 
 _logger = logging.getLogger(__name__)
 
@@ -101,14 +103,12 @@ class Node(tl.HasTraits):
     ----------
     cache_output: bool
         Should the node's output be cached? If not provided or None, uses default based on settings
-        (CACHE_NODE_OUTPUT_DEFAULT for general Nodes, and CACHE_DATASOURCE_OUTPUT_DEFAULT  for DataSource nodes).
+        (podpac.settings["ENABLE_CACHE"]).
         If True, outputs will be cached and retrieved from cache. If False, outputs will not be cached OR retrieved from cache (even if
         they exist in cache).
     force_eval: bool
         Default is False. Should the node's cached output be updated from the source data? If True it ignores the cache
         when computing outputs but puts results into the cache (thereby updating the cache)
-    cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
-        Class that controls caching. If not provided, uses default based on settings.
     dtype : type
         The numpy datatype of the output. Currently only ``float`` is supported.
     style : :class:`podpac.Style`
@@ -126,7 +126,6 @@ class Node(tl.HasTraits):
     Additional attributes are available for debugging after evaluation, including:
      * ``_requested_coordinates``: the requested coordinates of the most recent call to eval
      * ``_output``: the output of the most recent call to eval
-     * ``_from_cache``: whether the most recent call to eval used the cache
      * ``_multi_threaded``: whether the most recent call to eval was executed using multiple threads
     """
 
@@ -137,8 +136,13 @@ class Node(tl.HasTraits):
 
     dtype = tl.Enum([float], default_value=float)
     cache_output = tl.Bool()
+    _from_cache = False
     force_eval = tl.Bool(False)
-    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+
+    property_cache_type = tl.Union(
+        [tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default_value=None
+    )
+    property_cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     # e.g. data sources use ['source']
@@ -168,16 +172,17 @@ class Node(tl.HasTraits):
 
     @tl.default("cache_output")
     def _cache_output_default(self):
-        return settings["CACHE_NODE_OUTPUT_DEFAULT"]
+        return settings["ENABLE_CACHE"]
 
-    @tl.default("cache_ctrl")
-    def _cache_ctrl_default(self):
-        return get_default_cache_ctrl()
+    @tl.default("property_cache_ctrl")
+    def _property_cache_ctrl_default(self):
+        if self.property_cache_type is None:
+            return get_default_cache_ctrl()
+        return make_cache_ctrl(self.property_cache_type)
 
     # debugging
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _output = tl.Instance(UnitsDataArray, allow_none=True)
-    _from_cache = tl.Bool(allow_none=True, default_value=None)
     # Flag that is True if the Node was run multi-threaded, or None if the question doesn't apply
     _multi_threaded = tl.Bool(allow_none=True, default_value=None)
 
@@ -187,10 +192,6 @@ class Node(tl.HasTraits):
 
     def __init__(self, **kwargs):
         """Do not overwrite me"""
-
-        # Shortcut for users to make setting the cache_ctrl simpler:
-        if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
-            kwargs["cache_ctrl"] = make_cache_ctrl(kwargs["cache_ctrl"])
 
         tkwargs = self._first_init(**kwargs)
 
@@ -281,22 +282,9 @@ class Node(tl.HasTraits):
 
         if settings["DEBUG"]:
             self._requested_coordinates = coordinates
-        item = "output"
 
-        # get standardized coordinates for caching
-        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims)).simplify()
-
-        if not self.force_eval and self.cache_output and self.has_cache(item, cache_coordinates):
-            data = self.get_cache(item, cache_coordinates)
-            if output is not None:
-                order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
-                output.transpose(*order)[:] = data
-            self._from_cache = True
-        else:
-            data = self._eval(coordinates, **kwargs)
-            if self.cache_output:
-                self.put_cache(data, item, cache_coordinates)
-            self._from_cache = False
+        # Caching is now done explicitly with a Caching node
+        data = self._eval(coordinates, **kwargs)
 
         # extract single output, if necessary
         # subclasses should extract single outputs themselves if possible, but this provides a backup
@@ -463,6 +451,75 @@ class Node(tl.HasTraits):
         """
         return probe_node(self, lat, lon, time, alt, crs)
 
+    def cache(self, node_type="hash", cache_type=None, uid=None, **kwargs):
+        """This is a convenience function that creates a Cache node following this Node.
+        This means that any evaluation of the output of this function is cached using the
+        requested caching method
+
+        Parameters
+        ----------
+        node_type : str, optional
+            One of "hash" or "Zarr", "hash" by default.
+        cache_type : str, optional
+            One of "ram" or "disk", controlling where the output is cached, by default uses podpac.settings["DEFAULT_CACHE"].
+            Note, "disk" caching uses the path specified by the user in `podpac.settings.cache_path`.
+        uid : str, optional
+            A unique identifier for this node. This is used to extract data from the cache. By default uses
+            self.hash of the output `CacheNode` from this function.
+        **kwargs : dict
+            Any remaining key-word arguments are passed on to the constructor of the `CacheNode`.
+
+        Returns
+        -------
+        podpac.core.cache.cache_interface.CacheNode
+            The cache node using this node as its source.
+
+        Raises
+        ------
+        ValueError
+            When an invalid cache_type is specified
+        ValueError
+            If cache_type == 'zarr', but self.coordinates is None
+        """
+        if uid is not None:
+            kwargs["cache_uid"] = uid
+
+        if cache_type is None:
+            cache_type = settings["DEFAULT_CACHE"]
+
+        # Decide whether to use the ZarrCache or HashCache
+        # check is self.coordinates exists
+        if node_type == "hash":
+            if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
+                kwargs["cache_ctrl"] = podpac.core.cache.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
+            return podpac.caches.HashCache(source=self, cache_type=cache_type, **kwargs)
+        elif node_type == "zarr":
+            if not trait_is_defined(self, "coordinates") or self.coordinates is None:
+                raise ValueError("Cannot use ZarrCache without coordinates")
+            else:
+                return podpac.caches.ZarrCache(source=self, cache_type=cache_type, **kwargs)
+        else:
+            raise ValueError("Invalid cache type: %s. Valid cache types: zarr, hash" % cache_type)
+
+    def interpolate(self, interpolation="nearest", **kwargs):
+        """This is a convenient function that creates an Interpolation Node following this Node.
+        This means any evaluation of the output of this function will be interpolated to the
+        request coordinates.
+
+        Parameters
+        ----------
+        interpolation : str, optional
+            Interpolation type, see `podpac.interpolators.Interpolate` for options, by default "nearest"
+        **kwargs : dict
+            Additional key-word arguments passed on to the `Interpolate` node instantiation
+
+        Returns
+        -------
+        podpac.interpolators.Interpolate
+            The interpolation mode, using this node as its source
+        """
+        return podpac.interpolators.Interpolate(source=self, interpolation=interpolation, **kwargs)
+
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
     # -----------------------------------------------------------------------------------------------------------------
@@ -540,12 +597,12 @@ class Node(tl.HasTraits):
     @cached_property
     def definition(self):
         """
-        Full node definition.
-
-        Returns
-        -------
-        OrderedDict
-            Dictionary-formatted node definition.
+                Full node definition.
+        1
+                Returns
+                -------
+                OrderedDict
+                    Dictionary-formatted node definition.
         """
 
         if getattr(self, "_definition_guard", False):
@@ -678,22 +735,19 @@ class Node(tl.HasTraits):
     # Caching Interface
     # -----------------------------------------------------------------------------------------------------------------
 
-    def get_cache(self, key, coordinates=None):
+    def get_property_cache(self, key, coordinates=None):
         """
         Get cached data for this node.
-
         Parameters
         ----------
         key : str
             Key for the cached data, e.g. 'output'
         coordinates : podpac.Coordinates, optional
             Coordinates for which the cached data should be retrieved. Omit for coordinate-independent data.
-
         Returns
         -------
         data : any
             The cached data.
-
         Raises
         ------
         NodeException
@@ -705,15 +759,14 @@ class Node(tl.HasTraits):
         except NodeDefinitionError as e:
             raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
 
-        if self.cache_ctrl is None or not self.has_cache(key, coordinates=coordinates):
+        if self.property_cache_ctrl is None or not self.has_property_cache(key, coordinates=coordinates):
             raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
 
-        return self.cache_ctrl.get(self, key, coordinates=coordinates)
+        return self.property_cache_ctrl.get(self, key, coordinates=coordinates)
 
-    def put_cache(self, data, key, coordinates=None, expires=None, overwrite=True):
+    def put_property_cache(self, data, key, coordinates=None, expires=None, overwrite=True):
         """
         Cache data for this node.
-
         Parameters
         ----------
         data : any
@@ -726,7 +779,6 @@ class Node(tl.HasTraits):
             Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
         overwrite : bool, optional
             Overwrite existing data, default True.
-
         Raises
         ------
         NodeException
@@ -738,26 +790,24 @@ class Node(tl.HasTraits):
         except NodeDefinitionError as e:
             raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
 
-        if self.cache_ctrl is None:
+        if self.property_cache_ctrl is None:
             return
 
-        if not overwrite and self.has_cache(key, coordinates=coordinates):
+        if not overwrite and self.has_property_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
         with thread_manager.cache_lock:
-            self.cache_ctrl.put(self, data, key, coordinates=coordinates, expires=expires, update=overwrite)
+            self.property_cache_ctrl.put(self, data, key, coordinates=coordinates, expires=expires, update=overwrite)
 
-    def has_cache(self, key, coordinates=None):
+    def has_property_cache(self, key, coordinates=None):
         """
         Check for cached data for this node.
-
         Parameters
         ----------
         key : str
             Key for the cached data, e.g. 'output'
         coordinates : podpac.Coordinates, optional
             Coordinates for which the cached data should be retrieved. Omit for coordinate-independent data.
-
         Returns
         -------
         bool
@@ -769,13 +819,13 @@ class Node(tl.HasTraits):
         except NodeDefinitionError as e:
             raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
 
-        if self.cache_ctrl is None:
+        if self.property_cache_ctrl is None:
             return False
 
         with thread_manager.cache_lock:
-            return self.cache_ctrl.has(self, key, coordinates=coordinates)
+            return self.property_cache_ctrl.has(self, key, coordinates=coordinates)
 
-    def rem_cache(self, key, coordinates=None, mode="all"):
+    def rem_property_cache(self, key, coordinates=None, mode="all"):
         """
         Clear cached data for this node.
 
@@ -800,10 +850,10 @@ class Node(tl.HasTraits):
         except NodeDefinitionError as e:
             raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
 
-        if self.cache_ctrl is None:
+        if self.property_cache_ctrl is None:
             return
 
-        self.cache_ctrl.rem(self, item=key, coordinates=coordinates, mode=mode)
+        self.property_cache_ctrl.rem(self, item=key, coordinates=coordinates, mode=mode)
 
     # --------------------------------------------------------#
     #  Class Methods (Deserialization)
@@ -1338,36 +1388,6 @@ def _process_kwargs(name, d, definition, nodes):
             raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
 
     nodes[name] = node_class(**kwargs)
-
-
-# --------------------------------------------------------#
-#  Mixins
-# --------------------------------------------------------#
-
-
-class NoCacheMixin(tl.HasTraits):
-    """Mixin to use no cache by default."""
-
-    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
-
-    @tl.default("cache_ctrl")
-    def _cache_ctrl_default(self):
-        return CacheCtrl([])
-
-
-class DiskCacheMixin(tl.HasTraits):
-    """Mixin to add disk caching to the Node by default."""
-
-    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
-
-    @tl.default("cache_ctrl")
-    def _cache_ctrl_default(self):
-        # get the default cache_ctrl and addd a disk cache store if necessary
-        default_ctrl = get_default_cache_ctrl()
-        stores = default_ctrl._cache_stores
-        if not any(isinstance(store, DiskCacheStore) for store in default_ctrl._cache_stores):
-            stores.append(DiskCacheStore())
-        return CacheCtrl(stores)
 
 
 # --------------------------------------------------------#

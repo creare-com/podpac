@@ -20,7 +20,7 @@ satsearch = lazy_module("satsearch")
 # Internal dependencies
 import podpac
 from podpac.compositor import TileCompositor
-from podpac.core.data.rasterio_source import RasterioRaw
+from podpac.core.data.rasterio_source import Rasterio
 from podpac.core.units import UnitsDataArray
 from podpac.authentication import S3Mixin
 from podpac import settings
@@ -64,7 +64,7 @@ def _get_s3_url(item, asset_name):
         raise ValueError("Could not parse satutils asset href '%s'" % info["href"])
 
 
-class SatUtilsSource(RasterioRaw):
+class SatUtilsSource(Rasterio):
     date = tl.Unicode(help="item.properties.datetime from sat-utils item").tag(attr=True)
 
     def get_coordinates(self):

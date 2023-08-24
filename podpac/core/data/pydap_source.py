@@ -19,7 +19,7 @@ from lazy_import import lazy_module, lazy_class
 from podpac.core import authentication
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
-from podpac.core.interpolation.interpolation import InterpolationMixin
+
 
 
 # Optional dependencies
@@ -32,7 +32,7 @@ _logger = logging.getLogger(__name__)
 
 
 @common_doc(COMMON_DATA_DOC)
-class PyDAPRaw(authentication.RequestsSessionMixin, DataSource):
+class PyDAP(authentication.RequestsSessionMixin, DataSource):
     """Create a DataSource from an OpenDAP server feed.
 
     Attributes
@@ -134,9 +134,3 @@ class PyDAPRaw(authentication.RequestsSessionMixin, DataSource):
             The list of available keys from the OpenDAP dataset. Any of these keys can be set as self.data_key
         """
         return self.dataset.keys()
-
-
-class PyDAP(InterpolationMixin, PyDAPRaw):
-    """OpenDAP datasource with interpolation."""
-
-    pass

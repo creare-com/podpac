@@ -14,8 +14,8 @@ class TestCOSMOS(object):
             "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M", "respect_bounds": False},
         }
         cosmos = podpac.datalib.cosmos_stations.COSMOSStations()
-        cosmos_raw = podpac.datalib.cosmos_stations.COSMOSStationsRaw()
-        cosmos_filled = podpac.datalib.cosmos_stations.COSMOSStations(interpolation=point_interpolation)
+        cosmos_raw = podpac.datalib.cosmos_stations.COSMOSStations()
+        cosmos_filled = podpac.datalib.cosmos_stations.COSMOSStations(interpolation=point_interpolation).interpolate()
         for ck, c in COORDINATES.items():
             if ck != "cosmos_region":
                 continue

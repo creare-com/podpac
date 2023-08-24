@@ -54,7 +54,7 @@ class TestReprojectedSource(object):
         """test get data from reprojected source"""
 
         # no source_interpolation
-        source = Array(source=self.data, coordinates=self.coordinates, interpolation="nearest")
+        source = Array(source=self.data, coordinates=self.coordinates).interpolate(interpolation="nearest")
         with pytest.warns(DeprecationWarning):
             node = ReprojectedSource(source=source, reprojected_coordinates=self.reprojected_coordinates)
         assert source.interpolation == "nearest"
@@ -64,7 +64,7 @@ class TestReprojectedSource(object):
         np.testing.assert_array_equal(node.eval_source.source, source.source)
 
         # matching source_interpolation
-        source = Array(source=self.data, coordinates=self.coordinates, interpolation="nearest")
+        source = Array(source=self.data, coordinates=self.coordinates).interpolate(interpolation="nearest")
         with pytest.warns(DeprecationWarning):
             node = ReprojectedSource(
                 source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="nearest"
@@ -76,7 +76,7 @@ class TestReprojectedSource(object):
         np.testing.assert_array_equal(node.eval_source.source, source.source)
 
         # non-matching source_interpolation
-        source = Array(source=self.data, coordinates=self.coordinates, interpolation="nearest")
+        source = Array(source=self.data, coordinates=self.coordinates).interpolate(interpolation="nearest")
         with pytest.warns(DeprecationWarning):
             node = ReprojectedSource(
                 source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="bilinear"
@@ -90,8 +90,8 @@ class TestReprojectedSource(object):
         # no source.interpolation to set (trigger logger warning)
         source = Node()
         with pytest.warns(DeprecationWarning):
-            node = ReprojectedSource(
-                source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="bilinear"
+            node = ReprojectedSource(source=source, reprojected_coordinates=self.reprojected_coordinates).interpolate(
+                source_interpolation="bilinear"
             )
 
     def test_interpolation_warning(self):

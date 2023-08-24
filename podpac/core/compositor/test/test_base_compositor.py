@@ -12,15 +12,15 @@ COORDS = podpac.Coordinates(
 )
 LON, LAT, TIME = np.meshgrid(COORDS["lon"].coordinates, COORDS["lat"].coordinates, COORDS["time"].coordinates)
 
-ARRAY_LAT = Array(source=LAT.astype(float), coordinates=COORDS, interpolation="bilinear")
-ARRAY_LON = Array(source=LON.astype(float), coordinates=COORDS, interpolation="bilinear")
-ARRAY_TIME = Array(source=TIME.astype(float), coordinates=COORDS, interpolation="bilinear")
+ARRAY_LAT = Array(source=LAT.astype(float), coordinates=COORDS).interpolate(interpolation="bilinear")
+ARRAY_LON = Array(source=LON.astype(float), coordinates=COORDS).interpolate(interpolation="bilinear")
+ARRAY_TIME = Array(source=TIME.astype(float), coordinates=COORDS).interpolate(interpolation="bilinear")
 
-MULTI_0_XY = Array(source=np.full(COORDS.shape + (2,), 0), coordinates=COORDS, outputs=["x", "y"])
-MULTI_1_XY = Array(source=np.full(COORDS.shape + (2,), 1), coordinates=COORDS, outputs=["x", "y"])
-MULTI_4_YX = Array(source=np.full(COORDS.shape + (2,), 4), coordinates=COORDS, outputs=["y", "x"])
-MULTI_2_X = Array(source=np.full(COORDS.shape + (1,), 2), coordinates=COORDS, outputs=["x"])
-MULTI_3_Z = Array(source=np.full(COORDS.shape + (1,), 3), coordinates=COORDS, outputs=["z"])
+MULTI_0_XY = Array(source=np.full(COORDS.shape + (2,), 0), coordinates=COORDS, outputs=["x", "y"]).interpolate()
+MULTI_1_XY = Array(source=np.full(COORDS.shape + (2,), 1), coordinates=COORDS, outputs=["x", "y"]).interpolate()
+MULTI_4_YX = Array(source=np.full(COORDS.shape + (2,), 4), coordinates=COORDS, outputs=["y", "x"]).interpolate()
+MULTI_2_X = Array(source=np.full(COORDS.shape + (1,), 2), coordinates=COORDS, outputs=["x"]).interpolate()
+MULTI_3_Z = Array(source=np.full(COORDS.shape + (1,), 3), coordinates=COORDS, outputs=["z"]).interpolate()
 
 
 class MockComposite(BaseCompositor):
@@ -112,7 +112,9 @@ class TestBaseCompositor(object):
         assert len(selected) == 0
 
     def test_iteroutputs_empty(self):
-        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
+        node = BaseCompositor(
+            sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME]
+        )  # implemented __getattr__ but still assertion erro
         outputs = node.iteroutputs(podpac.Coordinates([-1, -1, -1], dims=["lat", "lon", "time"]))
         np.testing.assert_array_equal(next(outputs), [[[np.nan]]])
         np.testing.assert_array_equal(next(outputs), [[[np.nan]]])

@@ -143,7 +143,7 @@ class DataSource(Node):
         Whether to cache coordinates using the podpac ``cache_ctrl``. Default False.
     cache_output : bool
         Should the node's output be cached? If not provided or None, uses default based on
-        settings["CACHE_DATASOURCE_OUTPUT_DEFAULT"]. If True, outputs will be cached and retrieved from cache. If False,
+        settings["ENABLE_CACHE"]. If True, outputs will be cached and retrieved from cache. If False,
         outputs will not be cached OR retrieved from cache (even if they exist in cache).
 
     Notes
@@ -203,7 +203,7 @@ class DataSource(Node):
 
     @tl.default("cache_output")
     def _cache_output_default(self):
-        return settings["CACHE_DATASOURCE_OUTPUT_DEFAULT"]
+        return settings["ENABLE_CACHE"]
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -215,14 +215,15 @@ class DataSource(Node):
 
         if self._coordinates is not None:
             nc = self._coordinates
-        elif self.cache_coordinates and self.has_cache("coordinates"):
-            nc = self.get_cache("coordinates")
+        elif self.cache_coordinates and self.has_property_cache("coordinates"):
+            nc = self.get_property_cache("coordinates")
             self.set_trait("_coordinates", nc)
         else:
             nc = self.get_coordinates()
             self.set_trait("_coordinates", nc)
+            print("get_coordinates", nc)
             if self.cache_coordinates:
-                self.put_cache(nc, "coordinates")
+                self.put_property_cache(nc, "coordinates")
         return nc
 
     @property

@@ -73,15 +73,21 @@ class TestConvolution(object):
         lon = clinspace(-80, 70, 40, name="lon")
         kernel = [[1, 2, 1]]
         coords = Coordinates([lat, lon])
-        multi = Array(source=np.random.random(coords.shape + (2,)), coordinates=coords, outputs=["a", "b"])
-        node = Convolution(source=multi, kernel=kernel, kernel_dims=["lat", "lon"])
+        multi = Array(
+            source=np.random.random(coords.shape + (2,)), coordinates=coords, outputs=["a", "b"]
+        ).interpolate()
+        node = Convolution(source=multi, kernel=kernel, kernel_dims=["lat", "lon"]).interpolate()
         o1 = node.eval(Coordinates([lat, lon]))
 
         kernel = [[[1, 2]]]
         coords = Coordinates([lat, lon])
-        multi = Array(source=np.random.random(coords.shape + (2,)), coordinates=coords, outputs=["a", "b"])
-        node1 = Convolution(source=multi, kernel=kernel, kernel_dims=["lat", "lon", "output"], force_eval=True)
-        node2 = Convolution(source=multi, kernel=kernel[0], kernel_dims=["lat", "lon"], force_eval=True)
+        multi = Array(
+            source=np.random.random(coords.shape + (2,)), coordinates=coords, outputs=["a", "b"]
+        ).interpolate()
+        node1 = Convolution(
+            source=multi, kernel=kernel, kernel_dims=["lat", "lon", "output"], force_eval=True
+        ).interpolate()
+        node2 = Convolution(source=multi, kernel=kernel[0], kernel_dims=["lat", "lon"], force_eval=True).interpolate()
         o1 = node1.eval(Coordinates([lat, lon]))
         o2 = node2.eval(Coordinates([lat, lon]))
 
@@ -94,8 +100,8 @@ class TestConvolution(object):
 
         data = np.ones(coords.shape)
         data[10, 10] = np.nan
-        source = Array(source=data, coordinates=coords)
-        node = Convolution(source=source, kernel=[[1, 2, 1]], kernel_dims=["lat", "lon"])
+        source = Array(source=data, coordinates=coords).interpolate()
+        node = Convolution(source=source, kernel=[[1, 2, 1]], kernel_dims=["lat", "lon"]).interpolate()
 
         o = node.eval(coords[8:12, 7:13])
 
@@ -151,8 +157,12 @@ class TestConvolution(object):
         time = ["2012-05-19", "2016-01-31", "2018-06-20"]
         coords = Coordinates([lat, lon, time], dims=["lat", "lon", "time"])
 
-        source = Array(source=np.random.random(coords.drop("time").shape), coordinates=coords.drop("time"))
-        node = Convolution(source=source, kernel=[[-1, 2, -1]], kernel_dims=["lat", "lon"], force_eval=True)
+        source = Array(
+            source=np.random.random(coords.drop("time").shape), coordinates=coords.drop("time")
+        ).interpolate()
+        node = Convolution(
+            source=source, kernel=[[-1, 2, -1]], kernel_dims=["lat", "lon"], force_eval=True
+        ).interpolate()
         o = node.eval(coords)
         assert np.all([d in ["lat", "lon"] for d in o.dims])
 
@@ -166,8 +176,10 @@ class TestConvolution(object):
         coords1 = Coordinates([lat, lon])
         coords2 = Coordinates([lon, lat])
 
-        source = Array(source=np.random.random(coords.shape), coordinates=coords)
-        node = Convolution(source=source, kernel=[[-1, 2, -1]], kernel_dims=["lat", "lon"], force_eval=True)
+        source = Array(source=np.random.random(coords.shape), coordinates=coords).interpolate()
+        node = Convolution(
+            source=source, kernel=[[-1, 2, -1]], kernel_dims=["lat", "lon"], force_eval=True
+        ).interpolate()
         o1 = node.eval(coords1)
         o2 = node.eval(coords2)
         assert np.all(o2.data == o1.data.T)
@@ -180,27 +192,31 @@ class TestConvolution(object):
         coords = Coordinates([lat, lon, time], dims=["lat", "lon", "time"])
         coords2 = Coordinates([lat[[1, 2, 4]], lon, time], dims=["lat", "lon", "time"])
 
-        source = Array(source=np.random.random(coords.drop("time").shape), coordinates=coords.drop("time"))
+        source = Array(
+            source=np.random.random(coords.drop("time").shape), coordinates=coords.drop("time")
+        ).interpolate()
         node = Convolution(
             source=source, kernel=[[[-1], [2], [-1]]], kernel_dims=["lat", "lon", "time"], force_eval=True
-        )
+        ).interpolate()
         o = node.eval(coords[:, 1:-1, :])
-        expected = source.source[:, 1:-1] * 2 - source.source[:, 2:] - source.source[:, :-2]
+        expected = source.source.source[:, 1:-1] * 2 - source.source.source[:, 2:] - source.source.source[:, :-2]
         assert np.abs(o.data - expected).max() < 1e-14
 
         # Check when request has an ArrayCoordinates1d
-        node = Convolution(source=source, kernel_type="mean,3", kernel_dims=["lat", "lon", "time"], force_eval=True)
+        node = Convolution(
+            source=source, kernel_type="mean,3", kernel_dims=["lat", "lon", "time"], force_eval=True
+        ).interpolate()
         o = node.eval(coords2[:, 1:-1])
         expected = (
-            source.source[[1, 2, 4], 1:-1]
-            + source.source[[0, 1, 2], 1:-1]
-            + source.source[[2, 4, 6], 1:-1]
-            + source.source[[1, 2, 4], :-2]
-            + source.source[[0, 1, 2], :-2]
-            + source.source[[2, 4, 6], :-2]
-            + source.source[[1, 2, 4], 2:]
-            + source.source[[0, 1, 2], 2:]
-            + source.source[[2, 4, 6], 2:]
+            source.source.source[[1, 2, 4], 1:-1]
+            + source.source.source[[0, 1, 2], 1:-1]
+            + source.source.source[[2, 4, 6], 1:-1]
+            + source.source.source[[1, 2, 4], :-2]
+            + source.source.source[[0, 1, 2], :-2]
+            + source.source.source[[2, 4, 6], :-2]
+            + source.source.source[[1, 2, 4], 2:]
+            + source.source.source[[0, 1, 2], 2:]
+            + source.source.source[[2, 4, 6], 2:]
         ) / 9
         assert np.abs(o.data - expected).max() < 1e-14
 
@@ -213,9 +229,11 @@ class TestConvolution(object):
         time = ["2012-05-19", "2016-01-31", "2018-06-20"]
         coords = Coordinates([lat, lon, time], dims=["lat", "lon", "time"])
 
-        source = Array(source=np.random.random(coords.shape), coordinates=coords)
-        node = Convolution(source=source, kernel=[[-1, 2, -1]], kernel_dims=["lat", "lon"], force_eval=True)
+        source = Array(source=np.random.random(coords.shape), coordinates=coords).interpolate()
+        node = Convolution(
+            source=source, kernel=[[-1, 2, -1]], kernel_dims=["lat", "lon"], force_eval=True
+        ).interpolate()
         o = node.eval(coords[:, 1:-1, :])
-        expected = source.source[:, 1:-1] * 2 - source.source[:, 2:] - source.source[:, :-2]
+        expected = source.source.source[:, 1:-1] * 2 - source.source.source[:, 2:] - source.source.source[:, :-2]
 
         assert np.abs(o.data - expected).max() < 1e-14

@@ -6,7 +6,6 @@ import numpy as np
 
 import podpac
 from podpac.core.utils import cached_property
-from podpac.interpolators import InterpolationMixin
 
 _logger = logging.getLogger(__name__)
 
@@ -473,7 +472,7 @@ def get_site_coordinates(site, time=None, depth=None):
     return podpac.Coordinates([[lats, lons], time, depth], dims=["lat_lon", "time", "alt"], crs=CRS)
 
 
-class SoilSCAPENode(podpac.core.data.dataset_source.DatasetRaw):
+class SoilSCAPENode(podpac.core.data.dataset_source.Dataset):
     """SoilSCAPE 20min soil moisture for a particular node.
 
     Data is loaded from the THREDDS https fileserver.
@@ -554,7 +553,7 @@ class SoilSCAPENode(podpac.core.data.dataset_source.DatasetRaw):
         return "soil_moist_20min_{site}_n{node}".format(site=self.site, node=self.node)
 
 
-class SoilSCAPE20minRaw(podpac.compositor.TileCompositorRaw):
+class SoilSCAPE20min(podpac.compositor.TileCompositor):
     """Raw SoilSCAPE 20min soil moisture data for an entire site.
 
     Data is loaded from the THREDDS https fileserver.
@@ -611,7 +610,7 @@ class SoilSCAPE20minRaw(podpac.compositor.TileCompositorRaw):
         return SoilSCAPENode(
             site=site,
             node=node,
-            cache_ctrl=self.cache_ctrl,
+            property_cache_ctrl=self.property_cache_ctrl,
             dataset_expires=self.dataset_expires,
             data_key=self.data_key,
         )
@@ -638,9 +637,3 @@ class SoilSCAPE20minRaw(podpac.compositor.TileCompositorRaw):
     @property
     def available_sites(self):
         return list(NODES.keys())
-
-
-class SoilSCAPE20min(InterpolationMixin, SoilSCAPE20minRaw):
-    """SoilSCAPE 20min soil moisture data for an entire site, with interpolation."""
-
-    pass

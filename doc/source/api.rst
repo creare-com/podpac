@@ -242,7 +242,6 @@ Utilities
     podpac.utils.create_logfile
     podpac.utils.clear_cache
     podpac.utils.cached_property
-    podpac.utils.NoCacheMixin
     podpac.utils.DiskCacheMixin
     podpac.utils.NodeTrait
 

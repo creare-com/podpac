@@ -8,12 +8,11 @@ import traitlets as tl
 from podpac.core.utils import common_doc
 from podpac.core.compositor.compositor import COMMON_COMPOSITOR_DOC, BaseCompositor
 from podpac.core.units import UnitsDataArray
-from podpac.core.interpolation.interpolation import InterpolationMixin
 from podpac.core.coordinates import Coordinates
 
 
 @common_doc(COMMON_COMPOSITOR_DOC)
-class TileCompositorRaw(BaseCompositor):
+class TileCompositor(BaseCompositor):
     """Compositor that combines tiled sources.
 
     The requested data does not need to be interpolated by the sources before being composited
@@ -94,7 +93,3 @@ class TileCompositorRaw(BaseCompositor):
         coords = None  # n/a
         source_data_arrays = (source.get_source_data(bounds) for source in self.sources)  # generator
         return self.composite(coords, source_data_arrays)
-
-
-class TileCompositor(InterpolationMixin, TileCompositorRaw):
-    pass

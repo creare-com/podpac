@@ -12,8 +12,8 @@ class TestSoilscape(object):
             "method": "nearest",
             "params": {"use_selector": False, "remove_nan": True, "time_scale": "1,M", "respect_bounds": False},
         }
-        soilscape = podpac.datalib.soilscape.SoilSCAPE20min(
-            site="Canton_OK", data_key="soil_moisture", interpolation=point_interpolation
+        soilscape = podpac.datalib.soilscape.SoilSCAPE20min(site="Canton_OK", data_key="soil_moisture").interpolate(
+            interpolation=point_interpolation
         )
         for ck, c in COORDINATES.items():
             if "cosmos" in ck:
@@ -23,7 +23,7 @@ class TestSoilscape(object):
             assert np.any(np.isfinite(o.data))
 
     def test_site_raw(self):
-        sm = podpac.datalib.soilscape.SoilSCAPE20minRaw(site="Canton_OK", data_key="soil_moisture")
+        sm = podpac.datalib.soilscape.SoilSCAPE20min(site="Canton_OK", data_key="soil_moisture")
         coords_source = sm.make_coordinates(time=sm.sources[0].coordinates["time"][:5])
         coords_interp_time = sm.make_coordinates(time="2016-01-01")
         coords_interp_alt = sm.make_coordinates(time=sm.sources[0].coordinates["time"][:5], depth=5)
@@ -32,10 +32,10 @@ class TestSoilscape(object):
         o3 = sm.eval(coords_interp_alt)
 
     def test_site_interpolated(self):
-        sm = podpac.datalib.soilscape.SoilSCAPE20min(site="Canton_OK", data_key="soil_moisture")
-        coords_source = sm.make_coordinates(time=sm.sources[0].coordinates["time"][:5])
-        coords_interp_time = sm.make_coordinates(time="2016-01-01")
-        coords_interp_alt = sm.make_coordinates(time=sm.sources[0].coordinates["time"][:5], depth=5)
+        sm = podpac.datalib.soilscape.SoilSCAPE20min(site="Canton_OK", data_key="soil_moisture").interpolate()
+        coords_source = sm.source.make_coordinates(time=sm.source.sources[0].coordinates["time"][:5])
+        coords_interp_time = sm.source.make_coordinates(time="2016-01-01")
+        coords_interp_alt = sm.source.make_coordinates(time=sm.source.sources[0].coordinates["time"][:5], depth=5)
         o1 = sm.eval(coords_source)
         o2 = sm.eval(coords_interp_time)
         o3 = sm.eval(coords_interp_alt)

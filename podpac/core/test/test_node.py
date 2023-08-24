@@ -27,9 +27,8 @@ from podpac.core import common_test_utils as ctu
 from podpac.core.utils import ArrayTrait, NodeTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.style import Style
-from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore
+from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore, DiskCacheMixin, clear_cache
 from podpac.core.node import Node, NodeException, NodeDefinitionError
-from podpac.core.node import NoCacheMixin, DiskCacheMixin
 
 
 class TestNode(object):
@@ -70,11 +69,11 @@ class TestNode(object):
 
     def test_cache_output(self):
         with podpac.settings:
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
             node = Node()
             assert not node.cache_output
 
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = True
+            podpac.settings["ENABLE_CACHE"] = True
             node = Node()
             assert node.cache_output
 
@@ -82,25 +81,25 @@ class TestNode(object):
         # settings
         with podpac.settings:
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
-            node = Node()
+            node = Node().cache()
             assert node.cache_ctrl is not None
             assert len(node.cache_ctrl._cache_stores) == 1
             assert isinstance(node.cache_ctrl._cache_stores[0], RamCacheStore)
 
             podpac.settings["DEFAULT_CACHE"] = ["ram", "disk"]
-            node = Node()
+            node = Node().cache()
             assert node.cache_ctrl is not None
             assert len(node.cache_ctrl._cache_stores) == 2
             assert isinstance(node.cache_ctrl._cache_stores[0], RamCacheStore)
             assert isinstance(node.cache_ctrl._cache_stores[1], DiskCacheStore)
 
         # specify
-        node = Node(cache_ctrl=["ram"])
+        node = Node().cache(cache_type="ram")
         assert node.cache_ctrl is not None
         assert len(node.cache_ctrl._cache_stores) == 1
         assert isinstance(node.cache_ctrl._cache_stores[0], RamCacheStore)
 
-        node = Node(cache_ctrl=["ram", "disk"])
+        node = Node().cache(cache_type=["ram", "disk"])
         assert node.cache_ctrl is not None
         assert len(node.cache_ctrl._cache_stores) == 2
         assert isinstance(node.cache_ctrl._cache_stores[0], RamCacheStore)
@@ -358,7 +357,7 @@ class TestNodeEval(object):
         np.testing.assert_equal(o3.transpose("lat", "lon").data, o4.data)
 
     def test_eval_get_cache(self):
-        podpac.settings["RAM_CACHE_ENABLED"] = True
+        podpac.settings["ENABLE_CACHE"] = True
 
         class MyNode(Node):
             def _eval(self, coordinates, output=None, selector=None):
@@ -373,7 +372,7 @@ class TestNodeEval(object):
 
         coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
 
-        node = MyNode(cache_output=True, cache_ctrl=CacheCtrl([RamCacheStore()]))
+        node = MyNode(cache_output=True).cache(cache_type="ram")
 
         # first eval
         o1 = node.eval(coords)
@@ -410,14 +409,14 @@ class TestNodeEval(object):
 class TestCaching(object):
     @classmethod
     def setup_class(cls):
-        cls._ram_cache_enabled = podpac.settings["RAM_CACHE_ENABLED"]
+        cls._ram_cache_enabled = podpac.settings["ENABLE_CACHE"]
 
-        podpac.settings["RAM_CACHE_ENABLED"] = True
+        podpac.settings["ENABLE_CACHE"] = True
 
         class MyNode(Node):
             pass
 
-        cls.node = MyNode(cache_ctrl=CacheCtrl([RamCacheStore()]))
+        cls.node = MyNode().cache(cache_type=["ram"])
         cls.node.rem_cache(key="*", coordinates="*")
 
         cls.coords = podpac.Coordinates([0, 0], dims=["lat", "lon"])
@@ -427,7 +426,7 @@ class TestCaching(object):
     def teardown_class(cls):
         cls.node.rem_cache(key="*", coordinates="*")
 
-        podpac.settings["RAM_CACHE_ENABLED"] = cls._ram_cache_enabled
+        podpac.settings["ENABLE_CACHE"] = cls._ram_cache_enabled
 
     def setup_method(self, method):
         self.node.rem_cache(key="*", coordinates="*")
@@ -578,12 +577,12 @@ class TestCaching(object):
 
             @property
             def b(self):
-                self.has_cache("b")
+                self.has_property_cache("b")
                 return 10
 
-        node = MyNode(cache_ctrl=["ram"])
+        node = MyNode(cache_ctrl=["ram"]).cache()
         with pytest.raises(NodeException, match="Cache unavailable, node definition has a circular dependency"):
-            assert node.b == 10
+            assert node.source.b == 10
 
     def test_has_cache_unavailable_uninitialized(self):
         class MyNode(Node):
@@ -596,11 +595,11 @@ class TestCaching(object):
 
             @property
             def b(self):
-                self.has_cache("key")
+                self.has_property_cache("key")
                 return 10
 
         with pytest.raises(NodeException, match="Cache unavailable, node is not yet fully initialized"):
-            node = MyNode(a=3, cache_ctrl=["ram"])
+            node = MyNode(a=3, cache_ctrl=["ram"]).cache()
 
     def test_put_cache_unavailable_uninitialized(self):
         class MyNode(Node):
@@ -613,7 +612,7 @@ class TestCaching(object):
 
             @property
             def b(self):
-                self.put_cache(10, "key")
+                self.put_property_cache(10, "key")  # no longer a relevant test?
                 return 10
 
         with pytest.raises(NodeException, match="Cache unavailable"):
@@ -630,7 +629,7 @@ class TestCaching(object):
 
             @property
             def b(self):
-                self.get_cache("key")
+                self.get_property_cache("key")
                 return 10
 
         with pytest.raises(NodeException, match="Cache unavailable"):
@@ -647,7 +646,7 @@ class TestCaching(object):
 
             @property
             def b(self):
-                self.rem_cache("key")
+                self.rem_property_cache("key")
                 return 10
 
         with pytest.raises(NodeException, match="Cache unavailable"):
@@ -1459,22 +1458,6 @@ class TestUserDefinition(object):
             Node.from_json(wrong_name_json)
 
 
-class TestNoCacheMixin(object):
-    class NoCacheNode(NoCacheMixin, Node):
-        pass
-
-    def test_default_no_cache(self):
-        with podpac.settings:
-            podpac.settings["DEFAULT_CACHE"] = ["ram"]
-            node = self.NoCacheNode()
-            assert len(node.cache_ctrl._cache_stores) == 0
-
-    def test_customizable(self):
-        podpac.settings["DEFAULT_CACHE"] = ["ram"]
-        node = self.NoCacheNode(cache_ctrl=["ram"])
-        assert len(node.cache_ctrl._cache_stores) == 1
-
-
 class TestDiskCacheMixin(object):
     class DiskCacheNode(DiskCacheMixin, Node):
         pass
@@ -1492,7 +1475,7 @@ class TestDiskCacheMixin(object):
             assert len(node.cache_ctrl._cache_stores) == 2
 
     def test_customizable(self):
-        node = self.DiskCacheNode(cache_ctrl=["ram"])
+        node = self.DiskCacheNode().cache(cache_type=["ram"])
         assert len(node.cache_ctrl._cache_stores) == 1
 
 

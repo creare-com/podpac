@@ -12,6 +12,7 @@ from podpac.core.data.h5py_source import H5PY
 from podpac.core.data.csv_source import CSV
 from podpac.core.data.dataset_source import Dataset
 from podpac.core.data.zarr_source import Zarr
+from podpac.core.data.zarr_memory_source import ZarrMemory
 from podpac.core.data.ogc import WCS
 from podpac.core.data.ogr import OGR
 from podpac.core.data.reprojection import ReprojectedSource
