@@ -20,8 +20,6 @@ from six import string_types
 import pyproj
 import logging
 from scipy import spatial
-from geopy.distance import geodesic
-
 
 import podpac
 from podpac.core.settings import settings
