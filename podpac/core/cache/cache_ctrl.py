@@ -296,29 +296,18 @@ class CacheCtrl(object):
             c.cleanup()
 
 
-    
 # --------------------------------------------------------#
 #  Mixins
 # --------------------------------------------------------#
 
 
-class NoCacheMixin(tl.HasTraits):
-    """Mixin to use no cache by default."""
-
-    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
-
-    @tl.default("cache_ctrl")
-    def _cache_ctrl_default(self):
-        return CacheCtrl([])
-
-
 class DiskCacheMixin(tl.HasTraits):
     """Mixin to add disk caching to the Node by default."""
 
-    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+    property_cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
 
-    @tl.default("cache_ctrl")
-    def _cache_ctrl_default(self):
+    @tl.default("property_cache_ctrl")
+    def _property_cache_ctrl_default(self):
         # get the default cache_ctrl and addd a disk cache store if necessary
         default_ctrl = get_default_cache_ctrl()
         stores = default_ctrl._cache_stores

@@ -19,13 +19,10 @@ class HashCache(CacheNode):
         The source node to cache.
     cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
         Class that controls caching. If not provided, uses default based on settings.
-    cache_coordinates : podpac.Coordinate, optional
-        Coordinates that should be used for caching. If not provided. self.source.coordinates will be used, if it exists. Otherwise, use the request coordinates for the cache.
     relevant_dimensions : list, optional
         The relevant dimensions for caching.
     """
 
-    cache_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
     relevant_dimensions = tl.Instance(list, allow_none=True, default_value=None)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
     _from_cache = tl.Bool(allow_none=True, default_value=False)
@@ -33,22 +30,18 @@ class HashCache(CacheNode):
         [tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default=None
     )
 
-
     @tl.default("cache_ctrl")
     def _cache_ctrl_default(self):
         if self.cache_type is None:
             return get_default_cache_ctrl()
         return make_cache_ctrl(self.cache_type)
-    
+
     @tl.default("relevant_dimensions")
     def _relevant_dimensions_default(self):
         if self.has_cache("relevant_dimensions"):
             return self.get_cache("relevant_dimensions")
         else:
             return None
-        
-
-    
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -62,9 +55,6 @@ class HashCache(CacheNode):
     def coordinates(self):
         # Explicitly pass through coordinates
         return self.source.coordinates
-    
-   
-
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods

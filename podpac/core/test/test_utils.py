@@ -317,7 +317,9 @@ class TestCachedPropertyDecorator(object):
                 self.my_cache_ctrl_property_called += 1
                 return 30
 
-        a = MyNode(property_cache_type="ram").cache(node_type="hash", cache_type=["ram"]) # when caching properties, include the "property_cache_type" when instantiating nodes. Worth documenting.
+        a = MyNode(property_cache_type="ram").cache(
+            node_type="hash", cache_type=["ram"]
+        )  # when caching properties, include the "property_cache_type" when instantiating nodes. Worth documenting.
         b = MyNode(property_cache_type="ram").cache(node_type="hash", cache_type=["ram"])
         c = MyNode().cache(node_type="hash", cache_type=None)
 
@@ -407,8 +409,8 @@ class TestCachedPropertyDecorator(object):
                 self.expired_yesterday_called += 1
                 return 20
 
-        a = MyNode(cache_ctrl=["ram"])
-        b = MyNode(cache_ctrl=["ram"])
+        a = MyNode(property_cache_type=["ram"])
+        b = MyNode(property_cache_type=["ram"])
 
         # not expired, b uses cached version
         assert a.expires_tomorrow_called == 0

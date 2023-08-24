@@ -454,7 +454,7 @@ class Node(tl.HasTraits):
         """
         return probe_node(self, lat, lon, time, alt, crs)
 
-    def cache(self, node_type="hash", cache_type="ram", uid=None, **kwargs):
+    def cache(self, node_type="hash", cache_type=None, uid=None, **kwargs):
         """This is a convenience function that creates a Cache node following this Node.
         This means that any evaluation of the output of this function is cached using the
         requested caching method
@@ -464,8 +464,8 @@ class Node(tl.HasTraits):
         node_type : str, optional
             One of "hash" or "Zarr", "hash" by default.
         cache_type : str, optional
-            One of "ram" or "disk", controlling where the output is cached, by default "ram". "disk" caching uses
-            the path specified by the user in `podpac.settings.cache_path`.
+            One of "ram" or "disk", controlling where the output is cached, by default uses podpac.settings["DEFAULT_CACHE"].
+            Note, "disk" caching uses the path specified by the user in `podpac.settings.cache_path`.
         uid : str, optional
             A unique identifier for this node. This is used to extract data from the cache. By default uses
             self.hash of the output `CacheNode` from this function.
@@ -486,6 +486,9 @@ class Node(tl.HasTraits):
         """
         if uid is not None:
             kwargs["cache_uid"] = uid
+
+        if cache_type is None:
+            cache_type = settings["DEFAULT_CACHE"]
 
         # Decide whether to use the ZarrCache or HashCache
         # check is self.coordinates exists

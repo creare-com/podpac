@@ -20,15 +20,15 @@ class CacheNode(Node):
     source : Node or None
         The source node that this CacheNode wraps. The output of the source node
         will be cached by this CacheNode. This attribute is required.
-    uid : str
+    cache_uid : str
         A unique identifier for this CacheNode. If no UID is provided during
-        initialization, it will default to the hash of the CacheNode.
+        initialization, the caching will use the node hash.
 
-    Methods
+    Properties
     -------
-    _default_uid()
-        Default method to generate the 'uid' attribute for the CacheNode,
-        which will be the hash of the CacheNode if 'uid' is not provided during initialization.
+    hash()
+        The node hash used as a unique idenfier for caching. If "cache_uid" is supplied,
+        that will be used. Otherwise the parent class, `Node.hash` property is used.
     """
 
     source = NodeTrait(allow_none=True).tag(attr=True, required=True)
@@ -39,18 +39,4 @@ class CacheNode(Node):
         """hash for this node, used in caching and to determine equality."""
         if self.cache_uid:
             return self.cache_uid
-
-        # deepcopy so that the cached definition property is not modified by the deletes below
-        d = deepcopy(self.definition)
-
-        # omit version
-        if "podpac_version" in d:
-            del d["podpac_version"]
-
-        # omit style in every node
-        for k in d:
-            if "style" in d[k]:
-                del d[k]["style"]
-
-        s = json.dumps(d, separators=(",", ":"), cls=JSONEncoder)
-        return hash_alg(s.encode("utf-8")).hexdigest()
+        return super().hash

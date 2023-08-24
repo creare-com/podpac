@@ -50,7 +50,7 @@ Coordinates
 .. autosummary::
     :toctree: api/
     :template: function.rst
-    
+
     podpac.coordinates.crange
     podpac.coordinates.clinspace
     podpac.coordinates.merge_dims
@@ -244,7 +244,6 @@ Utilities
     podpac.utils.create_logfile
     podpac.utils.clear_cache
     podpac.utils.cached_property
-    podpac.utils.NoCacheMixin
     podpac.utils.DiskCacheMixin
     podpac.utils.NodeTrait
 

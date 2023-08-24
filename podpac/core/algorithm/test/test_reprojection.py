@@ -68,7 +68,7 @@ class TestReprojection(object):
         o3 = node.eval(self.coarse_coords)
         assert_array_equal(o1.data, o3.data)
 
-    def test_reprojection_Coordinates_crs(self): # not sure why this is failing?
+    def test_reprojection_Coordinates_crs(self):
         # same eval and source but different reproject
         reproject = Reproject(
             source=self.source,
@@ -79,7 +79,7 @@ class TestReprojection(object):
         # We have to use a second source here because the reprojected source
         # gets interpreted as having it's source coordinates in EPSG:3857
         # and when being subsampled, there's a warping effect...
-        o2 = self.source_coarse2.eval(self.source_coords)
+        o2 = self.source_coarse2.eval(self.source_coords.transform("EPSG:3857"))
         assert_almost_equal(o1.data, o2.data, decimal=13)
 
         node = podpac.Node.from_json(reproject.json)
@@ -94,5 +94,5 @@ class TestReprojection(object):
         # same source and reproject but different eval
         reproject = Reproject(source=self.source, coordinates=self.coarse_coords, interpolation="bilinear")
         o1 = reproject.eval(self.source_coords.transform("EPSG:3857"))
-        o2 = self.source_coarse.eval(self.source_coords.transform("EPSG:3857"))
+        o2 = self.source_coarse.eval(self.source_coords)
         assert_almost_equal(o1.data, o2.data, decimal=13)

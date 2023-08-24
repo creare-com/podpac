@@ -13,12 +13,12 @@ import traitlets as tl
 import pandas as pd  # Core dependency of xarray
 
 from podpac.core.utils import common_doc, ArrayTrait
-from podpac.core.cache import CacheCtrl, NoCacheMixin
+from podpac.core.cache import CacheCtrl
 from podpac.core.coordinates import Coordinates
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 
 
-class Array(NoCacheMixin, DataSource):
+class Array(DataSource):
     """Create a DataSource from an array -- this node is mostly meant for small experiments
 
     Attributes
