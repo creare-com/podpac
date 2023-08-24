@@ -39,16 +39,12 @@ DEFAULT_SETTINGS = {
     "DEFAULT_INTERPOLATION": "nearest",
     # cache
     "DEFAULT_CACHE": ["ram"],
-    "CACHE_DATASOURCE_OUTPUT_DEFAULT": True,
-    "CACHE_NODE_OUTPUT_DEFAULT": True,
+    "ENABLE_CACHE": True,
     "RAM_CACHE_MAX_BYTES": 1e9,  # ~1GB
     "DISK_CACHE_MAX_BYTES": 10e9,  # ~10GB
     "S3_CACHE_MAX_BYTES": 10e9,  # ~10GB
     "DISK_CACHE_DIR": "cache",
     "S3_CACHE_DIR": "cache",
-    "RAM_CACHE_ENABLED": True,
-    "DISK_CACHE_ENABLED": True,
-    "S3_CACHE_ENABLED": True,
     # AWS
     "AWS_ACCESS_KEY_ID": None,
     "AWS_SECRET_ACCESS_KEY": None,
@@ -117,10 +113,8 @@ class PodpacSettings(dict):
         Allow access to "requester pays" S3 buckets
     DEFAULT_CACHE : list
         Defines a default list of cache stores in priority order. Defaults to `['ram']`.
-    CACHE_NODE_OUTPUT_DEFAULT : bool
-        Default value for node ``cache_output`` trait. If True, the outputs of nodes (eval) will be automatically cached.
-    CACHE_DATASOURCE_OUTPUT_DEFAULT : bool
-        Default value for DataSource nodes ``cache_output`` trait. If True, the outputs of nodes (eval) will be automatically cached.
+    ENABLE_CACHE : bool
+        Default value for nodes ``cache_output`` trait. If True, the outputs of nodes (eval) will be cached by the CacheNode.
     RAM_CACHE_MAX_BYTES : int
         Maximum RAM cache size in bytes.
         Note, for RAM cache only, the limit is applied to the total amount of RAM used by the python process;
@@ -142,12 +136,6 @@ class PodpacSettings(dict):
         `XDG_CACHE_HOME` to adjust the location of the cache directory)
     S3_CACHE_DIR : str
         Subdirectory to use for S3 cache (within the specified S3 bucket). Defaults to ``'cache'``.
-    RAM_CACHE_ENABLED: bool
-        Enable caching to RAM. Note that if disabled, some nodes may fail. Defaults to ``True``.
-    DISK_CACHE_ENABLED: bool
-        Enable caching to disk. Note that if disabled, some nodes may fail. Defaults to ``True``.
-    S3_CACHE_ENABLED: bool
-        Enable caching to RAM. Note that if disabled, some nodes may fail. Defaults to ``True``.
     ROOT_PATH : str
         Path to primary podpac working directory. Defaults to the ``.podpac`` directory in the users home directory.
     S3_BUCKET_NAME : str

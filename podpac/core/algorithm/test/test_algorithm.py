@@ -318,9 +318,8 @@ class TestAlgorithm(object):
 
         with podpac.settings:
             podpac.settings.set_unsafe_eval(True)
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["DEFAULT_CACHE"] = []
-            podpac.settings["RAM_CACHE_ENABLED"] = False
 
             node1 = MySum(A=array_node, B=array_node)
             node2 = MySum(A=node1, B=array_node)
@@ -361,9 +360,8 @@ class TestAlgorithm(object):
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 3
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = True
+            podpac.settings["ENABLE_CACHE"] = True
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
-            podpac.settings["RAM_CACHE_ENABLED"] = True
             podpac.settings.set_unsafe_eval(True)
             A = MyPow(source=array_node, exponent=2).cache()
             B = MyPow(source=array_node, exponent=2).cache()
@@ -412,9 +410,8 @@ class TestAlgorithm(object):
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 8
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["DEFAULT_CACHE"] = []
-            podpac.settings["RAM_CACHE_ENABLED"] = False
             podpac.settings.set_unsafe_eval(True)
 
             omt = node3.eval(coords)
@@ -425,9 +422,8 @@ class TestAlgorithm(object):
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 9  # 2 threads available after first 7
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["DEFAULT_CACHE"] = []
-            podpac.settings["RAM_CACHE_ENABLED"] = False
             podpac.settings.set_unsafe_eval(True)
 
             omt = node3.eval(coords)

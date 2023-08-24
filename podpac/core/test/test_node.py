@@ -69,11 +69,11 @@ class TestNode(object):
 
     def test_cache_output(self):
         with podpac.settings:
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
             node = Node()
             assert not node.cache_output
 
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = True
+            podpac.settings["ENABLE_CACHE"] = True
             node = Node()
             assert node.cache_output
 
@@ -357,7 +357,7 @@ class TestNodeEval(object):
         np.testing.assert_equal(o3.transpose("lat", "lon").data, o4.data)
 
     def test_eval_get_cache(self):
-        podpac.settings["RAM_CACHE_ENABLED"] = True
+        podpac.settings["ENABLE_CACHE"] = True
 
         class MyNode(Node):
             def _eval(self, coordinates, output=None, selector=None):
@@ -409,9 +409,9 @@ class TestNodeEval(object):
 class TestCaching(object):
     @classmethod
     def setup_class(cls):
-        cls._ram_cache_enabled = podpac.settings["RAM_CACHE_ENABLED"]
+        cls._ram_cache_enabled = podpac.settings["ENABLE_CACHE"]
 
-        podpac.settings["RAM_CACHE_ENABLED"] = True
+        podpac.settings["ENABLE_CACHE"] = True
 
         class MyNode(Node):
             pass
@@ -426,7 +426,7 @@ class TestCaching(object):
     def teardown_class(cls):
         cls.node.rem_cache(key="*", coordinates="*")
 
-        podpac.settings["RAM_CACHE_ENABLED"] = cls._ram_cache_enabled
+        podpac.settings["ENABLE_CACHE"] = cls._ram_cache_enabled
 
     def setup_method(self, method):
         self.node.rem_cache(key="*", coordinates="*")

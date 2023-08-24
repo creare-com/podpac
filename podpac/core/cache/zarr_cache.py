@@ -5,6 +5,7 @@ import podpac
 from podpac.data import Zarr, ZarrMemory
 from podpac.core.interpolation.selector import Selector
 from podpac.core.cache.cache_interface import CacheNode
+from podpac import settings
 
 
 import numpy as np
@@ -313,11 +314,12 @@ class ZarrCache(CacheNode):
         if valid_request_coords.size > 0:
             subselect_coords = self.subselect_has(valid_request_coords)
 
-            if subselect_coords is None:
+            if subselect_coords is None and settings["ENABLE_CACHE"] and self.source.cache_output:
                 self._from_cache = True
             else:
                 missing_data = self.get_source_data(subselect_coords)
-                self.fill_zarr(missing_data, subselect_coords)
+                if settings["ENABLE_CACHE"] and self.source.cache_output:
+                    self.fill_zarr(missing_data, subselect_coords)
 
             c3, index_arrays = self._selector.select(self.source.coordinates, valid_request_coords)
             slices = self._create_slices(c3, index_arrays)

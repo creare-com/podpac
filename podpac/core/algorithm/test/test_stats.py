@@ -43,13 +43,13 @@ class TestReduce(object):
         node = Min(source=source)
 
         with podpac.settings:
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = "auto"
             node.eval(coords)
 
     def test_chunked_fallback(self):
         with podpac.settings:
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
 
             class First(Reduce):
                 def reduce(self, x):
@@ -75,7 +75,7 @@ class BaseTests(object):
 
     def test_full(self):
         with podpac.settings:
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = None
 
             node = self.NodeClass(source=source)
@@ -91,7 +91,7 @@ class BaseTests(object):
     def test_full_chunked(self):
         with podpac.settings:
             node = self.NodeClass(source=source, dims=coords.dims)
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = 500
             output = node.eval(coords)
             # xr.testing.assert_allclose(output, self.expected_full)
@@ -99,7 +99,7 @@ class BaseTests(object):
 
     def test_lat_lon(self):
         with podpac.settings:
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = None
             node = self.NodeClass(source=source, dims=["lat", "lon"])
             output = node.eval(coords)
@@ -108,7 +108,7 @@ class BaseTests(object):
 
     def test_lat_lon_chunked(self):
         with podpac.settings:
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = 500
             node = self.NodeClass(source=source, dims=["lat", "lon"])
             output = node.eval(coords)
@@ -117,7 +117,7 @@ class BaseTests(object):
 
     def test_time(self):
         with podpac.settings:
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = None
             node = self.NodeClass(source=source, dims="time")
             output = node.eval(coords)
@@ -126,7 +126,7 @@ class BaseTests(object):
 
     def test_time_chunked(self):
         with podpac.settings:
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = 500
             node = self.NodeClass(source=source, dims="time")
             output = node.eval(coords)
@@ -135,7 +135,7 @@ class BaseTests(object):
 
     def test_multiple_outputs(self):
         with podpac.settings:
-            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = None
             node = self.NodeClass(source=multisource, dims=["lat", "lon"])
             output = node.eval(coords)

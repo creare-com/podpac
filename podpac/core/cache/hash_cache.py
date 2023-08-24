@@ -122,7 +122,12 @@ class HashCache(CacheNode):
             to_cache_coords = to_cache_coords.drop(extra)
 
         # Check the cache
-        if not self.source.force_eval and self.source.cache_output and self.has_cache(item, to_cache_coords):
+        if (
+            settings["ENABLE_CACHE"]
+            and not self.source.force_eval
+            and self.source.cache_output
+            and self.has_cache(item, to_cache_coords)
+        ):
             data = self.get_cache(item, to_cache_coords)
             if output is not None:
                 order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)

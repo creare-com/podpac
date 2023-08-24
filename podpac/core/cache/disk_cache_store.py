@@ -26,8 +26,8 @@ class DiskCacheStore(FileCacheStore):
     def __init__(self):
         """Initialize a cache that uses a folder on a local disk file system."""
 
-        if not settings["DISK_CACHE_ENABLED"]:
-            raise CacheException("Disk cache is disabled in the podpac settings.")
+        if not settings["ENABLE_CACHE"]:
+            raise CacheException("Cache is disabled in the podpac settings.")
 
         self._root_dir_path = settings.cache_path
 

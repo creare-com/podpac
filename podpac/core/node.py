@@ -103,7 +103,7 @@ class Node(tl.HasTraits):
     ----------
     cache_output: bool
         Should the node's output be cached? If not provided or None, uses default based on settings
-        (CACHE_NODE_OUTPUT_DEFAULT for general Nodes, and CACHE_DATASOURCE_OUTPUT_DEFAULT  for DataSource nodes).
+        (podpac.settings["ENABLE_CACHE"]).
         If True, outputs will be cached and retrieved from cache. If False, outputs will not be cached OR retrieved from cache (even if
         they exist in cache).
     force_eval: bool
@@ -172,7 +172,7 @@ class Node(tl.HasTraits):
 
     @tl.default("cache_output")
     def _cache_output_default(self):
-        return settings["CACHE_NODE_OUTPUT_DEFAULT"]
+        return settings["ENABLE_CACHE"]
 
     @tl.default("property_cache_ctrl")
     def _property_cache_ctrl_default(self):
