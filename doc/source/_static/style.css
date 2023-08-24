@@ -1,8 +1,8 @@
-@import url("theme.css");
+@import url("css/theme.css");
 
 .wy-side-nav-search>a img.logo,
 .wy-side-nav-search .wy-dropdown>a img.logo {
-  width: 15rem;
+  width: 10rem;
   margin: -1rem
 }
 

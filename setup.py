@@ -26,6 +26,7 @@ install_requires = [
     "lazy-import>=0.2.2",
     "psutil",
     "affine",
+    "geopy",
 ]
 
 if sys.version_info.major == 2:
@@ -67,7 +68,7 @@ extras_require = {
         "pytest-cov>=2.5.1",
         "pytest-html>=1.7.0",
         "pytest-remotedata>=0.3.1",
-        "recommonmark>=0.6",
+        "myst-parser>=1.0.0",
         "coveralls>=1.3",
         "six>=1.0",
         "attrs>=17.4.0",

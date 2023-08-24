@@ -23,6 +23,14 @@ nodes being automatically interpolated on `eval`. Now users have to create `Inte
 * Removed `InterpolationMixin`, and corresponding `Nodes` built using it. For example, the `Rasterio` node will no
   longer automatically interpolate. Instead, use `node = Rasterio(...).interpolate()` to restore that functionality.
 
+
+## 3.2.1
+### Bugfixes
+* Fixed documentation build
+* Fixed nearest neighbor interpolation bug where same pixel could
+  give different values due to rounding ambiguity (0.5-->0, 1.5-->2)
+
+
 ## 3.2.0
 
 ### Features
@@ -67,7 +75,7 @@ This release was in support of the GeoWATCH application. Bugs/features added wer
 * Improved specification of enumerated colormaps in the `Style`
 * Enabled saving to a geotiff memory file to support WCS calls
 
-## Bugfixes
+### Bugfixes
 * Fixed crs mismatch bug in `Reproject` node
 * Fixed lat/lon ordering bug for different versions of WMS/WCS in `from_url` method of `Coordinates`
 * Fixed bug in `Coordinates.transform` where `ArrayCoordinates` turned into `UniformCoordinates` for two CRS with linear mapping.

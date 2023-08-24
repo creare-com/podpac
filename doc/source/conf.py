@@ -25,10 +25,7 @@ from shutil import copyfile
 import datetime
 
 # for parsing markdown files
-# pip install recommonmark
-from recommonmark.parser import CommonMarkParser
-
-source_parsers = {".md": CommonMarkParser}
+# pip install myst-parser
 
 # import podpac for versioning
 import podpac.version
@@ -53,6 +50,8 @@ extensions = [
     "sphinx.ext.extlinks",
     "sphinx.ext.githubpages",
     "sphinx.ext.doctest",
+    "sphinx_rtd_theme",
+    "myst_parser",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -86,7 +85,7 @@ release = podpac.version.version()
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -134,8 +133,8 @@ html_theme = "sphinx_rtd_theme"
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-html_theme_options = {"canonical_url": "https://podpac.org", "logo_only": True}
-
+html_theme_options = {"logo_only": True}
+html_baseurl = "https://podpac.org"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -266,6 +265,6 @@ def copy_changelog():
 
 
 def setup(app):
-    app.add_stylesheet("style.css")  # may also be an URL
+    app.add_css_file("style.css")  # may also be an URL
     generate_example_links()
     copy_changelog()

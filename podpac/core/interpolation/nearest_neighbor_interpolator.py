@@ -34,6 +34,7 @@ class NearestNeighbor(Interpolator):
 
     # defined at instantiation
     method = tl.Unicode(default_value="nearest")
+    ambiguous_rounding = tl.Enum(["-infinity", "+infinity", "unbiased"], default_value="-infinity")
     spatial_tolerance = tl.Float(default_value=np.inf, allow_none=True)
     time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
     alt_tolerance = tl.Float(default_value=np.inf, allow_none=True)
@@ -297,6 +298,17 @@ class NearestNeighbor(Interpolator):
 
         index = (request.coordinates - source.start) / source.step
         rindex = np.around(index).astype(int)
+        if self.ambiguous_rounding == "-infinity":
+            # Find all the 0.5 and 1.5's that were rounded to even numbers, and make sure they all round down
+            I = (index % 0.5) == 0
+            rindex[I] = np.floor(index[I])
+        elif self.ambiguous_rounding == "+infinity":
+            # Find all the 0.5 and 1.5's that were rounded to even numbers, and make sure they all round down
+            I = (index % 0.5) == 0
+            rindex[I] = np.ceil(index[I])
+        else: # "unbiased", that's the default np.around behavior, so do nothing
+            pass
+
         stop_ind = int(source.size)
         if self.respect_bounds:
             rindex[(rindex < 0) | (rindex >= stop_ind)] = -1

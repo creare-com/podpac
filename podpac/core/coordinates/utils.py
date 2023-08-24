@@ -19,6 +19,9 @@ import numpy as np
 import traitlets as tl
 from six import string_types
 import pyproj
+from geopy.distance import geodesic
+
+import podpac
 
 
 def get_timedelta(s):
@@ -602,3 +605,35 @@ def has_alt_units(crs):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         return crs.is_vertical or "vunits" in crs.to_dict() or any(axis.direction == "up" for axis in crs.axis_info)
+
+
+def calculate_distance(point1, point2, ellipsoid_tuple, coordinate_name, units="meter"):
+    """Return distance of 2 points in desired unit measurement
+
+    Parameters
+    ----------
+    point1 : tuple
+    point2 : tuple
+
+    Returns
+    -------
+    float
+        The distance between point1 and point2, according to the current coordinate system's distance metric, using the desired units
+    """
+    if coordinate_name == "cartesian":
+        return np.linalg.norm(point1 - point2, axis=-1, units="meter") * podpac.units(units)
+    else:
+        if not isinstance(point1, tuple) and point1.size > 2:
+            distances = np.empty(len(point1))
+            for i in range(len(point1)):
+                distances[i] = geodesic(point1[i], point2[i], ellipsoid=ellipsoid_tuple).m
+            return distances * podpac.units("metre").to(podpac.units(units))
+        if not isinstance(point2, tuple) and point2.size > 2:
+            distances = np.empty(len(point2))
+            for i in range(len(point2)):
+                distances[i] = geodesic(point1, point2[i], ellipsoid=ellipsoid_tuple).m
+            return distances * podpac.units("metre").to(podpac.units(units))
+        else:
+            return (geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m) * podpac.units("metre").to(
+                podpac.units(units)
+            )
