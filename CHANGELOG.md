@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.0.0
+
+### Introduction
+With this version, we are making backwards-incompatible changes. These changes give users greater control over
+which nodes are cached, and how they are cached. The functionality moved away from the parent `Node` class, and
+now resides in the `CacheNode` child classes. Now caching is just part of a processing pipeline. For convenience,
+we added the `Node.cache` method, which will add a `CacheNode` to a `Node`, which basically restores the original
+functionality.
+
+We also removed the `InterpolationMixin` node that restored the functionality of every certain `DataSource`
+nodes being automatically interpolated on `eval`. Now users have to create `Interpolation` nodes explicitly. To make the transition smoother, we added a convenience function `Node.interpolate` that will add an `Interpolation` node to the pipeline, restoring the original functionality.
+
+### Features
+* Added the `ZarrCache`. This node enables partial caching of nodes based on the source's coordinate. This means you can
+  requeste data for half the globe in one request and have that cached. Then, on a subsequent request for the whole
+  globe, the cached data will be used for the cached half, and new data will be retrieved/computed for the new half.
+* Added the `HashCach`. This node caches based on specific requested `Coordinates`. If the data from two requests overlap,
+  no existing cached information is reused (unlike the `ZarrCache`)
+
+### Breaking changes
+* Removed `InterpolationMixin`, and corresponding `Nodes` built using it. For example, the `Rasterio` node will no
+  longer automatically interpolate. Instead, use `node = Rasterio(...).interpolate()` to restore that functionality.
+
 ## 3.2.0
 
 ### Features
