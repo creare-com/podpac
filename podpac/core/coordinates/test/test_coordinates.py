@@ -1458,7 +1458,7 @@ class TestCoordinatesMethods(object):
         assert ct2.size == 3
 
         ct2 = ct.intersect(cti, outer=False)
-        assert ct2.size == 0  # Is this behavior desired?
+        assert ct2.size == 1  #
 
     def test_intersect_dims(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name="lat")

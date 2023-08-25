@@ -944,13 +944,13 @@ class TestUniformCoordinatesSelection(object):
 
         # between coordinates
         s = c.select([52, 55])
-        assert isinstance(s, ArrayCoordinates1d)
-        assert_equal(s.coordinates, [])
+        assert isinstance(s, UniformCoordinates1d)
+        assert_equal(s.coordinates, c[3:5].coordinates)
 
         s, I = c.select([52, 55], return_index=True)
-        assert isinstance(s, ArrayCoordinates1d)
-        assert_equal(s.coordinates, [])
-        assert_equal(c.coordinates[I], [])
+        assert isinstance(s, UniformCoordinates1d)
+        assert_equal(s.coordinates, c[3:5].coordinates)
+        assert_equal(c.coordinates[I], c[3:5].coordinates)
 
         # backwards bounds
         s = c.select([70, 30])
@@ -1015,13 +1015,13 @@ class TestUniformCoordinatesSelection(object):
 
         # between coordinates
         s = c.select([52, 55])
-        assert isinstance(s, ArrayCoordinates1d)
-        assert_equal(s.coordinates, [])
+        assert isinstance(s, UniformCoordinates1d)
+        assert_equal(s.coordinates, [60, 50])
 
         s, I = c.select([52, 55], return_index=True)
-        assert isinstance(s, ArrayCoordinates1d)
-        assert_equal(s.coordinates, [])
-        assert_equal(c.coordinates[I], [])
+        assert isinstance(s, UniformCoordinates1d)
+        assert_equal(s.coordinates, [60, 50])
+        assert_equal(c.coordinates[I], [60, 50])
 
         # backwards bounds
         s = c.select([70, 30])
@@ -1115,6 +1115,26 @@ class TestUniformCoordinatesSelection(object):
         assert s.size == 1
         assert s1.size == 0
         assert s2.size == 1
+
+    def test_select_one_floating_point_error(self):
+        c = UniformCoordinates1d(0, 9, 1)  # FIX THE PROBLEM HERE!!
+        c1, inds1 = c.select([5.6, 6.1], return_index=True, outer=False)
+        assert inds1 == slice(6, 7)
+
+        c2, inds2 = c.select([5.6, 5.6], return_index=True, outer=False)
+        assert inds2 == slice(6, 7)
+
+        c3, inds3 = c.select([5.4, 5.4], return_index=True, outer=False)
+        assert inds3 == slice(5, 6)
+
+        c3, inds3b = c.select([5.4, 5.6], return_index=True, outer=False)
+        assert inds3b == slice(5, 7)
+
+        c4, inds4 = c.select([9.1, 9.1], return_index=True, outer=False)
+        assert inds4 == []
+
+        c5, inds5 = c.select([-0.1, -0.1], return_index=True, outer=False)
+        assert inds5 == []
 
 
 class TestUniformCoordinatesMethods(object):
