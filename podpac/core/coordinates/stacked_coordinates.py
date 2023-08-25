@@ -9,12 +9,15 @@ import pandas as pd
 import traitlets as tl
 from six import string_types
 import lazy_import
+from scipy import spatial
 
+import podpac
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.utils import make_coord_value
+from podpac.core.coordinates.utils import calculate_distance
 
 
 class StackedCoordinates(BaseCoordinates):
@@ -358,6 +361,10 @@ class StackedCoordinates(BaseCoordinates):
 
         return [c.full_definition for c in self._coords]
 
+    @property
+    def is_stacked(self):
+        return True
+
     # -----------------------------------------------------------------------------------------------------------------
     # Methods
     # -----------------------------------------------------------------------------------------------------------------
@@ -700,3 +707,94 @@ class StackedCoordinates(BaseCoordinates):
             return False
 
         return True
+
+    def horizontal_resolution(self, latitude, ellipsoid_tuple, coordinate_name, restype="nominal", units="meter"):
+        """Return the horizontal resolution of a Uniform 1D Coordinate
+
+        Parameters
+        ----------
+        ellipsoid_tuple: tuple
+            a tuple containing ellipsoid information from the the original coordinates to pass to geopy
+        coordinate_name: str
+            "cartesian" or "ellipsoidal", to tell calculate_distance what kind of calculation to do
+        restype: str
+            The kind of horizontal resolution that should be returned. Supported values are:
+            - "nominal" <-- Gives average nearest distance of all points, with some error
+            - "summary" <-- Gives the mean and standard deviation of nearest distance betweem points, with some error
+            - "full" <-- Gives exact distance matrix
+        units: str
+            desired unit to return
+
+        Returns
+        -------
+        float * (podpac.unit)
+            If restype == "nominal", return the average nearest distance with some error
+        tuple * (podpac.unit)
+            If restype == "summary", return average and std.dev of nearest distances, with some error
+        np.ndarray * (podpac.unit)
+            if restype == "full", return exact distance matrix
+        ValueError
+            if unknown restype
+
+        """
+        order = tuple([self.dims.index(d) for d in ["lat", "lon"]])
+
+        def nominal_stacked_resolution():
+            """Use a KDTree to return approximate stacked resolution with some loss of accuracy.
+
+            Returns
+            -------
+            The average min distance of every point
+
+            """
+            tree = spatial.KDTree(self.coordinates[:, order] + [0, 180.0], boxsize=[0.0, 360.0000000000001])
+            return np.average(
+                calculate_distance(
+                    tree.data - [0, 180.0],
+                    tree.data[tree.query(tree.data, k=2)[1][:, 1]] - [0, 180.0],
+                    ellipsoid_tuple,
+                    coordinate_name,
+                    units,
+                )
+            )
+
+        def summary_stacked_resolution():
+            """Return the approximate mean resolution and std.deviation using a KDTree
+
+            Returns
+            -------
+            tuple
+                Average min distance of every point and standard deviation of those min distances
+            """
+            tree = spatial.KDTree(self.coordinates[:, order] + [0, 180.0], boxsize=[0.0, 360.0000000000001])
+            distances = calculate_distance(
+                tree.data - [0, 180.0],
+                tree.data[tree.query(tree.data, k=2)[1][:, 1]] - [0, 180.0],
+                ellipsoid_tuple,
+                coordinate_name,
+                units,
+            )
+            return (np.average(distances), np.std(distances))
+
+        def full_stacked_resolution():
+            """Returns the exact distance between every point using brute force
+
+            Returns
+            -------
+            distance matrix of size (NxN), where N is the number of points in the dimension
+            """
+            distance_matrix = np.zeros((len(self.coordinates), len(self.coordinates)))
+            for i in range(len(self.coordinates)):
+                distance_matrix[i, :] = calculate_distance(
+                    self.coordinates[i, order], self.coordinates[:, order], ellipsoid_tuple, coordinate_name, units
+                ).magnitude
+            return distance_matrix * podpac.units(units)
+
+        if restype == "nominal":
+            return nominal_stacked_resolution()
+        elif restype == "summary":
+            return summary_stacked_resolution()
+        elif restype == "full":
+            return full_stacked_resolution()
+        else:
+            raise ValueError("Invalid value for type: {}".format(restype))

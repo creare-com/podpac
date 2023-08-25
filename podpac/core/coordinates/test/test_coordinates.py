@@ -8,6 +8,8 @@ import numpy as np
 from numpy.testing import assert_equal, assert_array_equal
 import xarray as xr
 import pyproj
+from collections import OrderedDict
+import pint
 
 import podpac
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -378,57 +380,63 @@ class TestCoordinateCreation(object):
 
         url = (
             r"http://testwms/?map=map&&service=WMS&request=GetMap&layers=layer&styles=&format=image%2Fpng"
-            r"&transparent=true&version={version}&transparency=true&width=256&height=256&srs=EPSG%3A{epsg}"
+            r"&transparent=true&version={version}&transparency=true&width=128&height=256&srs=EPSG%3A{epsg}"
             r"&bbox={},{},{},{}&time={}"
         )
 
         # version 1.1.1
         c = Coordinates.from_url(
             url.format(
-                min(crds2.bounds["lon"]),
-                min(crds2.bounds["lat"]),
-                max(crds2.bounds["lon"]),
-                max(crds2.bounds["lat"]),
+                min(crds2.bounds["lon"]) - np.abs(crds2["lon"].step / 127 / 2),
+                min(crds2.bounds["lat"]) - np.abs(crds2["lat"].step / 255 / 2),
+                max(crds2.bounds["lon"]) + np.abs(crds2["lon"].step / 127 / 2),
+                max(crds2.bounds["lat"]) + np.abs(crds2["lat"].step / 255 / 2),
                 crds2.bounds["time"][0],
                 version="1.1.1",
                 epsg="3857",
             )
         )
         assert c.bounds == crds2.bounds
+        assert crds2.bounds["lon"][0] - c["lon"].step / 2 == c.geotransform[0]
+        assert crds2.bounds["lat"][1] - c["lat"].step / 2 == c.geotransform[3]
 
         c = Coordinates.from_url(
             url.format(
-                min(crds.bounds["lon"]),
-                min(crds.bounds["lat"]),
-                max(crds.bounds["lon"]),
-                max(crds.bounds["lat"]),
+                min(crds.bounds["lon"]) - np.abs(crds["lon"].step / 127 / 2),
+                min(crds.bounds["lat"]) - np.abs(crds["lat"].step / 255 / 2),
+                max(crds.bounds["lon"]) + np.abs(crds["lon"].step / 127 / 2),
+                max(crds.bounds["lat"]) + np.abs(crds["lat"].step / 255 / 2),
                 crds.bounds["time"][0],
                 version="1.1.1",
                 epsg="4326",
             )
         )
         assert c.bounds == crds.bounds
+        assert crds.bounds["lon"][0] - c["lon"].step / 2 == c.geotransform[0]
+        assert crds.bounds["lat"][1] - c["lat"].step / 2 == c.geotransform[3]
 
         # version 1.3
         c = Coordinates.from_url(
             url.format(
-                min(crds2.bounds["lon"]),
-                min(crds2.bounds["lat"]),
-                max(crds2.bounds["lon"]),
-                max(crds2.bounds["lat"]),
+                min(crds2.bounds["lon"]) - np.abs(crds2["lon"].step / 127 / 2),
+                min(crds2.bounds["lat"]) - np.abs(crds2["lat"].step / 255 / 2),
+                max(crds2.bounds["lon"]) + np.abs(crds2["lon"].step / 127 / 2),
+                max(crds2.bounds["lat"]) + np.abs(crds2["lat"].step / 255 / 2),
                 crds2.bounds["time"][0],
                 version="1.3",
                 epsg="3857",
             )
         )
         assert c.bounds == crds2.bounds
+        assert crds2.bounds["lon"][0] - c["lon"].step / 2 == c.geotransform[0]
+        assert crds2.bounds["lat"][1] - c["lat"].step / 2 == c.geotransform[3]
 
         c = Coordinates.from_url(
             url.format(
-                min(crds.bounds["lat"]),
-                min(crds.bounds["lon"]),
-                max(crds.bounds["lat"]),
-                max(crds.bounds["lon"]),
+                min(crds.bounds["lat"]) - np.abs(crds["lat"].step / 255 / 2),
+                min(crds.bounds["lon"]) - np.abs(crds["lon"].step / 127 / 2),
+                max(crds.bounds["lat"]) + np.abs(crds["lat"].step / 255 / 2),
+                max(crds.bounds["lon"]) + np.abs(crds["lon"].step / 127 / 2),
                 crds.bounds["time"][0],
                 version="1.3",
                 epsg="4326",
@@ -436,6 +444,8 @@ class TestCoordinateCreation(object):
         )
 
         assert c.bounds == crds.bounds
+        assert crds.bounds["lon"][0] - c["lon"].step / 2 == c.geotransform[0]
+        assert crds.bounds["lat"][1] - c["lat"].step / 2 == c.geotransform[3]
 
         # WCS version
         crds = Coordinates([[41, 40], [-71, -70], "2018-05-19"], dims=["lat", "lon", "time"])
@@ -443,23 +453,24 @@ class TestCoordinateCreation(object):
 
         url = (
             r"http://testwms/?map=map&&service=WCS&request=GetMap&layers=layer&styles=&format=image%2Fpng"
-            r"&transparent=true&version={version}&transparency=true&width=256&height=256&srs=EPSG%3A{epsg}"
+            r"&transparent=true&version={version}&transparency=true&width=128&height=256&srs=EPSG%3A{epsg}"
             r"&bbox={},{},{},{}&time={}"
         )
 
         c = Coordinates.from_url(
             url.format(
-                min(crds2.bounds["lon"]),
-                min(crds2.bounds["lat"]),
-                max(crds2.bounds["lon"]),
-                max(crds2.bounds["lat"]),
+                min(crds2.bounds["lon"]) - np.abs(crds2["lon"].step / 127 / 2),
+                min(crds2.bounds["lat"]) - np.abs(crds2["lat"].step / 255 / 2),
+                max(crds2.bounds["lon"]) + np.abs(crds2["lon"].step / 127 / 2),
+                max(crds2.bounds["lat"]) + np.abs(crds2["lat"].step / 255 / 2),
                 crds2.bounds["time"][0],
                 version="1.1",
                 epsg="3857",
             )
         )
         assert c.bounds == crds2.bounds
-
+        assert crds2.bounds["lon"][0] - c["lon"].step / 2 == c.geotransform[0]
+        assert crds2.bounds["lat"][1] - c["lat"].step / 2 == c.geotransform[3]
         # Based on all the documentation I've read, this should be correct, but
         # based on the server's I've checked, this does not seem correct
         # c = Coordinates.from_url(
@@ -476,10 +487,10 @@ class TestCoordinateCreation(object):
 
         c = Coordinates.from_url(
             url.format(
-                min(crds.bounds["lon"]),
-                min(crds.bounds["lat"]),
-                max(crds.bounds["lon"]),
-                max(crds.bounds["lat"]),
+                min(crds.bounds["lon"]) - np.abs(crds["lon"].step / 127 / 2),
+                min(crds.bounds["lat"]) - np.abs(crds["lat"].step / 255 / 2),
+                max(crds.bounds["lon"]) + np.abs(crds["lon"].step / 127 / 2),
+                max(crds.bounds["lat"]) + np.abs(crds["lat"].step / 255 / 2),
                 crds.bounds["time"][0],
                 version="1.1",
                 epsg="4326",
@@ -487,6 +498,8 @@ class TestCoordinateCreation(object):
         )
 
         assert c.bounds == crds.bounds
+        assert crds.bounds["lon"][0] - c["lon"].step / 2 == c.geotransform[0]
+        assert crds.bounds["lat"][1] - c["lat"].step / 2 == c.geotransform[3]
 
     def test_from_xarray(self):
         lat = [0, 1, 2]
@@ -1445,7 +1458,7 @@ class TestCoordinatesMethods(object):
         assert ct2.size == 3
 
         ct2 = ct.intersect(cti, outer=False)
-        assert ct2.size == 0  # Is this behavior desired?
+        assert ct2.size == 1  #
 
     def test_intersect_dims(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name="lat")
@@ -2202,3 +2215,53 @@ class TestCoordinatesMethodSimplify(object):
 
         # unstacked uniform -> unstacked uniform
         assert c3.simplify() == c3
+
+
+class TestResolutions(object):
+    def test_horizontal_resolution(self):
+        """Test edge cases of resolutions, and that Resolutions are returned correctly in an OrderedDict.
+        StackedCoordinates and Coordiantes1d handle the resolution calculations, so correctness of the resolutions are tested there.
+        """
+
+        # Dimensions
+        lat = podpac.clinspace(-80, 80, 5)
+        lon = podpac.clinspace(-180, 180, 5)
+        time = ["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04", "2018-01-05"]
+
+        # Invalid stacked dims check:
+        c = Coordinates([[lon, time]], dims=["lon_time"])
+        with pytest.raises(ValueError):
+            c.horizontal_resolution()
+
+        # Require latitude
+        c = Coordinates([lon], dims=["lon"])
+        with pytest.raises(ValueError):
+            c.horizontal_resolution()
+
+        # Valid dims check:
+        c = Coordinates([[lat, lon]], dims=["lat_lon"])
+        c.horizontal_resolution()
+
+        c = Coordinates([[lon, lat]], dims=["lon_lat"])
+        c.horizontal_resolution()
+
+        # Corect name for restype:
+        with pytest.raises(ValueError):
+            c.horizontal_resolution(restype="whateverIwant")
+
+        # Unstacked
+        c = Coordinates([lat, lon], dims=["lat", "lon"])
+        c.horizontal_resolution()
+
+        c = Coordinates([lat, lon], dims=["lat", "lon"])
+        c.horizontal_resolution(restype="summary")
+
+        # Mixed stacked, unstacked, but still valid
+        # Stacked and Unstacked valid Check:
+        c = Coordinates([[lat, time], lon], dims=["lat_time", "lon"])
+        c2 = Coordinates([lat, lon], dims=["lat", "lon"])
+        np.testing.assert_array_equal(c.horizontal_resolution(), c2.horizontal_resolution())
+        # Lat only
+        c = Coordinates([[lat, time]], dims=["lat_time"])
+        c2 = Coordinates([lat], dims=["lat"])
+        np.testing.assert_array_equal(c.horizontal_resolution(), c2.horizontal_resolution())

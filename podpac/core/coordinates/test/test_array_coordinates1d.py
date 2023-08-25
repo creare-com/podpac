@@ -836,6 +836,47 @@ class TestArrayCoordinatesSelection(object):
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
 
+    def test_select_one_between_coords(self):
+        # Ascending
+        c = ArrayCoordinates1d([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        c1, inds1 = c.select([5.6, 6.1], return_index=True, outer=False)
+        assert np.argwhere(inds1).squeeze() == 6
+
+        c2, inds2 = c.select([5.6, 5.6], return_index=True, outer=False)
+        assert np.argwhere(inds2).squeeze() == 6
+
+        c3, inds3 = c.select([5.4, 5.4], return_index=True, outer=False)
+        assert np.argwhere(inds3).squeeze() == 5
+
+        c3b, inds3b = c.select([5.4, 5.6], return_index=True, outer=False)
+        assert np.all(np.argwhere(inds3b).squeeze() == [5, 6])
+
+        c4, inds4 = c.select([9.1, 9.1], return_index=True, outer=False)
+        assert inds4 == []
+
+        c5, inds5 = c.select([-0.1, -0.1], return_index=True, outer=False)
+        assert inds5 == []
+
+        # Decending
+        c = ArrayCoordinates1d([0, 1, 2, 3, 4, 5, 6, 7, 8, 9][::-1])
+        c1, inds1 = c.select([5.6, 6.1], return_index=True, outer=False)
+        assert np.argwhere(inds1).squeeze() == 3
+
+        c2, inds2 = c.select([5.6, 5.6], return_index=True, outer=False)
+        assert np.argwhere(inds2).squeeze() == 3
+
+        c3, inds3 = c.select([5.4, 5.4], return_index=True, outer=False)
+        assert np.argwhere(inds3).squeeze() == 4
+
+        c3b, inds3b = c.select([5.4, 5.6], return_index=True, outer=False)
+        assert np.all(np.argwhere(inds3b).squeeze() == [3, 4])
+
+        c4, inds4 = c.select([9.1, 9.1], return_index=True, outer=False)
+        assert inds4 == []
+
+        c5, inds5 = c.select([-0.1, -0.1], return_index=True, outer=False)
+        assert inds5 == []
+
     def test_select_outer_ascending(self):
         c = ArrayCoordinates1d([10.0, 20.0, 40.0, 50.0, 60.0, 90.0])
 

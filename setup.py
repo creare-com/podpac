@@ -26,6 +26,7 @@ install_requires = [
     "lazy-import>=0.2.2",
     "psutil",
     "affine",
+    "geopy",
 ]
 
 if sys.version_info.major == 2:
@@ -38,7 +39,7 @@ extras_require = {
         "beautifulsoup4>=4.6",
         "h5py>=2.9",
         "lxml>=4.2",
-        "pydap>=3.2",
+        "pydap>=3.3",
         "rasterio>=1.0",
         "zarr>=2.3",
         "owslib",

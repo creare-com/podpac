@@ -530,8 +530,14 @@ class UniformCoordinates1d(Coordinates1d):
         imin = np.clip(imin, 0, self.size)
 
         # empty case
-        if imin >= imax:
+        if imin > imax:
             return self._select_empty(return_index)
+        if imax == imin:
+            # could have been selected between two existing coordinates
+            imin = int(np.round(fmin))
+            imax = int(np.round(fmax)) + 1
+            if imin >= (self.size - 1) | imin < 0:
+                return self._select_empty(return_index)
 
         if self.is_descending:
             imax, imin = self.size - imin, self.size - imax
