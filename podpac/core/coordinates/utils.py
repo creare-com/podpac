@@ -19,7 +19,9 @@ import numpy as np
 import traitlets as tl
 from six import string_types
 import pyproj
-from geopy.distance import geodesic
+
+from lazy_import import lazy_function
+geodesic = lazy_function("geopy.distance.geodesic")
 
 import podpac
 
