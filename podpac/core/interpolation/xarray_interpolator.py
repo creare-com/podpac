@@ -16,6 +16,7 @@ import xarray as xr
 from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
 from podpac.core.utils import common_doc
+import podpac.core.coordinates.utils
 from podpac.core.coordinates.utils import get_timedelta
 
 
@@ -36,7 +37,7 @@ class XarrayInterpolator(Interpolator):
 
     """
 
-    dims_supported = ["lat", "lon", "alt", "time"]
+    dims_supported = podpac.core.coordinates.utils.VALID_DIMENSION_NAMES
     methods_supported = [
         "nearest",
         "linear",

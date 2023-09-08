@@ -17,6 +17,7 @@ from scipy.spatial import cKDTree
 from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
 from podpac.core.coordinates.utils import make_coord_delta, make_coord_value
+import podpac.core.coordinates.utils
 from podpac.core.utils import common_doc
 from podpac.core.coordinates.utils import get_timedelta
 from podpac.core.interpolation.selector import Selector, _higher_precision_time_coords1d, _higher_precision_time_stack
@@ -29,7 +30,7 @@ class NearestNeighbor(Interpolator):
     {nearest_neighbor_attributes}
     """
 
-    dims_supported = ["lat", "lon", "alt", "time"]
+    dims_supported = podpac.core.coordinates.utils.VALID_DIMENSION_NAMES
     methods_supported = ["nearest"]
 
     # defined at instantiation
@@ -306,7 +307,7 @@ class NearestNeighbor(Interpolator):
             # Find all the 0.5 and 1.5's that were rounded to even numbers, and make sure they all round down
             I = (index % 0.5) == 0
             rindex[I] = np.ceil(index[I])
-        else: # "unbiased", that's the default np.around behavior, so do nothing
+        else:  # "unbiased", that's the default np.around behavior, so do nothing
             pass
 
         stop_ind = int(source.size)
