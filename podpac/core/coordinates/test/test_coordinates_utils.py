@@ -6,12 +6,15 @@ import pytest
 import numpy as np
 import pandas as pd
 import pyproj
+import traitlets as tl
+
+import podpac
 
 from podpac.core.coordinates.utils import get_timedelta, get_timedelta_unit, make_timedelta_string
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_array, make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord, divide_delta, divide_timedelta, timedelta_divisible
 from podpac.core.coordinates.utils import has_alt_units, lower_precision_time_bounds, higher_precision_time_bounds
-
+from podpac.core.coordinates.utils import add_valid_dimension
 
 def test_get_timedelta():
     td64 = np.timedelta64
@@ -577,3 +580,40 @@ def test_higher_precision_time_bounds():
     assert a1 == [np.datetime64("2020-01-01"), np.datetime64("2020-01-02")]
     assert a1[0].dtype == "<M8[D]"
     assert a1[1].dtype == "<M8[D]"
+
+def test_add_custom_dimension():
+
+    # Make sure dimensions can't be duplicated
+    with pytest.raises(ValueError):
+        add_valid_dimension("lat")
+    
+    # Make sure I can't input non-strings
+    with pytest.raises(TypeError):
+        add_valid_dimension(["dim1", "dim2"])
+    
+    # Assert add_valid_dimension must be called
+    with pytest.raises(tl.TraitError):
+        c1 =  podpac.Coordinates([[1, 2, 3]], ['mydim'])
+    
+    # Add a valid dimension
+    add_valid_dimension("mydim")
+    
+    ### *Unstacked Coords ###
+    
+    # Unstacked Coords, One Dimension
+    c1 = podpac.Coordinates([[1, 2, 3]], ['mydim'])
+    n1 = podpac.data.Array(source=[1, 2, 3], coordinates=c1)
+    data1 = n1.eval(c1[1:])
+    assert 'mydim' in data1.dims
+    
+    # Unstacked Coords, Multiple Dimensions
+    c2 = podpac.Coordinates([[1, 2], [1, 2, 3]], ['mydim', 'lat'])
+    n2 = podpac.data.Array(source=[[1, 2, 3], [4, 5, 6]], coordinates=c2)
+    data2 = n2.eval(c2)
+    assert ('mydim' in data2.dims) and ('lat' in data2.dims)
+    
+    ### Stacked Coords ###
+    c3 = podpac.Coordinates([[[1,2,3], [4,5,6]]], dims=['mydim_lat'])
+    n3 = podpac.data.Array(source=[1,2,3], coordinates=c3)
+    data3 = n3.eval(c3)
+    assert 'mydim_lat' in data3.dims
