@@ -602,3 +602,15 @@ def has_alt_units(crs):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         return crs.is_vertical or "vunits" in crs.to_dict() or any(axis.direction == "up" for axis in crs.axis_info)
+
+
+def add_valid_dimension(dimension_name):
+    '''
+    Add a new dimension to VALID_DIMENSION_NAMES.
+    
+    Parameters
+    ----------
+    dimension_name : string
+        Name of dimension to make a valid dimension
+    '''
+    VALID_DIMENSION_NAMES.append(dimension_name)
