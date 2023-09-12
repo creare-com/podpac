@@ -639,3 +639,15 @@ def calculate_distance(point1, point2, ellipsoid_tuple, coordinate_name, units="
             return (geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m) * podpac.units("metre").to(
                 podpac.units(units)
             )
+
+
+def add_valid_dimension(dimension_name):
+    '''
+    Add a new dimension to VALID_DIMENSION_NAMES.
+    
+    Parameters
+    ----------
+    dimension_name : string
+        Name of dimension to make a valid dimension
+    '''
+    VALID_DIMENSION_NAMES.append(dimension_name)
