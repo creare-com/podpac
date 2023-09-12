@@ -650,4 +650,12 @@ def add_valid_dimension(dimension_name):
     dimension_name : string
         Name of dimension to make a valid dimension
     '''
+    
+    # Assert inputted value is a string
+    if not isinstance(dimension_name, str):
+        raise TypeError(f"Expected arg to be a string, but got {type(dimension_name).__name__}")  
+    
+    if dimension_name in VALID_DIMENSION_NAMES:
+        raise ValueError(f"Dim {dimension_name} already a valid dimension.")
+    
     VALID_DIMENSION_NAMES.append(dimension_name)
