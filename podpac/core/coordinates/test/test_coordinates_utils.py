@@ -599,21 +599,26 @@ def test_add_custom_dimension():
     add_valid_dimension("mydim")
     
     ### *Unstacked Coords ###
-    
+    # TODO: assert data is real
     # Unstacked Coords, One Dimension
     c1 = podpac.Coordinates([[1, 2, 3]], ['mydim'])
     n1 = podpac.data.Array(source=[1, 2, 3], coordinates=c1)
     data1 = n1.eval(c1[1:])
+    assert np.array_equal(data1.data,np.array([2,3]))
     assert 'mydim' in data1.dims
     
     # Unstacked Coords, Multiple Dimensions
     c2 = podpac.Coordinates([[1, 2], [1, 2, 3]], ['mydim', 'lat'])
     n2 = podpac.data.Array(source=[[1, 2, 3], [4, 5, 6]], coordinates=c2)
     data2 = n2.eval(c2)
+    assert np.array_equal(data2.data, np.array([[1,2,3],[4,5,6]]))
     assert ('mydim' in data2.dims) and ('lat' in data2.dims)
     
     ### Stacked Coords ###
     c3 = podpac.Coordinates([[[1,2,3], [4,5,6]]], dims=['mydim_lat'])
+    assert 'mydim' in c3.udims
+    assert 'lat' in c3.udims
     n3 = podpac.data.Array(source=[1,2,3], coordinates=c3)
     data3 = n3.eval(c3)
+    assert np.array_equal(data3.data, np.array([1,2,3]))
     assert 'mydim_lat' in data3.dims
