@@ -50,7 +50,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
         calendar, when decoding CF datetimes
     
     """
-
+    # Doesnt support other dims
     file_mode = tl.Unicode(default_value="r").tag(readonly=True)
     coordinate_index_type = "slice"
     _consolidated = False

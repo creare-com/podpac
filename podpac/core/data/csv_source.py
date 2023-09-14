@@ -44,7 +44,7 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
     --------
     CSV : Interpolated CSV file datasource for general use.
     """
-
+    # No support here for custom Dimension names? selection in dataset_source.py
     header = tl.Any(default_value=0).tag(attr=True)
     lat_key = tl.Union([tl.Unicode(), tl.Int()], default_value="lat").tag(attr=True)
     lon_key = tl.Union([tl.Unicode(), tl.Int()], default_value="lon").tag(attr=True)

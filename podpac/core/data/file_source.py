@@ -163,7 +163,7 @@ class FileKeysMixin(tl.HasTraits):
     cf_calendar : str
         calendar, when decoding CF datetimes
     """
-
+    # Other dims?
     data_key = tl.Union([tl.Unicode(), tl.List(trait=tl.Unicode())]).tag(attr=True)
     lat_key = tl.Unicode(default_value="lat").tag(attr=True)
     lon_key = tl.Unicode(default_value="lon").tag(attr=True)
