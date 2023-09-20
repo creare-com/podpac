@@ -23,6 +23,8 @@ from podpac.core.data.array_source import Array
 from podpac.core.interpolation.scipy_interpolator import ScipyGrid
 from podpac.core.compositor import TileCompositor
 
+from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
+
 
 class TestInterpolation(object):
     s1 = Array(
@@ -71,7 +73,7 @@ class TestInterpolationBehavior(object):
         raw_coords = data.copy()
         raw_e_coords = [0, 0.5, 1, 1.5, 2]
 
-        for dim in ["lat", "lon", "alt", "time"]:
+        for dim in VALID_DIMENSION_NAMES:
             ec = Coordinates([raw_e_coords], [dim], crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m")
 
             arrb = Array(

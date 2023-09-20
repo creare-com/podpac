@@ -35,7 +35,7 @@ _log = logging.getLogger(__name__)
 
 import podpac
 from . import settings
-
+from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 
 def common_doc(doc_dict):
     """Decorator: replaces commond fields in a function docstring
@@ -222,7 +222,7 @@ class DimsTrait(tl.List):
     _schema = {"test": "info"}
 
     def __init__(self, *args, **kwargs):
-        super().__init__(tl.Enum(["lat", "lon", "time", "alt"]), *args, minlen=1, maxlen=4, **kwargs)
+        super().__init__(tl.Enum(VALID_DIMENSION_NAMES), *args, minlen=1, maxlen=4, **kwargs)
 
     # def validate(self, obj, value):
     #     super().validate(obj, value)
