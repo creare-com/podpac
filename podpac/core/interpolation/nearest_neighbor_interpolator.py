@@ -39,6 +39,7 @@ class NearestNeighbor(Interpolator):
     spatial_tolerance = tl.Float(default_value=np.inf, allow_none=True)
     time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
     alt_tolerance = tl.Float(default_value=np.inf, allow_none=True)
+    other_dim_tolerance = tl.Float(default_value=np.inf, allow_none=True)
 
     # spatial_scale only applies when the source is stacked with time or alt. The supplied value will be assigned a distance of "1'"
     spatial_scale = tl.Float(default_value=1, allow_none=True)
@@ -46,6 +47,8 @@ class NearestNeighbor(Interpolator):
     time_scale = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
     # alt_scale only applies when the source is stacked with lat, lon, or time. The supplied value will be assigned a distance of "1'"
     alt_scale = tl.Float(default_value=1, allow_none=True)
+    # other dim scale
+    other_dim_scale = tl.Float(default_value=1, allow_none=True)
 
     respect_bounds = tl.Bool(True)
     remove_nan = tl.Bool(False)
@@ -197,7 +200,7 @@ class NearestNeighbor(Interpolator):
             if self.time_tolerance == "":
                 return np.inf
             return self._time_to_float(self.time_tolerance, source, request)
-        raise NotImplementedError()
+        return self.other_dim_tolerance
 
     def _get_scale(self, dim, source_1d, request_1d):
         if dim in ["lat", "lon"]:
@@ -208,7 +211,7 @@ class NearestNeighbor(Interpolator):
             if self.time_scale == "":
                 return 1.0
             return 1 / self._time_to_float(self.time_scale, source_1d, request_1d)
-        raise NotImplementedError()
+        return self.other_dim_scale
 
     def _time_to_float(self, time, time_source, time_request):
         dtype0 = time_source.coordinates[0].dtype
