@@ -10,13 +10,14 @@ import xarray as xr
 import traitlets as tl
 from scipy.spatial import cKDTree
 
+
 # Optional dependencies
 
 
 # podac imports
 from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
-from podpac.core.coordinates.utils import make_coord_delta, make_coord_value
+from podpac.core.coordinates.utils import make_coord_delta, make_coord_value, VALID_DIMENSION_NAMES
 from podpac.core.utils import common_doc
 from podpac.core.coordinates.utils import get_timedelta
 from podpac.core.interpolation.selector import Selector, _higher_precision_time_coords1d, _higher_precision_time_stack
@@ -29,7 +30,7 @@ class NearestNeighbor(Interpolator):
     {nearest_neighbor_attributes}
     """
 
-    dims_supported = ["lat", "lon", "alt", "time"]
+    dims_supported = VALID_DIMENSION_NAMES
     methods_supported = ["nearest"]
 
     # defined at instantiation
