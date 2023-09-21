@@ -16,6 +16,7 @@ from podpac.core.coordinates.utils import add_coord, divide_delta, divide_timede
 from podpac.core.coordinates.utils import has_alt_units, lower_precision_time_bounds, higher_precision_time_bounds
 from podpac.core.coordinates.utils import add_valid_dimension
 
+
 def test_get_timedelta():
     td64 = np.timedelta64
     assert get_timedelta("2,ms") == td64(2, "ms")
@@ -581,72 +582,92 @@ def test_higher_precision_time_bounds():
     assert a1[0].dtype == "<M8[D]"
     assert a1[1].dtype == "<M8[D]"
 
+
 def test_add_custom_dimension():
 
     # Make sure dimensions can't be duplicated
     with pytest.raises(ValueError):
         add_valid_dimension("lat")
-    
+
     # Make sure I can't input non-strings
     with pytest.raises(TypeError):
         add_valid_dimension(["dim1", "dim2"])
-    
+
     # Assert add_valid_dimension must be called
     with pytest.raises(tl.TraitError):
-        c1 =  podpac.Coordinates([[1, 2, 3]], ['mydim'])
-    
+        c1 = podpac.Coordinates([[1, 2, 3]], ["mydim"])
+
     # Add a valid dimension
     add_valid_dimension("mydim")
-    
+
     ### *Unstacked Coords ###
     # Unstacked Coords, One Dimension
-    c1 = podpac.Coordinates([[1, 2, 3]], ['mydim'])
+    c1 = podpac.Coordinates([[1, 2, 3]], ["mydim"])
     n1 = podpac.data.Array(source=[1, 2, 3], coordinates=c1)
     data1 = n1.eval(c1)
-    assert np.array_equal(data1.data,np.array([1, 2, 3]))
-    assert 'mydim' in data1.dims
-    
+    assert np.array_equal(data1.data, np.array([1, 2, 3]))
+    assert "mydim" in data1.dims
+
     # Unstacked coords, one dimension, nearest neighbor interpolation
-    c1 = podpac.Coordinates([[1, 2, 3]], ['mydim'])
-    c1_interp = podpac.Coordinates([[1.9, 2, 3]], ['mydim'])
+    c1 = podpac.Coordinates([[1, 2, 3]], ["mydim"])
+    c1_interp = podpac.Coordinates([[1.9, 2, 3]], ["mydim"])
     n1 = podpac.data.Array(source=[1, 2, 3], coordinates=c1)
     data1 = n1.eval(c1_interp)
-    assert np.array_equal(data1.data,np.array([2, 2, 3]))
-    assert 'mydim' in data1.dims
-    
-        
+    assert np.array_equal(data1.data, np.array([2, 2, 3]))
+    assert "mydim" in data1.dims
+
     # Unstacked coords, one dimension, linear neighbor interpolation
-    c1 = podpac.Coordinates([[1, 2, 3]], ['mydim'])
-    c1_interp = podpac.Coordinates([[1.9, 2, 3]], ['mydim'])
-    n1 = podpac.data.Array(source=[1, 2, 3], coordinates=c1, interpolation='bilinear')
+    c1 = podpac.Coordinates([[1, 2, 3]], ["mydim"])
+    c1_interp = podpac.Coordinates([[1.9, 2, 3]], ["mydim"])
+    n1 = podpac.data.Array(source=[1, 2, 3], coordinates=c1, interpolation="bilinear")
     data1 = n1.eval(c1_interp)
-    assert np.array_equal(data1.data,np.array([1.9, 2, 3]))
-    assert 'mydim' in data1.dims
-    
+    assert np.array_equal(data1.data, np.array([1.9, 2, 3]))
+    assert "mydim" in data1.dims
+
     # Unstacked Coords, Multiple Dimensions
-    c2 = podpac.Coordinates([[1, 2], [1, 2, 3]], ['mydim', 'lat'])
+    c2 = podpac.Coordinates([[1, 2], [1, 2, 3]], ["mydim", "lat"])
     n2 = podpac.data.Array(source=[[1, 2, 3], [4, 5, 6]], coordinates=c2)
     data2 = n2.eval(c2)
-    assert np.array_equal(data2.data, np.array([[1,2,3],[4,5,6]]))
-    assert ('mydim' in data2.dims) and ('lat' in data2.dims)
-    
+    assert np.array_equal(data2.data, np.array([[1, 2, 3], [4, 5, 6]]))
+    assert ("mydim" in data2.dims) and ("lat" in data2.dims)
+
     ### Stacked Coords ###
-    c3 = podpac.Coordinates([[[1,2,3], [4,5,6]]], dims=['mydim_lat'])
-    assert 'mydim' in c3.udims
-    assert 'lat' in c3.udims
-    n3 = podpac.data.Array(source=[1,2,3], coordinates=c3)
+    c3 = podpac.Coordinates([[[1, 2, 3], [4, 5, 6]]], dims=["mydim_lat"])
+    assert "mydim" in c3.udims
+    assert "lat" in c3.udims
+    n3 = podpac.data.Array(source=[1, 2, 3], coordinates=c3)
     data3 = n3.eval(c3)
-    assert np.array_equal(data3.data, np.array([1,2,3]))
-    assert 'mydim_lat' in data3.dims
-    
-    
+    assert np.array_equal(data3.data, np.array([1, 2, 3]))
+    assert "mydim_lat" in data3.dims
+
     ### Stacked Coords, nearest neighbor interpolation
-    c3 = podpac.Coordinates([[[1,2,3], [4,5,6]]], dims=['mydim_lat'])
-    assert 'mydim' in c3.udims
-    assert 'lat' in c3.udims
-    c3_interp = podpac.Coordinates([[[1.9,2,3], [4.9,5,6]]], dims=['mydim_lat'])
-    n3 = podpac.data.Array(source=[1,2,3], coordinates=c3, interpolation='nearest')
+    c3 = podpac.Coordinates([[[1, 2, 3], [4, 5, 6]]], dims=["mydim_lat"])
+    assert "mydim" in c3.udims
+    assert "lat" in c3.udims
+    c3_interp = podpac.Coordinates([[[1.9, 2, 3], [4.9, 5, 6]]], dims=["mydim_lat"])
+    n3 = podpac.data.Array(source=[1, 2, 3], coordinates=c3, interpolation="nearest")
     data3 = n3.eval(c3_interp)
-    assert np.array_equal(data3.data, np.array([2,2,3]))
-    assert 'mydim_lat' in data3.dims
-    
+    assert np.array_equal(data3.data, np.array([2, 2, 3]))
+    assert "mydim_lat" in data3.dims
+
+    ### serialization
+    c0 = podpac.Coordinates([[1, 2, 3]], dims=["mydim"])
+    assert c0.definition["coords"][0]["name"] == "mydim"
+    assert np.all(c0.definition["coords"][0]["values"] == [1, 2, 3])
+
+    c1 = podpac.Coordinates([podpac.clinspace(0, 1, 5)], dims=["mydim"])
+    assert c1.definition["coords"][0]["name"] == "mydim"
+    assert c1.definition["coords"][0]["start"] == 0
+    assert c1.definition["coords"][0]["stop"] == 1.0
+    assert c1.definition["coords"][0]["step"] == 0.25
+
+    ### Deserialization
+    c0 = podpac.Coordinates.from_definition({"coords": [{"name": "mydim", "values": [1]}]})
+    assert c0.size == 1
+    c1 = podpac.Coordinates.from_definition({"coords": [{"name": "mydim", "start": 0, "stop": 1, "step": 0.25}]})
+    assert c1.size == 5
+    c2 = podpac.Coordinates.from_url(
+        '?bbox=0,1,2,3&time=2023-01-01T12&PARAMS={"mydim": "3,h"}&version=1.1&crs=epsg:4326&height=2&width=3'
+    )
+    assert "mydim" in c2.dims
+    assert c2["mydim"].coordinates == np.array([3], "timedelta64[h]")
