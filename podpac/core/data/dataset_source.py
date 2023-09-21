@@ -45,6 +45,7 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
     Dataset : Interpolated xarray dataset source for general use.
     """
 
+    # selection lets you use other dims
     # dataset = tl.Instance(xr.Dataset).tag(readonly=True)
     selection = tl.Dict(allow_none=True, default_value=None).tag(attr=True)
     infer_podpac_coords = tl.Bool(False).tag(attr=True)
@@ -92,4 +93,3 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
         if self.infer_podpac_coords:
             return Coordinates.from_xarray(self.dataset, crs=self.crs)
         return super().get_coordinates()
-

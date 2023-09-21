@@ -35,6 +35,7 @@ _log = logging.getLogger(__name__)
 
 import podpac
 from . import settings
+from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 
 
 def common_doc(doc_dict):
@@ -144,6 +145,7 @@ if sys.version < "3.6":
             super(OrderedDictTrait, self).validate(obj, value)
             return value
 
+
 else:
     OrderedDictTrait = tl.Dict
 
@@ -222,7 +224,7 @@ class DimsTrait(tl.List):
     _schema = {"test": "info"}
 
     def __init__(self, *args, **kwargs):
-        super().__init__(tl.Enum(["lat", "lon", "time", "alt"]), *args, minlen=1, maxlen=4, **kwargs)
+        super().__init__(tl.Enum(VALID_DIMENSION_NAMES), *args, minlen=1, maxlen=4, **kwargs)
 
     # def validate(self, obj, value):
     #     super().validate(obj, value)
@@ -351,7 +353,6 @@ def _get_from_url(url, session=None):
     return r
 
 
-
 def cached_property(*args, **kwargs):
     """
     Decorator that creates a property that is cached.
@@ -422,7 +423,6 @@ def cached_property(*args, **kwargs):
         return d(args[0])
     else:
         return d
-
 
 
 def ind2slice(Is):

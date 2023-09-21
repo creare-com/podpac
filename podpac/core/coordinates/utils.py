@@ -2,7 +2,7 @@
 Utilities functions for handling podpac coordinates.
 
 .. testsetup:: podpac.core.coordinates.utils
-    
+
     import numpy as np
     from podpac.core.coordinates.utils import *
 """
@@ -21,6 +21,7 @@ from six import string_types
 import pyproj
 
 from lazy_import import lazy_function
+
 geodesic = lazy_function("geopy.distance.geodesic")
 
 import podpac
@@ -172,8 +173,15 @@ def make_coord_value(val):
 
     # type checking and conversion
     if isinstance(val, (string_types, datetime.date)):
-        val = np.datetime64(val)
-    elif isinstance(val, np.datetime64):
+        try:
+            val = np.datetime64(val)
+        except ValueError as e:
+            if "," in val:
+                val = get_timedelta(val)
+            else:
+                raise e
+
+    elif isinstance(val, np.datetime64) | isinstance(val, np.timedelta64):
         pass
     elif isinstance(val, numbers.Number):
         val = float(val)
@@ -267,8 +275,8 @@ def make_coord_array(values):
             a.shape
         )
 
-        if not np.issubdtype(a.dtype, np.datetime64):
-            raise ValueError("Invalid coordinate values (must be all numbers or all datetimes)")
+        if not (np.issubdtype(a.dtype, np.datetime64) or np.issubdtype(a.dtype, np.timedelta64)):
+            raise ValueError("Invalid coordinate values (must be all numbers, all datetimes, or all timedeltas)")
 
     return a
 
@@ -639,3 +647,23 @@ def calculate_distance(point1, point2, ellipsoid_tuple, coordinate_name, units="
             return (geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m) * podpac.units("metre").to(
                 podpac.units(units)
             )
+
+
+def add_valid_dimension(dimension_name):
+    """
+    Add a new dimension to VALID_DIMENSION_NAMES.
+
+    Parameters
+    ----------
+    dimension_name : string
+        Name of dimension to make a valid dimension
+    """
+
+    # Assert inputted value is a string
+    if not isinstance(dimension_name, str):
+        raise TypeError(f"Expected arg to be a string, but got {type(dimension_name).__name__}")
+
+    if dimension_name in VALID_DIMENSION_NAMES:
+        raise ValueError(f"Dim `{dimension_name}` already a valid dimension.")
+
+    VALID_DIMENSION_NAMES.append(dimension_name)
