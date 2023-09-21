@@ -58,7 +58,7 @@ class PolarCoordinates(StackedCoordinates):
     def _validate_dims(self, d):
         val = d["value"]
         for dim in val:
-            if dim not in ["lat", "lon"]:
+            if dim not in ["lat", "lon"]: # Hardcoding example. What is actually trying to be accomplished?
                 raise ValueError("PolarCoordinates dims must be 'lat' or 'lon', not '%s'" % dim)
         if val[0] == val[1]:
             raise ValueError("Duplicate dimension '%s'" % val[0])

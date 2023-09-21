@@ -44,6 +44,8 @@ class TestInterpolationMixin(object):
         np.testing.assert_array_equal(iaso.data, aso.data)
         np.testing.assert_array_equal(abso.data, data)
 
+from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
+
 
 class TestInterpolation(object):
     s1 = ArrayRaw(
@@ -91,7 +93,7 @@ class TestInterpolationBehavior(object):
         raw_coords = data.copy()
         raw_e_coords = [0, 0.5, 1, 1.5, 2]
 
-        for dim in ["lat", "lon", "alt", "time"]:
+        for dim in VALID_DIMENSION_NAMES:
             ec = Coordinates([raw_e_coords], [dim], crs="+proj=longlat +datum=WGS84 +no_defs +vunits=m")
 
             arrb = ArrayRaw(

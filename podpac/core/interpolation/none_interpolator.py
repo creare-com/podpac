@@ -16,17 +16,16 @@ from scipy.spatial import cKDTree
 # podac imports
 from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
-from podpac.core.coordinates.utils import make_coord_delta, make_coord_value
+from podpac.core.coordinates.utils import make_coord_delta, make_coord_value, VALID_DIMENSION_NAMES
 from podpac.core.utils import common_doc
 from podpac.core.coordinates.utils import get_timedelta
 from podpac.core.interpolation.selector import Selector, _higher_precision_time_coords1d, _higher_precision_time_stack
-
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)
 class NoneInterpolator(Interpolator):
     """None Interpolation"""
 
-    dims_supported = ["lat", "lon", "alt", "time"]
+    dims_supported = VALID_DIMENSION_NAMES
     methods_supported = ["none"]
     method = tl.Unicode(default_value="none")
 
