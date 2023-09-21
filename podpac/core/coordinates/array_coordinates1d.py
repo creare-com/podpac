@@ -306,6 +306,8 @@ class ArrayCoordinates1d(Coordinates1d):
             return float
         elif np.issubdtype(self.coordinates.dtype, np.datetime64):
             return np.datetime64
+        elif np.issubdtype(self.coordinates.dtype, np.timedelta64):
+            return np.timedelta64
 
     @property
     def is_monotonic(self):
@@ -339,7 +341,7 @@ class ArrayCoordinates1d(Coordinates1d):
             lo, hi = np.nan, np.nan
         elif self.is_monotonic:
             lo, hi = sorted([self.coordinates[0], self.coordinates[-1]])
-        elif self.dtype is np.datetime64:
+        elif (self.dtype is np.datetime64) or (self.dtype == np.timedelta64):
             lo, hi = np.min(self.coordinates), np.max(self.coordinates)
         else:
             lo, hi = np.nanmin(self.coordinates), np.nanmax(self.coordinates)
@@ -436,14 +438,14 @@ class ArrayCoordinates1d(Coordinates1d):
             try:
                 gt = self.coordinates >= max(self.coordinates[self.coordinates <= bounds[0]])
             except ValueError as e:
-                if self.dtype == np.datetime64:
+                if (self.dtype == np.datetime64) or (self.dtype == np.timedelta64):
                     gt = ~np.isnat(self.coordinates)
                 else:
                     gt = self.coordinates >= -np.inf
             try:
                 lt = self.coordinates <= min(self.coordinates[self.coordinates >= bounds[1]])
             except ValueError as e:
-                if self.dtype == np.datetime64:
+                if self.dtype == np.datetime64 or (self.dtype == np.timedelta64):
                     lt = ~np.isnat(self.coordinates)
                 else:
                     lt = self.coordinates <= np.inf
