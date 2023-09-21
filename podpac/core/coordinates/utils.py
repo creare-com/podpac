@@ -264,7 +264,7 @@ def make_coord_array(values):
 
     a = np.atleast_1d(values)
 
-    if a.dtype == float or np.issubdtype(a.dtype, np.datetime64):
+    if a.dtype == float or np.issubdtype(a.dtype, np.datetime64) or np.issubdtype(a.dtype, np.timedelta64):
         pass
 
     elif np.issubdtype(a.dtype, np.number):
@@ -665,5 +665,8 @@ def add_valid_dimension(dimension_name):
 
     if dimension_name in VALID_DIMENSION_NAMES:
         raise ValueError(f"Dim `{dimension_name}` already a valid dimension.")
+
+    if "-" in dimension_name or "_" in dimension_name:
+        raise ValueError(f"Dim `{dimension_name}` may note contain `-` or `_`.")
 
     VALID_DIMENSION_NAMES.append(dimension_name)
