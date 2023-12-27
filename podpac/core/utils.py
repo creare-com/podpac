@@ -37,6 +37,7 @@ import podpac
 from . import settings
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 
+
 def common_doc(doc_dict):
     """Decorator: replaces commond fields in a function docstring
 
@@ -143,6 +144,7 @@ if sys.version < "3.6":
                 )
             super(OrderedDictTrait, self).validate(obj, value)
             return value
+
 
 else:
     OrderedDictTrait = tl.Dict
