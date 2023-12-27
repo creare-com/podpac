@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.3.0
+
+### Features
+* Now supporting custom coordinate dimensions for downstream applications. Just use `podpac.utils.add_valid_dimension("my_dimension_name")` to register and start using your custom dimension name.
+* Can now use `np.timedelta64` as a valid type for coordinates
+
+### Maintenance
+* Removed the "datalib" module, and made it its own package `podpacdatalib`.
+*
+
 ## 3.2.1
 ### Bugfixes
 * Fixed documentation build
