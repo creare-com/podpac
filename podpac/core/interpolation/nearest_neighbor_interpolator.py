@@ -310,7 +310,7 @@ class NearestNeighbor(Interpolator):
             # Find all the 0.5 and 1.5's that were rounded to even numbers, and make sure they all round down
             I = (index % 0.5) == 0
             rindex[I] = np.ceil(index[I])
-        else: # "unbiased", that's the default np.around behavior, so do nothing
+        else:  # "unbiased", that's the default np.around behavior, so do nothing
             pass
 
         stop_ind = int(source.size)
