@@ -44,6 +44,7 @@ class TestInterpolationMixin(object):
         np.testing.assert_array_equal(iaso.data, aso.data)
         np.testing.assert_array_equal(abso.data, data)
 
+
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 
 

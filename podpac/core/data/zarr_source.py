@@ -52,6 +52,7 @@ class ZarrRaw(S3Mixin, FileKeysMixin, BaseFileSource):
     --------
     Zarr : Interpolated Zarr Datasource for general use.
     """
+
     # Doesnt support other dims
     file_mode = tl.Unicode(default_value="r").tag(readonly=True)
     coordinate_index_type = "slice"
