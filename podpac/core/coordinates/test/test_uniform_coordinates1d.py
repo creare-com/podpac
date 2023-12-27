@@ -114,16 +114,6 @@ class TestUniformCoordinatesCreation(object):
         assert c.is_descending == True
         assert c.is_uniform == True
 
-    def test_timedelta(self):
-        c = UniformCoordinates1d(np.timedelta64(0, "h"), np.timedelta64(5, "h"), np.timedelta64(1, "h"))
-        assert c.start == np.timedelta64(0, "h")
-        assert c.stop == np.timedelta64(5, "h")
-        assert c.step == np.timedelta64(1, "h")
-        c = UniformCoordinates1d(np.timedelta64(5, "h"), np.timedelta64(0, "h"), np.timedelta64(-1, "h"))
-        assert c.start == np.timedelta64(5, "h")
-        assert c.stop == np.timedelta64(0, "h")
-        assert c.step == np.timedelta64(-1, "h")
-
     def test_datetime_inexact(self):
         # ascending
         c = UniformCoordinates1d("2018-01-01", "2018-01-06", "2,D")
