@@ -25,6 +25,7 @@ import podpac
 from podpac.core.settings import settings
 from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param, cached_property
 from podpac.core.coordinates.utils import has_alt_units
+from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
@@ -497,6 +498,14 @@ class Coordinates(tl.HasTraits):
 
         if "TIME" in params:
             coords["coords"].append({"name": "time", "values": [_get_param(params, "TIME")]})
+
+        other_params = _get_param(params, "PARAMS")
+        if other_params:
+            other_params = json.loads(other_params)
+            # check the param keys for any dimension in VALID_DIMENSIONS. If yes, add it to the coords
+            for key in other_params:
+                if key in VALID_DIMENSION_NAMES:
+                    coords["coords"].append({"name": key, "values": [other_params[key]]})
 
         return cls.from_definition(coords)
 

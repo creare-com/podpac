@@ -52,10 +52,10 @@ class UniformCoordinates1d(Coordinates1d):
     :class:`Coordinates1d`, :class:`ArrayCoordinates1d`, :class:`crange`, :class:`clinspace`
     """
 
-    start = tl.Union([tl.Float(), tl.Instance(np.datetime64)], read_only=True)
+    start = tl.Union([tl.Float(), tl.Instance(np.datetime64), tl.Instance(np.timedelta64)], read_only=True)
     start.__doc__ = ":float, datetime64: Start coordinate."
 
-    stop = tl.Union([tl.Float(), tl.Instance(np.datetime64)], read_only=True)
+    stop = tl.Union([tl.Float(), tl.Instance(np.datetime64), tl.Instance(np.timedelta64)], read_only=True)
     stop.__doc__ = ":float, datetime64: Stop coordinate."
 
     step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)], read_only=True)
@@ -109,6 +109,10 @@ class UniformCoordinates1d(Coordinates1d):
         if isinstance(start, float) and isinstance(stop, float) and isinstance(step, float):
             fstep = step
         elif isinstance(start, np.datetime64) and isinstance(stop, np.datetime64) and isinstance(step, np.timedelta64):
+            fstep = step.astype(float)
+        elif (
+            isinstance(start, np.timedelta64) and isinstance(stop, np.timedelta64) and isinstance(step, np.timedelta64)
+        ):
             fstep = step.astype(float)
         else:
             raise TypeError(
@@ -286,7 +290,7 @@ class UniformCoordinates1d(Coordinates1d):
         if item < self.bounds[0] or item > self.bounds[1]:
             return False
 
-        if self.dtype == np.datetime64:
+        if (self.dtype == np.datetime64) or (self.dtype == np.timedelta64):
             return timedelta_divisible(item - self.start, self.step)
         else:
             return (item - self.start) % self.step == 0
@@ -499,7 +503,7 @@ class UniformCoordinates1d(Coordinates1d):
         if self.size == 1:
             return True
 
-        if self.dtype == np.datetime64:
+        if (self.dtype == np.datetime64) or (self.dtype == np.timedelta64):
             return timedelta_divisible(self.step, other.step)
         else:
             return self.step % other.step == 0

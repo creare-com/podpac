@@ -10,13 +10,14 @@ import xarray as xr
 import traitlets as tl
 from scipy.spatial import cKDTree
 
+
 # Optional dependencies
 
 
 # podac imports
 from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
-from podpac.core.coordinates.utils import make_coord_delta, make_coord_value
+from podpac.core.coordinates.utils import make_coord_delta, make_coord_value, VALID_DIMENSION_NAMES
 from podpac.core.utils import common_doc
 from podpac.core.coordinates.utils import get_timedelta
 from podpac.core.interpolation.selector import Selector, _higher_precision_time_coords1d, _higher_precision_time_stack
@@ -29,7 +30,7 @@ class NearestNeighbor(Interpolator):
     {nearest_neighbor_attributes}
     """
 
-    dims_supported = ["lat", "lon", "alt", "time"]
+    dims_supported = VALID_DIMENSION_NAMES
     methods_supported = ["nearest"]
 
     # defined at instantiation
@@ -38,6 +39,7 @@ class NearestNeighbor(Interpolator):
     spatial_tolerance = tl.Float(default_value=np.inf, allow_none=True)
     time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
     alt_tolerance = tl.Float(default_value=np.inf, allow_none=True)
+    other_dim_tolerance = tl.Float(default_value=np.inf, allow_none=True)
 
     # spatial_scale only applies when the source is stacked with time or alt. The supplied value will be assigned a distance of "1'"
     spatial_scale = tl.Float(default_value=1, allow_none=True)
@@ -45,6 +47,8 @@ class NearestNeighbor(Interpolator):
     time_scale = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
     # alt_scale only applies when the source is stacked with lat, lon, or time. The supplied value will be assigned a distance of "1'"
     alt_scale = tl.Float(default_value=1, allow_none=True)
+    # other dim scale
+    other_dim_scale = tl.Float(default_value=1, allow_none=True)
 
     respect_bounds = tl.Bool(True)
     remove_nan = tl.Bool(False)
@@ -196,7 +200,7 @@ class NearestNeighbor(Interpolator):
             if self.time_tolerance == "":
                 return np.inf
             return self._time_to_float(self.time_tolerance, source, request)
-        raise NotImplementedError()
+        return self.other_dim_tolerance
 
     def _get_scale(self, dim, source_1d, request_1d):
         if dim in ["lat", "lon"]:
@@ -207,7 +211,7 @@ class NearestNeighbor(Interpolator):
             if self.time_scale == "":
                 return 1.0
             return 1 / self._time_to_float(self.time_scale, source_1d, request_1d)
-        raise NotImplementedError()
+        return self.other_dim_scale
 
     def _time_to_float(self, time, time_source, time_request):
         dtype0 = time_source.coordinates[0].dtype
