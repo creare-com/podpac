@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.3.1
+
+### Hotfix
+* Can now use `np.timedelta64` as a valid type for coordinates (merge issues on 3.3.0 accidentally removed this feature)
+
 ## 3.3.0
 
 ### Features
@@ -8,7 +13,7 @@
 
 ### Maintenance
 * Removed the "datalib" module, and made it its own package `podpacdatalib`.
-*
+
 
 ## 3.2.1
 ### Bugfixes
