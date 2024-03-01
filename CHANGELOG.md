@@ -23,6 +23,20 @@ nodes being automatically interpolated on `eval`. Now users have to create `Inte
 * Removed `InterpolationMixin`, and corresponding `Nodes` built using it. For example, the `Rasterio` node will no
   longer automatically interpolate. Instead, use `node = Rasterio(...).interpolate()` to restore that functionality.
 
+## 3.3.1
+
+### Hotfix
+* Can now use `np.timedelta64` as a valid type for coordinates (merge issues on 3.3.0 accidentally removed this feature)
+
+## 3.3.0
+
+### Features
+* Now supporting custom coordinate dimensions for downstream applications. Just use `podpac.utils.add_valid_dimension("my_dimension_name")` to register and start using your custom dimension name.
+* Can now use `np.timedelta64` as a valid type for coordinates
+
+### Maintenance
+* Removed the "datalib" module, and made it its own package `podpacdatalib`.
+
 
 ## 3.2.1
 ### Bugfixes

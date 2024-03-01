@@ -709,3 +709,44 @@ class TestNodeProber(object):
         }
         out = probe_node(a, lat=1, lon=1, nested=True)
         assert out == expected
+
+    def test_prober_with_enumerated_legends(self):
+        enumeration_style = podpac.style.Style(
+            name="composited",
+            units="my_units",
+            enumeration_legend={0: "dirt", 1: "sand"},
+            enumeration_colors={0: (0, 0, 0), 1: (0.5, 0.5, 0.5)},
+        )
+        one = podpac.data.Array(source=np.ones((3, 3), int), coordinates=self.coords, style=enumeration_style)
+        zero = podpac.data.Array(source=np.zeros((3, 3), int), coordinates=self.coords, style=enumeration_style)
+        a = podpac.compositor.OrderedCompositor(sources=[one, zero], style=enumeration_style)
+
+        expected = {
+            "name": "composited",
+            "value": "1 (sand) my_units",
+            "active": True,
+            "node_id": a.hash,
+            "params": {},
+            "inputs": {
+                "inputs": [
+                    {
+                        "name": "composited",
+                        "value": "1 (sand) my_units",
+                        "active": True,
+                        "node_id": one.hash,
+                        "params": {},
+                        "inputs": {},
+                    },
+                    {
+                        "name": "composited",
+                        "value": "0 (dirt) my_units",
+                        "active": False,
+                        "node_id": zero.hash,
+                        "params": {},
+                        "inputs": {},
+                    },
+                ]
+            },
+        }
+        out = probe_node(a, lat=1, lon=1, nested=True, add_enumeration_labels=True)
+        assert out == expected
