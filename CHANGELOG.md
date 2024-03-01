@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.4.0 Point Probe Value Format for Enumerated Legends
+
+### Features
+* Adds the label next to the value for enumerated legends in the point prober.
+  * Before: "value": 1.0
+  * After: "value": "1 (Sand)"
+
 ## 3.3.1
 
 ### Hotfix
