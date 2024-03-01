@@ -492,7 +492,7 @@ def resolve_bbox_order(bbox, crs, size):
     return {"lat": [lat_start, lat_stop, size[0]], "lon": [lon_start, lon_stop, size[1]]}
 
 
-def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=False):
+def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=False, add_enumeration_labels=True):
     """Evaluates every part of a node / pipeline at a point and records
     which nodes are actively being used.
 
@@ -513,6 +513,9 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
     nested : bool, optional
         Default is False. If True, will return a nested version of the
         output dictionary isntead
+    add_enumeration_labels : bool, optional
+        Default is True. If True, the "value" will be replaced by str(value) + "({})".format(node.style.enumeration_legend[int(value)])
+        if node.style.enumeration_legend is specified by the style.
 
     Returns
     dict
@@ -563,11 +566,17 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
             entry["inputs"] = {}
         return entry
 
+    def format_value(value, style, add_enumeration_labels):
+        if not add_enumeration_labels or style.enumeration_legend is None:
+            return value
+        return str(int(value)) + " ({})".format(style.enumeration_legend[int(value)])
+
     c = [(v, d) for v, d in zip([lat, lon, time, alt], ["lat", "lon", "time", "alt"]) if v is not None]
     coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c], crs=crs)
     v = float(node.eval(coords))
     definition = node.definition
     out = OrderedDict()
+    raw_values = {}  # Need this to keep track of actual value for evaluating active nodes in compositors
     for item in definition:
         if item == "podpac_version":
             continue
@@ -582,18 +591,19 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
         active = True
         out[item] = {
             "active": active,
-            "value": value,
+            "value": format_value(value, n.style, add_enumeration_labels),
             "units": n.style.units,
             "inputs": inputs,
             "name": n.style.name if n.style.name else item,
             "node_hash": n.hash,
         }
+        raw_values[item] = value
         # Fix sources for Compositors
         if isinstance(n, podpac.compositor.OrderedCompositor):
             searching_for_active = True
             for inp in inputs:
                 out[inp]["active"] = False
-                if out[inp]["value"] == out[item]["value"] and np.isfinite(out[inp]["value"]) and searching_for_active:
+                if raw_values[inp] == raw_values[item] and np.isfinite(raw_values[inp]) and searching_for_active:
                     out[inp]["active"] = True
                     searching_for_active = False
 
