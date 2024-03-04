@@ -291,6 +291,9 @@ class UnitsDataArray(xr.DataArray):
         for dim in self.dims:
             if dim in self.coords or "-" in dim:  # The "-" is for multi-dimensional stacked coordinates
                 continue
+            if "_" not in dim and "-" not in dim:
+                # This cover `dims` like "axis", which are not stacked, but does not have coordinates
+                continue
             try:
                 self = self.set_index(**{dim: dim.split("-")[0].split("_")})
             except ValueError as e:
