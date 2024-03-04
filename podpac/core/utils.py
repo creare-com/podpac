@@ -569,7 +569,12 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
     def format_value(value, style, add_enumeration_labels):
         if not add_enumeration_labels or style.enumeration_legend is None:
             return value
-        return str(int(value)) + " ({})".format(style.enumeration_legend[int(value)])
+        if np.isnan(value):
+            return str(value) + " (unknown)"
+        try:
+            return str(int(value)) + " ({})".format(style.enumeration_legend[int(value)])
+        except ValueError:
+            return str(value) + " (unknown)"
 
     c = [(v, d) for v, d in zip([lat, lon, time, alt], ["lat", "lon", "time", "alt"]) if v is not None]
     coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c], crs=crs)

@@ -1,5 +1,4 @@
 # Changelog
-
 ## 4.0.0
 
 ### Introduction
@@ -22,6 +21,20 @@ nodes being automatically interpolated on `eval`. Now users have to create `Inte
 ### Breaking changes
 * Removed `InterpolationMixin`, and corresponding `Nodes` built using it. For example, the `Rasterio` node will no
   longer automatically interpolate. Instead, use `node = Rasterio(...).interpolate()` to restore that functionality.
+
+
+## 3.4.1 Point Probe Value Format for Enumerated Legends HOTFIX
+
+### Hotfix
+* Deals with 'nan' value for enumerated legends.
+
+## 3.4.0 Point Probe Value Format for Enumerated Legends
+
+### Features
+* Adds the label next to the value for enumerated legends in the point prober.
+  * Before: "value": 1.0
+  * After: "value": "1 (Sand)"
+
 
 ## 3.3.1
 
