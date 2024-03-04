@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.4.1 Point Probe Value Format for Enumerated Legends HOTFIX
+
+### Hotfix
+* Deals with 'nan' value for enumerated legends.
+
 ## 3.4.0 Point Probe Value Format for Enumerated Legends
 
 ### Features

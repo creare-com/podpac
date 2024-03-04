@@ -715,9 +715,10 @@ class TestNodeProber(object):
             enumeration_legend={0: "dirt", 1: "sand"},
             enumeration_colors={0: (0, 0, 0), 1: (0.5, 0.5, 0.5)},
         )
+        nan = podpac.data.Array(source=np.ones((3, 3), int) * np.nan, coordinates=self.coords, style=enumeration_style)
         one = podpac.data.Array(source=np.ones((3, 3), int), coordinates=self.coords, style=enumeration_style)
         zero = podpac.data.Array(source=np.zeros((3, 3), int), coordinates=self.coords, style=enumeration_style)
-        a = podpac.compositor.OrderedCompositor(sources=[one, zero], style=enumeration_style)
+        a = podpac.compositor.OrderedCompositor(sources=[nan, one, zero], style=enumeration_style)
 
         expected = {
             "name": "composited",
@@ -727,6 +728,14 @@ class TestNodeProber(object):
             "params": {},
             "inputs": {
                 "inputs": [
+                    {
+                        "name": "composited",
+                        "value": "nan (unknown) my_units",
+                        "active": False,
+                        "node_id": nan.hash,
+                        "params": {},
+                        "inputs": {},
+                    },
                     {
                         "name": "composited",
                         "value": "1 (sand) my_units",
