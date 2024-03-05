@@ -15,7 +15,7 @@ nodes being automatically interpolated on `eval`. Now users have to create `Inte
 * Added the `ZarrCache`. This node enables partial caching of nodes based on the source's coordinate. This means you can
   requeste data for half the globe in one request and have that cached. Then, on a subsequent request for the whole
   globe, the cached data will be used for the cached half, and new data will be retrieved/computed for the new half.
-* Added the `HashCach`. This node caches based on specific requested `Coordinates`. If the data from two requests overlap,
+* Added the `HashCache`. This node caches based on specific requested `Coordinates`. If the data from two requests overlap,
   no existing cached information is reused (unlike the `ZarrCache`)
 
 ### Breaking changes
