@@ -391,7 +391,7 @@ class PodpacSettings(dict):
         if allow:
             os.environ["PODPAC_UNSAFE_EVAL"] = self["UNSAFE_EVAL_HASH"]
             _logger.warning(
-                "Setting unrestricted code execution can results in vulnerabilities on publically accessible servers. Use with caution."
+                "Setting unrestricted code execution can results in vulnerabilities on publicly accessible servers. Use with caution."
             )
         else:
             if "PODPAC_UNSAFE_EVAL" in os.environ:
