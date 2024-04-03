@@ -64,8 +64,20 @@ class ZarrCache(CacheNode):
 
     @property
     def _coordinates(self):
-        # Just a straight pass-through for now
+        # Just a straight pass-through for now, but might allow custom coordinates for cache later
         return self.source.coordinates
+
+    @property
+    def shape(self):
+        shape = self._coordinates.shape
+        if self.outputs is not None:
+            shape = shape + (len(self.outputs), )
+        return shape
+
+    @property
+    def outputs(self):
+        # TODO: This implementation of multiple outputs DOES NOT match the implementation in data_keys from the FilekeysMixin... so this could/should be revisited.
+        return self.source.outputs
 
     @property
     def _chunks(self):
@@ -120,10 +132,9 @@ class ZarrCache(CacheNode):
                     self._global_zarr_ram_cache[self.hash] = zarr.group()
                 group = self._global_zarr_ram_cache[self.hash]  # assumes ram not persistent
             if "data" not in group:
-                shape = self._coordinates.shape
                 group.create_dataset(
                     "data",
-                    shape=shape,
+                    shape=self.shape,
                     chunks=self._chunks,
                     dtype="float64",
                     fill_value=np.nan,
@@ -146,8 +157,7 @@ class ZarrCache(CacheNode):
                     self._global_zarr_bool_ram_cache[self.hash] = zarr.group()
                 group = self._global_zarr_bool_ram_cache[self.hash]  # assumes ram not persistent
             if "contains" not in group:
-                shape = self._coordinates.shape
-                group.create_dataset("contains", shape=shape, dtype="bool", fill_value=False)
+                group.create_dataset("contains", shape=self.shape, dtype="bool", fill_value=False)
                 self._create_coordinate_zarr_dataset(group, ['contains'])
             return group
         except Exception as e:
@@ -205,6 +215,7 @@ class ZarrCache(CacheNode):
                 group[dim][:] = self._coordinates.xcoords[dim][1]
         for dataset in datasets:
             group[dataset].attrs["_ARRAY_DIMENSIONS"] = self._coordinates.dims
+            group[dataset].attrs["_OUTPUT_LABELS"] = self.outputs
 
 
     def _create_slices(self, c3, index_arrays):
@@ -353,4 +364,4 @@ class ZarrCache(CacheNode):
             # Use the slices to place data from Zarr cache into the correct location in the result array
             data[valid_request_indices] = self._z_node.dataset["data"][tuple(slices.get(dim) for dim in self._coordinates.dims)]
 
-        return data.transpose(*dim_order)
+        return data.transpose(*dim_order, ...)

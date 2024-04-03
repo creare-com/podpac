@@ -256,13 +256,14 @@ class TestZarrCache:
 
     def test_ZarrCache_ram_multi_output(self):
 
-        source = Array(source=np.random.rand(2, 3), outputs=["R", "G", "B"], coordinates=Coordinates([[0, 1]], ['lat']))
+        source = Array(source=np.random.rand(2, 4, 3), outputs=["R", "G", "B"], coordinates=Coordinates([[0, 1], [1, 2, 3, 5]], ['lat', 'lon']))
         node = source.cache(node_type="zarr", cache_type="ram")
-        coords = source.coordinates
+        coords = source.coordinates.transpose('lon', 'lat')[:2]
 
         # Eval the node, this will also fill the Zarr cache with source data
         data_filled = node.eval(coords)
         assert not node._from_cache
+        assert 'output' in data_filled.dims
 
         # Retrieve data from the node again, which should come from the Zarr cache
         data_retrieved = node.eval(coords)
