@@ -15,13 +15,15 @@ class TestHashCache:
         hash_cache_node = my_node.cache("hash", "ram", uid=uid)
         hash_cache_node2 = my_node.cache("hash", "ram", uid=uid)
         hash_cache_node3 = my_node.cache("hash", "disk", uid=uid)
+        hash_cache_node3.rem_cache('*"')
+
         assert hash_cache_node.hash == uid
         o1 = hash_cache_node.eval(coords)
         assert not hash_cache_node._from_cache
         o2 = hash_cache_node2.eval(coords)
         assert hash_cache_node2._from_cache
         o3 = hash_cache_node3.eval(coords)
-        assert not hash_cache_node3._from_cache
+        assert hash_cache_node3._from_cache
 
     def test_global_ram_cache(self):
         my_node = SinCoords(cache_output=True)
@@ -66,9 +68,9 @@ class TestZarrCache:
     @pytest.fixture
     def source(self):
         lat = np.linspace(0, 10, 11)
-        lon = np.linspace(0, 10, 11)
+        lon = np.linspace(0, 10, 12)
         time = ["2018-01-01", "2018-01-02"]
-        coords = Coordinates([lat, lon, time], ["lat", "lon", "time"])
+        coords = Coordinates([lon, lat, time], ["lon", "lat", "time"])
         return Array(source=np.random.rand(coords.shape[0], coords.shape[1], coords.shape[2]), coordinates=coords)
 
     def test_uid_no_definition(self):
@@ -193,7 +195,7 @@ class TestZarrCache:
 
         # The missing coordinates should be those that were not included in the initial eval
         expected_missing_coords = Coordinates(
-            [np.linspace(6, 7, 2), source.coordinates["lon"], source.coordinates["time"]], ["lat", "lon", "time"]
+            [source.coordinates["lon"], np.linspace(6, 7, 2), source.coordinates["time"]], ["lon", "lat", "time"]
         )
 
         assert missing_coords == expected_missing_coords
@@ -238,6 +240,23 @@ class TestZarrCache:
         node.rem_cache()  # Cleanup
 
     def test_ZarrCache_ram(self, source):
+        node = source.cache(node_type="zarr", cache_type="ram")
+        coords = source.coordinates
+
+        # Eval the node, this will also fill the Zarr cache with source data
+        data_filled = node.eval(coords)
+        assert not node._from_cache
+
+        # Retrieve data from the node again, which should come from the Zarr cache
+        data_retrieved = node.eval(coords)
+
+        # Check the data retrieved from the Zarr cache is identical to the filled data
+        np.testing.assert_allclose(data_filled, data_retrieved)
+        assert node._from_cache
+
+    def test_ZarrCache_ram_multi_output(self):
+
+        source = Array(source=np.random.rand(2, 3), outputs=["R", "G", "B"], coordinates=Coordinates([[0, 1]], ['lat']))
         node = source.cache(node_type="zarr", cache_type="ram")
         coords = source.coordinates
 

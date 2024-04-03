@@ -494,7 +494,7 @@ class Node(tl.HasTraits):
                 kwargs["cache_ctrl"] = podpac.core.cache.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
             return podpac.caches.HashCache(source=self, cache_type=cache_type, **kwargs)
         elif node_type == "zarr":
-            if not trait_is_defined(self, "coordinates") or self.coordinates is None:
+            if not hasattr(self, "coordinates") or self.coordinates is None:
                 raise ValueError("Cannot use ZarrCache without coordinates")
             else:
                 return podpac.caches.ZarrCache(source=self, cache_type=cache_type, **kwargs)

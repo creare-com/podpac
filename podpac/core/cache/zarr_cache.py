@@ -48,7 +48,7 @@ class ZarrCache(CacheNode):
     base_path = tl.Unicode().tag(attr=True, required=True)
     group_data = tl.Instance(zarr.hierarchy.Group)
     group_bool = tl.Instance(zarr.hierarchy.Group)
-    chunks = tl.List(allow_none=True).tag(attr=True)
+    chunks = tl.Union([tl.List(), tl.Dict()], allow_none=True, default_value=None).tag(attr=True)
     selector_method = tl.Unicode(allow_none=True).tag(attr=True)
     cache_type = tl.Enum(["disk", "ram"], default_value="disk")
 
@@ -61,6 +61,27 @@ class ZarrCache(CacheNode):
     _selector = tl.Instance(Selector, allow_none=True)
     _global_zarr_ram_cache = {}  # This is a class-level variable and should not be over-written!
     _global_zarr_bool_ram_cache = {}  # This is a class-level variable and should not be over-written!
+
+    @property
+    def _coordinates(self):
+        # Just a straight pass-through for now
+        return self.source.coordinates
+
+    @property
+    def _chunks(self):
+        if self.chunks is None:
+            return True
+        if isinstance(self.chunks, list):
+            if self.outputs is None:
+                assert len(self.chunks) == len(self._coordinates.dims), "Need to specify chunk size (%s) for every dimension (%s)" % (str(self.chunks), str(self._coordinates.dims))
+            else:
+                assert len(self.chunks) == len(self._coordinates.dims), "Need to specify chunk size (%s) for every dimension (%s) including outputs" % (str(self.chunks), str(self._coordinates.dims))
+            return self.chunks
+        if isinstance(self.chunks, dict):
+            if self.outputs is None:
+                return [self.chunks[k] for k in self._coordinates.dims]
+            else:
+                return [self.chunks[k] for k in self._coordinates.dims] + [len(self.outputs)]
 
     @tl.default("_selector")
     def _default_selector(self):
@@ -99,15 +120,16 @@ class ZarrCache(CacheNode):
                     self._global_zarr_ram_cache[self.hash] = zarr.group()
                 group = self._global_zarr_ram_cache[self.hash]  # assumes ram not persistent
             if "data" not in group:
-                shape = self.source.coordinates.shape
+                shape = self._coordinates.shape
                 group.create_dataset(
                     "data",
                     shape=shape,
-                    chunks=self.chunks if self.chunks is not None else True,
+                    chunks=self._chunks,
                     dtype="float64",
                     fill_value=np.nan,
                 )  # adjust dtype as necessary
-                self._create_coordinate_zarr_dataset(group)
+                self._create_coordinate_zarr_dataset(group, ['data'])
+
             return group
         except Exception as e:
             raise ValueError(f"Failed to open zarr data group. Original error: {e}")
@@ -124,9 +146,9 @@ class ZarrCache(CacheNode):
                     self._global_zarr_bool_ram_cache[self.hash] = zarr.group()
                 group = self._global_zarr_bool_ram_cache[self.hash]  # assumes ram not persistent
             if "contains" not in group:
-                shape = self.source.coordinates.shape
+                shape = self._coordinates.shape
                 group.create_dataset("contains", shape=shape, dtype="bool", fill_value=False)
-                self._create_coordinate_zarr_dataset(group)
+                self._create_coordinate_zarr_dataset(group, ['contains'])
             return group
         except Exception as e:
             raise ValueError(f"Failed to open zarr boolean group. Original error: {e}")
@@ -136,13 +158,13 @@ class ZarrCache(CacheNode):
         if self.cache_type == "disk":
             try:
                 self.group_data  # ensure group exists
-                return Zarr(source=self._zarr_path_data, coordinates=self.source.coordinates, file_mode="r+")
+                return Zarr(source=self._zarr_path_data, coordinates=self._coordinates, file_mode="r+")
             except Exception as e:
                 raise ValueError(f"Failed to create Zarr node. Original error: {e}")
         elif self.cache_type == "ram":
             try:
                 self.group_data  # ensure group exists
-                return ZarrMemory(dataset=self.group_data, coordinates=self.source.coordinates)
+                return ZarrMemory(dataset=self.group_data, coordinates=self._coordinates)
             except Exception as e:
                 raise ValueError(f"Failed to create Zarr node. Original error: {e}")
 
@@ -151,17 +173,17 @@ class ZarrCache(CacheNode):
         if self.cache_type == "disk":
             try:
                 self.group_bool  # ensure group exists
-                return Zarr(source=self._zarr_path_bool, coordinates=self.source.coordinates, file_mode="r+")
+                return Zarr(source=self._zarr_path_bool, coordinates=self._coordinates, file_mode="r+")
             except Exception as e:
                 raise ValueError(f"Failed to create Zarr node. Original error: {e}")
         elif self.cache_type == "ram":
             try:
                 self.group_bool  # ensure group exists
-                return ZarrMemory(dataset=self.group_bool, coordinates=self.source.coordinates)
+                return ZarrMemory(dataset=self.group_bool, coordinates=self._coordinates)
             except Exception as e:
                 raise ValueError(f"Failed to create Zarr node. Original error: {e}")
 
-    def _create_coordinate_zarr_dataset(self, group):
+    def _create_coordinate_zarr_dataset(self, group, datasets=[]):
         """
         Create a Zarr dataset for storing coordinates.
 
@@ -170,17 +192,20 @@ class ZarrCache(CacheNode):
         zarr.Dataset
             The Zarr dataset for storing coordinates.
         """
-        for dim in self.source.coordinates.dims:
+        for dim in self._coordinates.dims:
             if dim not in group:
                 if dim == "time":
                     group.create_dataset(
                         dim,
-                        shape=self.source.coordinates[dim].shape,
-                        dtype=str(self.source.coordinates["time"].bounds[0].dtype),
+                        shape=self._coordinates[dim].shape,
+                        dtype=str(self._coordinates["time"].bounds[0].dtype),
                     )
                 else:
-                    group.create_dataset(dim, shape=self.source.coordinates[dim].shape, dtype="float64")
-                group[dim][:] = self.source.coordinates.xcoords[dim][1]
+                    group.create_dataset(dim, shape=self._coordinates[dim].shape, dtype="float64")
+                group[dim][:] = self._coordinates.xcoords[dim][1]
+        for dataset in datasets:
+            group[dataset].attrs["_ARRAY_DIMENSIONS"] = self._coordinates.dims
+
 
     def _create_slices(self, c3, index_arrays):
         """
@@ -244,11 +269,11 @@ class ZarrCache(CacheNode):
         request_coords : podpac.Coordinates
             The coordinates at which the data should be stored in the Zarr cache.
         """
-        c3, index_arrays = self._selector.select(self.source.coordinates, request_coords)
+        c3, index_arrays = self._selector.select(self._coordinates, request_coords)
         slices = self._create_slices(c3, index_arrays)
 
-        self._z_node.dataset["data"][tuple(slices.get(dim) for dim in self.source.coordinates.dims)] = data
-        self._z_bool.dataset["contains"][tuple(slices.get(dim) for dim in self.source.coordinates.dims)] = True
+        self._z_node.dataset["data"][tuple(slices.get(dim) for dim in self._coordinates.dims)] = data
+        self._z_bool.dataset["contains"][tuple(slices.get(dim) for dim in self._coordinates.dims)] = True
 
     def subselect_has(self, request_coords):
         """
@@ -266,10 +291,10 @@ class ZarrCache(CacheNode):
             If the Zarr cache has data for all requested coordinates, returns None.
         """
 
-        c3, index_arrays = self._selector.select(self.source.coordinates, request_coords)
+        c3, index_arrays = self._selector.select(self._coordinates, request_coords)
         slices = self._create_slices(c3, index_arrays)
 
-        bool_data = self._z_bool.dataset["contains"][tuple(slices.get(dim) for dim in self.source.coordinates.dims)]
+        bool_data = self._z_bool.dataset["contains"][tuple(slices.get(dim) for dim in self._coordinates.dims)]
 
         # check if all values are True
         if np.all(bool_data):
@@ -280,11 +305,11 @@ class ZarrCache(CacheNode):
         false_indices_unique = tuple(np.unique(indices) for indices in false_indices)
 
         false_coords = {}
-        for dim, indices in zip(self.source.coordinates.dims, false_indices_unique):
-            false_coords[dim] = self.source.coordinates[dim][indices]
+        for dim, indices in zip(self._coordinates.dims, false_indices_unique):
+            false_coords[dim] = self._coordinates[dim][indices]
 
         return podpac.Coordinates(
-            [false_coords.get(dim) for dim in self.source.coordinates.dims], dims=self.source.coordinates.dims
+            [false_coords.get(dim) for dim in self._coordinates.dims], dims=self._coordinates.dims
         )
 
     def eval(self, request_coords):
@@ -304,12 +329,13 @@ class ZarrCache(CacheNode):
         """
         self._from_cache = False
 
-        # Create a NaN-filled array with the shape of the request coordinates
-        data_shape = [request_coords[d].size for d in request_coords.dims]
-        data = np.full(data_shape, np.nan, dtype="float64")
+        # Initialize output
+        dim_order = request_coords.dims
+        request_coords = request_coords.transpose(*self._coordinates.dims)
+        data = self.create_output_array(request_coords)
 
         # Find valid request coordinates that are within the source's bounds
-        valid_request_coords = request_coords.intersect(self.source.coordinates)
+        valid_request_coords, valid_request_indices = request_coords.intersect(self._coordinates, return_index=True)
 
         if valid_request_coords.size > 0:
             subselect_coords = self.subselect_has(valid_request_coords)
@@ -321,12 +347,10 @@ class ZarrCache(CacheNode):
                 if settings["ENABLE_CACHE"] and self.source.cache_output:
                     self.fill_zarr(missing_data, subselect_coords)
 
-            c3, index_arrays = self._selector.select(self.source.coordinates, valid_request_coords)
+            c3, index_arrays = self._selector.select(self._coordinates, valid_request_coords)
             slices = self._create_slices(c3, index_arrays)
 
             # Use the slices to place data from Zarr cache into the correct location in the result array
-            data[tuple(slices.get(dim) for dim in valid_request_coords.dims)] = self._z_node.dataset["data"][
-                tuple(slices.get(dim) for dim in self.source.coordinates.dims)
-            ]
+            data[valid_request_indices] = self._z_node.dataset["data"][tuple(slices.get(dim) for dim in self._coordinates.dims)]
 
-        return data
+        return data.transpose(*dim_order)
