@@ -153,7 +153,15 @@ class FileKeysMixin(tl.HasTraits):
     alt_key : str
         altitude key, default 'alt'
     data_key : str, list
-        data key, or list of data keys for multiple-output nodes
+        data key, or list of data keys for multiple-output nodes. These names
+        MATCH the names used in the reference file. self.outputs then maps these
+        names to something else. By default, self.outputs == self.data_key, and
+        len(self.outputs) == len(self.data_key).
+        data_key does NOT have to pull ALL the available values from a file, see
+        self.available_data_keys for all the available keys from a file. This acts
+        a bit like self.output, but it's more efficient. Self.data_key only READS
+        the specified data_keys, while self.output reads ALL the data_key field, and
+        THEN sub-selects the specified output ones (matching the naming used in outputs)
     crs : str
         Coordinate reference system of the coordinates.
     cf_time : bool

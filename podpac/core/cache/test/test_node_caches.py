@@ -271,3 +271,39 @@ class TestZarrCache:
         # Check the data retrieved from the Zarr cache is identical to the filled data
         np.testing.assert_allclose(data_filled, data_retrieved)
         assert node._from_cache
+
+    def test_ZarrCache_ram_multi_output_with_partial_output_caching(self):
+        source = Array(source=np.random.rand(2, 4, 4), outputs=["R", "G", "B", "D"], coordinates=Coordinates([[0, 1], [1, 2, 3, 5]], ['lat', 'lon']))
+        node = source.cache(node_type="zarr", cache_type="ram", uid="multi")
+        coords = source.coordinates.transpose('lon', 'lat')
+
+        # Test filling outputs partially for all lat/lons
+        source.set_trait("output", ["R", "B"])
+        data_filled = node.eval(coords)
+        assert not node._from_cache
+        assert 'output' in data_filled.dims
+        assert np.all(data_filled.output == source.output)
+        # Partial data is now cached?
+        data_filled = node.eval(coords)
+        assert node._from_cache
+        # Partial data for individual outputs are now cached?
+        source.set_trait("output", "R")
+        data_filled = node.eval(coords)
+        assert node._from_cache
+        source.set_trait("output", "B")
+        data_filled = node.eval(coords)
+        assert node._from_cache
+        # Partial data for individual outputs that hasn't been evaluated is NOT cached
+        source.set_trait("output", "G")
+        data_filled = node.eval(coords)
+        assert not node._from_cache
+        data_filled = node.eval(coords)
+        assert node._from_cache
+        # All outputs are not cached, so all outputs should not come from cache
+        source.set_trait("output", None)
+        data_filled = node.eval(coords)
+        assert not node._from_cache
+        data_filled = node.eval(coords)
+        assert node._from_cache
+
+

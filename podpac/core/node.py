@@ -117,9 +117,10 @@ class Node(tl.HasTraits):
     units : str
         The units of the output data. Must be pint compatible.
     outputs : list
-        For multiple-output nodes, the names of the outputs. Default is ``None`` for standard nodes.
+        For multiple-output nodes, the names of the outputs. Default is ``None`` for standard nodes. Note, this defines
+        the NAMES of ALL the outputs. Users can subselect from these using 'output'
     output : str
-        For multiple-output nodes only, specifies a particular output to evaluate, if desired. Must be one of ``outputs``.
+        For multiple-output nodes only, specifies a particular output(s) to evaluate, if desired. Must be one of ``outputs``.
 
     Notes
     -----
@@ -130,7 +131,7 @@ class Node(tl.HasTraits):
     """
 
     outputs = tl.List(trait=tl.Unicode(), allow_none=True).tag(attr=True)
-    output = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
+    output = tl.Union([tl.Unicode(), tl.List()], default_value=None, allow_none=True).tag(attr=True)
     units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True, hidden=True)
     style = tl.Instance(Style)
 
@@ -157,7 +158,10 @@ class Node(tl.HasTraits):
         if d["value"] is not None:
             if self.outputs is None:
                 raise TypeError("Invalid output '%s' (output must be None for single-output nodes)." % self.output)
-            if d["value"] not in self.outputs:
+            if isinstance(d["value"], list):
+                if not np.all([o in self.outputs for o in d["value"]]):
+                    raise ValueError("Invalid output '%s' (available outputs are %s)" % (self.output, self.outputs))
+            elif d["value"] not in self.outputs:
                 raise ValueError("Invalid output '%s' (available outputs are %s)" % (self.output, self.outputs))
         return d["value"]
 
