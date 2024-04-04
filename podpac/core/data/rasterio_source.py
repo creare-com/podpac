@@ -99,6 +99,9 @@ class Rasterio(S3Mixin, BaseFileSource):
     @tl.default("band")
     def _band_default(self):
         if self.outputs is not None and self.output is not None:
+            if isinstance(self.output, list):
+                # Note +1 below because bands are numbered starting from 1, not zero
+                return [self.outputs.index(o) + 1 for o in self.output]
             return self.outputs.index(self.output)
         elif self.outputs is None:
             return 1

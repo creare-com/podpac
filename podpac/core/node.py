@@ -463,7 +463,7 @@ class Node(tl.HasTraits):
         Parameters
         ----------
         node_type : str, optional
-            One of "hash" or "Zarr", "hash" by default.
+            One of "hash" or "zarr", "hash" by default.
         cache_type : str, optional
             One of "ram" or "disk", controlling where the output is cached, by default uses podpac.settings["DEFAULT_CACHE"].
             Note, "disk" caching uses the path specified by the user in `podpac.settings.cache_path`.
@@ -503,7 +503,7 @@ class Node(tl.HasTraits):
             else:
                 return podpac.caches.ZarrCache(source=self, cache_type=cache_type, **kwargs)
         else:
-            raise ValueError("Invalid cache type: %s. Valid cache types: zarr, hash" % cache_type)
+            raise ValueError("Invalid node_type: %s. Valid node_types: zarr, hash" % node_type)
 
     def interpolate(self, interpolation="nearest", **kwargs):
         """This is a convenient function that creates an Interpolation Node following this Node.

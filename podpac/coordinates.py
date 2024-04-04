@@ -10,4 +10,5 @@ from podpac.core.coordinates import crange, clinspace
 from podpac.core.coordinates import Coordinates1d, ArrayCoordinates1d, UniformCoordinates1d
 from podpac.core.coordinates import StackedCoordinates, AffineCoordinates
 from podpac.core.coordinates import merge_dims, concat, union
+from podpac.core.coordinates import add_valid_dimension
 from podpac.core.coordinates import GroupCoordinates

@@ -104,7 +104,7 @@ class ZarrCache(CacheNode):
             if self.outputs is None:
                 return [self.chunks[k] for k in self._coordinates.dims]
             else:
-                return [self.chunks[k] for k in self._coordinates.dims] + [len(self.outputs)]
+                return [self.chunks[k] for k in self._coordinates.dims] + [self.chunks.get("output", 1)]
 
     @tl.default("_selector")
     def _default_selector(self):
@@ -149,6 +149,7 @@ class ZarrCache(CacheNode):
                     chunks=self._chunks,
                     dtype="float64",
                     fill_value=np.nan,
+                    write_empty_chunks=False
                 )  # adjust dtype as necessary
                 self._create_coordinate_zarr_dataset(group, ['data'])
 
@@ -347,11 +348,12 @@ class ZarrCache(CacheNode):
         false_indices_unique = tuple(np.unique(indices) for indices in false_indices)
 
         false_coords = {}
-        for dim, indices in zip(self._coordinates.dims, false_indices_unique):
-            false_coords[dim] = self._coordinates[dim][indices]
+        for dim, indices in zip(c3.dims, false_indices_unique):
+            false_coords[dim] = c3[dim][indices]
 
         return podpac.Coordinates(
-            [false_coords.get(dim) for dim in self._coordinates.dims], dims=self._coordinates.dims
+            [false_coords.get(dim) for dim in self._coordinates.dims],
+            dims=self._coordinates.dims, crs=self._coordinates.crs
         )
 
     def _eval(self, coordinates, output=None, _selector=None):
