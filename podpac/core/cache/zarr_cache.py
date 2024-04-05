@@ -338,26 +338,25 @@ class ZarrCache(CacheNode):
 
         c3, index_arrays = self._selector.select(self._coordinates, request_coords)
         slices = self._create_slices(c3, index_arrays)
+        slice_inds = tuple(slices.get(dim) for dim in self._coordinates.dims)
 
-        bool_data = self._z_bool.dataset["contains"][tuple(slices.get(dim) for dim in self._coordinates.dims)]
+        # Check if all values are True for the outputs being evaluated
+        if source_output is not None and self.outputs is not None:
+            output_inds = [self.outputs.index(so) for so in source_output]
+            bool_data = np.stack([self._z_bool.dataset["contains"][slice_inds + (oi, )] for oi in output_inds], axis=-1)
+        else:
+            bool_data = self._z_bool.dataset["contains"][slice_inds]
 
         # check if all values are True
         if np.all(bool_data):
             return None  # or any other indicator that all data is present
 
-        # Check if all values are True for the outputs being evaluated
-        if source_output is not None and self.outputs is not None:
-            output_inds = [self.outputs.index(so) for so in source_output]
-            if np.all(bool_data[..., output_inds]):
-                return None  # All data for these outputs are present
-            # If we're missing *some* of these bands, we're just going to fetch all of them
-            # and fill the zarr file with them. So collapse the bool_data along these outputs
-            bool_data = np.all(bool_data[..., output_inds], axis=-1)
 
         false_indices = np.where(bool_data == False)
 
         false_indices_unique = tuple(np.unique(indices) for indices in false_indices)
 
+        # This works out because outputs is always axis=-1
         false_coords = {}
         for dim, indices in zip(c3.dims, false_indices_unique):
             false_coords[dim] = c3[dim][indices]
@@ -388,11 +387,14 @@ class ZarrCache(CacheNode):
         dim_order = coordinates.dims
         coordinates = coordinates.transpose(*self._coordinates.dims)
         if self.source.output is not None:
-            if not isinstance(self.source.output, list):
-                data = self.create_output_array(coordinates, outputs=[self.source.output])
-            else:
+            if isinstance(self.source.output, list):
                 data = self.create_output_array(coordinates, outputs=self.source.output)
+                output_inds = [self.outputs.index(so) for so in self.source.output]
+            else:
+                data = self.create_output_array(coordinates, outputs=[self.source.output])
+                output_inds = [self.outputs.index(self.source.output)]
         else:
+            output_inds = slice(None)
             data = self.create_output_array(coordinates)
 
         # Find valid request coordinates that are within the source's bounds
@@ -410,8 +412,9 @@ class ZarrCache(CacheNode):
 
             c3, index_arrays = self._selector.select(self._coordinates, valid_coordinates)
             slices = self._create_slices(c3, index_arrays)
+            slices_inds = tuple(slices.get(dim) for dim in self._coordinates.dims)
 
             # Use the slices to place data from Zarr cache into the correct location in the result array
-            data[valid_request_indices] = self._z_node.dataset["data"][tuple(slices.get(dim) for dim in self._coordinates.dims)]
+            data[valid_request_indices] = self._z_node.dataset["data"][slices_inds][..., output_inds]
 
         return data.transpose(*dim_order, ...)
