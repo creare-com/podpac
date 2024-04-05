@@ -57,7 +57,9 @@ class ZarrCache(CacheNode):
     group_bool = tl.Instance(zarr.hierarchy.Group)
     chunks = tl.Union([tl.List(), tl.Dict()], allow_none=True, default_value=None).tag(attr=True)
     selector_method = tl.Unicode(allow_none=True).tag(attr=True)
-    cache_type = tl.Enum(["disk", "ram"], default_value="disk")
+    cache_type = tl.Enum(["disk", "ram"], default_value="disk").tag(attr=True)
+    data_dtype = tl.Unicode('float64').tag(attr=True)
+    compressor = tl.Any(zarr.Blosc(cname='zstd', clevel=5, shuffle=zarr.blosc.SHUFFLE))
 
     # Private Traits
     _z_node = tl.Instance(Zarr)
@@ -147,9 +149,10 @@ class ZarrCache(CacheNode):
                     "data",
                     shape=self.shape,
                     chunks=self._chunks,
-                    dtype="float64",
+                    dtype=self.data_dtype,
                     fill_value=np.nan,
-                    write_empty_chunks=False
+                    write_empty_chunks=False,
+                    compressor=self.compressor
                 )  # adjust dtype as necessary
                 self._create_coordinate_zarr_dataset(group, ['data'])
 
@@ -169,7 +172,15 @@ class ZarrCache(CacheNode):
                     self._global_zarr_bool_ram_cache[self.hash] = zarr.group()
                 group = self._global_zarr_bool_ram_cache[self.hash]  # assumes ram not persistent
             if "contains" not in group:
-                group.create_dataset("contains", shape=self.shape, dtype="bool", fill_value=False)
+                group.create_dataset(
+                    "contains",
+                    shape=self.shape,
+                    chunks=self._chunks,
+                    dtype="bool",
+                    fill_value=False,
+                    write_empty_chunks=False,
+                    compressor=self.compressor
+                )
                 self._create_coordinate_zarr_dataset(group, ['contains'])
             return group
         except Exception as e:
@@ -376,7 +387,13 @@ class ZarrCache(CacheNode):
         # Initialize output
         dim_order = coordinates.dims
         coordinates = coordinates.transpose(*self._coordinates.dims)
-        data = self.create_output_array(coordinates)
+        if self.source.output is not None:
+            if not isinstance(self.source.output, list):
+                data = self.create_output_array(coordinates, outputs=[self.source.output])
+            else:
+                data = self.create_output_array(coordinates, outputs=self.source.output)
+        else:
+            data = self.create_output_array(coordinates)
 
         # Find valid request coordinates that are within the source's bounds
         valid_coordinates, valid_request_indices = coordinates.intersect(self._coordinates, return_index=True)
