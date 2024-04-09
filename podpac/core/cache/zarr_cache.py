@@ -394,7 +394,7 @@ class ZarrCache(CacheNode):
                 data = self.create_output_array(coordinates, outputs=[self.source.output])
                 output_inds = [self.outputs.index(self.source.output)]
         else:
-            output_inds = slice(None)
+            output_inds = None
             data = self.create_output_array(coordinates)
 
         # Find valid request coordinates that are within the source's bounds
@@ -415,6 +415,12 @@ class ZarrCache(CacheNode):
             slices_inds = tuple(slices.get(dim) for dim in self._coordinates.dims)
 
             # Use the slices to place data from Zarr cache into the correct location in the result array
-            data[valid_request_indices] = self._z_node.dataset["data"][slices_inds][..., output_inds]
+            if output_inds is None:
+                data[valid_request_indices] = self._z_node.dataset["data"][slices_inds]
+            else:
+                # Next lines is convenient but EXPENSIVE memory-wise! Just iterate over the abouts, stack, and assign
+                # data[valid_request_indices] = self._z_node.dataset["data"][slices_inds][..., output_inds]
+                for i, oi in enumerate(output_inds):
+                    data[valid_request_indices + (i,)] = self._z_node.dataset["data"][slices_inds + (oi,)]
 
         return data.transpose(*dim_order, ...)
