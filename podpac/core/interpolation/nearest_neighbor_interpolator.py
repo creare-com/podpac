@@ -286,7 +286,7 @@ class NearestNeighbor(Interpolator):
                         src_coords.reshape(src_coords.shape[0], -1).T.min(0),
                         src_coords.reshape(src_coords.shape[0], -1).T.max(0),
                     ],
-                    axis=1,
+                    axis=0,
                 )
             # Fix order of bounds
             bounds = bounds[:, [source.udims.index(dim) for dim in udims]]
