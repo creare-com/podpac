@@ -55,7 +55,7 @@ class Style(tl.HasTraits):
     @tl.validate("colormap")
     def _validate_colormap(self, d):
         if isinstance(d["value"], six.string_types):
-            matplotlib.cm.get_cmap(d["value"])
+            matplotlib.colormaps[d["value"]]
         if d["value"] and self.enumeration_colors:
             raise TypeError("Style can have a colormap or enumeration_colors, but not both")
         return d["value"]
@@ -100,11 +100,11 @@ class Style(tl.HasTraits):
     @property
     def cmap(self):
         if self.colormap:
-            return matplotlib.cm.get_cmap(self.colormap)
+            return matplotlib.colormaps[self.colormap]
         elif self.enumeration_colors:
             return ListedColormap(self.full_enumeration_colors)
         else:
-            return matplotlib.cm.get_cmap("viridis")
+            return matplotlib.colormaps["viridis"]
 
     @property
     def json(self):
