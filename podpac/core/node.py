@@ -187,6 +187,8 @@ class Node(tl.HasTraits):
 
     def __init__(self, **kwargs):
         """Do not overwrite me"""
+        
+        self._base_ref = self.__class__.__name__ 
 
         # Shortcut for users to make setting the cache_ctrl simpler:
         if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
@@ -477,7 +479,11 @@ class Node(tl.HasTraits):
         str
             Name of the node in node definitions
         """
-        return self.__class__.__name__
+        return self._base_ref
+    
+    @base_ref.setter
+    def base_ref(self, value):
+        self._base_ref = value
 
     @property
     def _base_definition(self):
