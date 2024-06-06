@@ -1365,7 +1365,6 @@ def _process_kwargs(name, d, definition, nodes):
             raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
 
     nodes[name] = node_class(**kwargs)
-    print(nodes[name].style.__class__)
 
 
 # --------------------------------------------------------#
