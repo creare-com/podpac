@@ -1325,12 +1325,10 @@ def _process_kwargs(name, d, definition, nodes):
             
             try:
                 style_module = importlib.import_module(module_style_name)
-                print("imported style_module {}".format(style_module))
             except ImportError:
                 raise ValueError("Invalid definition for style module '%s': no module found '%s'" % (name, module_style_name))
             try:
                 style_class = getattr(style_module, style_name)
-                print("getattr style_class {}".format(style_class))
             except AttributeError:
                 raise ValueError(
                     "Invalid definition for style '%s': style class '%s' not found in style module '%s'" % (name, style_name, module_style_name)
@@ -1347,25 +1345,26 @@ def _process_kwargs(name, d, definition, nodes):
                 try:
                     style_class = atr(node_class)
                 except Exception as e:
-                    # print ("couldn't make style from class", e)
                     try:
                         style_class = atr(node_class())
                     except:
-                        # print ("couldn't make style from class instance", e)
                         style_class = style_class.klass
         try:
             kwargs["style"] = style_class.from_definition(d["style"])
         except Exception as e:
             kwargs["style"] = Style.from_definition(d["style"])
-            # print ("couldn't make style from inferred style class", e)
 
 
     for k in d:
         if k not in ["node", "inputs", "attrs", "lookup_attrs", "plugin", "style", "style_class"]:
             raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
 
-    nodes[name] = node_class(**kwargs)
+    for k in kwargs.keys():
+        if not (hasattr(node_class, k) and isinstance(getattr(node_class, k), tl.TraitType)):
+            logging.warn("Node definition has key '{}' that will not be set at node creation: attribute is not of type tl.TraitType".format(k))
 
+    nodes[name] = node_class(**kwargs)
+    
 
 # --------------------------------------------------------#
 #  Mixins
