@@ -1308,7 +1308,10 @@ def _process_kwargs(name, d, definition, nodes):
 
     kwargs = {}
     for k, v in d.get("attrs", {}).items():
-        kwargs[k] = v
+        if isinstance(getattr(node_class, k), tl.TraitType) and hasattr(getattr(node_class, k), "klass") and isinstance(v, OrderedDict) and  getattr(node_class, k).klass == Coordinates:
+            kwargs[k] = Coordinates.from_definition(v)
+        else:
+            kwargs[k] = v
 
     for k, v in d.get("inputs", {}).items():
         kwargs[k] = _lookup_input(nodes, name, v, definition)
