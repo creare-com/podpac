@@ -151,7 +151,7 @@ class RasterioRaw(S3Mixin, BaseFileSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}"""
         if self.prefer_overviews:
-            return self.get_data_overviews(coordinates, coordinates_index)
+            return self.get_data_overviews(coordinates)
 
         data = self.create_output_array(coordinates)
         slc = coordinates_index
@@ -169,7 +169,12 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         data.data.ravel()[:] = raster_data.ravel()
         return data
 
-    def get_data_overviews(self, coordinates, coordinates_index):
+    def _get_window_coords(self,coordinates,new_coords):
+        new_coords,slc = new_coords.intersect(coordinates,return_index=True,outer=True)
+        window = ((slc[0].start,slc[0].stop),(slc[1].start,slc[1].stop))
+        return window,new_coords
+
+    def get_data_overviews(self, coordinates):
         # Figure out how much coarser the request is than the actual data
         reduction_factor = np.inf
         for c in ["lat", "lon"]:
@@ -204,7 +209,6 @@ class RasterioRaw(S3Mixin, BaseFileSource):
             overview = self.overviews[np.argmin(diffs)]
 
         # Now read the data
-        inds = coordinates_index
         if overview_level is None:
             dataset = self.dataset
         else:
@@ -215,8 +219,7 @@ class RasterioRaw(S3Mixin, BaseFileSource):
             new_coords = Coordinates.from_geotransform(
                 dataset.transform.to_gdal(), dataset.shape, crs=self.coordinates.crs
             )
-            new_coords,slc = new_coords.intersect(coordinates,return_index=True,outer=True)
-            window = ((slc[0].start,slc[0].stop),(slc[1].start,slc[1].stop))
+            window,new_coords = self._get_window_coords_slc(self,coordinates,new_coords)
             missing_coords = self.coordinates.drop(["lat", "lon"])
             new_coords = merge_dims([new_coords, missing_coords])
             new_coords = new_coords.transpose(*self.coordinates.dims)
