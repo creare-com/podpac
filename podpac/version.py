@@ -16,8 +16,8 @@ from collections import OrderedDict
 ## UPDATE VERSION HERE
 ##############
 MAJOR = 3
-MINOR = 4
-HOTFIX = 1
+MINOR = 5
+HOTFIX = 0
 ##############
 
 
