@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.5.0
+
+### Features
+* Allows users to specify the name of a node when serializing to json #517
+* Allows users to specify custom style class in json node definition #517
+
+### Bugfixes
+* Matplotlib colormap deprecation fix #518
+* Fixed incorrect overview selection in rasterio #519
+
 ## 3.4.1 Point Probe Value Format for Enumerated Legends HOTFIX
 
 ### Hotfix
