@@ -919,8 +919,8 @@ class GroupReduce(UnaryAlgorithm):
 
         return output
 
-    @property
-    def base_ref(self):
+    @tl.default('base_ref')
+    def _default_base_ref(self):
         """
         Default node reference/name in node definitions
 
@@ -1011,8 +1011,8 @@ class ResampleReduce(UnaryAlgorithm):
 
         return output
 
-    @property
-    def base_ref(self):
+    @tl.default('base_ref')
+    def _default_base_ref(self):
         """
         Default node reference/name in node definitions
 

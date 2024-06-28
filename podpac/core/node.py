@@ -143,6 +143,8 @@ class Node(tl.HasTraits):
         [tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default_value=None
     )
     property_cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+    
+    base_ref = tl.Unicode()
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     # e.g. data sources use ['source']
@@ -524,8 +526,8 @@ class Node(tl.HasTraits):
     # Serialization
     # -----------------------------------------------------------------------------------------------------------------
 
-    @property
-    def base_ref(self):
+    @tl.default('base_ref')
+    def _default_base_ref(self):
         """
         Default reference/name in node definitions
 
@@ -534,7 +536,7 @@ class Node(tl.HasTraits):
         str
             Name of the node in node definitions
         """
-        return self.__class__.__name__
+        return self.__class__.__name__ 
 
     @property
     def _base_definition(self):
@@ -588,6 +590,8 @@ class Node(tl.HasTraits):
         if inputs:
             d["inputs"] = inputs
 
+        if not type(self.style) is Style and isinstance(self.style, Style):
+            d["style_class"] = self.style.__class__.__module__ + "." + self.style.__class__.__name__
         # style
         if self.style.definition:
             d["style"] = self.style.definition
@@ -700,6 +704,8 @@ class Node(tl.HasTraits):
         for k in d:
             if "style" in d[k]:
                 del d[k]["style"]
+            if "style_class" in d[k]:
+                del d[k]["style_class"]
 
         s = json.dumps(d, separators=(",", ":"), cls=JSONEncoder)
         return hash_alg(s.encode("utf-8")).hexdigest()
@@ -1351,7 +1357,10 @@ def _process_kwargs(name, d, definition, nodes):
 
     kwargs = {}
     for k, v in d.get("attrs", {}).items():
-        kwargs[k] = v
+        if isinstance(getattr(node_class, k), tl.TraitType) and hasattr(getattr(node_class, k), "klass") and isinstance(v, OrderedDict) and  getattr(node_class, k).klass == Coordinates:
+            kwargs[k] = Coordinates.from_definition(v)
+        else:
+            kwargs[k] = v
 
     for k, v in d.get("inputs", {}).items():
         kwargs[k] = _lookup_input(nodes, name, v, definition)
@@ -1360,7 +1369,24 @@ def _process_kwargs(name, d, definition, nodes):
         kwargs[k] = _lookup_attr(nodes, name, v)
 
     if "style" in d:
-        style_class = getattr(node_class, "style", Style)
+        if "style_class" in d:
+            style_root = module_root
+            # style_string  = "%s.%s" % (style_root, d["style_class"])
+            style_string  = d["style_class"]
+            module_style_name, style_name = style_string.rsplit(".", 1)
+            
+            try:
+                style_module = importlib.import_module(module_style_name)
+            except ImportError:
+                raise ValueError("Invalid definition for style module '%s': no module found '%s'" % (name, module_style_name))
+            try:
+                style_class = getattr(style_module, style_name)
+            except AttributeError:
+                raise ValueError(
+                    "Invalid definition for style '%s': style class '%s' not found in style module '%s'" % (name, style_name, module_style_name)
+                )
+        else:  
+            style_class = getattr(node_class, "style", Style)
         if isinstance(style_class, tl.TraitType):
             # Now we actually have to look through the class to see
             # if there is a custom initializer for style
@@ -1371,21 +1397,23 @@ def _process_kwargs(name, d, definition, nodes):
                 try:
                     style_class = atr(node_class)
                 except Exception as e:
-                    # print ("couldn't make style from class", e)
                     try:
                         style_class = atr(node_class())
                     except:
-                        # print ("couldn't make style from class instance", e)
                         style_class = style_class.klass
         try:
             kwargs["style"] = style_class.from_definition(d["style"])
         except Exception as e:
             kwargs["style"] = Style.from_definition(d["style"])
-            # print ("couldn't make style from inferred style class", e)
+
 
     for k in d:
-        if k not in ["node", "inputs", "attrs", "lookup_attrs", "plugin", "style"]:
+        if k not in ["node", "inputs", "attrs", "lookup_attrs", "plugin", "style", "style_class"]:
             raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
+
+    for k in kwargs.keys():
+        if not (hasattr(node_class, k) and isinstance(getattr(node_class, k), tl.TraitType)):
+            logging.warn("Node definition has key '{}' that will not be set at node creation: attribute is not of type tl.TraitType".format(k))
 
     nodes[name] = node_class(**kwargs)
 

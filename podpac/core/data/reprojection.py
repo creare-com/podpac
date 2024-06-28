@@ -102,6 +102,6 @@ class ReprojectedSource(DataSource):
         coordinates.drop(drop_dims)
         return data
 
-    @property
-    def base_ref(self):
+    @tl.default('base_ref')
+    def _default_base_ref(self):
         return "{}_reprojected".format(self.source.base_ref)
