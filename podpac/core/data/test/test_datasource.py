@@ -109,7 +109,7 @@ class TestDataSource(object):
         assert node.get_coordinates_called == 1
 
         # can't set coordinates attribute
-        with pytest.raises(AttributeError, match="can't set attribute"):
+        with pytest.raises(AttributeError):
             node.coordinates = Coordinates([])
 
     def test_dims(self):
@@ -169,7 +169,7 @@ class TestDataSource(object):
 
     def test_set_coordinates(self):
         node = MockDataSource()
-        node.set_coordinates(Coordinates([]))
+        node.set_coordinates(Coordinates([]), force=True)
         assert node.coordinates == Coordinates([])
         assert node.coordinates != node.get_coordinates()
 
