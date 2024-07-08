@@ -219,7 +219,7 @@ class Rasterio(S3Mixin, BaseFileSource):
             new_coords = Coordinates.from_geotransform(
                 dataset.transform.to_gdal(), dataset.shape, crs=self.coordinates.crs
             )
-            window,new_coords = self._get_window_coords_slc(self,coordinates,new_coords)
+            window,new_coords = self._get_window_coords(coordinates,new_coords)
             missing_coords = self.coordinates.drop(["lat", "lon"])
             new_coords = merge_dims([new_coords, missing_coords])
             new_coords = new_coords.transpose(*self.coordinates.dims)
