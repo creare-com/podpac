@@ -185,10 +185,17 @@ class Selector(tl.HasTraits):
 
     def _select_nonuniform(self, source, request, index_type):
         src, req = _higher_precision_time_coords1d(source, request[source.name])
-        ckdtree_source = cKDTree(src[:, None])
-        _, inds = ckdtree_source.query(req[:, None], k=len(self.method))
-        inds = inds[inds < source.coordinates.size]
-        return inds.ravel()
+        if len(req.shape) == 1:
+            ckdtree_source = cKDTree(src[:, None])
+            _, inds = ckdtree_source.query(req[:, None], k=len(self.method))
+            inds = inds[inds < source.coordinates.size]
+            return inds.ravel()
+        else:
+            ckdtree_source = cKDTree(src[:, None])
+            _, inds = ckdtree_source.query(req.ravel()[:, None], k=len(self.method))
+            inds = inds[inds < source.coordinates.size]
+            return inds.reshape(req.shape)
+
 
     def _select_stacked(self, source, request, index_type):
         udims = [ud for ud in source.udims if ud in request.udims]
