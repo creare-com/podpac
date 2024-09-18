@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.5.1 Method Rename in Rasterio Source Window Coordinates HOTFIX
+
+### Hotfix
+*  Changed method name `_get_window_coords_slc` to `_get_window_coords`
+
 ## 3.5.0
 
 ### Features
