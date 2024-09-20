@@ -17,7 +17,7 @@ __version__ = version.version()
 
 install_requires = [
     "matplotlib>=2.1",
-    "numpy>=1.14",
+    "numpy>=1.14,<2",
     "pint>=0.8",
     "scipy>=1.0",
     "traitlets>=4.3",

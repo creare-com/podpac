@@ -15,7 +15,7 @@ import traitlets as tl
 from podpac.core.coordinates import Coordinates, union
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node, NodeException, COMMON_NODE_DOC
-from podpac.core.utils import common_doc, NodeTrait
+from podpac.core.utils import common_doc, NodeTrait, align_xarray_dict
 from podpac.core.settings import settings
 from podpac.core.managers.multi_threading import thread_manager
 
@@ -130,6 +130,9 @@ class Algorithm(BaseAlgorithm):
                 inputs[key] = node.eval(coordinates, output=output, _selector=_selector)
             self._multi_threaded = False
 
+        if settings["ALGORITHM_XARRAY_FLOATING_POINT_CORRECTION"]:
+            inputs = align_xarray_dict(inputs)
+        
         result = self.algorithm(inputs, coordinates)
 
         if not isinstance(result, xr.DataArray):
