@@ -157,9 +157,9 @@ class ArrayTrait(tl.TraitType):
         if ndim is not None and shape is not None and len(shape) != ndim:
             raise ValueError("Incompatible ndim and shape (ndim=%d, shape=%s)" % (ndim, shape))
         if dtype is not None and not isinstance(dtype, type):
-            if dtype not in np.typeDict:
+            if dtype not in np.sctypeDict:
                 raise ValueError("Unknown dtype '%s'" % dtype)
-            dtype = np.typeDict[dtype]
+            dtype = np.sctypeDict[dtype]
         self.ndim = ndim
         self.shape = shape
         self.dtype = dtype
