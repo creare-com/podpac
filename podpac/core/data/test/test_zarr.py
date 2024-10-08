@@ -74,7 +74,7 @@ class TestZarr(object):
         assert out.sel(output="a")[0, 0] == 0.0
         assert out.sel(output="b")[0, 0] == 1.0
 
-    @pytest.mark.skip
+    @pytest.mark.skip("Unreachable source")
     def test_s3(self):
         # This file no longer exists
         path = "s3://podpac-internal-test/drought_parameters.zarr"

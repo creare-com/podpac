@@ -60,13 +60,15 @@ class TestLoadFile(object):
         node.dataset
 
     @pytest.mark.aws
+    @pytest.mark.skip("Unreachable source")
     def test_s3(self):
         # TODO replace this with a better public s3 fileobj for testing
         path = "s3://modis-pds/MCD43A4.006/00/08/2020018/MCD43A4.A2020018.h00v08.006.2020027031229_meta.json"
         node = MockLoadFile(source=path)
         node.dataset
 
-    @pytest.mark.aws  # TODO
+    @pytest.mark.aws
+    @pytest.mark.skip("Unreachable source")
     def test_ftp(self):
         node = MockLoadFile(source="ftp://speedtest.tele2.net/1KB.zip")
         node.dataset
