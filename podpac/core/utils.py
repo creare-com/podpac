@@ -687,7 +687,6 @@ def align_xarray_dict(inputs):
     """
     keys = list(inputs.keys())
     for k in keys[1:]:
-        for kl in ['lat','lon'] :
-            a,b = xr.align(inputs[keys[0]][kl],inputs[k][kl],join='override')
-            inputs[k][kl] = b
+        a,b = xr.align(inputs[keys[0]],inputs[k],join='override')
+        inputs[k] = b
     return inputs
