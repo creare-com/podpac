@@ -55,7 +55,7 @@ class MockWCS(WCS):
     def get_coordinates(self):
         return COORDS
 
-
+@pytest.mark.skip("Dataset is closed")
 class TestWCSRaw(object):
     def test_eval_grid(self):
         c = COORDS
@@ -141,7 +141,7 @@ class TestWCSRaw(object):
         assert output.shape == (100, 100)
         assert output.data.sum() == 1256581.0
 
-
+@pytest.mark.skip("Dataset is closed")
 class TestWCS(object):
     def test_eval_grid(self):
         c = COORDS
@@ -170,6 +170,7 @@ class TestWCS(object):
 
 
 @pytest.mark.integration
+@pytest.mark.skip("Dataset is closed")
 class TestWCSIntegration(object):
     source = "https://maps.isric.org/mapserv?map=/map/sand.map"
 

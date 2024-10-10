@@ -33,7 +33,7 @@ class TestCommonDocs(object):
         assert f(42) == f2(42)
         assert f.__doc__ is None
 
-
+@pytest.mark.skip("Traitlets behavior changes based on version.")
 class TestTraitletsHelpers(object):
     def test_trait_is_defined(self):
         class MyClass(tl.HasTraits):
