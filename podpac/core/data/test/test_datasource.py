@@ -546,6 +546,8 @@ class TestDataSource(object):
     def test_eval_get_cache_transform_crs(self):
         with podpac.settings:
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
+            podpac.settings["DEFAULT_CRS"] = podpac.core.settings.DEFAULT_SETTINGS["DEFAULT_CRS"]
+
 
             node = podpac.core.data.array_source.Array(
                 source=np.ones((3, 4)),

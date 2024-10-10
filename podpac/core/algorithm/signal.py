@@ -246,7 +246,10 @@ class Convolution(UnaryAlgorithm):
             k = np.ones([size] * ndim)
         else:
             args = [float(a) for a in kernel_type.split(",")[2:]]
-            f = getattr(scipy.signal, ktype)
+            if hasattr(scipy.signal,ktype):
+                f = getattr(scipy.signal, ktype)
+            else:
+                f = getattr(scipy.signal.windows, ktype)
             k1d = f(size, *args)
             k = k1d.copy()
             for i in range(ndim - 1):
