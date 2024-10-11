@@ -548,10 +548,9 @@ class TestDataSource(object):
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
             podpac.settings["DEFAULT_CRS"] = podpac.core.settings.DEFAULT_SETTINGS["DEFAULT_CRS"]
 
-
             node = podpac.core.data.array_source.Array(
-                source=np.ones((3, 4)),
-                coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"], crs="EPSG:4326"),
+                source=np.ones((5, 4)),
+                coordinates=podpac.Coordinates([range(5), range(4)], ["lat", "lon"], crs="EPSG:4326"),
                 cache_ctrl=["ram"],
             )
 
