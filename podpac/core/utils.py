@@ -669,3 +669,24 @@ def get_ui_node_spec(module=None, category="default", help_as_html=False):
         spec[category][obj] = ob.get_ui_spec(help_as_html=help_as_html)
 
     return spec
+
+def align_xarray_dict(inputs):
+    """
+    Overrides the coordinates of each xarray entry so that they match to avoid 
+    floating-point issues
+
+    Parameters
+    -----------
+    inputs: dict containing xarrays
+        The keys are the attribute names. Each item is a `UnitsDataArray`.
+
+    Returns
+    --------
+    dict
+        Dictionary of {string: UnitsDataArray} with the coorindates of each value matching.
+    """
+    keys = list(inputs.keys())
+    for k in keys[1:]:
+        a,b = xr.align(inputs[keys[0]],inputs[k],join='override')
+        inputs[k] = b
+    return inputs

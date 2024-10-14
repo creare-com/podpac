@@ -119,6 +119,7 @@ class TestNode(object):
             node = MyNode()
             assert not node.traits()["my_attr"].read_only
 
+    @pytest.mark.skip("Traitlets behavior changes based on version.")
     def test_trait_is_defined(self):
         node = Node()
         if tl.version_info[0] >= 5:

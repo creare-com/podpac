@@ -1,9 +1,14 @@
 # Changelog
 
-## 3.5.1 Method Rename in Rasterio Source Window Coordinates HOTFIX
+## 3.5.2
 
-### Hotfix
-*  Changed method name `_get_window_coords_slc` to `_get_window_coords`
+### Bugfixes
+* Corrected issue with algorithm coorindate alignment implementation
+
+## 3.5.1
+
+### Features
+* Added setting that makes algorithm nodes force aligment of xarray coordinates to prevent floating-point issues causing values to drop out
 
 ## 3.5.0
 

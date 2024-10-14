@@ -556,6 +556,7 @@ class TestDiskCacheStore(FileCacheStoreTests):
 
 
 @pytest.mark.aws
+@pytest.mark.skip("Unreachable source")
 class TestS3CacheStore(FileCacheStoreTests):
     Store = S3CacheStore
     enabled_setting = "S3_CACHE_ENABLED"

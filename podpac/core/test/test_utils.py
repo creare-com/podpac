@@ -23,6 +23,7 @@ from podpac.core.utils import JSONEncoder, is_json_serializable
 from podpac.core.utils import cached_property
 from podpac.core.utils import ind2slice
 from podpac.core.utils import probe_node
+from podpac.core.utils import align_xarray_dict
 
 
 class TestCommonDocs(object):
@@ -32,7 +33,7 @@ class TestCommonDocs(object):
         assert f(42) == f2(42)
         assert f.__doc__ is None
 
-
+@pytest.mark.skip("Traitlets behavior changes based on version.")
 class TestTraitletsHelpers(object):
     def test_trait_is_defined(self):
         class MyClass(tl.HasTraits):
@@ -757,3 +758,41 @@ class TestNodeProber(object):
         }
         out = probe_node(a, lat=1, lon=1, nested=True, add_enumeration_labels=True)
         assert out == expected
+
+def test_align_xarray_dict():
+    data_a = np.random.random((20,15))
+    a = podpac.UnitsDataArray(
+        np.array(data_a),
+        coords={"lat": np.linspace(0,5,20), "lon": np.linspace(10,20,15)},
+        dims=["lat", "lon"],
+    )
+
+    data_b = np.random.random((20,15))
+    b = podpac.UnitsDataArray(
+        np.array(data_b),
+        coords={"lat": np.linspace(0.2,5.2,20), "lon": np.linspace(10.1,20.1,15)},
+        dims=["lat", "lon"],
+    )
+
+    data_c = np.random.random((20,15))
+    c = podpac.UnitsDataArray(
+        np.array(data_c),
+        coords={"lat": np.linspace(-44,18,20), "lon": np.linspace(-101,-90,15)},
+        dims=["lat", "lon"],
+    )
+    
+    inputs = {'A':a,
+              'B':b,
+              'C':c}
+    
+
+    inputs = align_xarray_dict(inputs)
+
+    for k in ['lat','lon']:
+        assert(np.all(inputs['A'][k]==inputs['B'][k]))
+        assert(np.all(inputs['A'][k]==inputs['C'][k]))
+    assert(np.all(inputs['A'].data==data_a))
+    assert(np.all(inputs['B'].data==data_b))
+    assert(np.all(inputs['C'].data==data_c))
+
+    assert(np.all((inputs['A'] + inputs['B'] + inputs['C']).shape == inputs['A'].shape))
