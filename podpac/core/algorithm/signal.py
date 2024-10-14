@@ -246,7 +246,7 @@ class Convolution(UnaryAlgorithm):
             k = np.ones([size] * ndim)
         else:
             args = [float(a) for a in kernel_type.split(",")[2:]]
-            if hasattr(scipy.signal,ktype):
+            if hasattr(scipy.signal,ktype): # scipy moved where "gaussian" is placed, this handles similar circumstances
                 f = getattr(scipy.signal, ktype)
             else:
                 f = getattr(scipy.signal.windows, ktype)

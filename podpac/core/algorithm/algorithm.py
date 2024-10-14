@@ -53,6 +53,11 @@ class BaseAlgorithm(Node):
 class Algorithm(BaseAlgorithm):
     """Base class for computation nodes with a custom algorithm.
 
+    Attributes
+    ----------
+    xarray_floating_point_correction: bool
+        if true, ensures that all input coordinates match during _eval calls 
+
     Notes
     ------
     Developers of new Algorithm nodes need to implement the `algorithm` method.
@@ -60,6 +65,9 @@ class Algorithm(BaseAlgorithm):
 
     # not the best solution... hard to check for these attrs
     # abstract = tl.Bool(default_value=True, allow_none=True).tag(attr=True, required=False, hidden=True)
+
+    xarray_floating_point_correction = tl.Bool(default_value=settings["ALGORITHM_XARRAY_FLOATING_POINT_CORRECTION"], 
+                                               allow_none=False).tag(attr=True)
 
     def algorithm(self, inputs, coordinates):
         """
@@ -130,7 +138,7 @@ class Algorithm(BaseAlgorithm):
                 inputs[key] = node.eval(coordinates, output=output, _selector=_selector)
             self._multi_threaded = False
 
-        if settings["ALGORITHM_XARRAY_FLOATING_POINT_CORRECTION"]:
+        if self.xarray_floating_point_correction:
             inputs = align_xarray_dict(inputs)
         
         result = self.algorithm(inputs, coordinates)

@@ -794,3 +794,5 @@ def test_align_xarray_dict():
     assert(np.all(inputs['A'].data==data_a))
     assert(np.all(inputs['B'].data==data_b))
     assert(np.all(inputs['C'].data==data_c))
+
+    assert(np.all((inputs['A'] + inputs['B'] + inputs['C']).shape == inputs['A'].shape))
