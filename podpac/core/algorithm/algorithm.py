@@ -66,8 +66,11 @@ class Algorithm(BaseAlgorithm):
     # not the best solution... hard to check for these attrs
     # abstract = tl.Bool(default_value=True, allow_none=True).tag(attr=True, required=False, hidden=True)
 
-    xarray_floating_point_correction = tl.Bool(default_value=settings["ALGORITHM_XARRAY_FLOATING_POINT_CORRECTION"], 
-                                               allow_none=False).tag(attr=True)
+    xarray_floating_point_correction = tl.Bool(allow_none=False).tag(attr=True)
+
+    @tl.default("xarray_floating_point_correction")
+    def _default_xarray_floating_point_correction(self):
+        return settings["ALGORITHM_XARRAY_FLOATING_POINT_CORRECTION"]
 
     def algorithm(self, inputs, coordinates):
         """
