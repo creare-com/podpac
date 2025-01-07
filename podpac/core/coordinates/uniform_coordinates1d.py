@@ -1,22 +1,18 @@
-from __future__ import division, unicode_literals, print_function, absolute_import
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import copy
 from collections import OrderedDict
 
 import numpy as np
 import traitlets as tl
-from collections import OrderedDict
 
-from podpac.core.coordinates.utils import (
-    make_coord_value,
-    make_coord_delta,
-    add_coord,
-    divide_delta,
-    timedelta_divisible,
-    lower_precision_time_bounds,
-)
-from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
+from podpac.core.coordinates.coordinates1d import Coordinates1d
+from podpac.core.coordinates.utils import (add_coord, divide_delta,
+                                           lower_precision_time_bounds,
+                                           make_coord_delta, make_coord_value,
+                                           timedelta_divisible)
 from podpac.core.utils import cached_property
 
 
@@ -101,7 +97,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         if step is not None:
             step = make_coord_delta(step)
-        elif isinstance(size, (int, np.compat.long, np.integer)) and not isinstance(size, np.timedelta64):
+        elif isinstance(size, (int, np.int64, np.integer)) and not isinstance(size, np.timedelta64):
             step = divide_delta(stop - start, size - 1)
         else:
             raise TypeError("size must be an integer, not '%s'" % type(size))
