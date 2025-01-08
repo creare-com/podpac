@@ -23,6 +23,31 @@ nodes being automatically interpolated on `eval`. Now users have to create `Inte
   longer automatically interpolate. Instead, use `node = Rasterio(...).interpolate()` to restore that functionality.
 
 
+## 3.5.3
+
+### Bugfixes
+* Fixed Python 2/3 compatibility that's not longer supported by Numpy. This prevented PODPAC from using numpy version > 2.
+
+## 3.5.2
+
+### Bugfixes
+* Corrected issue with algorithm coorindate alignment implementation
+
+## 3.5.1
+
+### Features
+* Added setting that makes algorithm nodes force aligment of xarray coordinates to prevent floating-point issues causing values to drop out
+
+## 3.5.0
+
+### Features
+* Allows users to specify the name of a node when serializing to json #517
+* Allows users to specify custom style class in json node definition #517
+
+### Bugfixes
+* Matplotlib colormap deprecation fix #518
+* Fixed incorrect overview selection in rasterio #519
+
 ## 3.4.1 Point Probe Value Format for Enumerated Legends HOTFIX
 
 ### Hotfix
