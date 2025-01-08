@@ -5,6 +5,8 @@ import podpac
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac import clinspace
 
+from numpy.testing import assert_approx_equal
+
 
 class TestCoordinates1d(object):
     """
@@ -88,6 +90,7 @@ class TestCoordinates1d(object):
 
     def test_horizontal_resolution(self):
         """Test horizontal resolution implentation for Coordinates1d. Edge cases are handled in Coordinates.py"""
+
         # Latitude
         lat = clinspace(-80, 80, 5)
         lat.name = "lat"  # normally assigned when creating Coords object
@@ -108,15 +111,22 @@ class TestCoordinates1d(object):
         assert lat.horizontal_resolution(lat, ell_tuple, coord_name) == 4442569.935968436 * podpac.units("meter")
         assert lon.horizontal_resolution(lat, ell_tuple, coord_name) == 0.0 * podpac.units("meter")
 
-        # Resolution: summary
-        assert lat.horizontal_resolution(lat, ell_tuple, coord_name, restype="summary") == (
-            4442569.935968436 * podpac.units("meter"),
-            13040.905617921147 * podpac.units("meter"),
-        )
-        assert lon.horizontal_resolution(lat, ell_tuple, coord_name, restype="summary") == (
-            5558704.3695234 * podpac.units("meter"),
-            3399219.0171971265 * podpac.units("meter"),
-        )
+        # # Resolution: summary
+        lat_summary = lat.horizontal_resolution(lat, ell_tuple, coord_name, restype="summary")
+        lon_summary = lon.horizontal_resolution(lat, ell_tuple, coord_name, restype="summary")
+        lat_compare = (
+                4442569.935968436 * podpac.units("meter"),
+                13040.905617921147 * podpac.units("meter"),
+            )
+        lon_compare = (
+                5558704.3695234 * podpac.units("meter"),
+                3399219.0171971265 * podpac.units("meter"),
+            )
+        for i in range(2):
+            assert lat_summary[i].units==lat_compare[i].units
+            assert_approx_equal(lat_summary[i].m,lat_compare[i].m)
+            assert lon_summary[i].units==lon_compare[i].units
+            assert_approx_equal(lon_summary[i].m,lon_compare[i].m)
 
         # Resolution: full
         lat_answer = [4455610.84158636, 4429529.03035052, 4429529.03035052, 4455610.84158636]

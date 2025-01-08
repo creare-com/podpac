@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.5.2
+
+### Bugfixes
+* Corrected issue with algorithm coorindate alignment implementation
+
+## 3.5.1
+
+### Features
+* Added setting that makes algorithm nodes force aligment of xarray coordinates to prevent floating-point issues causing values to drop out
+
 ## 3.5.0
 
 ### Features
