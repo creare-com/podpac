@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.5.3
+
+### Bugfixes
+* Fixed Python 2/3 compatibility that's not longer supported by Numpy. This prevented PODPAC from using numpy version > 2.
+
 ## 3.5.2
 
 ### Bugfixes
