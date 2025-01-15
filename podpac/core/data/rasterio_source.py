@@ -82,13 +82,16 @@ class RasterioRaw(S3Mixin, BaseFileSource):
         if overview_level is not None:
             kwargs = {"overview_level": overview_level}
         if source.startswith("s3://"):
-            envargs["session"] = rasterio.session.AWSSession(
-                aws_access_key_id=self.aws_access_key_id,
-                aws_secret_access_key=self.aws_secret_access_key,
-                region_name=self.aws_region_name,
-                requester_pays=self.aws_requester_pays,
-                aws_unsigned=self.anon,
-            )
+            if self.aws_get_auth_from_env:
+                envargs["session"] = rasterio.session.AWSSession()
+            else:
+                envargs["session"] = rasterio.session.AWSSession(
+                    aws_access_key_id=self.aws_access_key_id,
+                    aws_secret_access_key=self.aws_secret_access_key,
+                    region_name=self.aws_region_name,
+                    requester_pays=self.aws_requester_pays,
+                    aws_unsigned=self.anon,
+                )
 
             with rasterio.env.Env(**envargs) as env:
                 _logger.debug("Rasterio environment options: {}".format(env.options))
