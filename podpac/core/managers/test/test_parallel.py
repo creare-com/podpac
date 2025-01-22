@@ -40,7 +40,7 @@ class TestParallel(object):
 
         np.testing.assert_array_equal(o, o_p)
 
-    @pytest.mark.skipif(sys.version_info[0:2] < (3,7), reason="python < 3.7 cannot handle processes launched from threads")
+    @pytest.mark.skipif(sys.version_info < (3,7), reason="python < 3.7 cannot handle processes launched from threads")
     def test_parallel_process(self):
         node = Process(source=CoordData(coord_name="time"))
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
@@ -55,7 +55,7 @@ class TestParallel(object):
 
 
 class TestParallelAsync(object):
-    @pytest.mark.skipif(sys.version_info[0:2] < (3,7), reason="python < 3.7 cannot handle processes launched from threads")
+    @pytest.mark.skipif(sys.version_info < (3,7), reason="python < 3.7 cannot handle processes launched from threads")
     def test_parallel_process_async(self):
         node = Process(source=CoordData(coord_name="time"))  # , block=False)
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
@@ -66,7 +66,7 @@ class TestParallelAsync(object):
 
 
 class TestParallelOutputZarr(object):
-    @pytest.mark.skipif(sys.version_info[0:2] < (3,7), reason="python < 3.7 cannot handle processes launched from threads")
+    @pytest.mark.skipif(sys.version_info < (3,7), reason="python < 3.7 cannot handle processes launched from threads")
     def test_parallel_process_zarr(self):
         # Can't use tempfile.TemporaryDirectory because multiple processess need access to dir
         tmpdir = os.path.join(tempfile.gettempdir(), "test_parallel_process_zarr.zarr")
@@ -83,7 +83,7 @@ class TestParallelOutputZarr(object):
 
         shutil.rmtree(tmpdir)
 
-    @pytest.mark.skipif(sys.version_info[0:2] < (3,7), reason="python < 3.7 cannot handle processes launched from threads")
+    @pytest.mark.skipif(sys.version_info < (3,7), reason="python < 3.7 cannot handle processes launched from threads")
     def test_parallel_process_zarr_async(self):
         # Can't use tempfile.TemporaryDirectory because multiple processess need access to dir
         tmpdir = os.path.join(tempfile.gettempdir(), "test_parallel_process_zarr_async.zarr")
@@ -100,7 +100,7 @@ class TestParallelOutputZarr(object):
 
         shutil.rmtree(tmpdir)
 
-    @pytest.mark.skipif(sys.version_info[0:2] < (3,7), reason="python < 3.7 cannot handle processes launched from threads")
+    @pytest.mark.skipif(sys.version_info < (3,7), reason="python < 3.7 cannot handle processes launched from threads")
     def test_parallel_process_zarr_async_starti(self):
         # Can't use tempfile.TemporaryDirectory because multiple processess need access to dir
         tmpdir = os.path.join(tempfile.gettempdir(), "test_parallel_process_zarr_async_starti.zarr")
