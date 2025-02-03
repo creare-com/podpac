@@ -6,7 +6,7 @@ from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 
-def crange(start, stop, step, name=None):
+def crange(start, stop, step, name=None, fix_stop_val=False, fix_start_val=False):
     """
     Create uniformly-spaced 1d coordinates with a start, stop, and step.
 
@@ -25,6 +25,14 @@ def crange(start, stop, step, name=None):
         Signed, non-zero step between coordinates.
     name : str, optional
         Dimension name.
+    fix_stop_val : bool, optional
+        Default is True. If True, the stop value *may* be modified to ensure that
+        stop = start + step *  size.Otherwise, the constructor will modify the step to be consistent
+        instead of the stop value.
+    fix_start_val : bool, optional
+        Default is False. If True, the start value *may* be modified to ensure that
+        start = stop - step * size. Otherwise, the constructor will modify the step to be consistent
+        instead of the start value. 
 
     Returns
     -------
@@ -32,7 +40,7 @@ def crange(start, stop, step, name=None):
         Uniformly-spaced 1d coordinates.
     """
 
-    return UniformCoordinates1d(start, stop, step=step, name=name)
+    return UniformCoordinates1d(start, stop, step=step, name=name, fix_stop_val=fix_stop_val, fix_start_val=fix_start_val)
 
 
 def clinspace(start, stop, size, name=None):

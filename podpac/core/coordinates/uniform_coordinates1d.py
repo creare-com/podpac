@@ -57,7 +57,7 @@ class UniformCoordinates1d(Coordinates1d):
     step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)], read_only=True)
     step.__doc__ = ":float, timedelta64: Signed, non-zero step between coordinates."
 
-    def __init__(self, start, stop, step=None, size=None, name=None, fix_stop_val=False):
+    def __init__(self, start, stop, step=None, size=None, name=None, fix_stop_val=True, fix_start_val=False):
         """
         Create uniformly-spaced 1d coordinates from a `start`, `stop`, and `step` or `size`.
 
@@ -74,9 +74,13 @@ class UniformCoordinates1d(Coordinates1d):
         name : str, optional
             Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
         fix_stop_val : bool, optional
-            Default is False. If True, the constructor will modify the step to be consistent
-            instead of the stop value. Otherwise, the stop value *may* be modified to ensure that
-            stop = start + step * size
+        Default is True. If True, the stop value *may* be modified to ensure that
+        stop = start + step *  size.Otherwise, the constructor will modify the step to be consistent
+        instead of the stop value.
+    fix_start_val : bool, optional
+        Default is False. If True, the start value *may* be modified to ensure that
+        start = stop - step * size. Otherwise, the constructor will modify the step to be consistent
+        instead of the start value.
 
         Notes
         ------
@@ -129,8 +133,11 @@ class UniformCoordinates1d(Coordinates1d):
         self.set_trait("stop", stop)
         self.set_trait("step", step)
 
-        if not fix_stop_val:  # Need to make sure that 'stop' is consistent with self.coordinates[-1]
+        if fix_stop_val:  # Need to make sure that 'stop' is consistent with self.coordinates[-1]
             self.set_trait("stop", add_coord(self.start, (self.size - 1) * self.step))
+
+        if fix_start_val:  # Need to make sure that 'start' is consistent with self.coordinates[0]
+            self.set_trait("start", add_coord(self.stop, -(self.size - 1) * self.step))
 
         # Make sure step is floating-point error consistent in all cases
         # This is only needed when the type is float
