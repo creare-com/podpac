@@ -57,7 +57,7 @@ class UniformCoordinates1d(Coordinates1d):
     step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)], read_only=True)
     step.__doc__ = ":float, timedelta64: Signed, non-zero step between coordinates."
 
-    def __init__(self, start, stop, step=None, size=None, name=None, fix_stop_val=True, fix_start_val=False):
+    def __init__(self, start, stop, step=None, size=None, name=None, anchor_boundary=None):
         """
         Create uniformly-spaced 1d coordinates from a `start`, `stop`, and `step` or `size`.
 
@@ -73,18 +73,25 @@ class UniformCoordinates1d(Coordinates1d):
             Number of coordinates (either step or size required).
         name : str, optional
             Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
-        fix_stop_val : bool, optional
-        Default is True. If True, the stop value *may* be modified to ensure that
-        stop = start + step *  size.Otherwise, the constructor will modify the step to be consistent
-        instead of the stop value.
-    fix_start_val : bool, optional
-        Default is False. If True, the start value *may* be modified to ensure that
-        start = stop - step * size. Otherwise, the constructor will modify the step to be consistent
-        instead of the start value.
-
+        anchor_boundary : str, optional
+            Determines whether the `start` or `stop` will be anchored while the other value 
+            may be adjusted to ensure consistency with the given `step` and `size`. 
+            Acceptable values are:
+            - `None` (default), the constructor will modify the `step` to be consistent with 
+                the `start` and `stop` boundaries defined by the user if necessary.
+            - `"start"`: The `start` value will be anchored while the `stop` value *may* be modified to ensure that:
+                ```
+                stop =
+            - `"stop"`: The `stop` value will be anchored while the `start` value *may* be modified to ensure that:
+                ```
+                start = stop - step * size
+                ```
+                start + step * size
+                ```
         Notes
         ------
-        When the user specifies fix_stop_val, then `stop` will always be exact as specified by the user.
+        When the user specifies anchor_boundary as `start`, then `start` will always be exact as specified by the user.
+        When the user specifies anchor_boundary as `stop`, then `stop` will always be exact as specified by the user.
 
         For floating point coordinates, the specified `step` my be changed internally to satisfy floating point consistency.
         That is, for consistency `step = (stop - start)  / (size - 1)`
@@ -133,11 +140,10 @@ class UniformCoordinates1d(Coordinates1d):
         self.set_trait("stop", stop)
         self.set_trait("step", step)
 
-        if fix_stop_val:  # Need to make sure that 'stop' is consistent with self.coordinates[-1]
-            self.set_trait("stop", add_coord(self.start, (self.size - 1) * self.step))
-
-        if fix_start_val:  # Need to make sure that 'start' is consistent with self.coordinates[0]
+        if anchor_boundary == "stop":  # Need to make sure that 'start' is consistent with self.coordinates[-1]
             self.set_trait("start", add_coord(self.stop, -(self.size - 1) * self.step))
+        elif anchor_boundary == "start": # Need to make sure that 'stop' is consistent with self.coordinates[0]
+            self.set_trait("stop", add_coord(self.start, (self.size - 1) * self.step))
 
         # Make sure step is floating-point error consistent in all cases
         # This is only needed when the type is float
