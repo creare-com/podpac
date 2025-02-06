@@ -28,12 +28,13 @@ class UniformCoordinates1d(Coordinates1d):
 
     UniformCoordinates1d can also be created by specifying the size instead of the step.
 
-    Parameters
+    Attributes
     ----------
     start : float or datetime64
-        Start coordinate.
+        Start coordinate. Unless anchor_boundar == "stop" at creation, this may not always be
+        exactly equal to what the user specified. Internally we ensure that start = stop - step * (size - 1)
     stop : float or datetime64
-        Stop coordinate. Unless fix_stop_val == True at creation, this may not always be
+        Stop coordinate. Unless anchor_boundar == "start" at creation, this may not always be
         exactly equal to what the user specified. Internally we ensure that stop = start + step * (size - 1)
     step : float or timedelta64
         Signed, non-zero step between coordinates. Note, the specified step my be changed internally to satisfy floating point consistency.
@@ -57,7 +58,7 @@ class UniformCoordinates1d(Coordinates1d):
     step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)], read_only=True)
     step.__doc__ = ":float, timedelta64: Signed, non-zero step between coordinates."
 
-    def __init__(self, start, stop, step=None, size=None, name=None, anchor_boundary=None):
+    def __init__(self, start, stop, step=None, size=None, name=None, anchor_boundary="start"):
         """
         Create uniformly-spaced 1d coordinates from a `start`, `stop`, and `step` or `size`.
 
@@ -81,12 +82,11 @@ class UniformCoordinates1d(Coordinates1d):
                 the `start` and `stop` boundaries defined by the user if necessary.
             - `"start"`: The `start` value will be anchored while the `stop` value *may* be modified to ensure that:
                 ```
-                stop =
+                stop = start + step *  (size - 1)
+                ```
             - `"stop"`: The `stop` value will be anchored while the `start` value *may* be modified to ensure that:
                 ```
-                start = stop - step * size
-                ```
-                start + step * size
+                start = stop - step *  (size - 1)
                 ```
         Notes
         ------
