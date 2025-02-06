@@ -6,7 +6,7 @@ from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 
-def crange(start, stop, step, name=None, anchor_boundary=None):
+def crange(start, stop, step, name=None, anchor_boundary="start"):
     """
     Create uniformly-spaced 1d coordinates with a start, stop, and step.
 
@@ -29,9 +29,9 @@ def crange(start, stop, step, name=None, anchor_boundary=None):
         Determines whether the `start` or `stop` will be anchored while the other value 
         may be adjusted to ensure consistency with the given `step` and `size`. 
         Acceptable values are:
-        - `None` (default), the constructor will modify the `step` to be consistent with 
+        - `None`: the constructor will modify the `step` to be consistent with 
             the `start` and `stop` boundaries defined by the user if necessary.
-        - `"start"`: The `start` value will be anchored while the `stop` value *may* be modified to ensure that:
+        - `"start"` (default): The `start` value will be anchored while the `stop` value *may* be modified to ensure that:
             ```
             stop =
         - `"stop"`: The `stop` value will be anchored while the `start` value *may* be modified to ensure that:
