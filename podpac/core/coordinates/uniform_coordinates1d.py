@@ -76,11 +76,9 @@ class UniformCoordinates1d(Coordinates1d):
             Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
         anchor_boundary : str, optional
             Determines whether the `start` or `stop` will be anchored while the other value 
-            may be adjusted to ensure consistency with the given `step` and `size`. 
+            may be adjusted to ensure consistency with the given `step` and `size`.
             Acceptable values are:
-            - `None` (default), the constructor will modify the `step` to be consistent with 
-                the `start` and `stop` boundaries defined by the user if necessary.
-            - `"start"`: The `start` value will be anchored while the `stop` value *may* be modified to ensure that:
+            - `"start"` (default): The `start` value will be anchored while the `stop` value *may* be modified to ensure that:
                 ```
                 stop = start + step *  (size - 1)
                 ```
@@ -88,6 +86,9 @@ class UniformCoordinates1d(Coordinates1d):
                 ```
                 start = stop - step *  (size - 1)
                 ```
+            - `None`: Both `stop` and `start` value will be anchored.
+                The constructor will modify the `step` to be consistent with 
+                the `start` and `stop` boundaries to ensure uniform deltas between coordinate.
         Notes
         ------
         When the user specifies anchor_boundary as `start`, then `start` will always be exact as specified by the user.
