@@ -4,7 +4,8 @@ import numpy as np
 
 from podpac.core.node import Node
 from podpac.core.coordinates import Coordinates, clinspace
-from podpac.core.interpolation.selector import Selector
+from podpac.core.interpolation.selector import (Selector, _higher_precision_time_coords1d)
+
 
 
 class TestSelector(object):
@@ -365,3 +366,48 @@ class TestSelector(object):
         c, ci = selector.select(src, req, index_type="slice")
         assert isinstance(ci[0], slice)
         assert c == src[ci]
+
+    def test_higher_precision_time_coords1d(self):
+        """
+        Test _higher_precision_time_coords1d with datetime, timedelta, and non-time coordinates
+        with different precisions to ensure the output is a float64
+        """
+        test_cases = [
+            # Same datetime64 precision
+            (Coordinates([np.datetime64("2025-01-01","D")],['time']), 
+             Coordinates([np.datetime64("2025-01-03","D")],['time']),
+             "datetime64[D]"),
+            # Same timedelta64 precision
+            (Coordinates([np.timedelta64(1, "D")],['time']), 
+             Coordinates([np.timedelta64(3, "D")],['time']),
+             "timedelta64[D]"),
+            # Different datetime64 precision
+            (Coordinates([np.datetime64("2025-01-01T12:00","s")],['time']), 
+             Coordinates([np.datetime64("2025-01-03","D")],['time']),
+             "datetime64[s]"),  # Should upcast to higher precision
+            # Different timedelta64 precision
+            (Coordinates([np.timedelta64(1, "s")],['time']), 
+             Coordinates([np.timedelta64(3, "D")],['time']),
+             "timedelta64[s]"),  # Should upcast to hours
+            # Non-time data gets converted to float64 by Coordinates
+            # Same Non-time data type 
+            (Coordinates([np.array([1, 2, 3], dtype=np.float32)],['lat']), 
+             Coordinates([np.array([4, 5, 6], dtype=np.float32)],['lat']), "float64"),
+            # Different Non-time data type 
+            (Coordinates([np.array([1, 2, 3], dtype=np.int16)],['lat']), 
+             Coordinates([np.array([4, 5, 6], dtype=np.float32)],['lat']), "float64"),
+            # Different Non-time data type ordered backwards
+            (Coordinates([np.array([1, 2, 3], dtype=np.float32)],['lat']), 
+             Coordinates([np.array([4, 5, 6], dtype=np.int16)],['lat']), "float64")
+        ] 
+        for coords0, coords1, expected_dtype in test_cases:
+            dim = coords0.dims
+            result0, result1 = _higher_precision_time_coords1d(coords0[dim[0]], coords1[dim[0]])
+            # Ensure values are converted to float
+            if np.issubdtype(expected_dtype, np.datetime64) or np.issubdtype(expected_dtype, np.timedelta64):
+                assert result0.dtype == np.float64
+                assert result1.dtype == np.float64
+            # Ensure non-time data is unchanged
+            if np.issubdtype(expected_dtype, np.float64):
+                assert result0.dtype == np.float64
+                assert result1.dtype == np.float64
