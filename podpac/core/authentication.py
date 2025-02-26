@@ -190,6 +190,7 @@ class S3Mixin(tl.HasTraits):
     """Mixin to add S3 credentials and access to a Node."""
 
     anon = tl.Bool(False).tag(attr=True)
+    aws_get_auth_from_env = tl.Bool()
     aws_access_key_id = tl.Unicode(allow_none=True)
     aws_secret_access_key = tl.Unicode(allow_none=True)
     aws_region_name = tl.Unicode(allow_none=True)
@@ -213,12 +214,24 @@ class S3Mixin(tl.HasTraits):
     def _get_requester_pays(self):
         return settings["AWS_REQUESTER_PAYS"]
 
+    @tl.default("aws_get_auth_from_env")
+    def _get_aws_get_auth_from_env(self):
+        """
+        Should this class obtain its authentication
+        information from environment variables?
+        Pulls from settings, and if not present in settings,
+        defaults to False.
+        """
+        return settings.get("AWS_GET_AUTH_FROM_ENV", False)
+
     @cached_property
     def s3(self):
         # this has to be done here for multithreading to work
         s3fs = lazy_module("s3fs")
 
-        if self.anon:
+        if self.aws_get_auth_from_env:
+            return s3fs.S3FileSystem()
+        elif self.anon:
             return s3fs.S3FileSystem(anon=True, client_kwargs=self.aws_client_kwargs)
         else:
             return s3fs.S3FileSystem(

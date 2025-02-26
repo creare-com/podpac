@@ -591,6 +591,81 @@ class TestNearest(object):
         output = node.eval(coords_dst)
         np.testing.assert_array_equal(output, source[:4, 1:])
 
+    def test_timedeltas_in_time_dim(self):
+        """
+        test targets when timedelta dtype is used for time coordinates and the 
+        eval coordinates do not have uniform steps between array elements
+        """
+        source = np.random.rand(5,5,6)
+        timedelta_values = np.array([0, 1, 2, 3, 5, 8]).astype("timedelta64[h]")
+        lat = np.array([0, 1, 2, 3, 5, 8])
+        lon =np.array([0, 1, 2, 3, 5, 8])
+        # datetime_values = np.arange(0, 5).astype("datetime64[h]")
+        coords_src = Coordinates([lat,lon,timedelta_values], dims=["lat", "lon", "time"])
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
+        )
+        timedelta_values_dst = np.array([1, 2, 3, 5]).astype("timedelta64[h]")
+        lat_dst = np.array([1, 2, 3])
+        lon_dst = np.array([1, 2, 3])
+        # timedelta_values_dst = np.timedelta64(1,'h')
+
+        coords_dst = Coordinates([lat_dst, lon_dst, timedelta_values_dst], dims=["lon", "lat", "time"])
+
+        output = node.eval(coords_dst)
+        assert isinstance(output, UnitsDataArray)
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        assert np.all(np.moveaxis(output.values,0,1) == source[1:4, 1:4, 1:5])
+
+    def test_times_objs_in_other_dims(self):
+        """
+        targets when datetime or timedelta dtype is used in any dimension other than `time` 
+        and the eval coordinates do not have uniform steps between array elements
+        """
+
+        # datetime test
+        source = np.random.rand(5,5,6)
+        datetime_values = np.array([0, 1, 2, 3, 5, 8]).astype("datetime64[h]")
+        lat = np.array([0, 1, 2, 3, 5, 8])
+        lon =np.array([0, 1, 2, 3, 5, 8])
+        coords_src = Coordinates([lat,lon,datetime_values], dims=["lat", "lon", "alt"])
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
+        )
+        datetime_values_dst = np.array([1, 2, 3, 5]).astype("datetime64[h]")
+        lat_dst = np.array([1, 2, 3])
+        lon_dst = np.array([1, 2, 3])
+        coords_dst = Coordinates([lat_dst, lon_dst, datetime_values_dst], dims=["lon", "lat", "alt"])
+        output = node.eval(coords_dst)
+        assert isinstance(output, UnitsDataArray)
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        assert np.all(np.moveaxis(output.values,0,1) == source[1:4, 1:4, 1:5])
+        
+        # timedelta test
+        source = np.random.rand(5,5,6)
+        timedelta_values = np.array([0, 1, 2, 3, 5, 8]).astype("timedelta64[h]")
+        lat = np.array([0, 1, 2, 3, 5, 8])
+        lon =np.array([0, 1, 2, 3, 5, 8])
+        # datetime_values = np.arange(0, 5).astype("datetime64[h]")
+        coords_src = Coordinates([lat,lon,timedelta_values], dims=["lat", "lon", "alt"])
+        node = MockArrayDataSource(
+            data=source,
+            coordinates=coords_src,
+            interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
+        )
+        timedelta_values_dst = np.array([1, 2, 3, 5]).astype("timedelta64[h]")
+        lat_dst = np.array([1, 2, 3])
+        lon_dst = np.array([1, 2, 3])
+        coords_dst = Coordinates([lat_dst, lon_dst, timedelta_values_dst], dims=["lon", "lat", "alt"])
+        output = node.eval(coords_dst)
+        assert isinstance(output, UnitsDataArray)
+        assert np.all(output.lat.values == coords_dst["lat"].coordinates)
+        assert np.all(np.moveaxis(output.values,0,1) == source[1:4, 1:4, 1:5])
+
     # def test_3Dstacked(self):
     #     # With Time
     #     source = np.random.rand(5, 4, 2)

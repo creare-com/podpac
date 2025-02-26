@@ -285,6 +285,29 @@ class TestUniformCoordinatesCreation(object):
         assert c.is_descending == True
         assert c.is_uniform == True
 
+    def test_anchor_boundaries(self):
+        # ascending, exact
+        c = UniformCoordinates1d("2025-01-01T12", "2025-01-03T00", "1,D", anchor_boundary=None)
+        # a = np.array(["2025-01-01T12", "2025-01-03T00"]).astype(np.datetime64)
+        assert c.start == np.datetime64("2025-01-01T12")
+        assert c.stop == np.datetime64("2025-01-03T00")
+        assert c.is_monotonic == True
+        assert c.is_descending == False
+        assert c.is_uniform == True
+        c = UniformCoordinates1d("2025-01-01T12", "2025-01-03T00", "1,D", anchor_boundary='start')
+        assert c.start == np.datetime64("2025-01-01T12")
+        assert c.stop == np.datetime64("2025-01-02T12")
+        assert c.is_monotonic == True
+        assert c.is_descending == False
+        assert c.is_uniform == True
+        c = UniformCoordinates1d("2025-01-01T12", "2025-01-03T00", "1,D", anchor_boundary='stop')
+        assert c.start == np.datetime64("2025-01-02T00")
+        assert c.stop == np.datetime64("2025-01-03T00")
+        assert c.dtype == np.datetime64
+        assert c.is_monotonic == True
+        assert c.is_descending == False
+        assert c.is_uniform == True
+
     def test_numerical_size(self):
         # ascending
         c = UniformCoordinates1d(0, 10, size=20)
@@ -1274,10 +1297,10 @@ class TestUniformCoordinatesMethods(object):
         ).transform("EPSG:4326")
         u = c["lon"]
         u2 = podpac.coordinates.UniformCoordinates1d(
-            u.start - 2 * u.step, u.stop + 2 * u.step + 1e-14, step=u.step, fix_stop_val=True
+            u.start - 2 * u.step, u.stop + 2 * u.step + 1e-14, step=u.step, anchor_boundary=None
         )
         u3 = podpac.coordinates.UniformCoordinates1d(
-            u.start - 2 * u.step, u.stop + 2 * u.step + 1e-14, size=u.size + 4, fix_stop_val=True
+            u.start - 2 * u.step, u.stop + 2 * u.step + 1e-14, size=u.size + 4, anchor_boundary=None
         )
 
         assert u2.start == u3.start
@@ -1293,10 +1316,10 @@ class TestUniformCoordinatesMethods(object):
         start = u.coordinates[0]
         stop = u.coordinates[-1]
         u2 = podpac.coordinates.UniformCoordinates1d(
-            start - 2 * step, stop + 2 * step + 1e-14, step=step, fix_stop_val=True
+            start - 2 * step, stop + 2 * step + 1e-14, step=step, anchor_boundary=None
         )
         u3 = podpac.coordinates.UniformCoordinates1d(
-            start - 2 * step, stop + 2 * step + 1e-14, size=u.size + 4, fix_stop_val=True
+            start - 2 * step, stop + 2 * step + 1e-14, size=u.size + 4, anchor_boundary=None
         )
 
         assert u2.start == u3.start
@@ -1307,7 +1330,7 @@ class TestUniformCoordinatesMethods(object):
         assert_equal(u2.coordinates, u3.coordinates)
 
         # Need to make sure time data still works
-        u2 = podpac.coordinates.UniformCoordinates1d("2000-01-01", "2000-01-31", step="23,h")
+        u2 = podpac.coordinates.UniformCoordinates1d("2000-01-01T00", "2000-01-31T00", step="23,h")
         u3 = podpac.coordinates.UniformCoordinates1d(
             "2000-01-01T00", "2000-01-30T17", size=u2.size
         )  # Won't allow me to specify something inconsistent...
@@ -1319,7 +1342,7 @@ class TestUniformCoordinatesMethods(object):
         assert u3.step == step
         assert_equal(u2.coordinates, u3.coordinates)
 
-        # Now check consistency without the `fix_stop_val` flag
+        # Now check consistency without the `anchor_boundaries` flag
         u = c["lon"]
         u2 = podpac.coordinates.UniformCoordinates1d(u.start - 2 * u.step, u.stop + 2 * u.step + 1e-14, step=u.step)
         c3 = podpac.Coordinates([u2], ["lon"])

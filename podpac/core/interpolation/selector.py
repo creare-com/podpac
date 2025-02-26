@@ -29,8 +29,13 @@ def _higher_precision_time_stack(coords0, coords1, dims):
 def _higher_precision_time_coords1d(coords0, coords1):
     dtype0 = coords0.coordinates[0].dtype
     dtype1 = coords1.coordinates[0].dtype
-    if not np.issubdtype(dtype0, np.datetime64) or not np.issubdtype(dtype1, np.datetime64):
+    # if both data types are not time data types, do nothing and return coordinates
+    if  not (
+            (np.issubdtype(dtype0, np.datetime64) and  np.issubdtype(dtype1, np.datetime64)) 
+        or  (np.issubdtype(dtype0, np.timedelta64) and  np.issubdtype(dtype1, np.timedelta64))
+    ):
         return coords0.coordinates, coords1.coordinates
+    # change data types to match
     if dtype0 > dtype1:  # greater means higher precision (smaller unit)
         dtype = dtype0
     else:
