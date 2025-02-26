@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.5.4
+
+### Hotfix
+* Fixed handling of forecast indexing and timeseries coordinates
+
 ## 3.5.3
 
 ### Bugfixes
