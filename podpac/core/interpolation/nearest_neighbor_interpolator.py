@@ -87,18 +87,20 @@ class NearestNeighbor(Interpolator):
 
         if hasattr(source_data, "attrs") and "bounds" in source_data.attrs:
             bounds = source_data.attrs["bounds"]
-            if "time" in bounds and bounds["time"]:
-                if "time" in eval_coordinates.udims:
-                    bounds["time"] = [
-                        self._atime_to_float(b, source_coordinates["time"], eval_coordinates["time"])
-                        for b in bounds["time"]
-                    ]
-                else:
-                    bounds["time"] = [
-                        self._atime_to_float(b, source_coordinates["time"], source_coordinates["time"])
-                        for b in bounds["time"]
-                    ]
 
+            for dim, bound_values in bounds.items():
+                if bound_values:  # Ensure the bounds list is not empty
+                    # Check if the first element is datetime64 or timedelta64
+                    if isinstance(bound_values[0], (np.datetime64, np.timedelta64)):
+                        # find the values to convert and save them
+                        reference_time = (
+                            eval_coordinates[dim] if dim in eval_coordinates.udims else source_coordinates[dim]
+                        )
+                        # convert found datetime64 or timedelta64 values to floats
+                        bounds[dim] = [
+                            self._atime_to_float(b, source_coordinates[dim], reference_time)
+                            for b in bound_values
+                        ]
         else:
             bounds = None
 
@@ -225,13 +227,19 @@ class NearestNeighbor(Interpolator):
         return time1
 
     def _atime_to_float(self, time, time_source, time_request):
+
         dtype0 = time_source.coordinates[0].dtype
         dtype1 = time_request.coordinates[0].dtype
         dtype = dtype0 if dtype0 > dtype1 else dtype1
         time = make_coord_value(time)
+
         if isinstance(time, np.datetime64):
             time = time.astype(dtype).astype(float)
+        elif isinstance(time, np.timedelta64):
+            time = time / np.timedelta64(1, 'ns')  # Convert timedelta64 to seconds as float
+
         return time
+
 
     def _get_stacked_index(self, dim, source, request, bounds=None):
         # The udims are in the order of the request so that the meshgrid calls will be in the right order
