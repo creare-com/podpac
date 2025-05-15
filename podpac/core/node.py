@@ -587,7 +587,7 @@ class Node(tl.HasTraits):
                         elif isinstance(value, dict):
                             d["inputs"][key] = {k: add_node(v) for k, v in value.items()}
                         else:
-                            raise TypeError("Invalid input '%s' of type '%s': %s" % (key, type(value)))
+                            raise TypeError("Invalid input '%s' of type '%s': %r" % (key, type(value), value))
 
                 if "attrs" in d:
                     # sort and shallow copy
