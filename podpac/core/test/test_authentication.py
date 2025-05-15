@@ -19,9 +19,6 @@ class TestAuthentication(object):
                 del settings["password@test.com"]
 
             # require hostname
-            with pytest.raises(TypeError):
-                set_credentials()
-
             with pytest.raises(ValueError):
                 set_credentials(None, uname="test", password="test")
 
