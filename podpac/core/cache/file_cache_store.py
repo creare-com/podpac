@@ -308,7 +308,7 @@ class FileCacheStore(CacheStore):
     # file storage abstraction
     # -----------------------------------------------------------------------------------------------------------------
 
-    def _save(self, path, s):
+    def _save(self, path, s, metadata=None):
         raise NotImplementedError
 
     def _load(self, path):
