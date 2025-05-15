@@ -664,9 +664,9 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
     if "lat" not in dims or "lon" not in dims:
         raise NotImplementedError("Cannot export GeoTIFF for dataset with lat/lon coordinates.")
     if "time" in dims and len(data.coords["time"]) > 1:
-        raise NotImplemented("Cannot export GeoTIFF for dataset with multiple times,")
+        raise NotImplementedError("Cannot export GeoTIFF for dataset with multiple times,")
     if "alt" in dims and len(data.coords["alt"]) > 1:
-        raise NotImplemented("Cannot export GeoTIFF for dataset with multiple altitudes.")
+        raise NotImplementedError("Cannot export GeoTIFF for dataset with multiple altitudes.")
 
     # TODO: add proper checks, etc. to make sure we handle edge cases and throw errors when we cannot support
     #       i.e. do work to remove this warning.
