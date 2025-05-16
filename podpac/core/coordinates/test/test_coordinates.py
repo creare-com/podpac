@@ -611,11 +611,11 @@ class TestCoordinateCreation(object):
         with pytest.raises(ValueError):
             Coordinates([alt], crs="EPSG:2193")
 
-    def test_CRS(self):
+    def test_pyproj_crs(self):
         lat = ArrayCoordinates1d([0, 1, 2], "lat")
         lon = ArrayCoordinates1d([0, 1, 2], "lon")
         c = Coordinates([lat, lon])
-        assert isinstance(c.CRS, pyproj.CRS)
+        assert isinstance(c.pyproj_crs, pyproj.CRS)
 
     def test_alt_units(self):
         lat = ArrayCoordinates1d([0, 1, 2], "lat")
