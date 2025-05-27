@@ -19,7 +19,7 @@ COORDS1 = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40], ["2018-01-01", "2018-
 COORDS2 = podpac.Coordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lon"])
 NODE1 = podpac.data.Array(source=np.ones(COORDS1.shape), coordinates=COORDS1)
 NODE2 = podpac.algorithm.Arange()
-
+CACHE_MISS = "Cache miss. Requested data expired"
 
 class BaseCacheStoreTests(object):
     Store = None
@@ -301,7 +301,7 @@ class BaseCacheStoreTests(object):
 
         # exception getting expired data
         store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
-        with pytest.raises(CacheException, match="Cache miss. Requested data expired"):
+        with pytest.raises(CacheException, match=CACHE_MISS):
             store.get(NODE1, "mykey2")
 
     def test_clean_basic(self):
@@ -390,10 +390,12 @@ class TestRamCacheStore(BaseCacheStoreTests):
 
     @pytest.mark.skip(reason="not testable")
     def test_size(self):
+        # Prevent from calling into the parent's version of this method
         pass
 
     @pytest.mark.skip(reason="not testable")
     def test_limit(self):
+        # Prevent from calling into the parent's version of this method
         super(TestRamCacheStore, self).test_size()
 
     def test_cleanup(self):
@@ -429,7 +431,7 @@ class TestRamCacheStore(BaseCacheStoreTests):
         assert len(_thread_local.cache) == 2
 
         assert store.get(NODE1, "mykey1") == 10
-        with pytest.raises(CacheException, match="Cache miss. Requested data expired"):
+        with pytest.raises(CacheException, match=CACHE_MISS):
             store.get(NODE1, "mykey2")
 
         assert len(_thread_local.cache) == 1
@@ -549,7 +551,7 @@ class TestDiskCacheStore(FileCacheStoreTests):
         assert len(store.search(NODE1)) == 2
 
         assert store.get(NODE1, "mykey1") == 10
-        with pytest.raises(CacheException, match="Cache miss. Requested data expired"):
+        with pytest.raises(CacheException, match=CACHE_MISS):
             store.get(NODE1, "mykey2")
 
         assert len(store.search(NODE1)) == 1
