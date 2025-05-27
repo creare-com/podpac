@@ -18,6 +18,9 @@ pydap_setup_session = lazy_function("pydap.cas.urs.setup_session")
 
 _log = logging.getLogger(__name__)
 
+USERNAME_SETTING_FMT = "username@{}"
+PASSWORD_SETTING_FMT = "password@{}"
+
 
 def set_credentials(hostname, uname=None, password=None):
     """Set authentication credentials for a remote URL in the :class:`podpac.settings`.
@@ -40,16 +43,16 @@ def set_credentials(hostname, uname=None, password=None):
         raise ValueError("`hostname` must be defined")
 
     # see whats stored in settings already
-    u_settings = settings.get("username@{}".format(hostname))
-    p_settings = settings.get("password@{}".format(hostname))
+    u_settings = settings.get(USERNAME_SETTING_FMT.format(hostname))
+    p_settings = settings.get(PASSWORD_SETTING_FMT.format(hostname))
 
     # get username from 1. function input 2. settings 3. python input()
     u = uname or u_settings or getpass.getpass("Username: ")
     p = password or p_settings or getpass.getpass()
 
     # set values in settings
-    settings["username@{}".format(hostname)] = u
-    settings["password@{}".format(hostname)] = p
+    settings[USERNAME_SETTING_FMT.format(hostname)] = u
+    settings[PASSWORD_SETTING_FMT.format(hostname)] = p
 
     _log.debug("Set credentials for hostname {}".format(hostname))
 
@@ -73,7 +76,7 @@ class RequestsSessionMixin(tl.HasTraits):
         ValueError
             Raises a ValueError if not username is stored in settings for `self.hostname`
         """
-        key = "username@{}".format(self.hostname)
+        key = USERNAME_SETTING_FMT.format(self.hostname)
         username = settings.get(key)
         if not username:
             raise ValueError(
@@ -99,7 +102,7 @@ class RequestsSessionMixin(tl.HasTraits):
         ValueError
             Raises a ValueError if not password is stored in settings for `self.hostname`
         """
-        key = "password@{}".format(self.hostname)
+        key = PASSWORD_SETTING_FMT.format(self.hostname)
         password = settings.get(key)
         if not password:
             raise ValueError(

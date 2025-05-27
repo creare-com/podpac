@@ -170,17 +170,18 @@ latex_elements = {
     # 'figure_align': 'htbp',
 }
 
+PODPAC_DOCUMENTATION = "podpac Documentation"
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
-latex_documents = [(master_doc, "podpac.tex", "podpac Documentation", "Creare", "manual")]
+latex_documents = [(master_doc, "podpac.tex", PODPAC_DOCUMENTATION, "Creare", "manual")]
 
 
 # -- Options for manual page output ---------------------------------------
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "podpac", "podpac Documentation", [author], 1)]
+man_pages = [(master_doc, "podpac", PODPAC_DOCUMENTATION, [author], 1)]
 
 
 # -- Options for Texinfo output -------------------------------------------
@@ -192,7 +193,7 @@ texinfo_documents = [
     (
         master_doc,
         "podpac",
-        "podpac Documentation",
+        PODPAC_DOCUMENTATION,
         author,
         "podpac",
         "One line description of project.",
