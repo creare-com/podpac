@@ -8,11 +8,8 @@ import numpy as np
 from numpy.testing import assert_equal, assert_array_equal
 import xarray as xr
 import pyproj
-from collections import OrderedDict
-import pint
 
 import podpac
-from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.affine_coordinates import AffineCoordinates
@@ -20,6 +17,12 @@ from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.cfunctions import crange, clinspace
 from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.coordinates.coordinates import concat, union, merge_dims
+
+_DIMENSION_MISMATCH = "Dimension mismatch"
+_MERCATOR_CRS = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
+_MERCATOR_VUNITS_FT = "+proj=merc +vunits=us-ft"
+_MERCATOR_VUNITS_M = "+proj=merc +vunits=m"
+_DUP_LAT = "Duplicate dimension 'lat'"
 
 
 class TestCoordinateCreation(object):
@@ -229,7 +232,7 @@ class TestCoordinateCreation(object):
         assert c.size == 72
         repr(c)
 
-    def test_mixed_affine(sesf):
+    def test_mixed_affine(self):
         latlon = AffineCoordinates(geotransform=(10.0, 2.0, 0.0, 20.0, 0.0, -3.0), shape=(3, 4))
         dates = [["2018-01-01", "2018-01-02", "2018-01-03"], ["2019-01-01", "2019-01-02", "2019-01-03"]]
         c = Coordinates([latlon, dates], dims=["lat_lon", "time"])
@@ -246,25 +249,27 @@ class TestCoordinateCreation(object):
         lon = [10, 20, 30]
         dates = ["2018-01-01", "2018-01-02"]
 
+        MISMATCH = "coords and dims size mismatch"
+
         with pytest.raises(TypeError, match="Invalid dims type"):
             Coordinates([dates], dims="time")
 
-        with pytest.raises(ValueError, match="coords and dims size mismatch"):
+        with pytest.raises(ValueError, match=MISMATCH):
             Coordinates(dates, dims=["time"])
 
-        with pytest.raises(ValueError, match="coords and dims size mismatch"):
+        with pytest.raises(ValueError, match=MISMATCH):
             Coordinates([lat, lon, dates], dims=["lat_lon", "time"])
 
-        with pytest.raises(ValueError, match="coords and dims size mismatch"):
+        with pytest.raises(ValueError, match=MISMATCH):
             Coordinates([[lat, lon], dates], dims=["lat", "lon", "dates"])
 
-        with pytest.raises(ValueError, match="coords and dims size mismatch"):
+        with pytest.raises(ValueError, match=MISMATCH):
             Coordinates([lat, lon], dims=["lat_lon"])
 
-        with pytest.raises(ValueError, match="coords and dims size mismatch"):
+        with pytest.raises(ValueError, match=MISMATCH):
             Coordinates([[lat, lon]], dims=["lat", "lon"])
 
-        with pytest.raises(ValueError, match="coords and dims size mismatch"):
+        with pytest.raises(ValueError, match=MISMATCH):
             Coordinates([lat, lon], dims=["lat_lon"])
 
         with pytest.raises(TypeError, match="Cannot get dim for coordinates at position"):
@@ -280,7 +285,7 @@ class TestCoordinateCreation(object):
     def test_dims_mismatch(self):
         c1d = ArrayCoordinates1d([0, 1, 2], name="lat")
 
-        with pytest.raises(ValueError, match="Dimension mismatch"):
+        with pytest.raises(ValueError, match=_DIMENSION_MISMATCH):
             Coordinates([c1d], dims=["lon"])
 
     def test_invalid_coords(self):
@@ -583,8 +588,8 @@ class TestCoordinateCreation(object):
         assert c.crs == "EPSG:2193"
         assert set(c.properties.keys()) == {"crs"}
 
-        c = Coordinates([lat, lon], crs="+proj=merc +lat_ts=56.5 +ellps=GRS80")
-        assert c.crs == "+proj=merc +lat_ts=56.5 +ellps=GRS80"
+        c = Coordinates([lat, lon], crs=_MERCATOR_CRS)
+        assert c.crs == _MERCATOR_CRS
         assert set(c.properties.keys()) == {"crs"}
 
         # with vunits
@@ -600,11 +605,11 @@ class TestCoordinateCreation(object):
 
         alt = ArrayCoordinates1d([0, 1, 2], name="alt")
 
-        c = Coordinates([alt], crs="+proj=merc +vunits=us-ft")
+        c = Coordinates([alt], crs=_MERCATOR_VUNITS_FT)
         assert set(c.properties.keys()) == {"crs"}
 
         # with crs
-        ct = c.transform("+proj=merc +vunits=m")
+        ct = c.transform(_MERCATOR_VUNITS_M)
         np.testing.assert_array_almost_equal(ct["alt"].coordinates, 0.30480061 * c["alt"].coordinates)
 
         # invalid
@@ -625,7 +630,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([lat, lon], crs="proj=merc")
         assert c.alt_units is None
 
-        c = Coordinates([alt], crs="+proj=merc +vunits=us-ft")
+        c = Coordinates([alt], crs=_MERCATOR_VUNITS_FT)
 
         with pytest.warns(UserWarning):
             assert c.alt_units in ["us-ft", "US survey foot"]  # pyproj < 3.0  # pyproj >= 3.0
@@ -637,7 +642,7 @@ class TestCoordinatesSerialization(object):
         c = Coordinates(
             [[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"], crange(0, 10, 0.5)],
             dims=["lat_lon", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft",
+            crs=_MERCATOR_VUNITS_FT,
         )
         d = c.definition
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)
@@ -686,23 +691,24 @@ class TestCoordinatesSerialization(object):
         assert_equal(c["lon"].coordinates, [0, 2, 4, 6, 8, 10])
 
     def test_invalid_definition(self):
-        with pytest.raises(TypeError, match="Could not parse coordinates definition"):
+        COORD_DEF = "Could not parse coordinates definition"
+        with pytest.raises(TypeError, match=COORD_DEF):
             Coordinates.from_definition([0, 1, 2])
 
-        with pytest.raises(ValueError, match="Could not parse coordinates definition"):
+        with pytest.raises(ValueError, match=COORD_DEF):
             Coordinates.from_definition({"data": [0, 1, 2]})
 
-        with pytest.raises(TypeError, match="Could not parse coordinates definition"):
+        with pytest.raises(TypeError, match=COORD_DEF):
             Coordinates.from_definition({"coords": {}})
 
-        with pytest.raises(ValueError, match="Could not parse coordinates definition item"):
+        with pytest.raises(ValueError, match=COORD_DEF + " item"):
             Coordinates.from_definition({"coords": [{}]})
 
     def test_json(self):
         c = Coordinates(
             [[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"], crange(0, 10, 0.5)],
             dims=["lat_lon", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft",
+            crs=_MERCATOR_VUNITS_FT,
         )
 
         s = c.json
@@ -848,22 +854,22 @@ class TestCoordinatesDict(object):
         with pytest.raises(KeyError, match="Cannot set dimension"):
             coords["alt"] = ArrayCoordinates1d([1, 2, 3], name="alt")
 
-        with pytest.raises(ValueError, match="Dimension mismatch"):
+        with pytest.raises(ValueError, match=_DIMENSION_MISMATCH):
             coords["alt"] = ArrayCoordinates1d([1, 2, 3], name="lat")
 
-        with pytest.raises(ValueError, match="Dimension mismatch"):
+        with pytest.raises(ValueError, match=_DIMENSION_MISMATCH):
             coords["time"] = ArrayCoordinates1d([1, 2, 3], name="alt")
 
         with pytest.raises(KeyError, match="not found in Coordinates"):
             coords["lat_lon"] = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lon_lat"])
 
-        with pytest.raises(ValueError, match="Dimension mismatch"):
+        with pytest.raises(ValueError, match=_DIMENSION_MISMATCH):
             coords["lat_lon"] = clinspace((0, 1), (10, 20), 5, name="lon_lat")
 
         with pytest.raises(ValueError, match="Shape mismatch"):
             coords["lat"] = np.linspace(5, 20, 5)
 
-        with pytest.raises(ValueError, match="Dimension mismatch"):
+        with pytest.raises(ValueError, match=_DIMENSION_MISMATCH):
             coords["lat"] = clinspace(0, 10, 3, name="lon")
 
     def test_delitem(self):
@@ -930,7 +936,7 @@ class TestCoordinatesDict(object):
         # duplicate dimension
         coords = deepcopy(self.coords)
         c = Coordinates([[0, 0.1, 0.2]], dims=["lat"])
-        with pytest.raises(ValueError, match="Duplicate dimension 'lat'"):
+        with pytest.raises(ValueError, match=_DUP_LAT):
             coords.update(c)
 
     def test_len(self):
@@ -1062,7 +1068,7 @@ class TestCoordinatesMethods(object):
     coords = Coordinates(
         [[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"], 10],
         dims=["lat_lon", "time", "alt"],
-        crs="+proj=merc +vunits=us-ft",
+        crs=_MERCATOR_VUNITS_FT,
     )
 
     def test_drop(self):
@@ -1093,9 +1099,9 @@ class TestCoordinatesMethods(object):
         # drop a missing dimension
         c = self.coords.drop("alt")
         with pytest.raises(KeyError, match="Dimension 'alt' not found in Coordinates with dims"):
-            c1 = c.drop("alt")
+            c.drop("alt")
         with pytest.raises(KeyError, match="Dimension 'alt' not found in Coordinates with udims"):
-            c2 = c.udrop("alt")
+            c.udrop("alt")
 
         c1 = c.drop("alt", ignore_missing=True)
         c2 = c.udrop("alt", ignore_missing=True)
@@ -1107,53 +1113,54 @@ class TestCoordinatesMethods(object):
         assert c1.dims == ("time", "alt")
 
         with pytest.raises(KeyError, match="Dimension 'lat_lon' not found in Coordinates with udims"):
-            c2 = self.coords.udrop("lat_lon")
+            self.coords.udrop("lat_lon")
 
         # drop part of a stacked dimension: drop gives exception but udrop does not
         # note: two udrop cases: 'lat_lon' -> 'lon' and 'lat_lon_alt' -> 'lat_lon'
         with pytest.raises(KeyError, match="Dimension 'lat' not found in Coordinates with dims"):
-            c1 = self.coords.drop("lat")
+            self.coords.drop("lat")
 
         c2 = self.coords.udrop("lat")
         assert c2.dims == ("lon", "time", "alt")
 
-        coords = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=["lat_lon_alt"], crs="+proj=merc +vunits=us-ft")
+        coords = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=["lat_lon_alt"], crs=_MERCATOR_VUNITS_FT)
         c2 = coords.udrop("alt")
         assert c2.dims == ("lat_lon",)
 
     def test_drop_invalid(self):
-        with pytest.raises(TypeError, match="Invalid drop dimension type"):
+        INVALID_DROP_TYPE = "Invalid drop dimension type"
+        with pytest.raises(TypeError, match=INVALID_DROP_TYPE):
             self.coords.drop(2)
 
-        with pytest.raises(TypeError, match="Invalid drop dimension type"):
+        with pytest.raises(TypeError, match=INVALID_DROP_TYPE):
             self.coords.udrop(2)
 
-        with pytest.raises(TypeError, match="Invalid drop dimension type"):
+        with pytest.raises(TypeError, match=INVALID_DROP_TYPE):
             self.coords.drop([2, 3])
 
-        with pytest.raises(TypeError, match="Invalid drop dimension type"):
+        with pytest.raises(TypeError, match=INVALID_DROP_TYPE):
             self.coords.udrop([2, 3])
 
     def test_drop_properties(self):
         coords = Coordinates(
             [[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"], 10],
             dims=["lat_lon", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft",
+            crs=_MERCATOR_VUNITS_FT,
         )
 
         c1 = coords.drop("time")
         c2 = coords.udrop("time")
 
         # check properties
-        assert c1.crs == "+proj=merc +vunits=us-ft"
-        assert c2.crs == "+proj=merc +vunits=us-ft"
+        assert c1.crs == _MERCATOR_VUNITS_FT
+        assert c2.crs == _MERCATOR_VUNITS_FT
 
     def test_unique(self):
         # unstacked (numerical, datetime, and empty)
         c = Coordinates(
             [[2, 1, 0, 1], ["2018-01-01", "2018-01-02", "2018-01-01"], []],
             dims=["lat", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft",
+            crs=_MERCATOR_VUNITS_FT,
         )
         c2 = c.unique()
         assert_equal(c2["lat"].coordinates, [0, 1, 2])
@@ -1164,7 +1171,7 @@ class TestCoordinatesMethods(object):
         c = Coordinates(
             [[2, 1, 0, 1], ["2018-01-01", "2018-01-02", "2018-01-01"], []],
             dims=["lat", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft",
+            crs=_MERCATOR_VUNITS_FT,
         )
         c2, I = c.unique(return_index=True)
         assert_equal(c2["lat"].coordinates, [0, 1, 2])
@@ -1193,15 +1200,15 @@ class TestCoordinatesMethods(object):
         c = Coordinates(
             [[2, 1, 0, 1], ["2018-01-01", "2018-01-02", "2018-01-01"], []],
             dims=["lat", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft",
+            crs=_MERCATOR_VUNITS_FT,
         )
         c2 = c.unique()
 
         # check properties
-        assert c2.crs == "+proj=merc +vunits=us-ft"
+        assert c2.crs == _MERCATOR_VUNITS_FT
 
     def test_unstack(self):
-        c1 = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=["lat_lon_alt"], crs="+proj=merc +vunits=us-ft")
+        c1 = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=["lat_lon_alt"], crs=_MERCATOR_VUNITS_FT)
         c2 = c1.unstack()
         assert c1.dims == ("lat_lon_alt",)
         assert c2.dims == ("lat", "lon", "alt")
@@ -1210,7 +1217,7 @@ class TestCoordinatesMethods(object):
         assert c1["alt"] == c2["alt"]
 
         # mixed
-        c1 = Coordinates([[[0, 1], [10, 20]], [100, 200, 300]], dims=["lat_lon", "alt"], crs="+proj=merc +vunits=us-ft")
+        c1 = Coordinates([[[0, 1], [10, 20]], [100, 200, 300]], dims=["lat_lon", "alt"], crs=_MERCATOR_VUNITS_FT)
         c2 = c1.unstack()
         assert c1.dims == ("lat_lon", "alt")
         assert c2.dims == ("lat", "lon", "alt")
@@ -1219,11 +1226,11 @@ class TestCoordinatesMethods(object):
         assert c1["alt"] == c2["alt"]
 
     def test_unstack_properties(self):
-        c1 = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=["lat_lon_alt"], crs="+proj=merc +vunits=us-ft")
+        c1 = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=["lat_lon_alt"], crs=_MERCATOR_VUNITS_FT)
         c2 = c1.unstack()
 
         # check properties
-        assert c2.crs == "+proj=merc +vunits=us-ft"
+        assert c2.crs == _MERCATOR_VUNITS_FT
 
     def test_iterchunks(self):
         c = Coordinates(
@@ -1646,7 +1653,7 @@ class TestCoordinatesSpecial(object):
         repr(Coordinates([[[0, 1], [10, 20]], ["2018-01-01", "2018-01-02"]], dims=["lat_lon", "time"]))
         repr(Coordinates([[[[0, 1]], [[10, 20]]], [["2018-01-01", "2018-01-02"]]], dims=["lat_lon", "time"]))
         repr(Coordinates([0, 10, []], dims=["lat", "lon", "time"]))
-        repr(Coordinates([crange(0, 10, 0.5)], dims=["alt"], crs="+proj=merc +vunits=us-ft"))
+        repr(Coordinates([crange(0, 10, 0.5)], dims=["alt"], crs=_MERCATOR_VUNITS_FT))
         repr(Coordinates([]))
 
     def test_eq_ne_hash(self):
@@ -1660,11 +1667,11 @@ class TestCoordinatesSpecial(object):
         assert c1 == c1
         assert c1 == deepcopy(c1)
 
-        assert not c1 == None
-        assert not c1 == c2
-        assert not c1 == c3
-        assert not c1 == c4
-        assert not c1 == c5
+        assert not (c1 == None)
+        assert not (c1 == c2)
+        assert not (c1 == c3)
+        assert not (c1 == c4)
+        assert not (c1 == c5)
 
         # ne (this only matters in python 2)
         assert not c1 != c1
@@ -1726,10 +1733,10 @@ class TestCoordinatesFunctions(object):
         c = merge_dims([])
         assert c.dims == ()
 
-        with pytest.raises(ValueError, match="Duplicate dimension 'lat'"):
+        with pytest.raises(ValueError, match=_DUP_LAT):
             merge_dims([clatlon, clat])
 
-        with pytest.raises(ValueError, match="Duplicate dimension 'lat'"):
+        with pytest.raises(ValueError, match=_DUP_LAT):
             merge_dims([clatlon_stacked, clat])
 
         with pytest.raises(TypeError, match="Cannot merge"):
@@ -1884,62 +1891,6 @@ class TestCoordinatesGeoTransform(object):
         ):
             c.geotransform
 
-    @pytest.mark.skip(reason="obsolete")
-    def rot_coords_working(self):
-        # order -lat, lon
-        rc = RotatedCoordinates(shape=(4, 3), theta=np.pi / 8, origin=[10, 20], step=[-2.0, 1.0], dims=["lat", "lon"])
-        c = Coordinates([rc], dims=["lat,lon"])
-        tf = np.array(c.geotransform).reshape(2, 3)
-        np.testing.assert_almost_equal(
-            tf,
-            np.array(
-                [
-                    [rc.origin[1] - rc.step[1] / 2, rc.step[1] * np.cos(rc.theta), -rc.step[0] * np.sin(rc.theta)],
-                    [rc.origin[0] - rc.step[0] / 2, rc.step[1] * np.sin(rc.theta), rc.step[0] * np.cos(rc.theta)],
-                ]
-            ),
-        )
-        # order lon, lat
-        rc = RotatedCoordinates(shape=(4, 3), theta=np.pi / 8, origin=[10, 20], step=[2.0, 1.0], dims=["lon", "lat"])
-        c = Coordinates([rc], dims=["lon,lat"])
-        tf = np.array(c.geotransform).reshape(2, 3)
-        np.testing.assert_almost_equal(
-            tf,
-            np.array(
-                [
-                    [rc.origin[0] - rc.step[0] / 2, rc.step[1] * np.sin(rc.theta), rc.step[0] * np.cos(rc.theta)],
-                    [rc.origin[1] - rc.step[1] / 2, rc.step[1] * np.cos(rc.theta), -rc.step[0] * np.sin(rc.theta)],
-                ]
-            ),
-        )
-
-        # order -lon, lat
-        rc = RotatedCoordinates(shape=(4, 3), theta=np.pi / 8, origin=[10, 20], step=[-2.0, 1.0], dims=["lon", "lat"])
-        c = Coordinates([rc], dims=["lon,lat"])
-        tf = np.array(c.geotransform).reshape(2, 3)
-        np.testing.assert_almost_equal(
-            tf,
-            np.array(
-                [
-                    [rc.origin[0] - rc.step[0] / 2, rc.step[1] * np.sin(rc.theta), rc.step[0] * np.cos(rc.theta)],
-                    [rc.origin[1] - rc.step[1] / 2, rc.step[1] * np.cos(rc.theta), -rc.step[0] * np.sin(rc.theta)],
-                ]
-            ),
-        )
-        # order -lat, -lon
-        rc = RotatedCoordinates(shape=(4, 3), theta=np.pi / 8, origin=[10, 20], step=[-2.0, -1.0], dims=["lat", "lon"])
-        c = Coordinates([rc], dims=["lat,lon"])
-        tf = np.array(c.geotransform).reshape(2, 3)
-        np.testing.assert_almost_equal(
-            tf,
-            np.array(
-                [
-                    [rc.origin[1] - rc.step[1] / 2, rc.step[1] * np.cos(rc.theta), -rc.step[0] * np.sin(rc.theta)],
-                    [rc.origin[0] - rc.step[0] / 2, rc.step[1] * np.sin(rc.theta), rc.step[0] * np.cos(rc.theta)],
-                ]
-            ),
-        )
-
 
 class TestCoordinatesMethodTransform(object):
     def test_transform(self):
@@ -1961,7 +1912,7 @@ class TestCoordinatesMethodTransform(object):
         assert t == c
 
         # support proj4 strings
-        proj = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
+        proj = _MERCATOR_CRS
         t = c.transform(proj)
         assert c.crs == "EPSG:4326"
         assert t.crs == proj
@@ -1972,7 +1923,7 @@ class TestCoordinatesMethodTransform(object):
             [[[0, 1], [10, 20]], ["2018-01-01", "2018-01-02", "2018-01-03"]], dims=["lat_lon", "time"], crs="EPSG:4326"
         )
 
-        proj = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
+        proj = _MERCATOR_CRS
         t = c.transform(proj)
         assert c.crs == "EPSG:4326"
         assert t.crs == proj
@@ -1982,13 +1933,13 @@ class TestCoordinatesMethodTransform(object):
         c = Coordinates(
             [[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"], [100, 200, 300]],
             dims=["lat", "lon", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft",
+            crs=_MERCATOR_VUNITS_FT,
         )
 
-        proj = "+proj=merc +vunits=m"
+        proj = _MERCATOR_VUNITS_M
         t = c.transform(proj)
-        assert c.crs == "+proj=merc +vunits=us-ft"
-        assert t.crs == "+proj=merc +vunits=m"
+        assert c.crs == _MERCATOR_VUNITS_FT
+        assert t.crs == _MERCATOR_VUNITS_M
         np.testing.assert_array_almost_equal(t["lat"].coordinates, c["lat"].coordinates)
         np.testing.assert_array_almost_equal(t["lon"].coordinates, c["lon"].coordinates)
         assert t["time"] == c["time"]
