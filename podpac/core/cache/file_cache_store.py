@@ -9,7 +9,7 @@ import time
 
 try:
     import cPickle as pickle  # python 2
-except:
+except ImportError:
     import pickle
 
 import numpy as np
