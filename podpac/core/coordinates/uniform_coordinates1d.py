@@ -291,7 +291,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         try:
             item = make_coord_value(item)
-        except:
+        except Exception:
             return False
 
         if type(item) != self.dtype:
