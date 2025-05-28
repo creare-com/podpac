@@ -132,28 +132,28 @@ class Style(tl.HasTraits):
         return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
 
     @classmethod
-    def get_style_ui(self):
+    def get_style_ui(cls):
         """
         Attempting to expose style units to get_ui_spec(). This will grab defaults in general.
         BUT this will not set defaults for each particular node.
         """
         d = OrderedDict()
-        if self.name:
-            d["name"] = self.name
-        if self.units:
-            d["units"] = self.units
-        if self.colormap:
-            d["colormap"] = self.colormap
-        if self.enumeration_legend:
-            d["enumeration_legend"] = self.enumeration_legend
-        if self.enumeration_colors:
-            d["enumeration_colors"] = self.enumeration_colors
-        if self.default_enumeration_legend != DEFAULT_ENUMERATION_LEGEND:
-            d["default_enumeration_legend"] = self.default_enumeration_legend
-        if self.default_enumeration_color != DEFAULT_ENUMERATION_COLOR:
-            d["default_enumeration_color"] = self.default_enumeration_color
-        if self.clim != [None, None]:
-            d["clim"] = self.clim
+        if cls.name:
+            d["name"] = cls.name
+        if cls.units:
+            d["units"] = cls.units
+        if cls.colormap:
+            d["colormap"] = cls.colormap
+        if cls.enumeration_legend:
+            d["enumeration_legend"] = cls.enumeration_legend
+        if cls.enumeration_colors:
+            d["enumeration_colors"] = cls.enumeration_colors
+        if cls.default_enumeration_legend != DEFAULT_ENUMERATION_LEGEND:
+            d["default_enumeration_legend"] = cls.default_enumeration_legend
+        if cls.default_enumeration_color != DEFAULT_ENUMERATION_COLOR:
+            d["default_enumeration_color"] = cls.default_enumeration_color
+        if cls.clim != [None, None]:
+            d["clim"] = cls.clim
         return d
 
     @property
