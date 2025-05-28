@@ -6,6 +6,7 @@ from podpac.core.node import Node
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.interpolation.selector import (Selector, _higher_precision_time_coords1d)
 
+_ERR_MSG = "Selection using source {} and request {} failed with {} != {} (truth)"
 
 
 class TestSelector(object):
@@ -95,7 +96,7 @@ class TestSelector(object):
                 np.testing.assert_array_equal(
                     ci,
                     (np.array(list(truth)),),
-                    err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
+                    err_msg=_ERR_MSG.format(
                         source, request, ci, list(truth)
                     ),
                 )
@@ -120,7 +121,7 @@ class TestSelector(object):
                 np.testing.assert_array_equal(
                     ci,
                     (np.array(truth),),
-                    err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
+                    err_msg=_ERR_MSG.format(
                         source, request, ci, truth
                     ),
                 )
@@ -145,7 +146,7 @@ class TestSelector(object):
                 np.testing.assert_array_equal(
                     ci,
                     (np.array(truth),),
-                    err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
+                    err_msg=_ERR_MSG.format(
                         source, request, ci, truth
                     ),
                 )
@@ -245,7 +246,7 @@ class TestSelector(object):
                 np.testing.assert_array_equal(
                     ci,
                     (np.array(truth),),
-                    err_msg="Selection using source {} and request {} failed with {} != {} (truth)".format(
+                    err_msg=_ERR_MSG.format(
                         source, request, ci, truth
                     ),
                 )
