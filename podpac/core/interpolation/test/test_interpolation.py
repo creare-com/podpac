@@ -6,6 +6,7 @@ Test interpolation methods
 # pylint: disable=C0111,W0212,R0903
 
 
+from unittest import TestCase
 import warnings
 
 import pytest
@@ -22,14 +23,19 @@ from podpac.core.compositor.tile_compositor import TileCompositorRaw
 from podpac.core.interpolation.scipy_interpolator import ScipyGrid
 
 _CRS = "+proj=longlat +datum=WGS84 +no_defs +vunits=m"
+# Set up the PRNG with a seed to stay deterministic
+_rand = np.random.default_rng(0xC * ord('r') + 0xea + ord('r') * 0xe)
 
+class TestInterpolationMixin(TestCase):
+    def setUp(self):
+        # Set up the PRNG with a seed to stay deterministic
+        self.rand = np.random.default_rng(0xC * ord('r') + 0xea + ord('r') * 0xe)
 
-class TestInterpolationMixin(object):
     def test_interpolation_mixin(self):
         class InterpArray(InterpolationMixin, ArrayRaw):
             pass
 
-        data = np.ones(shape=(4, 5))
+        data = _rand.random(size=(4, 5))
         native_coords = Coordinates([np.linspace(0, 3, 4), np.linspace(0, 4, 5)], ["lat", "lon"])
         coords = Coordinates([np.linspace(0, 3, 7), np.linspace(0, 4, 9)], ["lat", "lon"])
 
@@ -50,11 +56,11 @@ from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 
 class TestInterpolation(object):
     s1 = ArrayRaw(
-        source=np.ones(shape=(9, 15)),
+        source=_rand.random(size=(9, 15)),
         coordinates=Coordinates([np.linspace(0, 8, 9), np.linspace(0, 14, 15)], ["lat", "lon"]),
     )
     s2 = ArrayRaw(
-        source=np.ones(shape=(9, 15)),
+        source=_rand.random(size=(9, 15)),
         coordinates=Coordinates([np.linspace(9, 17, 9), np.linspace(0, 14, 15)], ["lat", "lon"]),
     )
     interp = Interpolate(source=s1, interpolation="nearest")
@@ -185,7 +191,7 @@ class TestInterpolationBehavior(object):
     def test_floating_point_crs_disagreement(self):
         tocrds = podpac.Coordinates([[39.1, 39.0, 38.9], [-77.1, -77, -77.2]], dims=["lat", "lon"], crs="EPSG:4326")
         base = podpac.core.data.array_source.ArrayRaw(
-            source=np.ones(shape=(3, 3)), coordinates=tocrds.transform("EPSG:32618")
+            source=_rand.random(size=(3, 3)), coordinates=tocrds.transform("EPSG:32618")
         )
         node = podpac.interpolators.Interpolate(source=base, interpolation="nearest")
         o = node.eval(tocrds)
@@ -193,7 +199,7 @@ class TestInterpolationBehavior(object):
 
         # now check the Mixin
         node2 = podpac.core.data.array_source.Array(
-            source=np.ones(shape=(3, 3)), coordinates=tocrds.transform("EPSG:32618")
+            source=_rand.random(size=(3, 3)), coordinates=tocrds.transform("EPSG:32618")
         )
         o = node2.eval(tocrds)
         assert np.all((o.lat.data - tocrds["lat"].coordinates) == 0)
@@ -207,6 +213,6 @@ class TestInterpolationBehavior(object):
         srccrds = podpac.Coordinates(
             [podpac.clinspace(39.2, 38.8, 9), podpac.clinspace(-77.3, -77.0, 9)], dims=["lat", "lon"], crs="EPSG:4326"
         )
-        node3 = podpac.core.data.array_source.Array(source=np.ones(shape=(9, 9)), coordinates=srccrds)
+        node3 = podpac.core.data.array_source.Array(source=_rand.random(size=(9, 9)), coordinates=srccrds)
         o = node3.eval(tocrds)
         assert np.all((o.lat.data - tocrds["lat"].coordinates) == 0)
