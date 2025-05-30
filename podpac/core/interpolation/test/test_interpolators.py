@@ -8,6 +8,7 @@ Test interpolation methods
 import pytest
 import traitlets as tl
 import numpy as np
+from unittest import TestCase
 
 import podpac
 from podpac.core.utils import ArrayTrait
@@ -142,7 +143,11 @@ class TestNone(object):
         np.testing.assert_array_equal(o.data, node.source[:-1, 1:])
 
 
-class TestNearest(object):
+class TestNearest(TestCase):
+    def setUp(self):
+        # Set up the PRNG with a seed to stay deterministic
+        self.rand = np.random.default_rng(0xC * ord('r') + 0xea + ord('r') * 0xe)
+
     def test_nearest_preview_select(self):
         reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
         srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
@@ -274,7 +279,7 @@ class TestNearest(object):
                 assert output.values[0, 0] == source[1, 1]
 
                 # source = stacked, dest = stacked
-                source = np.ones(shape=(5,))
+                source = np.random.rand(5)
                 coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
                 node = MockArrayDataSource(
                     data=source,
