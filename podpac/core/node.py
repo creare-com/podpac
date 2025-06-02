@@ -5,9 +5,7 @@ Node Summary
 from __future__ import division, print_function, absolute_import
 
 import re
-import functools
 import json
-import inspect
 import importlib
 import warnings
 from collections import OrderedDict
@@ -79,6 +77,7 @@ COMMON_NODE_DOC = {
 }
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
+_CACHE_UNAVAILABLE = "Cache unavailable, %s (key='%s')"
 
 
 class NodeException(Exception):
@@ -534,7 +533,7 @@ class Node(tl.HasTraits):
         if inputs:
             d["inputs"] = inputs
 
-        if not type(self.style) is Style and isinstance(self.style, Style):
+        if type(self.style) is not Style and isinstance(self.style, Style):
             d["style_class"] = self.style.__class__.__module__ + "." + self.style.__class__.__name__
         # style
         if self.style.definition:
@@ -710,7 +709,7 @@ class Node(tl.HasTraits):
         try:
             self.definition
         except NodeDefinitionError as e:
-            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+            raise NodeException(_CACHE_UNAVAILABLE % (e.args[0], key))
 
         if self.cache_ctrl is None or not self.has_cache(key, coordinates=coordinates):
             raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
@@ -743,7 +742,7 @@ class Node(tl.HasTraits):
         try:
             self.definition
         except NodeDefinitionError as e:
-            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+            raise NodeException(_CACHE_UNAVAILABLE % (e.args[0], key))
 
         if self.cache_ctrl is None:
             return
@@ -774,7 +773,7 @@ class Node(tl.HasTraits):
         try:
             self.definition
         except NodeDefinitionError as e:
-            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+            raise NodeException(_CACHE_UNAVAILABLE % (e.args[0], key))
 
         if self.cache_ctrl is None:
             return False
@@ -805,7 +804,7 @@ class Node(tl.HasTraits):
         try:
             self.definition
         except NodeDefinitionError as e:
-            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+            raise NodeException(_CACHE_UNAVAILABLE % (e.args[0], key))
 
         if self.cache_ctrl is None:
             return
@@ -1031,7 +1030,7 @@ class Node(tl.HasTraits):
         dict
             Spec for this node that is readily json-serializable
         """
-        filter = []
+        filter_attrs = []
         spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}, "style": {}}
         # Strip out starting spaces in the help text so that markdown parsing works correctly
         if spec["help"] is None:
@@ -1058,7 +1057,7 @@ class Node(tl.HasTraits):
             try:
                 try:
                     def_val = atr(cls())
-                except:
+                except Exception:
                     def_val = atr(cls)
                 if isinstance(def_val, NodeTrait):
                     def_val = def_val.name
@@ -1073,7 +1072,7 @@ class Node(tl.HasTraits):
                 )
 
         for attr in dir(cls):
-            if attr in filter:
+            if attr in filter_attrs:
                 continue
             attrt = getattr(cls, attr)
             if not isinstance(attrt, tl.TraitType):
@@ -1084,7 +1083,7 @@ class Node(tl.HasTraits):
 
             try:
                 schema = getattr(attrt, "_schema")
-            except:
+            except AttributeError:
                 schema = None
 
             type_extra = str(attrt)
@@ -1102,8 +1101,8 @@ class Node(tl.HasTraits):
                         "key": getattr(attrt, "_key_trait").__class__.__name__,
                         "value": getattr(attrt, "_value_trait").__class__.__name__,
                     }
-                except Exception as e:
-                    print("Could not find schema for", attrt, " of type", type_)
+                except Exception:
+                    _logger.exception(f"Could not find schema for {attrt} of type {type_}")
                     schema = None
 
             required = attrt.metadata.get("required", False)
@@ -1117,7 +1116,7 @@ class Node(tl.HasTraits):
             try:
                 if np.isnan(default_val):
                     default_val = "nan"
-            except:
+            except Exception:
                 pass
 
             if default_val == tl.Undefined:
@@ -1137,7 +1136,7 @@ class Node(tl.HasTraits):
         try:
             # This returns the
             style_json = json.loads(cls().style.json)  # load the style from the cls
-        except:
+        except Exception:
             style_json = {}
 
         spec["style"] = style_json  # this does not work, because node not created yet?
@@ -1208,7 +1207,7 @@ def _lookup_input(nodes, name, value, definition):
             % (name, value, type(value))
         )
     # node not yet discovered yet
-    if not value in nodes:
+    if value not in nodes:
         # Look for it in the definition items:
         for found_name, d in definition.items():
             if value != found_name:
@@ -1218,7 +1217,7 @@ def _lookup_input(nodes, name, value, definition):
 
             break
 
-    if not value in nodes:
+    if value not in nodes:
         raise ValueError(
             "Invalid definition for node '%s': reference to nonexistent node '%s' in inputs" % (name, value)
         )
@@ -1347,14 +1346,14 @@ def _process_kwargs(name, d, definition, nodes):
                     continue
                 try:
                     style_class = atr(node_class)
-                except Exception as e:
+                except Exception:
                     try:
                         style_class = atr(node_class())
-                    except:
+                    except Exception:
                         style_class = style_class.klass
         try:
             kwargs["style"] = style_class.from_definition(d["style"])
-        except Exception as e:
+        except Exception:
             kwargs["style"] = Style.from_definition(d["style"])
 
 

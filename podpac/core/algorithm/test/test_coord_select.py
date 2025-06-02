@@ -48,20 +48,21 @@ class TestExpandCoordinates(object):
         o = node.eval(COORDS)
 
     def test_time_expansion_implicit_coordinates(self):
+        M15_Y = "-15,Y"
         node = ExpandCoordinates(source=MyDataSource(), time=("-15,D", "0,D"))
         o = node.eval(COORDS)
 
-        node = ExpandCoordinates(source=MyDataSource(), time=("-15,Y", "0,D", "1,Y"))
+        node = ExpandCoordinates(source=MyDataSource(), time=(M15_Y, "0,D", "1,Y"))
         o = node.eval(COORDS)
 
         node = ExpandCoordinates(source=MyDataSource(), time=("-5,M", "0,D", "1,M"))
         o = node.eval(COORDS)
 
         # Behaviour a little strange on these?
-        node = ExpandCoordinates(source=MyDataSource(), time=("-15,Y", "0,D", "4,Y"))
+        node = ExpandCoordinates(source=MyDataSource(), time=(M15_Y, "0,D", "4,Y"))
         o = node.eval(COORDS)
 
-        node = ExpandCoordinates(source=MyDataSource(), time=("-15,Y", "0,D", "13,M"))
+        node = ExpandCoordinates(source=MyDataSource(), time=(M15_Y, "0,D", "13,M"))
         o = node.eval(COORDS)
 
         node = ExpandCoordinates(source=MyDataSource(), time=("-144,M", "0,D", "13,M"))

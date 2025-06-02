@@ -16,6 +16,13 @@ _CACHE_NAMES = {RamCacheStore: "ram", DiskCacheStore: "disk", S3CacheStore: "s3"
 
 _CACHE_MODES = ["ram", "disk", "network", "all"]
 
+# Error messages used in 3 or more places
+_INVALID_NODE = "Invalid node (must be of type Node, not '%s')"
+_INVALID_ITEM = "Invalid item (must be a string, not '%s')"
+_INVALID_COORDS = "Invalid coordinates (must be of type 'Coordinates', not '%s')"
+_INVALID_MODE = "Invalid mode (must be one of %s, not '%s')"
+_INVALID_ITEM_ASTERISK = "Invalid item ('*' is reserved)"
+
 
 def get_default_cache_ctrl():
     """
@@ -106,6 +113,36 @@ class CacheCtrl(object):
 
     def _get_cache_stores_by_mode(self, mode="all"):
         return [c for c in self._cache_stores if mode in c.cache_modes]
+    
+    @staticmethod
+    def _validate_args(node, item, coordinates,  mode):
+        """Raise an exception if any of the provided arguments are invalid
+
+        Parameters
+        ------------
+        node : Node
+            node requesting storage.
+        item : str
+            Cached object item or key, e.g. 'output'.
+        coordinates : :class:`podpac.Coordinates`, optional
+            Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
+        mode : str
+            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+        """
+        if not isinstance(node, podpac.Node):
+            raise TypeError(_INVALID_NODE % type(node))
+
+        if not isinstance(item, six.string_types):
+            raise TypeError(_INVALID_ITEM % (type(item)))
+
+        if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
+            raise TypeError(_INVALID_COORDS % type(coordinates))
+
+        if mode not in _CACHE_MODES:
+            raise ValueError(_INVALID_MODE % (_CACHE_MODES, mode))
+
+        if item == "*":
+            raise ValueError(_INVALID_ITEM_ASTERISK)
 
     def put(self, node, data, item, coordinates=None, expires=None, mode="all", update=True):
         """Cache data for specified node.
@@ -127,21 +164,7 @@ class CacheCtrl(object):
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         """
-
-        if not isinstance(node, podpac.Node):
-            raise TypeError("Invalid node (must be of type Node, not '%s')" % type(node))
-
-        if not isinstance(item, six.string_types):
-            raise TypeError("Invalid item (must be a string, not '%s')" % (type(item)))
-
-        if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
-            raise TypeError("Invalid coordinates (must be of type 'Coordinates', not '%s')" % type(coordinates))
-
-        if mode not in _CACHE_MODES:
-            raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
-
-        if item == "*":
-            raise ValueError("Invalid item ('*' is reserved)")
+        CacheCtrl._validate_args(node, item, coordinates, mode)
 
         for c in self._get_cache_stores_by_mode(mode):
             c.put(node=node, data=data, item=item, coordinates=coordinates, expires=expires, update=update)
@@ -170,21 +193,7 @@ class CacheCtrl(object):
         CacheError
             If the data is not in the cache.
         """
-
-        if not isinstance(node, podpac.Node):
-            raise TypeError("Invalid node (must be of type Node, not '%s')" % type(node))
-
-        if not isinstance(item, six.string_types):
-            raise TypeError("Invalid item (must be a string, not '%s')" % (type(item)))
-
-        if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
-            raise TypeError("Invalid coordinates (must be of type 'Coordinates', not '%s')" % type(coordinates))
-
-        if mode not in _CACHE_MODES:
-            raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
-
-        if item == "*":
-            raise ValueError("Invalid item ('*' is reserved)")
+        CacheCtrl._validate_args(node, item, coordinates, mode)
 
         for c in self._get_cache_stores_by_mode(mode):
             if c.has(node=node, item=item, coordinates=coordinates):
@@ -210,21 +219,7 @@ class CacheCtrl(object):
         has_cache : bool
              True if there as a cached object for this node for the given key and coordinates.
         """
-
-        if not isinstance(node, podpac.Node):
-            raise TypeError("Invalid node (must be of type Node, not '%s')" % type(node))
-
-        if not isinstance(item, six.string_types):
-            raise TypeError("Invalid item (must be a string, not '%s')" % (type(item)))
-
-        if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
-            raise TypeError("Invalid coordinates (must be of type 'Coordinates', not '%s')" % type(coordinates))
-
-        if mode not in _CACHE_MODES:
-            raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
-
-        if item == "*":
-            raise ValueError("Invalid item ('*' is reserved)")
+        CacheCtrl._validate_args(node, item, coordinates, mode)
 
         for c in self._get_cache_stores_by_mode(mode):
             if c.has(node=node, item=item, coordinates=coordinates):
@@ -248,16 +243,16 @@ class CacheCtrl(object):
         """
 
         if not isinstance(node, podpac.Node):
-            raise TypeError("Invalid node (must be of type Node, not '%s')" % type(node))
+            raise TypeError(_INVALID_NODE % type(node))
 
         if not isinstance(item, six.string_types):
-            raise TypeError("Invalid item (must be a string, not '%s')" % (type(item)))
+            raise TypeError(_INVALID_ITEM % (type(item)))
 
         if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None and coordinates != "*":
             raise TypeError("Invalid coordinates (must be '*' or of type 'Coordinates', not '%s')" % type(coordinates))
 
         if mode not in _CACHE_MODES:
-            raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
+            raise ValueError(_INVALID_MODE % (_CACHE_MODES, mode))
 
         if item == "*":
             item = CacheWildCard()
@@ -279,7 +274,7 @@ class CacheCtrl(object):
         """
 
         if mode not in _CACHE_MODES:
-            raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
+            raise ValueError(_INVALID_MODE % (_CACHE_MODES, mode))
 
         for c in self._get_cache_stores_by_mode(mode):
             c.clear()

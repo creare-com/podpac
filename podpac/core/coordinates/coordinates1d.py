@@ -18,6 +18,8 @@ from podpac.core.coordinates.utils import Dimension
 from podpac.core.coordinates.utils import calculate_distance
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
+_UNKNOWN_DIM = "Unknown dim: {}"
+
 
 class Coordinates1d(BaseCoordinates):
     """
@@ -93,7 +95,7 @@ class Coordinates1d(BaseCoordinates):
     def __contains__(self, item):
         try:
             item = make_coord_value(item)
-        except:
+        except Exception:
             return False
 
         if type(item) != self.dtype:
@@ -288,7 +290,7 @@ class Coordinates1d(BaseCoordinates):
         else:
             return self[I]
 
-    def select(self, bounds, return_index=False, outer=False):
+    def select(self, bounds, outer=False, return_index=False):
         """
         Get the coordinate values that are within the given bounds.
 
@@ -484,7 +486,7 @@ class Coordinates1d(BaseCoordinates):
                     / (self.size - 1)
                 ) * podpac.units(units)
             else:
-                return ValueError("Unknown dim: {}".format(self.name))
+                return ValueError(_UNKNOWN_DIM.format(self.name))
 
         def summary_unstacked_resolution():
             """Return summary resolution for the dimension.
@@ -499,7 +501,7 @@ class Coordinates1d(BaseCoordinates):
                 full_res = full_unstacked_resolution().magnitude
                 return (np.average(full_res) * podpac.units(units), np.std(full_res) * podpac.units(units))
             else:
-                return ValueError("Unknown dim: {}".format(self.name))
+                return ValueError(_UNKNOWN_DIM.format(self.name))
 
         def full_unstacked_resolution():
             """Calculate full resolution of unstacked dimension
@@ -534,7 +536,7 @@ class Coordinates1d(BaseCoordinates):
                     ).magnitude
                 return diff * podpac.units(units)
             else:
-                raise ValueError("Unknown dim: {}".format(self.name))
+                raise ValueError(_UNKNOWN_DIM.format(self.name))
 
         if restype == "nominal":
             return nominal_unstacked_resolution()

@@ -5,6 +5,8 @@ import numpy as np
 
 from podpac.core.data.csv_source import CSVRaw
 
+_CRS = "+proj=merc +vunits=m"
+INVALID_DATA_KEY = "Invalid data_key"
 
 class TestCSV(object):
     """test csv data source"""
@@ -18,13 +20,15 @@ class TestCSV(object):
     lat = [0, 1, 1, 1, 1]
     lon = [0, 0, 2, 2, 2]
     alt = [0, 0, 0, 0, 4]
+    T1 = "2018-01-01T12:00:00"
+    T2 = "2018-01-01T12:00:03"
     time = np.array(
         [
-            "2018-01-01T12:00:00",
-            "2018-01-01T12:00:00",
-            "2018-01-01T12:00:00",
-            "2018-01-01T12:00:03",
-            "2018-01-01T12:00:03",
+            T1,
+            T1,
+            T1,
+            T2,
+            T2,
         ],
         dtype=np.datetime64,
     )
@@ -32,101 +36,102 @@ class TestCSV(object):
     other = [10.5, 20.5, 30.5, 40.5, 50.5]
 
     def test_init(self):
-        node = CSVRaw(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
+        CSVRaw(source=self.source_single, alt_key="altitude", crs=_CRS)
 
     def test_close(self):
-        node = CSVRaw(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
+        CSVRaw(source=self.source_single, alt_key="altitude", crs=_CRS)
 
     def test_get_dims(self):
-        node = CSVRaw(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_single, alt_key="altitude", crs=_CRS)
         assert node.dims == ["lat", "lon", "time", "alt"]
 
-        node = CSVRaw(source=self.source_multiple, alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_multiple, alt_key="altitude", crs=_CRS)
         assert node.dims == ["lat", "lon", "time", "alt"]
 
     def test_available_data_keys(self):
-        node = CSVRaw(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_single, alt_key="altitude", crs=_CRS)
         assert node.available_data_keys == ["data"]
 
-        node = CSVRaw(source=self.source_multiple, alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_multiple, alt_key="altitude", crs=_CRS)
         assert node.available_data_keys == ["data", "other"]
 
-        node = CSVRaw(source=self.source_no_data, alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_no_data, alt_key="altitude", crs=_CRS)
         with pytest.raises(ValueError, match="No data keys found"):
             node.available_data_keys
 
     def test_data_key(self):
         # default
-        node = CSVRaw(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_single, alt_key="altitude", crs=_CRS)
         assert node.data_key == "data"
 
         # specify
-        node = CSVRaw(source=self.source_single, data_key="data", alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_single, data_key="data", alt_key="altitude", crs=_CRS)
         assert node.data_key == "data"
 
         # invalid
-        with pytest.raises(ValueError, match="Invalid data_key"):
-            node = CSVRaw(source=self.source_single, data_key="misc", alt_key="altitude", crs="+proj=merc +vunits=m")
+        with pytest.raises(ValueError, match=INVALID_DATA_KEY):
+            CSVRaw(source=self.source_single, data_key="misc", alt_key="altitude", crs=_CRS)
 
     def test_data_key_col(self):
         # specify column
-        node = CSVRaw(source=self.source_single, data_key=4, alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_single, data_key=4, alt_key="altitude", crs=_CRS)
         assert node.data_key == 4
 
         # invalid (out of range)
-        with pytest.raises(ValueError, match="Invalid data_key"):
-            node = CSVRaw(source=self.source_single, data_key=5, alt_key="altitude", crs="+proj=merc +vunits=m")
+        with pytest.raises(ValueError, match=INVALID_DATA_KEY):
+            CSVRaw(source=self.source_single, data_key=5, alt_key="altitude", crs=_CRS)
 
         # invalid (dimension key)
-        with pytest.raises(ValueError, match="Invalid data_key"):
-            node = CSVRaw(source=self.source_single, data_key=0, alt_key="altitude", crs="+proj=merc +vunits=m")
+        with pytest.raises(ValueError, match=INVALID_DATA_KEY):
+            CSVRaw(source=self.source_single, data_key=0, alt_key="altitude", crs=_CRS)
 
     def test_data_key_multiple_outputs(self):
         # default
-        node = CSVRaw(source=self.source_multiple, alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_multiple, alt_key="altitude", crs=_CRS)
         assert node.data_key == ["data", "other"]
 
         # specify multiple
         node = CSVRaw(
-            source=self.source_multiple, data_key=["other", "data"], alt_key="altitude", crs="+proj=merc +vunits=m"
+            source=self.source_multiple, data_key=["other", "data"], alt_key="altitude", crs=_CRS
         )
         assert node.data_key == ["other", "data"]
 
         # specify one
-        node = CSVRaw(source=self.source_multiple, data_key="other", alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_multiple, data_key="other", alt_key="altitude", crs=_CRS)
         assert node.data_key == "other"
 
         # specify multiple: invalid item
-        with pytest.raises(ValueError, match="Invalid data_key"):
-            node = CSVRaw(
-                source=self.source_multiple, data_key=["data", "misc"], alt_key="altitude", crs="+proj=merc +vunits=m"
+        with pytest.raises(ValueError, match=INVALID_DATA_KEY):
+            CSVRaw(
+                source=self.source_multiple, data_key=["data", "misc"], alt_key="altitude", crs=_CRS
             )
 
         # specify one: invalid
-        with pytest.raises(ValueError, match="Invalid data_key"):
-            node = CSVRaw(source=self.source_multiple, data_key="misc", alt_key="altitude", crs="+proj=merc +vunits=m")
+        with pytest.raises(ValueError, match=INVALID_DATA_KEY):
+            CSVRaw(source=self.source_multiple, data_key="misc", alt_key="altitude", crs=_CRS)
 
     def test_data_key_col_multiple_outputs(self):
         # specify multiple
-        node = CSVRaw(source=self.source_multiple, data_key=[4, 5], alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_multiple, data_key=[4, 5], alt_key="altitude", crs=_CRS)
         assert node.data_key == [4, 5]
         assert node.outputs == ["data", "other"]
 
         # specify one
-        node = CSVRaw(source=self.source_multiple, data_key=4, alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_multiple, data_key=4, alt_key="altitude", crs=_CRS)
 
         assert node.data_key == 4
         assert node.outputs is None
 
         # specify multiple: invalid item
-        with pytest.raises(ValueError, match="Invalid data_key"):
-            node = CSVRaw(source=self.source_multiple, data_key=[4, 6], alt_key="altitude", crs="+proj=merc +vunits=m")
+        with pytest.raises(ValueError, match=INVALID_DATA_KEY):
+            CSVRaw(source=self.source_multiple, data_key=[4, 6], alt_key="altitude", crs=_CRS)
 
-            # specify one: invalid with pytest.raises(ValueError, match="Invalid data_key"):
-            node = CSVRaw(source=self.source_multiple, data_key=6, alt_key="altitude", crs="+proj=merc +vunits=m")
+        # specify one: invalid with pytest.raises(ValueError, match=INVALID_DATA_KEY):
+        with pytest.raises(ValueError, match=INVALID_DATA_KEY):
+            CSVRaw(source=self.source_multiple, data_key=6, alt_key="altitude", crs=_CRS)
 
     def test_coordinates(self):
-        node = CSVRaw(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_single, alt_key="altitude", crs=_CRS)
         nc = node.coordinates
         assert nc.dims == ("lat_lon_time_alt",)
         np.testing.assert_array_equal(nc["lat"].coordinates, self.lat)
@@ -140,27 +145,27 @@ class TestCSV(object):
         assert nc.dims == ("time",)
 
     def test_get_data(self):
-        node = CSVRaw(source=self.source_single, alt_key="altitude", data_key="data", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_single, alt_key="altitude", data_key="data", crs=_CRS)
         out = node.eval(node.coordinates)
         np.testing.assert_array_equal(out, self.data)
 
-        node = CSVRaw(source=self.source_multiple, alt_key="altitude", data_key="data", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_multiple, alt_key="altitude", data_key="data", crs=_CRS)
         out = node.eval(node.coordinates)
         np.testing.assert_array_equal(out, self.data)
 
-        node = CSVRaw(source=self.source_multiple, alt_key="altitude", data_key="other", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_multiple, alt_key="altitude", data_key="other", crs=_CRS)
         out = node.eval(node.coordinates)
         np.testing.assert_array_equal(out, self.other)
 
         # default
-        node = CSVRaw(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_single, alt_key="altitude", crs=_CRS)
         out = node.eval(node.coordinates)
         np.testing.assert_array_equal(out, self.data)
 
     def test_get_data_multiple(self):
         # multiple data keys
         node = CSVRaw(
-            source=self.source_multiple, alt_key="altitude", data_key=["data", "other"], crs="+proj=merc +vunits=m"
+            source=self.source_multiple, alt_key="altitude", data_key=["data", "other"], crs=_CRS
         )
         out = node.eval(node.coordinates)
         assert out.dims == ("lat_lon_time_alt", "output")
@@ -169,7 +174,7 @@ class TestCSV(object):
         np.testing.assert_array_equal(out.sel(output="other"), self.other)
 
         # single data key
-        node = CSVRaw(source=self.source_multiple, alt_key="altitude", data_key=["data"], crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_multiple, alt_key="altitude", data_key=["data"], crs=_CRS)
         out = node.eval(node.coordinates)
         assert out.dims == ("lat_lon_time_alt", "output")
         np.testing.assert_array_equal(out["output"], ["data"])
@@ -181,7 +186,7 @@ class TestCSV(object):
             alt_key="altitude",
             data_key=["data", "other"],
             outputs=["a", "b"],
-            crs="+proj=merc +vunits=m",
+            crs=_CRS,
         )
         out = node.eval(node.coordinates)
         assert out.dims == ("lat_lon_time_alt", "output")
@@ -190,7 +195,7 @@ class TestCSV(object):
         np.testing.assert_array_equal(out.sel(output="b"), self.other)
 
         # default
-        node = CSVRaw(source=self.source_multiple, alt_key="altitude", crs="+proj=merc +vunits=m")
+        node = CSVRaw(source=self.source_multiple, alt_key="altitude", crs=_CRS)
         out = node.eval(node.coordinates)
         assert out.dims == ("lat_lon_time_alt", "output")
         np.testing.assert_array_equal(out["output"], ["data", "other"])
@@ -205,7 +210,7 @@ class TestCSV(object):
             time_key=2,
             alt_key=3,
             data_key=5,
-            crs="+proj=merc +vunits=m",
+            crs=_CRS,
         )
 
         # coordinates
@@ -229,7 +234,7 @@ class TestCSV(object):
             alt_key=3,
             data_key=[4, 5],
             outputs=["a", "b"],
-            crs="+proj=merc +vunits=m",
+            crs=_CRS,
         )
 
         # native coordinantes
@@ -256,7 +261,7 @@ class TestCSV(object):
             alt_key=3,
             data_key=4,
             header=None,
-            crs="+proj=merc +vunits=m",
+            crs=_CRS,
         )
 
         # native coordinantes

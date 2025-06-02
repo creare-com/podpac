@@ -1,9 +1,6 @@
 """
 Test podpac.core.data.datasource module
 """
-
-# from collections import OrderedDict
-
 import pytest
 
 import numpy as np
@@ -70,11 +67,11 @@ class TestDataDocs(object):
 
 class TestDataSource(object):
     def test_init(self):
-        node = DataSource()
+        DataSource()
 
     def test_repr(self):
         node = DataSource()
-        repr(node)
+        _ = repr(node)
 
     def test_get_data_not_implemented(self):
         node = DataSource()
@@ -186,48 +183,51 @@ class TestDataSource(object):
         assert node.boundary == {}
 
         # none
-        node = DataSource(boundary={})
+        DataSource(boundary={})
 
         # centered
-        node = DataSource(boundary={"lat": 0.25, "lon": 2.0})
-        node = DataSource(boundary={"time": "1,D"})
+        DataSource(boundary={"lat": 0.25, "lon": 2.0})
+        DataSource(boundary={"time": "1,D"})
 
+        NCBNYS = "Non-centered boundary not yet supported"
         # box (not necessary centered)
-        with pytest.raises(NotImplementedError, match="Non-centered boundary not yet supported"):
-            node = DataSource(boundary={"lat": [-0.2, 0.3], "lon": [-2.0, 2.0]})
+        with pytest.raises(NotImplementedError, match=NCBNYS):
+            DataSource(boundary={"lat": [-0.2, 0.3], "lon": [-2.0, 2.0]})
 
-        with pytest.raises(NotImplementedError, match="Non-centered boundary not yet supported"):
-            node = DataSource(boundary={"time": ["-1,D", "2,D"]})
+        with pytest.raises(NotImplementedError, match=NCBNYS):
+            DataSource(boundary={"time": ["-1,D", "2,D"]})
 
         # polygon
-        with pytest.raises(NotImplementedError, match="Non-centered boundary not yet supported"):
-            node = DataSource(boundary={"lat": [0.0, -0.5, 0.0, 0.5], "lon": [-0.5, 0.0, 0.5, 0.0]})  # diamond
+        with pytest.raises(NotImplementedError, match=NCBNYS):
+            DataSource(boundary={"lat": [0.0, -0.5, 0.0, 0.5], "lon": [-0.5, 0.0, 0.5, 0.0]})  # diamond
 
+        NUBNYS = "Non-uniform boundary not yet supported"
         # array of boundaries (one for each coordinate)
-        with pytest.raises(NotImplementedError, match="Non-uniform boundary not yet supported"):
-            node = DataSource(boundary={"lat": [[-0.1, 0.4], [-0.2, 0.3], [-0.3, 0.2]], "lon": 0.5})
+        with pytest.raises(NotImplementedError, match=NUBNYS):
+            DataSource(boundary={"lat": [[-0.1, 0.4], [-0.2, 0.3], [-0.3, 0.2]], "lon": 0.5})
 
-        with pytest.raises(NotImplementedError, match="Non-uniform boundary not yet supported"):
-            node = DataSource(boundary={"time": [["-1,D", "1,D"], ["-2,D", "1,D"]]})
+        with pytest.raises(NotImplementedError, match=NUBNYS):
+            DataSource(boundary={"time": [["-1,D", "1,D"], ["-2,D", "1,D"]]})
 
         # invalid
         with pytest.raises(tl.TraitError):
-            node = DataSource(boundary=0.5)
+            DataSource(boundary=0.5)
 
         with pytest.raises(ValueError, match="Invalid dimension"):
-            node = DataSource(boundary={"other": 0.5})
+            DataSource(boundary={"other": 0.5})
 
         with pytest.raises(TypeError, match="Invalid coordinate delta"):
-            node = DataSource(boundary={"lat": {}})
+            DataSource(boundary={"lat": {}})
 
-        with pytest.raises(ValueError, match="Invalid boundary"):
-            node = DataSource(boundary={"lat": -0.25, "lon": 2.0})  # negative
+        IB = "Invalid boundary"
+        with pytest.raises(ValueError, match=IB):
+            DataSource(boundary={"lat": -0.25, "lon": 2.0})  # negative
 
-        with pytest.raises(ValueError, match="Invalid boundary"):
-            node = DataSource(boundary={"time": "-2,D"})  # negative
+        with pytest.raises(ValueError, match=IB):
+            DataSource(boundary={"time": "-2,D"})  # negative
 
-        with pytest.raises(ValueError, match="Invalid boundary"):
-            node = DataSource(boundary={"time": "2018-01-01"})  # not a delta
+        with pytest.raises(ValueError, match=IB):
+            DataSource(boundary={"time": "2018-01-01"})  # not a delta
 
     def test_invalid_nan_vals(self):
         with pytest.raises(tl.TraitError):
@@ -321,17 +321,18 @@ class TestDataSource(object):
         # missing unstacked dimension
         node = MockDataSource()
 
-        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+        CANNOT_EVALUATE = "Cannot evaluate these coordinates.*"
+        with pytest.raises(ValueError, match=CANNOT_EVALUATE):
             node.eval(Coordinates([1], dims=["lat"]))
-        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+        with pytest.raises(ValueError, match=CANNOT_EVALUATE):
             node.eval(Coordinates([11], dims=["lon"]))
-        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+        with pytest.raises(ValueError, match=CANNOT_EVALUATE):
             node.eval(Coordinates(["2018-01-01"], dims=["time"]))
 
         # missing any part of stacked dimension
         node = MockDataSourceStacked()
 
-        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+        with pytest.raises(ValueError, match=CANNOT_EVALUATE):
             node.eval(Coordinates([1], dims=["time"]))
 
     def test_evaluate_crs_transform(self):
@@ -346,7 +347,7 @@ class TestDataSource(object):
     def test_evaluate_selector(self):
         def selector(rsc, coordinates, index_type=None):
             """mock selector that just strides by 2"""
-            new_rsci = tuple(slice(None, None, 2) for dim in rsc.dims)
+            new_rsci = tuple(slice(None, None, 2) for _ in rsc.dims)
             new_rsc = rsc[new_rsci]
             return new_rsc, new_rsci
 
@@ -391,7 +392,7 @@ class TestDataSource(object):
         assert isinstance(output, UnitsDataArray)
         assert node.coordinates["lat"].coordinates[4] == output.coords["lat"].values[4]
 
-    def test_get_data_DataArray(self):
+    def test_get_data_data_array(self):
         class MockDataSourceReturnsDataArray(MockDataSource):
             def get_data(self, coordinates, coordinates_index):
                 return xr.DataArray(self.data[coordinates_index])
@@ -409,7 +410,7 @@ class TestDataSource(object):
 
         node = MockDataSourceReturnsInvalid()
         with pytest.raises(TypeError, match="Unknown data type"):
-            output = node.eval(node.coordinates)
+            node.eval(node.coordinates)
 
     def test_evaluate_debug_attributes(self):
         with podpac.settings:

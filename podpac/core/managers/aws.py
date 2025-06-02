@@ -28,7 +28,7 @@ from lazy_import import lazy_module, lazy_class
 try:
     import boto3
     import botocore
-except:
+except ImportError:
 
     class err:
         def __init__(self, *args, **kwargs):
@@ -42,7 +42,9 @@ except:
 _log = logging.getLogger(__name__)
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
-
+_LAMDA_AWS_COM = "lambda.amazonaws.com"
+_STS_ASSUME_ROLE = "sts:AssumeRole"
+_DASH_POLICY = "{}-policy"
 
 class LambdaException(Exception):
     """Exception during execution of a Lambda node"""
@@ -316,7 +318,7 @@ class Lambda(Node):
         return {
             "Version": "2012-10-17",
             "Statement": [
-                {"Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}
+                {"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}
             ],
         }
 
@@ -915,8 +917,8 @@ Lambda Node {status}
         document_valid = False
         valid_document = {
             "Effect": "Allow",
-            "Principal": {"Service": "lambda.amazonaws.com"},
-            "Action": "sts:AssumeRole",
+            "Principal": {"Service": _LAMDA_AWS_COM},
+            "Action": _STS_ASSUME_ROLE,
         }
         for s in self.function_role_assume_policy_document["Statement"]:
             if json.dumps(s) == json.dumps(valid_document):
@@ -1622,7 +1624,7 @@ class Session(boto3.Session):
 # -----------------------------------------------------------------------------------------------------------------
 # S3
 # -----------------------------------------------------------------------------------------------------------------
-def create_bucket(session, bucket_name, bucket_region=None, bucket_policy=None, bucket_tags={}):
+def create_bucket(session, bucket_name, bucket_region=None, bucket_policy=None, bucket_tags=None):
     """Create S3 bucket
 
     Parameters
@@ -1648,6 +1650,8 @@ def create_bucket(session, bucket_name, bucket_region=None, bucket_policy=None, 
     ValueError
         Description
     """
+    if bucket_tags is None:
+        bucket_tags = {}
 
     bucket = get_bucket(session, bucket_name)
 
@@ -1871,8 +1875,8 @@ def create_function(
     function_description="PODPAC function",
     function_timeout=600,
     function_memory=2048,
-    function_env_variables={},
-    function_tags={},
+    function_env_variables=None,
+    function_tags=None,
     function_source_dist_zip=None,
     function_source_bucket=None,
     function_source_dist_key=None,
@@ -1913,6 +1917,10 @@ def create_function(
     dict
         See :func:`podpac.managers.aws.get_function`
     """
+    if function_env_variables is None:
+        function_env_variables = {}
+    if function_tags is None:
+        function_tags = {}
 
     function = get_function(session, function_name)
 
@@ -2157,9 +2165,9 @@ def create_role(
     role_name,
     role_description="PODPAC Role",
     role_policy_document=None,
-    role_policy_arns=[],
+    role_policy_arns=None,
     role_assume_policy_document=None,
-    role_tags={},
+    role_tags=None,
 ):
     """Create IAM role
 
@@ -2189,6 +2197,10 @@ def create_role(
     dict
         See :func:`podpac.managers.aws.get_role`
     """
+    if role_policy_arns is None:
+        role_policy_arns = []
+    if role_tags is None:
+        role_tags = {}
 
     role = get_role(session, role_name)
 
@@ -2205,7 +2217,7 @@ def create_role(
         role_assume_policy_document = {
             "Version": "2012-10-17",
             "Statement": [
-                {"Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}
+                {"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}
             ],
         }
 
@@ -2232,7 +2244,7 @@ def create_role(
 
     # add role policy document
     if role_policy_document is not None:
-        policy_name = "{}-policy".format(role_name)
+        policy_name = _DASH_POLICY.format(role_name)
         iam.put_role_policy(RoleName=role_name, PolicyName=policy_name, PolicyDocument=json.dumps(role_policy_document))
 
     # attached role polcy ARNs
@@ -2281,7 +2293,7 @@ def get_role(session, role_name):
 
     # get inline policies
     try:
-        policy_name = "{}-policy".format(role_name)
+        policy_name = _DASH_POLICY.format(role_name)
         response = iam.get_role_policy(RoleName=role_name, PolicyName=policy_name)
         role["policy_document"] = response["PolicyDocument"]
     except botocore.exceptions.ClientError:
@@ -2360,7 +2372,7 @@ def delete_role(session, role_name):
 
     # need to remove inline policies first, if they exist
     try:
-        policy_name = "{}-policy".format(role_name)
+        policy_name = _DASH_POLICY.format(role_name)
         iam.delete_role_policy(RoleName=role_name, PolicyName=policy_name)
     except botocore.exceptions.ClientError:
         pass
@@ -2380,7 +2392,7 @@ def delete_role(session, role_name):
 
 
 def create_api(
-    session, api_name="podpac-api", api_description="PODPAC API", api_version=None, api_tags={}, api_endpoint="eval"
+    session, api_name="podpac-api", api_description="PODPAC API", api_version=None, api_tags=None, api_endpoint="eval"
 ):
     """Create API Gateway REST API
 
@@ -2404,6 +2416,8 @@ def create_api(
     dict
         See :func:`podpac.managers.aws.get_api`
     """
+    if api_tags is None:
+        api_tags = {}
 
     # set version to podpac version, if None
     api = get_api(session, api_name, api_endpoint)

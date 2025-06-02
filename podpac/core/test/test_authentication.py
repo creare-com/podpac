@@ -7,16 +7,19 @@ from numpy.testing import assert_equal
 from podpac import settings, Node
 from podpac.core.authentication import RequestsSessionMixin, S3Mixin, set_credentials
 
+_USERNAME_TEST_COM = "username@test.com"
+_PASSWORD_TEST_COM = "password@test.com"
+_TEST_COM = "test.com"
 
 class TestAuthentication(object):
     def test_set_credentials(self):
 
         with settings:
-            if "username@test.com" in settings:
-                del settings["username@test.com"]
+            if _USERNAME_TEST_COM in settings:
+                del settings[_USERNAME_TEST_COM]
 
-            if "password@test.com" in settings:
-                del settings["password@test.com"]
+            if _PASSWORD_TEST_COM in settings:
+                del settings[_PASSWORD_TEST_COM]
 
             # require hostname
             with pytest.raises(ValueError):
@@ -26,31 +29,31 @@ class TestAuthentication(object):
                 set_credentials("", uname="test", password="test")
 
             # make sure these are empty at first
-            assert not settings["username@test.com"]
-            assert not settings["password@test.com"]
+            assert not settings[_USERNAME_TEST_COM]
+            assert not settings[_PASSWORD_TEST_COM]
 
             # test input/getpass
             # TODO: how do you test this?
 
             # set both username and pw
-            set_credentials(hostname="test.com", uname="testuser", password="testpass")
-            assert settings["username@test.com"] == "testuser"
-            assert settings["password@test.com"] == "testpass"
+            set_credentials(hostname=_TEST_COM, uname="testuser", password="testpass")
+            assert settings[_USERNAME_TEST_COM] == "testuser"
+            assert settings[_PASSWORD_TEST_COM] == "testpass"
 
             # set username only
-            set_credentials(hostname="test.com", uname="testuser2")
-            assert settings["username@test.com"] == "testuser2"
-            assert settings["password@test.com"] == "testpass"
+            set_credentials(hostname=_TEST_COM, uname="testuser2")
+            assert settings[_USERNAME_TEST_COM] == "testuser2"
+            assert settings[_PASSWORD_TEST_COM] == "testpass"
 
             # set pw only
-            set_credentials(hostname="test.com", password="testpass3")
-            assert settings["username@test.com"] == "testuser2"
-            assert settings["password@test.com"] == "testpass3"
+            set_credentials(hostname=_TEST_COM, password="testpass3")
+            assert settings[_USERNAME_TEST_COM] == "testuser2"
+            assert settings[_PASSWORD_TEST_COM] == "testpass3"
 
             # don't do anything if neither is provided, but the settings exist
-            set_credentials(hostname="test.com")
-            assert settings["username@test.com"] == "testuser2"
-            assert settings["password@test.com"] == "testpass3"
+            set_credentials(hostname=_TEST_COM)
+            assert settings[_USERNAME_TEST_COM] == "testuser2"
+            assert settings[_PASSWORD_TEST_COM] == "testpass3"
 
 
 # dummy class mixing in RequestsSession with hostname

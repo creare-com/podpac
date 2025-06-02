@@ -19,7 +19,7 @@ import logging
 
 try:
     import cPickle  # Python 2.7
-except:
+except ImportError:
     import _pickle as cPickle
 
 import numpy as np
@@ -212,7 +212,7 @@ class UnitsDataArray(xr.DataArray):
         else:
             try:
                 getattr(self, "to_" + format)(*args, **kwargs)
-            except:
+            except Exception:
                 raise NotImplementedError("Format {} is not implemented.".format(format))
         self._pp_deserialize()
         return r
@@ -304,13 +304,13 @@ class UnitsDataArray(xr.DataArray):
             # transpose with shared dims first
             shared_dims = [dim for dim in self.dims if dim in key.dims]
             missing_dims = [dim for dim in self.dims if dim not in key.dims]
-            xT = self.transpose(*shared_dims + missing_dims)
+            x_t = self.transpose(*shared_dims + missing_dims)
 
             # index
-            outT = xT[key.data]
+            out_t = x_t[key.data]
 
             # transpose back to original dimensions
-            out = outT.transpose(*self.dims)
+            out = out_t.transpose(*self.dims)
             return out
 
         return super(UnitsDataArray, self).__getitem__(key)
