@@ -904,12 +904,12 @@ class TestSerialization(object):
 
         # eq
         assert n1 == n2
-        assert not (n1 == n3)
-        assert not (n1 == m1)
-        assert not (n1 == "other")
+        assert not n1.__eq__(n3)
+        assert not n1.__eq__(m1)
+        assert not n1.__eq__("other")
 
         # ne
-        assert not (n1 != n2)
+        assert not n1.__ne__(n2)
         assert n1 != n3
         assert n1 != m1
         assert n1 != "other"
@@ -926,7 +926,7 @@ class TestSerialization(object):
 
         # but == and != don't care
         assert n1 == n2
-        assert not (n1 != n2)
+        assert not n1.__ne__(n2)
 
     def test_from_url(self):
         url = (
