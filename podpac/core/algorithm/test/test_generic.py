@@ -43,11 +43,11 @@ class TestArithmetic(object):
 
         with podpac.settings:
             podpac.settings.set_unsafe_eval(True)
-            node = Arithmetic(A=sine_node, B=sine_node, eqn=EQUATION, params={"offset": 1})
+            Arithmetic(A=sine_node, B=sine_node, eqn=EQUATION, params={"offset": 1})
 
             podpac.settings.set_unsafe_eval(False)
             with pytest.warns(UserWarning, match=INSECURE_EVALUATION):
-                node = Arithmetic(A=sine_node, B=sine_node, eqn=EQUATION, params={"offset": 1})
+                Arithmetic(A=sine_node, B=sine_node, eqn=EQUATION, params={"offset": 1})
 
     def test_evaluate(self):
         with podpac.settings:
@@ -93,11 +93,11 @@ class TestGeneric(object):
 
         with podpac.settings:
             podpac.settings.set_unsafe_eval(True)
-            node = Generic(code=CODE, a=a, b=b)
+            Generic(code=CODE, a=a, b=b)
 
             podpac.settings.set_unsafe_eval(False)
             with pytest.warns(UserWarning, match=INSECURE_EVALUATION):
-                node = Generic(code=CODE, a=a, b=b)
+                Generic(code=CODE, a=a, b=b)
 
     def test_evaluate(self):
         with podpac.settings:
@@ -204,8 +204,8 @@ class TestMask(object):
         sine_node = Arange()
 
         node = Mask(source=sine_node, mask=sine_node, in_place=True)
-        output = node.eval(coords)
-        a = sine_node.eval(coords)
+        node.eval(coords)
+        sine_node.eval(coords)
 
         # In-place editing doesn't seem to work here
         # np.testing.assert_allclose(output, node.source._output)

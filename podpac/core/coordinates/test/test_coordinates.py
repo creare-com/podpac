@@ -1649,12 +1649,12 @@ class TestCoordinatesMethods(object):
 
 class TestCoordinatesSpecial(object):
     def test_repr(self):
-        repr(Coordinates([[0, 1], [10, 20], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"]))
-        repr(Coordinates([[[0, 1], [10, 20]], ["2018-01-01", "2018-01-02"]], dims=["lat_lon", "time"]))
-        repr(Coordinates([[[[0, 1]], [[10, 20]]], [["2018-01-01", "2018-01-02"]]], dims=["lat_lon", "time"]))
-        repr(Coordinates([0, 10, []], dims=["lat", "lon", "time"]))
-        repr(Coordinates([crange(0, 10, 0.5)], dims=["alt"], crs=_MERCATOR_VUNITS_FT))
-        repr(Coordinates([]))
+        _ = repr(Coordinates([[0, 1], [10, 20], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"]))
+        _ = repr(Coordinates([[[0, 1], [10, 20]], ["2018-01-01", "2018-01-02"]], dims=["lat_lon", "time"]))
+        _ = repr(Coordinates([[[[0, 1]], [[10, 20]]], [["2018-01-01", "2018-01-02"]]], dims=["lat_lon", "time"]))
+        _ = repr(Coordinates([0, 10, []], dims=["lat", "lon", "time"]))
+        _ = repr(Coordinates([crange(0, 10, 0.5)], dims=["alt"], crs=_MERCATOR_VUNITS_FT))
+        _ = repr(Coordinates([]))
 
     def test_eq_ne_hash(self):
         c1 = Coordinates([[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"]], dims=["lat_lon", "time"])
@@ -1664,18 +1664,18 @@ class TestCoordinatesSpecial(object):
         c5 = Coordinates([[0, 1, 2], [10, 20, 30], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"])
 
         # eq
-        assert c1 == c1
+        assert c1.__eq__(c1)
         assert c1 == deepcopy(c1)
 
-        assert not (c1 == None)
-        assert not (c1 == c2)
-        assert not (c1 == c3)
-        assert not (c1 == c4)
-        assert not (c1 == c5)
+        assert not c1.__eq__(None)
+        assert not c1.__eq__(c2)
+        assert not c1.__eq__(c3)
+        assert not c1.__eq__(c4)
+        assert not c1.__eq__(c5)
 
         # ne (this only matters in python 2)
-        assert not c1 != c1
-        assert not c1 != deepcopy(c1)
+        assert not c1.__ne__(c1)
+        assert not c1.__ne__(deepcopy(c1))
 
         assert c1 != None
         assert c1 != c3
