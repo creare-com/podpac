@@ -73,7 +73,7 @@ class CacheStore(object):
         """
         raise NotImplementedError
 
-    def rem(self, node=None, item=None, coordinates=None):
+    def rem(self, node, item=None, coordinates=None):
         """Delete cached data for this node.
 
         Parameters
@@ -106,7 +106,7 @@ class CacheStore(object):
         """
         raise NotImplementedError
 
-    def clear(self, node):
+    def clear(self):
         """
         Clear all cached data.
         """
