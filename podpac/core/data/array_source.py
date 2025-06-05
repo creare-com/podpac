@@ -61,7 +61,7 @@ class Array(DataSource):
     def _validate_source(self, d):
         try:
             d["value"].astype(float)
-        except:
+        except Exception:
             raise ValueError("Array 'source' data must be numerical")
         return d["value"]
 
@@ -91,6 +91,6 @@ class Array(DataSource):
         d = self.create_output_array(coordinates, data=self.source[coordinates_index])
         return d
 
-    def set_coordinates(self, value):
+    def set_coordinates(self, value, force=False):
         """Not needed."""
         pass

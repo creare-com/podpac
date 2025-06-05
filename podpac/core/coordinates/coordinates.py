@@ -474,7 +474,7 @@ class Coordinates(tl.HasTraits):
                 crs = pyproj.CRS(coords["crs"])
                 if crs.axis_info[0].direction != "north":
                     r = -1
-            except:
+            except Exception:
                 pass
         else:
             r = 1
@@ -682,7 +682,7 @@ class Coordinates(tl.HasTraits):
 
         # properties
         # TODO check transform instead
-        if self.CRS != other.CRS:
+        if self.pyproj_crs != other.pyproj_crs:
             return False
 
         # full check of underlying coordinates
@@ -799,12 +799,13 @@ class Coordinates(tl.HasTraits):
         return xcoords
 
     @property
-    def CRS(self):
+    def pyproj_crs(self):
+        """Get the pyproj.CRS version of self.crs field"""
         return pyproj.CRS(self.crs)
 
     @property
     def alt_units(self):
-        CRS = self.CRS
+        CRS = self.pyproj_crs
 
         if not has_alt_units(CRS):
             return None
@@ -815,7 +816,7 @@ class Coordinates(tl.HasTraits):
             return d["vunits"]
 
         # get from axis info (is this is ever useful)
-        for axis in self.CRS.axis_info:
+        for axis in self.pyproj_crs.axis_info:
             if axis.direction == "up":
                 return axis.unit_name  # may need to be converted, e.g. "centimetre" > "cm"
 
@@ -845,7 +846,7 @@ class Coordinates(tl.HasTraits):
         d = OrderedDict()
         d["coords"] = [c.full_definition for c in self._coords.values()]
         # "wkt" is suggested as best format: https://proj.org/faq.html#what-is-the-best-format-for-describing-coordinate-reference-systems
-        d["crs"] = self.CRS.to_wkt()
+        d["crs"] = self.pyproj_crs.to_wkt()
         return d
 
     @property
@@ -1379,7 +1380,7 @@ class Coordinates(tl.HasTraits):
         ValueError
             Coordinates must have both lat and lon dimensions if either is defined
         """
-        from_crs = self.CRS
+        from_crs = self.pyproj_crs
         to_crs = pyproj.CRS(crs)
 
         # no transform needed
@@ -1565,9 +1566,9 @@ class Coordinates(tl.HasTraits):
 
         # ellipsoid tuple to pass to geodesic
         ellipsoid_tuple = (
-            self.CRS.ellipsoid.semi_major_metre / 1000,
-            self.CRS.ellipsoid.semi_minor_metre / 1000,
-            1 / self.CRS.ellipsoid.inverse_flattening,
+            self.pyproj_crs.ellipsoid.semi_major_metre / 1000,
+            self.pyproj_crs.ellipsoid.semi_minor_metre / 1000,
+            1 / self.pyproj_crs.ellipsoid.inverse_flattening,
         )
 
         # main execution loop
@@ -1576,23 +1577,23 @@ class Coordinates(tl.HasTraits):
             if dim.is_stacked:
                 if "lat" in dim.dims and "lon" in dim.dims:
                     resolutions[name] = dim.horizontal_resolution(
-                        None, ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                        None, ellipsoid_tuple, self.pyproj_crs.coordinate_system.name, restype, units
                     )
                 elif "lat" in dim.dims:
                     # Calling self['lat'] forces UniformCoordinates1d, even if stacked
                     resolutions["lat"] = self["lat"].horizontal_resolution(
-                        self["lat"], ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                        self["lat"], ellipsoid_tuple, self.pyproj_crs.coordinate_system.name, restype, units
                     )
                 elif "lon" in dim.dims:
                     # Calling self['lon'] forces UniformCoordinates1d, even if stacked
                     resolutions["lon"] = self["lon"].dim.horizontal_resolution(
-                        self["lat"], ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                        self["lat"], ellipsoid_tuple, self.pyproj_crs.coordinate_system.name, restype, units
                     )
             elif (
                 name == "lat" or name == "lon"
             ):  # need to do this inside of loop in case of stacked [[alt,time]] but unstacked [lat, lon]
                 resolutions[name] = dim.horizontal_resolution(
-                    self["lat"], ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                    self["lat"], ellipsoid_tuple, self.pyproj_crs.coordinate_system.name, restype, units
                 )
 
         return resolutions

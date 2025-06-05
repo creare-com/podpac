@@ -68,7 +68,7 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
     def _hostname(self):
         try:
             return requests.utils.urlparse(self.source).netloc
-        except:
+        except Exception:
             return self.source
 
     @common_doc(COMMON_DATA_DOC)

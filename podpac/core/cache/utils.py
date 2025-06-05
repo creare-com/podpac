@@ -46,13 +46,13 @@ def expiration_timestamp(value):
     if isinstance(expires, string_types):
         try:
             expires = np.datetime64(expires).item()
-        except:
+        except Exception:
             pass
 
     if isinstance(expires, string_types) and "," in expires:
         try:
             expires = np.timedelta64(*expires.split(",")).item()
-        except:
+        except Exception:
             pass
 
     # extract datetime or timedelta from numpy types

@@ -14,6 +14,8 @@ from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
+_DUPLICATE_DIMENSION = "Duplicate dimension"
+
 
 class TestStackedCoordinatesCreation(object):
     def test_init_explicit(self):
@@ -93,10 +95,10 @@ class TestStackedCoordinatesCreation(object):
             StackedCoordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lon"], name="lat_lon")
 
     def test_duplicate_dims(self):
-        with pytest.raises(ValueError, match="Duplicate dimension"):
+        with pytest.raises(ValueError, match=_DUPLICATE_DIMENSION):
             StackedCoordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lat"])
 
-        with pytest.raises(ValueError, match="Duplicate dimension"):
+        with pytest.raises(ValueError, match=_DUPLICATE_DIMENSION):
             StackedCoordinates([[0, 1, 2], [10, 20, 30]], name="lat_lat")
 
     def test_invalid_coords(self):
@@ -110,7 +112,7 @@ class TestStackedCoordinatesCreation(object):
         with pytest.raises(ValueError, match="Shape mismatch in stacked coords"):
             StackedCoordinates([lat, lon])
 
-        with pytest.raises(ValueError, match="Duplicate dimension"):
+        with pytest.raises(ValueError, match=_DUPLICATE_DIMENSION):
             StackedCoordinates([lat, lat])
 
         # (but duplicate None name is okay)

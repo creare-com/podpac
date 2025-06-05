@@ -7,29 +7,27 @@ import tempfile
 from collections import OrderedDict
 from copy import deepcopy
 
-try:
-    import urllib.parse as urllib
-except:  # Python 2.7
-    import urlparse as urllib
-
 import six
 import pytest
 import numpy as np
-import xarray as xr
-from pint.errors import DimensionalityError, UndefinedUnitError
+from pint.errors import UndefinedUnitError
 from pint import UnitRegistry
 
 ureg = UnitRegistry()
 import traitlets as tl
 
 import podpac
-from podpac.core import common_test_utils as ctu
 from podpac.core.utils import ArrayTrait, NodeTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore, DiskCacheMixin, clear_cache
 from podpac.core.node import Node, NodeException, NodeDefinitionError
 
+_OUTPUTS = "outputs="
+_OUTPUT = "output="
+_CACHE_UNAVAIL = "Cache unavailable"
+_INSECURE_EVAL = "Insecure evaluation.*"
+_INVALID_DEF_FOR_NODE = "Invalid definition for node"
 
 class TestNode(object):
     def test_style(self):
@@ -37,7 +35,7 @@ class TestNode(object):
         assert isinstance(node.style, Style)
 
     def test_units(self):
-        node = Node(units="meters")
+        Node(units="meters")
 
         with pytest.raises(UndefinedUnitError):
             Node(units="abc")
@@ -61,11 +59,11 @@ class TestNode(object):
 
         # must be one of the outputs
         with pytest.raises(ValueError, match="Invalid output"):
-            node = Node(outputs=["a", "b"], output="other")
+            Node(outputs=["a", "b"], output="other")
 
         # only valid for multiple-output nodes
         with pytest.raises(TypeError, match="Invalid output"):
-            node = Node(output="other")
+            Node(output="other")
 
     def test_cache_output(self):
         with podpac.settings:
@@ -148,31 +146,31 @@ class TestNode(object):
 
     def test_repr(self):
         n = Node()
-        repr(n)
+        _ = repr(n)
 
         n = Node(outputs=["a", "b"])
-        repr(n)
-        assert "outputs=" in repr(n)
-        assert "output=" not in repr(n)
+        _ = repr(n)
+        assert _OUTPUTS in repr(n)
+        assert _OUTPUT not in repr(n)
 
         n = Node(outputs=["a", "b"], output="a")
-        repr(n)
-        assert "outputs=" not in repr(n)
-        assert "output=" in repr(n)
+        _ = repr(n)
+        assert _OUTPUTS not in repr(n)
+        assert _OUTPUT in repr(n)
 
     def test_str(self):
         n = Node()
-        str(n)
+        _ = str(n)
 
         n = Node(outputs=["a", "b"])
-        str(n)
-        assert "outputs=" in str(n)
-        assert "output=" not in str(n)
+        _ = str(n)
+        assert _OUTPUTS in str(n)
+        assert _OUTPUT not in str(n)
 
         n = Node(outputs=["a", "b"], output="a")
-        str(n)
-        assert "outputs=" not in str(n)
-        assert "output=" in str(n)
+        _ = str(n)
+        assert _OUTPUTS not in str(n)
+        assert _OUTPUT in str(n)
 
     def test_eval_group(self):
         class MyNode(Node):
@@ -583,7 +581,7 @@ class TestCaching(object):
 
         node = MyNode(cache_ctrl=["ram"]).cache()
         with pytest.raises(NodeException, match="Cache unavailable, node definition has a circular dependency"):
-            assert node.source.b == 10
+            _ = node.source.b
 
     def test_has_cache_unavailable_uninitialized(self):
         class MyNode(Node):
@@ -600,7 +598,7 @@ class TestCaching(object):
                 return 10
 
         with pytest.raises(NodeException, match="Cache unavailable, node is not yet fully initialized"):
-            node = MyNode(a=3, cache_ctrl=["ram"]).cache()
+            MyNode(a=3, cache_ctrl=["ram"]).cache()
 
     def test_put_cache_unavailable_uninitialized(self):
         class MyNode(Node):
@@ -616,8 +614,8 @@ class TestCaching(object):
                 self.put_property_cache(10, "key")  # no longer a relevant test?
                 return 10
 
-        with pytest.raises(NodeException, match="Cache unavailable"):
-            node = MyNode(a=3, cache_ctrl=["ram"])
+        with pytest.raises(NodeException, match=_CACHE_UNAVAIL):
+            MyNode(a=3, cache_ctrl=["ram"])
 
     def test_get_cache_unavailable_uninitialized(self):
         class MyNode(Node):
@@ -633,8 +631,8 @@ class TestCaching(object):
                 self.get_property_cache("key")
                 return 10
 
-        with pytest.raises(NodeException, match="Cache unavailable"):
-            node = MyNode(a=3, cache_ctrl=["ram"])
+        with pytest.raises(NodeException, match=_CACHE_UNAVAIL):
+            MyNode(a=3, cache_ctrl=["ram"])
 
     def test_rem_cache_unavailable_uninitialized(self):
         class MyNode(Node):
@@ -650,8 +648,8 @@ class TestCaching(object):
                 self.rem_property_cache("key")
                 return 10
 
-        with pytest.raises(NodeException, match="Cache unavailable"):
-            node = MyNode(a=3, cache_ctrl=["ram"])
+        with pytest.raises(NodeException, match=_CACHE_UNAVAIL):
+            MyNode(a=3, cache_ctrl=["ram"])
 
 
 class TestSerialization(object):
@@ -662,7 +660,7 @@ class TestSerialization(object):
         c = podpac.compositor.OrderedCompositor(sources=[a, b])
 
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+            warnings.filterwarnings("ignore", _INSECURE_EVAL)
             cls.node = podpac.algorithm.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
 
     def test_base_ref(self):
@@ -720,7 +718,7 @@ class TestSerialization(object):
 
     def test_base_definition_style(self):
         node = Node(style=Style(name="test"))
-        d = node._base_definition
+        node._base_definition
         assert "style" in node._base_definition
 
     def test_base_definition_remove_unnecessary_attrs(self):
@@ -745,7 +743,7 @@ class TestSerialization(object):
 
         # from_definition
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+            warnings.filterwarnings("ignore", _INSECURE_EVAL)
             node = Node.from_definition(d)
 
         assert node is not self.node
@@ -797,7 +795,7 @@ class TestSerialization(object):
 
         # test from_json
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+            warnings.filterwarnings("ignore", _INSECURE_EVAL)
             node = Node.from_json(s)
         assert node is not self.node
         assert node == self.node
@@ -815,7 +813,7 @@ class TestSerialization(object):
         assert os.path.exists(filename)
 
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+            warnings.filterwarnings("ignore", _INSECURE_EVAL)
             node = Node.load(filename)
 
         assert node is not self.node
@@ -850,7 +848,7 @@ class TestSerialization(object):
     def test_hash_preserves_definition(self):
         n = Node()
         d_before = deepcopy(n.definition)
-        h = n.hash
+        _ = n.hash
         d_after = deepcopy(n.definition)
 
         assert d_before == d_after
@@ -905,12 +903,12 @@ class TestSerialization(object):
 
         # eq
         assert n1 == n2
-        assert not n1 == n3
-        assert not n1 == m1
-        assert not n1 == "other"
+        assert not n1.__eq__(n3)
+        assert not n1.__eq__(m1)
+        assert not n1.__eq__("other")
 
         # ne
-        assert not n1 != n2
+        assert not n1.__ne__(n2)
         assert n1 != n3
         assert n1 != m1
         assert n1 != "other"
@@ -927,7 +925,7 @@ class TestSerialization(object):
 
         # but == and != don't care
         assert n1 == n2
-        assert not n1 != n2
+        assert not n1.__ne__(n2)
 
     def test_from_url(self):
         url = (
@@ -948,7 +946,7 @@ class TestSerialization(object):
                 ],
                 params,
             ):
-                pipe = Node.from_url(url.format(service=service, layername=layername, layer=layer, params=param))
+                Node.from_url(url.format(service=service, layername=layername, layer=layer, params=param))
 
     def test_from_url_with_plugin_style_params(self):
         url0 = (
@@ -958,12 +956,12 @@ class TestSerialization(object):
             r'PARAMS={"plugin": "podpac.algorithm"}'
         )
 
-        node = Node.from_url(url0)
+        Node.from_url(url0)
 
     def test_from_name_params(self):
         # Normal
         name = "algorithm.Arange"
-        node = Node.from_name_params(name)
+        Node.from_name_params(name)
 
         # Normal with params
         name = "algorithm.CoordData"
@@ -1048,7 +1046,7 @@ class TestUserDefinition(object):
         }
         """
 
-        with pytest.raises(ValueError, match="Invalid definition for node"):
+        with pytest.raises(ValueError, match=_INVALID_DEF_FOR_NODE):
             Node.from_json(s)
 
         # nonexistent node
@@ -1061,7 +1059,7 @@ class TestUserDefinition(object):
         }
         """
 
-        with pytest.raises(ValueError, match="Invalid definition for node"):
+        with pytest.raises(ValueError, match=_INVALID_DEF_FOR_NODE):
             Node.from_json(s)
 
     def test_lookup_attrs(self):
@@ -1096,7 +1094,7 @@ class TestUserDefinition(object):
         }
         """
 
-        with pytest.raises(ValueError, match="Invalid definition for node"):
+        with pytest.raises(ValueError, match=_INVALID_DEF_FOR_NODE):
             Node.from_json(s)
 
         # nonexistent node
@@ -1113,7 +1111,7 @@ class TestUserDefinition(object):
         }
         """
 
-        with pytest.raises(ValueError, match="Invalid definition for node"):
+        with pytest.raises(ValueError, match=_INVALID_DEF_FOR_NODE):
             Node.from_json(s)
 
         # nonexistent subattr
@@ -1130,7 +1128,7 @@ class TestUserDefinition(object):
         }
         """
 
-        with pytest.raises(ValueError, match="Invalid definition for node"):
+        with pytest.raises(ValueError, match=_INVALID_DEF_FOR_NODE):
             Node.from_json(s)
 
     def test_invalid_property(self):
@@ -1197,7 +1195,7 @@ class TestUserDefinition(object):
         """
 
         with warnings.catch_warnings(), podpac.settings:
-            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+            warnings.filterwarnings("ignore", _INSECURE_EVAL)
 
             # normally node objects can and should be re-used
             podpac.settings["DEBUG"] = False
@@ -1220,7 +1218,7 @@ class TestUserDefinition(object):
         """
 
         with pytest.warns(UserWarning, match="node definition version mismatch"):
-            node = Node.from_json(s)
+            Node.from_json(s)
 
     def test_from_proper_json(self):
         not_ordered_json = """
@@ -1474,7 +1472,7 @@ class TestDiskCacheMixin(object):
         assert len(node.cache_ctrl._cache_stores) == 1
 
 
-# TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)
 @pytest.mark.integration
 def tests_node_integration():
-    assert True
+    # This is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)
+    pass

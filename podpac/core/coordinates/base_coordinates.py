@@ -122,7 +122,7 @@ class BaseCoordinates(tl.HasTraits):
         raise NotImplementedError
 
     def __eq__(self, other):
-        raise NotImplementedError
+        return NotImplemented
 
     # python 2 compatibility
     if sys.version < "3":

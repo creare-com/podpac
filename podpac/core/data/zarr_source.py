@@ -16,6 +16,8 @@ from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin
 
+_S3_PREFIX = "s3://"
+
 
 class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
     """Create a DataSource node using zarr.
@@ -57,9 +59,9 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
     _consolidated = False
 
     def _get_store(self):
-        if self.source.startswith("s3://"):
+        if self.source.startswith(_S3_PREFIX):
             s3fs = lazy_module("s3fs")
-            root = self.source.strip("s3://")
+            root = self.source.strip(_S3_PREFIX)
             s3map = s3fs.S3Map(root=root, s3=self.s3, check=False)
             store = s3map
         else:
@@ -125,7 +127,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
         path = os.path.join(self.source, data_key)
         if self.source.startswith("s3:"):
             path = path.replace("\\", "/")
-            ld = ["s3://" + p for p in self.s3.ls(path)]
+            ld = [_S3_PREFIX + p for p in self.s3.ls(path)]
         else:
             path = path.replace("/", os.sep)
             ld = [os.path.join(path, p) for p in os.listdir(path)]
@@ -136,8 +138,6 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
     def dataset(self):
         store = self._get_store()
         try:
-            # import zarr.open
-            # import zarr.open_consolidated
             if self.file_mode == "r":
                 try:
                     self._consolidated = True
@@ -161,7 +161,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
             key = self.data_key[0]
         try:
             return self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
-        except:
+        except Exception:
             lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
             return [lookup[key] for key in self.dataset if key in lookup]
 

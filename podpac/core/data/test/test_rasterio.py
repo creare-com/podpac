@@ -21,17 +21,17 @@ class TestRasterio(object):
     def test_init(self):
         """test basic init of class"""
 
-        node = Rasterio(source=self.source, band=self.band)
+        Rasterio(source=self.source, band=self.band)
 
     def test_dataset(self):
         """test dataset attribute and trait default"""
 
         node = Rasterio(source=self.source, band=self.band)
         try:
-            RasterReader = rasterio._io.RasterReader  # Rasterio < v1.0
-        except:
-            RasterReader = rasterio.io.DatasetReader  # Rasterio >= v1.0
-        assert isinstance(node.dataset, RasterReader)
+            raster_reader = rasterio._io.RasterReader  # Rasterio < v1.0
+        except Exception:
+            raster_reader = rasterio.io.DatasetReader  # Rasterio >= v1.0
+        assert isinstance(node.dataset, raster_reader)
 
         node.close_dataset()
 
