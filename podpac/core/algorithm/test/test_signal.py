@@ -15,14 +15,15 @@ from podpac.core.algorithm.signal import Convolution
 
 class TestConvolution(object):
     def test_init_kernel(self):
+        MEAN_5 = "mean, 5"
         node = Convolution(source=Arange(), kernel=[1, 2, 1], kernel_dims=["lat"])
         assert_equal(node.kernel, [1, 2, 1])
 
-        node = Convolution(source=Arange(), kernel_type="mean, 5", kernel_dims=["lat", "lon"])
+        node = Convolution(source=Arange(), kernel_type=MEAN_5, kernel_dims=["lat", "lon"])
         assert node.kernel.shape == (5, 5)
         assert np.all(node.kernel == 0.04)
 
-        node = Convolution(source=Arange(), kernel_type="mean, 5", kernel_dims=["lat", "lon", "time"])
+        node = Convolution(source=Arange(), kernel_type=MEAN_5, kernel_dims=["lat", "lon", "time"])
         assert node.kernel.shape == (5, 5, 5)
         assert np.all(node.kernel == 0.008)
 
@@ -31,7 +32,7 @@ class TestConvolution(object):
 
         # kernel and kernel_type invalid
         with pytest.raises(TypeError, match="Convolution expected 'kernel' or 'kernel_type', not both"):
-            Convolution(source=Arange(), kernel=[1, 2, 1], kernel_type="mean, 5", kernel_dims=["lat", "lon"])
+            Convolution(source=Arange(), kernel=[1, 2, 1], kernel_type=MEAN_5, kernel_dims=["lat", "lon"])
 
         # kernel or kernel_type required
         with pytest.raises(TypeError, match="Convolution requires 'kernel' array or 'kernel_type' string"):
@@ -41,7 +42,7 @@ class TestConvolution(object):
         with pytest.raises(
             TypeError, match="Convolution expected 'kernel_dims' to be specified when giving a 'kernel' array"
         ):
-            Convolution(source=Arange(), kernel_type="mean, 5")
+            Convolution(source=Arange(), kernel_type=MEAN_5)
 
         # kernel_dims correct number of entries
         with pytest.raises(

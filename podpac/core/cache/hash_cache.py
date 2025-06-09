@@ -8,6 +8,7 @@ from podpac import settings
 from podpac.core.cache.cache_ctrl import _CACHE_STORES
 from podpac.core.cache.cache_interface import CacheNode
 
+_CACHE_UNAVAIL = "Cache unavailable, %s (key='%s')"
 
 class HashCache(CacheNode):
     """
@@ -187,7 +188,7 @@ class HashCache(CacheNode):
         try:
             self.definition
         except NodeDefinitionError as e:
-            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+            raise NodeException(_CACHE_UNAVAIL % (e.args[0], key))
 
         if self.cache_ctrl is None or not self.has_cache(key, coordinates=coordinates):
             raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
@@ -220,7 +221,7 @@ class HashCache(CacheNode):
         try:
             self.definition
         except NodeDefinitionError as e:
-            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+            raise NodeException(_CACHE_UNAVAIL % (e.args[0], key))
 
         if self.cache_ctrl is None:
             return
@@ -251,7 +252,7 @@ class HashCache(CacheNode):
         try:
             self.definition
         except NodeDefinitionError as e:
-            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+            raise NodeException(_CACHE_UNAVAIL % (e.args[0], key))
 
         if self.cache_ctrl is None:
             return False
@@ -282,7 +283,7 @@ class HashCache(CacheNode):
         try:
             self.definition
         except NodeDefinitionError as e:
-            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+            raise NodeException(_CACHE_UNAVAIL % (e.args[0], key))
 
         if self.cache_ctrl is None:
             return

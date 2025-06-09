@@ -57,7 +57,7 @@ class TestArithmetic(object):
                 [podpac.crange(-90, 90, 1.0), podpac.crange(-180, 180, 1.0)], dims=["lat", "lon"]
             )
             sine_node = SinCoords()
-            node = Arithmetic(A=sine_node, B=sine_node, eqn="2*abs(A) - B + {offset}", params={"offset": 1})
+            node = Arithmetic(A=sine_node, B=sine_node, eqn=EQUATION, params={"offset": 1})
             output = node.eval(coords)
 
             a = sine_node.eval(coords)
@@ -73,8 +73,8 @@ class TestArithmetic(object):
             )
             sine_node = SinCoords()
 
-            with pytest.warns(UserWarning, match="Insecure evaluation"):
-                node = Arithmetic(A=sine_node, B=sine_node, eqn="2*abs(A) - B + {offset}", params={"offset": 1})
+            with pytest.warns(UserWarning, match=INSECURE_EVALUATION):
+                node = Arithmetic(A=sine_node, B=sine_node, eqn=EQUATION, params={"offset": 1})
 
             with pytest.raises(PermissionError):
                 node.eval(coords)
@@ -108,7 +108,7 @@ class TestGeneric(object):
             )
             a = SinCoords()
             b = Arange()
-            node = Generic(code="import numpy as np\noutput = np.minimum(a,b)", a=a, b=b)
+            node = Generic(code=CODE, a=a, b=b)
             output = node.eval(coords)
 
             a = node.eval(coords)
@@ -125,8 +125,8 @@ class TestGeneric(object):
             a = SinCoords()
             b = Arange()
 
-            with pytest.warns(UserWarning, match="Insecure evaluation"):
-                node = Generic(code="import numpy as np\noutput = np.minimum(a,b)", a=a, b=b)
+            with pytest.warns(UserWarning, match=INSECURE_EVALUATION):
+                node = Generic(code=CODE, a=a, b=b)
 
             with pytest.raises(PermissionError):
                 node.eval(coords)
