@@ -14,10 +14,8 @@ from collections import OrderedDict
 from copy import deepcopy
 from hashlib import sha256 as hash_alg
 
-try:
-    import urllib.parse as urllib
-except:  # Python 2.7
-    import urlparse as urllib
+import urllib.parse as urllib
+
 
 from six import string_types
 import lazy_import
@@ -188,7 +186,7 @@ class ArrayTrait(tl.TraitType):
         if self.dtype is not None:
             try:
                 value = value.astype(self.dtype)
-            except:
+            except Exception:
                 raise tl.TraitError(
                     "The '%s' trait of an %s instance must have dtype %s, but a value with dtype %s was specified"
                     % (self.name, obj.__class__.__name__, self.dtype, value.dtype)
@@ -287,7 +285,7 @@ class JSONEncoder(json.JSONEncoder):
 def is_json_serializable(obj, cls=json.JSONEncoder):
     try:
         json.dumps(obj, cls=cls)
-    except:
+    except Exception:
         return False
     else:
         return True
