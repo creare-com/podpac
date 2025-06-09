@@ -26,7 +26,7 @@ _CRS = "+proj=longlat +datum=WGS84 +no_defs +vunits=m"
 # Set up the PRNG with a seed to stay deterministic
 _rand = np.random.default_rng(0xC * ord('r') + 0xea + ord('r') * 0xe)
 
-
+sc
 
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 

@@ -10,6 +10,8 @@ from podpac.core.data.array_source import Array
 from podpac.core.algorithm.utility import Arange
 from podpac.core.algorithm.coord_select import ExpandCoordinates, SelectCoordinates, YearSubstituteCoordinates
 
+# Set up the PRNG with a seed to stay deterministic
+_rand = np.random.default_rng(0xC * ord('r') + 0xea + ord('r') * 0xe)
 
 def setup_module(module):
     global COORDS
@@ -37,66 +39,67 @@ class MyDataSource(DataSource):
 class TestExpandCoordinates(object):
     def test_no_expansion(self):
         node = ExpandCoordinates(source=Arange())
-        o = node.eval(COORDS)
+        node.eval(COORDS)
 
     def test_time_expansion(self):
         node = ExpandCoordinates(source=Arange(), time=("-5,D", "0,D", "1,D"))
-        o = node.eval(COORDS)
+        node.eval(COORDS)
 
     def test_spatial_expansion(self):
         node = ExpandCoordinates(source=Arange(), lat=(-1, 1, 0.1))
-        o = node.eval(COORDS)
+        node.eval(COORDS)
 
     def test_time_expansion_implicit_coordinates(self):
+        M_15_Y = "-15,Y"
         node = ExpandCoordinates(source=MyDataSource(), time=("-15,D", "0,D"))
-        o = node.eval(COORDS)
+        node.eval(COORDS)
 
-        node = ExpandCoordinates(source=MyDataSource(), time=("-15,Y", "0,D", "1,Y"))
-        o = node.eval(COORDS)
+        node = ExpandCoordinates(source=MyDataSource(), time=(M_15_Y, "0,D", "1,Y"))
+        node.eval(COORDS)
 
         node = ExpandCoordinates(source=MyDataSource(), time=("-5,M", "0,D", "1,M"))
-        o = node.eval(COORDS)
+        node.eval(COORDS)
 
         # Behaviour a little strange on these?
-        node = ExpandCoordinates(source=MyDataSource(), time=("-15,Y", "0,D", "4,Y"))
-        o = node.eval(COORDS)
+        node = ExpandCoordinates(source=MyDataSource(), time=(M_15_Y, "0,D", "4,Y"))
+        node.eval(COORDS)
 
-        node = ExpandCoordinates(source=MyDataSource(), time=("-15,Y", "0,D", "13,M"))
-        o = node.eval(COORDS)
+        node = ExpandCoordinates(source=MyDataSource(), time=(M_15_Y, "0,D", "13,M"))
+        node.eval(COORDS)
 
         node = ExpandCoordinates(source=MyDataSource(), time=("-144,M", "0,D", "13,M"))
-        o = node.eval(COORDS)
+        node.eval(COORDS)
 
     def test_spatial_expansion_ultiple_outputs(self):
-        multi = Array(source=np.random.random(COORDS.shape + (2,)), coordinates=COORDS, outputs=["a", "b"])
+        multi = Array(source=_rand.random(size=(COORDS.shape + (2,))), coordinates=COORDS, outputs=["a", "b"])
         node = ExpandCoordinates(source=multi, lat=(-1, 1, 0.1))
-        o = node.eval(COORDS)
+        node.eval(COORDS)
 
 
 class TestSelectCoordinates(object):
     def test_no_expansion(self):
         node = SelectCoordinates(source=Arange())
-        o = node.eval(COORDS)
+        node.eval(COORDS)
 
     def test_time_selection(self):
         node = SelectCoordinates(source=Arange(), time=("2017-08-01", "2017-09-30", "1,D"))
-        o = node.eval(COORDS)
+        node.eval(COORDS)
 
     def test_spatial_selection(self):
         node = SelectCoordinates(source=Arange(), lat=(46, 56, 1))
-        o = node.eval(COORDS)
+        node.eval(COORDS)
 
     def test_time_selection_implicit_coordinates(self):
         node = SelectCoordinates(source=MyDataSource(), time=("2011-01-01", "2011-02-01"))
-        o = node.eval(COORDS)
+        node.eval(COORDS)
 
         node = SelectCoordinates(source=MyDataSource(), time=("2011-01-01", "2017-01-01", "1,Y"))
-        o = node.eval(COORDS)
+        node.eval(COORDS)
 
     def test_spatial_selection_multiple_outputs(self):
-        multi = Array(source=np.random.random(COORDS.shape + (2,)), coordinates=COORDS, outputs=["a", "b"])
+        multi = Array(source=_rand.random(size=(COORDS.shape + (2,))), coordinates=COORDS, outputs=["a", "b"])
         node = SelectCoordinates(source=multi, lat=(46, 56, 1))
-        o = node.eval(COORDS)
+        node.eval(COORDS)
 
 
 class TestYearSubstituteCoordinates(object):
@@ -137,7 +140,7 @@ class TestYearSubstituteCoordinates(object):
         np.testing.assert_array_equal(o["time"], COORDS["time"].coordinates)
 
     def test_year_substitution_multiple_outputs(self):
-        multi = Array(source=np.random.random(COORDS.shape + (2,)), coordinates=COORDS, outputs=["a", "b"]).interpolate()
+        multi = Array(source=_rand.random(size=(COORDS.shape + (2,))), coordinates=COORDS, outputs=["a", "b"]).interpolate()
         node = YearSubstituteCoordinates(source=multi, year="2018")
         o = node.eval(COORDS)
         assert o.time.dt.year.data[0] == 2018
