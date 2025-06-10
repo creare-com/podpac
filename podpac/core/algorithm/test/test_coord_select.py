@@ -10,14 +10,15 @@ from podpac.core.data.array_source import Array
 from podpac.core.algorithm.utility import Arange
 from podpac.core.algorithm.coord_select import ExpandCoordinates, SelectCoordinates, YearSubstituteCoordinates
 
-# Set up the PRNG with a seed to stay deterministic
-_rand = np.random.default_rng(0xC * ord('r') + 0xea + ord('r') * 0xe)
 
 def setup_module(module):
     global COORDS
     COORDS = podpac.Coordinates(
         ["2017-09-01", podpac.clinspace(45, 66, 4), podpac.clinspace(-80, -70, 5)], dims=["time", "lat", "lon"]
     )
+    global _rand
+    # Set up the PRNG with a seed to stay deterministic
+    _rand = np.random.default_rng(0xC * ord('r') + 0xea + ord('r') * 0xe)
 
 
 class MyDataSource(DataSource):
