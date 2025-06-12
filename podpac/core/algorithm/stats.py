@@ -4,6 +4,7 @@ Stats Summary
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+from typing import Dict
 import warnings
 from operator import mul
 from functools import reduce
@@ -18,7 +19,6 @@ from six import string_types
 # Internal dependencies
 import podpac
 from podpac.core.coordinates import Coordinates
-from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import UnaryAlgorithm, Algorithm
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC
@@ -1081,24 +1081,63 @@ class DayOfYearWindow(Algorithm):
 
     _DAYS_PER_YEAR = 365  # disregard leap years
 
-    def algorithm(self, inputs, coordinates):
+    def _apply_function(
+        self,
+        time_in_window_flags: podpac.UnitsDataArray,
+        source: podpac.UnitsDataArray,
+        output: podpac.UnitsDataArray,
+        time_index: int,
+    ):
+        """Run self.function() over all spatial locations in the source node
+        and the times that lie within the window
+
+        Parameters
+        ----------
+        time_in_window_flags : podpac.UnitsDataArray
+            array of boolean flags, where True means that the corresponding
+            index into the time dimension of the source node is within the window.
+        source : podpac.UnitsDataArray
+            Source data node
+        output : podpac.UnitsDataArray
+            Output data
+        time_index : int
+            index into source time dimension
+        """
+        # Scipy's beta function doesn's support multi-dimensional arrays, so we have to loop over lat/lon/alt
+        lat_f = source["lat"].data if "lat" in source.dims else [None]
+        lon_f = source["lon"].data if "lon" in source.dims else [None]
+        alt_f = source["alt"].data if "alt" in source.dims else [None]
+
+        dims = ["lat", "lon", "alt"]
+        for alt in alt_f:
+            for lat in lat_f:
+                for lon in lon_f:
+                    # _log.debug(f'lat, lon, alt = {lat}, {lon}, {alt})
+                    loc_dict = {k: v for k, v in zip(dims, [lat, lon, alt]) if v is not None}
+
+                    data = source.sel(time=time_in_window_flags, **loc_dict).dropna("time").data
+                    if not np.all(np.isnan(data)):
+                        # Fit function to the particular point
+                        output.loc[loc_dict][{"time": time_index}] = self.function(
+                            data, output.loc[loc_dict][{"time": time_index}]
+                        )
+
+    def algorithm(self, inputs: Dict[str, podpac.UnitsDataArray], coordinates: Coordinates):
         win = self.window // 2
         source = inputs["source"]
 
         # Scale the source to range [0, 1], required for the beta distribution
+        scale_max = None
         if "scale_max" in inputs:
             scale_max = inputs["scale_max"]
         elif self.scale_float and self.scale_float[1] is not None:
             scale_max = self.scale_float[1]
-        else:
-            scale_max = None
 
+        scale_min = None
         if "scale_min" in inputs:
             scale_min = inputs["scale_min"]
         elif self.scale_float and self.scale_float[0] is not None:
             scale_min = self.scale_float[0]
-        else:
-            scale_min = None
 
         _log.debug("scale_min: {}\nscale_max: {}".format(scale_min, scale_max))
         if scale_min is not None and scale_max is not None:
@@ -1120,7 +1159,7 @@ class DayOfYearWindow(Algorithm):
             return output
 
         # convert source time coords to day-of-year as well
-        source_doy: xr.UnitsDataArray = source.time.dt.dayofyear
+        source_doy: podpac.UnitsDataArray = source.time.dt.dayofyear
 
         # loop over each day of year and compute window
         for i, doy in enumerate(dsdoy):
@@ -1136,28 +1175,11 @@ class DayOfYearWindow(Algorithm):
 
             times_after_start = source_doy >= start
             times_before_end = source_doy <= end
-            time_in_window_flags: xr.UnitsDataArray = (
+            time_in_window_flags: podpac.UnitsDataArray = (
                 (times_after_start | times_before_end) if window_is_split else (times_after_start & times_before_end)
             )
 
-            # Scipy's beta function doesn's support multi-dimensional arrays, so we have to loop over lat/lon/alt
-            lat_f = source["lat"].data if "lat" in source.dims else [None]
-            lon_f = source["lon"].data if "lon" in source.dims else [None]
-            alt_f = source["alt"].data if "alt" in source.dims else [None]
-
-            dims = ["lat", "lon", "alt"]
-            for alt in alt_f:
-                for lat in lat_f:
-                    for lon in lon_f:
-                        # _log.debug(f'lat, lon, alt = {lat}, {lon}, {alt})
-                        loc_dict = {k: v for k, v in zip(dims, [lat, lon, alt]) if v is not None}
-
-                        data = source.sel(time=time_in_window_flags, **loc_dict).dropna("time").data
-                        if np.all(np.isnan(data)):
-                            continue
-
-                        # Fit function to the particular point
-                        output.loc[loc_dict][{"time": i}] = self.function(data, output.loc[loc_dict][{"time": i}])
+            self._apply_function(time_in_window_flags, source, output, i)
 
         # Rescale the outputs
         if self.rescale:
