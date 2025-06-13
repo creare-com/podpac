@@ -374,48 +374,42 @@ class ArrayCoordinates1d(Coordinates1d):
     def _get_index_default(self, bounds: Tuple[float, float]) -> np.array:
         gt = self.coordinates >= bounds[0]
         lt = self.coordinates <= bounds[1]
-        b = gt & lt
-        b2 = gt | lt
-        if b2.sum() == b2.size and b.sum() == 0 and self.is_monotonic:
-            # bounds between data points
-            indlt = np.argwhere(lt).squeeze()
-            indgt = np.argwhere(gt).squeeze()
-            if self._is_descending:
-                if indlt.size > 0:
-                    indlt = indlt[0]
-                else:
-                    indlt = b.size - 1
-                if indgt.size > 0:
-                    indgt = indgt[-1]
-                else:
-                    indgt = 0
-            else:
-                if indlt.size > 0:
-                    indlt = indlt[-1]
-                else:
-                    indlt = 0
-                if indgt.size > 0:
-                    indgt = indgt[0]
-                else:
-                    indgt = b.size - 1
+        index_inside_bounds = gt & lt
+        index_outside_bounds = gt | lt
+        if (
+            index_outside_bounds.sum() != index_outside_bounds.size
+            or index_inside_bounds.sum() != 0
+            or not self.is_monotonic
+        ):
+            return index_inside_bounds
 
-            ind0 = min(indlt, indgt)
-            ind1 = max(indlt, indgt) + 1
-            b[ind0:ind1] = True
-            if b.sum() > 1:
-                # These two coordinates are candidates, we need
-                # to make sure that the bounds cross the edge between
-                # the two points (selects both) or not (only selects)
-                crds = self.coordinates[b]
-                step = np.diff(self.coordinates[b])[0]
-                edge = crds[0] + step / 2
-                bounds_lt = bounds <= edge
-                bounds_gt = bounds > edge
-                keep_point = [np.any(bounds_lt), np.any(bounds_gt)]
-                if self._is_descending:
-                    keep_point = keep_point[::-1]
-                b[ind0:ind1] = keep_point
-        return b
+        # bounds between data points
+        indlt = np.argwhere(lt).squeeze()
+        indgt = np.argwhere(gt).squeeze()
+        if self._is_descending:
+            indlt = indlt[0] if indlt.size > 0 else index_inside_bounds.size - 1
+            indgt = indgt[-1] if indgt.size > 0 else 0
+        else:
+            indlt = indlt[-1] if indlt.size > 0 else 0
+            indgt = indgt[0] if indgt.size > 0 else index_inside_bounds.size - 1
+
+        ind0 = min(indlt, indgt)
+        ind1 = max(indlt, indgt) + 1
+        index_inside_bounds[ind0:ind1] = True
+        if index_inside_bounds.sum() > 1:
+            # These two coordinates are candidates, we need
+            # to make sure that the bounds cross the edge between
+            # the two points (selects both) or not (only selects)
+            crds = self.coordinates[index_inside_bounds]
+            step = np.diff(self.coordinates[index_inside_bounds])[0]
+            edge = crds[0] + step / 2
+            bounds_lt = bounds <= edge
+            bounds_gt = bounds > edge
+            keep_point = [np.any(bounds_lt), np.any(bounds_gt)]
+            if self._is_descending:
+                keep_point = keep_point[::-1]
+            index_inside_bounds[ind0:ind1] = keep_point
+        return index_inside_bounds
 
     def _get_index_outer_monotonic(self, bounds: Tuple[float, float]) -> np.array:
         gt = np.where(self.coordinates >= bounds[0])[0]
