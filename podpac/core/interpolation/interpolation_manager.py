@@ -99,6 +99,28 @@ def load_interpolators():
 load_interpolators()
 
 
+def assert_custom(condition: bool, exception_type: type[Exception], message: str) -> None:
+    """Check indicated condition.  If it's false, raise the indicated execption.
+    This is much like `assert condition, message` only it will raise exception_type
+    rather than AssertionError.
+
+    Parameters
+    ----------
+    condition : bool
+        Condition to check
+    exception_type : type[Exception]
+        The exception class to raise
+    message : str
+        Exception message
+
+    Raises
+    ------
+    exception_type
+    """
+    if not condition:
+        raise exception_type(message)
+
+
 class InterpolationException(Exception):
     """
     Custom label for interpolation exceptions
@@ -193,9 +215,7 @@ class InterpolationManager(object):
             # specify dims
             if "dims" in interp_definition:
                 if isinstance(interp_definition["dims"], list):
-                    udims = tuple(
-                        sorted(interp_definition["dims"])
-                    )  # make sure the dims are always in the same order
+                    udims = tuple(sorted(interp_definition["dims"]))  # make sure the dims are always in the same order
                 else:
                     raise TypeError('The "dims" key of an interpolation definition must be a list')
             else:
@@ -210,7 +230,7 @@ class InterpolationManager(object):
                     )
             # add all udims to definition
             self.config = self._set_interpolation_method(udims, method)
-    
+
     def __repr__(self):
         rep = str(self.__class__.__name__)
         for udims in iter(self.config):
@@ -224,7 +244,7 @@ class InterpolationManager(object):
 
         return rep
 
-    def _parse_interpolation_method(self, definition):
+    def _parse_interpolation_method(self, definition: Dict[str, Interpolator]) -> dict:
         """parse interpolation definitions into a tuple of (method, Interpolator)
 
         Parameters
@@ -244,71 +264,68 @@ class InterpolationManager(object):
         TypeError
         """
         if isinstance(definition, string_types):
-            if definition not in INTERPOLATION_METHODS:
-                raise InterpolationException(
-                    '"{}" is not a valid interpolation shortcut. '.format(definition)
-                    + "Valid interpolation shortcuts: {}".format(INTERPOLATION_METHODS)
-                )
+            assert_custom(
+                definition in INTERPOLATION_METHODS,
+                InterpolationException,
+                '"{}" is not a valid interpolation shortcut. '.format(definition)
+                + "Valid interpolation shortcuts: {}".format(INTERPOLATION_METHODS),
+            )
             return {"method": definition, "interpolators": INTERPOLATION_METHODS_DICT[definition], "params": {}}
 
         elif isinstance(definition, dict):
 
             # confirm method in dict
-            if "method" not in definition:
-                raise InterpolationException(
-                    "{} is not a valid interpolation definition. ".format(definition)
-                    + 'Interpolation definition dict must contain key "method" string value'
-                )
-            else:
-                method_string = definition["method"]
+            assert_custom(
+                "method" in definition,
+                InterpolationException,
+                "{} is not a valid interpolation definition. ".format(definition)
+                + 'Interpolation definition dict must contain key "method" string value',
+            )
+            method_string = definition["method"]
 
             # if specifying custom method, user must include interpolators
-            if "interpolators" not in definition and method_string not in INTERPOLATION_METHODS:
-                raise InterpolationException(
-                    '"{}" is not a valid interpolation shortcut. '.format(method_string)
-                    + 'Specify list "interpolators" or change "method" '
-                    + "to a valid interpolation shortcut: {}".format(INTERPOLATION_METHODS)
-                )
-            elif "interpolators" not in definition:
-                interpolators = INTERPOLATION_METHODS_DICT[method_string]
-            else:
-                interpolators = definition["interpolators"]
+            assert_custom(
+                "interpolators" in definition or method_string in INTERPOLATION_METHODS,
+                InterpolationException,
+                '"{}" is not a valid interpolation shortcut. '.format(method_string)
+                + 'Specify list "interpolators" or change "method" '
+                + "to a valid interpolation shortcut: {}".format(INTERPOLATION_METHODS),
+            )
+            interpolators = definition.get("interpolators", INTERPOLATION_METHODS_DICT.get(method_string))
 
             # default for params
-            if "params" in definition:
-                params = definition["params"]
-            else:
-                params = {}
+            params = definition.get("params", {})
 
             # confirm types
-            if not isinstance(method_string, string_types):
-                raise TypeError(
-                    "{} is not a valid interpolation method. ".format(method_string)
-                    + "Interpolation method must be a string"
-                )
-
-            if not isinstance(interpolators, list):
-                raise TypeError(
-                    "{} is not a valid interpolator definition. ".format(interpolators)
-                    + "Interpolator definition must be of type list containing Interpolator"
-                )
-
-            if not isinstance(params, dict):
-                raise TypeError(
-                    "{} is not a valid interpolation params definition. ".format(params)
-                    + "Interpolation params must be a dict"
-                )
+            assert_custom(
+                isinstance(method_string, string_types),
+                TypeError,
+                "{} is not a valid interpolation method. ".format(method_string)
+                + "Interpolation method must be a string",
+            )
+            assert_custom(
+                isinstance(interpolators, list),
+                TypeError,
+                "{} is not a valid interpolator definition. ".format(interpolators)
+                + "Interpolator definition must be of type list containing Interpolator",
+            )
+            assert_custom(
+                isinstance(params, dict),
+                TypeError,
+                "{} is not a valid interpolation params definition. ".format(params)
+                + "Interpolation params must be a dict",
+            )
 
             # handle when interpolator is a string (most commonly from a node definition)
             for idx, interpolator_class in enumerate(interpolators):
                 if isinstance(interpolator_class, string_types):
-                    if interpolator_class in INTERPOLATORS_DICT.keys():
-                        interpolators[idx] = INTERPOLATORS_DICT[interpolator_class]
-                    else:
-                        raise TypeError(
-                            'Interpolator "{}" is not in the dictionary of valid '.format(interpolator_class)
-                            + "interpolators: {}".format(INTERPOLATORS_DICT)
-                        )
+                    assert_custom(
+                        interpolator_class in INTERPOLATORS_DICT.keys(),
+                        TypeError,
+                        'Interpolator "{}" is not in the dictionary of valid '.format(interpolator_class)
+                        + "interpolators: {}".format(INTERPOLATORS_DICT),
+                    )
+                    interpolators[idx] = INTERPOLATORS_DICT[interpolator_class]
 
             # validate interpolator class
             for interpolator in interpolators:
@@ -362,7 +379,7 @@ class InterpolationManager(object):
         params = deepcopy(definition["params"])
 
         # instantiate interpolators
-        for (idx, interpolator) in enumerate(interpolators):
+        for idx, interpolator in enumerate(interpolators):
             parms = {k: v for k, v in params.items() if hasattr(interpolator, k)}
             interpolators[idx] = interpolator(method=method, **parms)
 
