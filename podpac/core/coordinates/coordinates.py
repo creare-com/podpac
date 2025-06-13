@@ -4,6 +4,7 @@ Multidimensional Coordinates
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+from typing import List, Tuple, Union
 import warnings
 from copy import deepcopy
 import sys
@@ -120,6 +121,24 @@ class Coordinates(tl.HasTraits):
         if len(dims) != len(coords):
             raise ValueError("coords and dims size mismatch, %d != %d" % (len(dims), len(coords)))
 
+        self._init_coords(dims, coords)
+
+        if crs is not None:
+            # validate
+            if validate_crs:
+                # raises pyproj.CRSError if invalid
+                pyproj_crs = pyproj.CRS(crs)
+
+                # make sure CRS defines vertical units
+                if "alt" in self.udims and not has_alt_units(pyproj_crs):
+                    raise ValueError("Altitude dimension is defined, but CRS does not contain vertical unit")
+
+            crs = self.set_trait("crs", crs)
+
+        super(Coordinates, self).__init__()
+
+    def _init_coords(self, dims: Union[Tuple, List], coords: Union[List, Tuple, np.ndarray, xr.DataArray]) -> None:
+        """Initialize the trait self._coords.  Meant only to be called from __init__()."""
         # get/create coordinates
         dcoords = OrderedDict()
         for i, dim in enumerate(dims):
@@ -144,20 +163,6 @@ class Coordinates(tl.HasTraits):
             dcoords[dim] = c
 
         self.set_trait("_coords", dcoords)
-
-        if crs is not None:
-            # validate
-            if validate_crs:
-                # raises pyproj.CRSError if invalid
-                CRS = pyproj.CRS(crs)
-
-                # make sure CRS defines vertical units
-                if "alt" in self.udims and not has_alt_units(CRS):
-                    raise ValueError("Altitude dimension is defined, but CRS does not contain vertical unit")
-
-            crs = self.set_trait("crs", crs)
-
-        super(Coordinates, self).__init__()
 
     @tl.validate("_coords")
     def _validate_coords(self, d):
