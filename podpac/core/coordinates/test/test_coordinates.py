@@ -373,7 +373,7 @@ class TestCoordinateCreation(object):
         with pytest.raises(ValueError):
             Coordinates.grid(lat=lat, lon=lon, dims=["lat", "lon", "time"])
 
-        if sys.version < "3.6":
+        if sys.version_info[0:2] < (3, 6):
             with pytest.raises(TypeError):
                 Coordinates.grid(lat=lat, lon=lon, time=dates)
         else:
