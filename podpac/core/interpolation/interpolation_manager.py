@@ -1,7 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 import logging
 
-import warnings
+from typing import Dict, List
 from copy import deepcopy
 from collections import OrderedDict
 from six import string_types
@@ -146,32 +146,7 @@ class InterpolationManager(object):
             # convert dict to list
             if isinstance(definition, dict):
                 definition = [definition]
-
-            for interp_definition in definition:
-
-                # get interpolation method dict
-                method = self._parse_interpolation_method(interp_definition)
-
-                # specify dims
-                if "dims" in interp_definition:
-                    if isinstance(interp_definition["dims"], list):
-                        udims = tuple(
-                            sorted(interp_definition["dims"])
-                        )  # make sure the dims are always in the same order
-                    else:
-                        raise TypeError('The "dims" key of an interpolation definition must be a list')
-                else:
-                    udims = ("default",)
-
-                # make sure udims are not already specified in config
-                for config_dims in iter(self.config):
-                    if set(config_dims) & set(udims):
-                        raise InterpolationException(
-                            'Dimensions "{}" cannot be defined '.format(udims)
-                            + "multiple times in interpolation definition {}".format(interp_definition)
-                        )
-                # add all udims to definition
-                self.config = self._set_interpolation_method(udims, method)
+            self._parse_interp_definition(definition)
 
             # set default if its not been specified in the dict
             if ("default",) not in self.config:
@@ -200,6 +175,42 @@ class InterpolationManager(object):
             default = self.config.pop(("default",))
             self.config[("default",)] = default
 
+    def _parse_interp_definition(self, definition: List[Dict[str, Interpolator]]) -> None:
+        """Handle interpolation definition in the case that it is a list of dicts.
+
+        Parameters
+        ----------
+        definition : List[Dict[str, Interpolator]]
+            Interpolation definition used to define interpolation methods for each definiton.
+            See :attr:`podpac.data.DataSource.interpolation` for more details.
+        """
+
+        for interp_definition in definition:
+
+            # get interpolation method dict
+            method = self._parse_interpolation_method(interp_definition)
+
+            # specify dims
+            if "dims" in interp_definition:
+                if isinstance(interp_definition["dims"], list):
+                    udims = tuple(
+                        sorted(interp_definition["dims"])
+                    )  # make sure the dims are always in the same order
+                else:
+                    raise TypeError('The "dims" key of an interpolation definition must be a list')
+            else:
+                udims = ("default",)
+
+            # make sure udims are not already specified in config
+            for config_dims in iter(self.config):
+                if set(config_dims) & set(udims):
+                    raise InterpolationException(
+                        'Dimensions "{}" cannot be defined '.format(udims)
+                        + "multiple times in interpolation definition {}".format(interp_definition)
+                    )
+            # add all udims to definition
+            self.config = self._set_interpolation_method(udims, method)
+    
     def __repr__(self):
         rep = str(self.__class__.__name__)
         for udims in iter(self.config):
