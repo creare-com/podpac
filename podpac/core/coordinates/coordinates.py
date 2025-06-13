@@ -187,8 +187,7 @@ class Coordinates(tl.HasTraits):
 
     @staticmethod
     def _coords_from_dict(d, order=None):
-        if sys.version < "3.6":
-            if order is None and len(d) > 1:
+        if sys.version_info[0:2] < (3, 6) and order is None and len(d) > 1:
                 raise TypeError("order required")
 
         if order is not None:
@@ -691,8 +690,7 @@ class Coordinates(tl.HasTraits):
 
         return True
 
-    if sys.version < "3":
-
+    if sys.version_info[0] < 3:
         def __ne__(self, other):
             return not self.__eq__(other)
 

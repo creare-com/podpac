@@ -86,7 +86,7 @@ else:
         "numpydoc",
     ]
 
-if sys.version >= "3.6":
+if sys.version_info[0:2] >= (3, 6):
     extras_require["dev"] += [
         "black",
     ]

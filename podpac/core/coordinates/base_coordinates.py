@@ -125,7 +125,6 @@ class BaseCoordinates(tl.HasTraits):
         return NotImplemented
 
     # python 2 compatibility
-    if sys.version < "3":
-
+    if sys.version_info[0] < 3:
         def __ne__(self, other):
             return not self.__eq__(other)

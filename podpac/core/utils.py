@@ -125,7 +125,7 @@ def create_logfile(
     return log, handler, formatter
 
 
-if sys.version < "3.6":
+if sys.version_info[0:2] < (3, 6):
     # for Python 2 and Python < 3.6 compatibility
     class OrderedDictTrait(tl.Dict):
         """OrderedDict trait"""
