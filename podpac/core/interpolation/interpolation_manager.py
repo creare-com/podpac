@@ -705,9 +705,8 @@ class InterpolationManager(object):
 
         # Throw warnings for unused parameters
         for k in self._interpolation_params:
-            if self._interpolation_params[k]:
-                continue
-            _logger.warning("The interpolation parameter '{}' was ignored during interpolation.".format(k))
+            if not self._interpolation_params[k]:
+                _logger.warning("The interpolation parameter '{}' was ignored during interpolation.".format(k))
 
         return output_data
 
@@ -725,25 +724,16 @@ class InterpolationManager(object):
         new_coords = []
         covered_udims = []
         for k in interpolator_queue:
-            if not isinstance(interpolator_queue[k], NoneInterpolator):
-                # Keep the eval_coordinates for these dimensions
-                for d in eval_coordinates.dims:
-                    ud = d.split("_")
-                    for u in ud:
-                        if u in k:
-                            new_dims.append(d)
-                            new_coords.append(eval_coordinates[d])
-                            covered_udims.extend(ud)
-                            break
-            else:
-                for d in source_coordinates.dims:
-                    ud = d.split("_")
-                    for u in ud:
-                        if u in k:
-                            new_dims.append(d)
-                            new_coords.append(source_coordinates[d])
-                            covered_udims.extend(ud)
-                            break
+            # Keep the eval_coordinates for some dimensions
+            dims = source_coordinates.dims if isinstance(interpolator_queue[k], NoneInterpolator) else eval_coordinates.dims
+            for d in dims:
+                ud = d.split("_")
+                for u in ud:
+                    if u in k:
+                        new_dims.append(d)
+                        new_coords.append(eval_coordinates[d])
+                        covered_udims.extend(ud)
+                        break
         new_coordinates = Coordinates(new_coords, new_dims)
         return new_coordinates
 
