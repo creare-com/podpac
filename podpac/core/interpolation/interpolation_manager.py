@@ -531,53 +531,66 @@ class InterpolationManager(object):
             validate_crs=False,
         )
         if index_type == "numpy":
-            npcoords = []
-            has_stacked = False
-            for k in source_coordinates.dims:
-                # Deal with nD stacked source coords (marked by coords being in tuple)
-                if isinstance(selected_coords_idx[k], tuple):
-                    has_stacked = True
-                    npcoords.extend([sci for sci in selected_coords_idx[k]])
-                else:
-                    npcoords.append(selected_coords_idx[k])
-            if has_stacked:
-                # When stacked coordinates are nD we cannot use the catchall of the next branch
-                selected_coords_idx2 = npcoords
-            else:
-                # This would not be needed if everything went as planned in
-                # interpolator.select_coordinates, but this is a catchall that works
-                # for 90% of the cases
-                selected_coords_idx2 = np.ix_(*[np.ravel(npc) for npc in npcoords])
+            selected_coords_idx2 = InterpolationManager._prepare_coord_indices_numpy(source_coordinates, selected_coords_idx)
         elif index_type == "xarray":
-            selected_coords_idx2 = []
-            for i in selected_coords.dims:
-                # Deal with nD stacked source coords (marked by coords being in tuple)
-                if isinstance(selected_coords_idx[i], tuple):
-                    selected_coords_idx2.extend([xr.DataArray(sci, dims=[i]) for sci in selected_coords_idx[i]])
-                else:
-                    selected_coords_idx2.append(selected_coords_idx[i])
-            selected_coords_idx2 = tuple(selected_coords_idx2)
+            selected_coords_idx2 = InterpolationManager._prepare_coord_indices_xarray(selected_coords, selected_coords_idx)
         elif index_type == "slice":
-            selected_coords_idx2 = []
-            for i in selected_coords.dims:
-                # Deal with nD stacked source coords (marked by coords being in tuple)
-                if isinstance(selected_coords_idx[i], tuple):
-                    selected_coords_idx2.extend(selected_coords_idx[i])
-                else:
-                    if isinstance(selected_coords_idx[i], np.ndarray):
-                        # This happens when the interpolator_queue is empty, so we have to turn the
-                        # initialized coordinates into slices instead of numpy arrays
-                        selected_coords_idx2.append(
-                            slice(selected_coords_idx[i].min(), selected_coords_idx[i].max() + 1)
-                        )
-                    else:
-                        selected_coords_idx2.append(selected_coords_idx[i])
-
-            selected_coords_idx2 = tuple(selected_coords_idx2)
+            selected_coords_idx2 = InterpolationManager._prepare_coord_indices_slice(selected_coords, selected_coords_idx)
         else:
             raise ValueError("Unknown index_type '%s'" % index_type)
-        return selected_coords, tuple(selected_coords_idx2)
+        return selected_coords, selected_coords_idx2
+    
+    @staticmethod
+    def _prepare_coord_indices_numpy(source_coordinates, selected_coords_idx):
+        npcoords = []
+        has_stacked = False
+        for k in source_coordinates.dims:
+            # Deal with nD stacked source coords (marked by coords being in tuple)
+            if isinstance(selected_coords_idx[k], tuple):
+                has_stacked = True
+                npcoords.extend([sci for sci in selected_coords_idx[k]])
+            else:
+                npcoords.append(selected_coords_idx[k])
+        if has_stacked:
+            # When stacked coordinates are nD we cannot use the catchall of the next branch
+            selected_coords_idx2 = npcoords
+        else:
+            # This would not be needed if everything went as planned in
+            # interpolator.select_coordinates, but this is a catchall that works
+            # for 90% of the cases
+            selected_coords_idx2 = np.ix_(*[np.ravel(npc) for npc in npcoords])
+        return tuple(selected_coords_idx2)
+    
+    @staticmethod
+    def _prepare_coord_indices_xarray(selected_coords, selected_coords_idx):
+        selected_coords_idx2 = []
+        for i in selected_coords.dims:
+            # Deal with nD stacked source coords (marked by coords being in tuple)
+            if isinstance(selected_coords_idx[i], tuple):
+                selected_coords_idx2.extend([xr.DataArray(sci, dims=[i]) for sci in selected_coords_idx[i]])
+            else:
+                selected_coords_idx2.append(selected_coords_idx[i])
+        return tuple(selected_coords_idx2)
+    
+    @staticmethod
+    def _prepare_coord_indices_slice(selected_coords, selected_coords_idx):
+        selected_coords_idx2 = []
+        for i in selected_coords.dims:
+            # Deal with nD stacked source coords (marked by coords being in tuple)
+            if isinstance(selected_coords_idx[i], tuple):
+                selected_coords_idx2.extend(selected_coords_idx[i])
+            else:
+                if isinstance(selected_coords_idx[i], np.ndarray):
+                    # This happens when the interpolator_queue is empty, so we have to turn the
+                    # initialized coordinates into slices instead of numpy arrays
+                    selected_coords_idx2.append(
+                        slice(selected_coords_idx[i].min(), selected_coords_idx[i].max() + 1)
+                    )
+                else:
+                    selected_coords_idx2.append(selected_coords_idx[i])
 
+        return tuple(selected_coords_idx2)
+    
     def interpolate(self, source_coordinates, source_data, eval_coordinates, output_data):
         """Interpolate data from requested coordinates to source coordinates
 
