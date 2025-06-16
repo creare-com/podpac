@@ -3,10 +3,8 @@ Interpolator implementations
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
-from six import string_types
 
 import numpy as np
-import xarray as xr
 import traitlets as tl
 from scipy.spatial import cKDTree
 
@@ -18,9 +16,9 @@ from scipy.spatial import cKDTree
 from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
 from podpac.core.coordinates.utils import make_coord_delta, make_coord_value, VALID_DIMENSION_NAMES
+from podpac.core.units import UnitsDataArray
 from podpac.core.utils import common_doc
-from podpac.core.coordinates.utils import get_timedelta
-from podpac.core.interpolation.selector import Selector, _higher_precision_time_coords1d, _higher_precision_time_stack
+from podpac.core.interpolation.selector import _higher_precision_time_coords1d, _higher_precision_time_stack
 
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)
@@ -74,17 +72,13 @@ class NearestNeighbor(Interpolator):
             return selector
         return ()
 
-    @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
-        """
-        {interpolator_interpolate}
-        """
-        # Note, some of the following code duplicates code in the Selector class.
-        # This duplication is for the sake of optimization
-
-        def is_stacked(d):
-            return "_" in d
-
+    def _get_interpolation_bounds(
+        self,
+        source_coordinates: Coordinates,
+        source_data: UnitsDataArray,
+        eval_coordinates: Coordinates,
+    ):
+        """Compute bounds for interpolation"""
         if hasattr(source_data, "attrs") and "bounds" in source_data.attrs:
             bounds = source_data.attrs["bounds"]
 
@@ -98,11 +92,24 @@ class NearestNeighbor(Interpolator):
                         )
                         # convert found datetime64 or timedelta64 values to floats
                         bounds[dim] = [
-                            self._atime_to_float(b, source_coordinates[dim], reference_time)
-                            for b in bound_values
+                            self._atime_to_float(b, source_coordinates[dim], reference_time) for b in bound_values
                         ]
         else:
             bounds = None
+        return bounds
+
+    @common_doc(COMMON_INTERPOLATOR_DOCS)
+    def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
+        """
+        {interpolator_interpolate}
+        """
+        # Note, some of the following code duplicates code in the Selector class.
+        # This duplication is for the sake of optimization
+
+        def is_stacked(d):
+            return "_" in d
+
+        bounds = self._get_interpolation_bounds(source_coordinates, source_data, eval_coordinates)
 
         if self.remove_nan:
             # Eliminate nans from the source data. Note, this could turn a uniform griddted dataset into a stacked one
@@ -117,10 +124,7 @@ class NearestNeighbor(Interpolator):
                 continue
             source = source_coordinates[d]
             if is_stacked(d):
-                if bounds is not None:
-                    bound = np.stack([bounds[dd] for dd in d.split("_")], axis=1)
-                else:
-                    bound = None
+                bound = None if bounds is None else np.stack([bounds[dd] for dd in d.split("_")], axis=1)
                 index = self._get_stacked_index(d, source, eval_coordinates, bound)
 
                 if len(source.shape) == 2:  # Handle case of 2D-stacked coordinates
@@ -134,21 +138,14 @@ class NearestNeighbor(Interpolator):
                 elif len(source.shape) > 2:  # Handle case of nD-stacked coordinates
                     raise NotImplementedError
                 index = self._resize_stacked_index(index, d, eval_coordinates)
-            elif source_coordinates[d].is_uniform:
+            else:
                 request = eval_coordinates[d]
-                if bounds is not None:
-                    bound = bounds[d]
-                else:
-                    bound = None
-                index = self._get_uniform_index(d, source, request, bound)
-                index = self._resize_unstacked_index(index, d, eval_coordinates)
-            else:  # non-uniform coordinates... probably an optimization here
-                request = eval_coordinates[d]
-                if bounds is not None:
-                    bound = bounds[d]
-                else:
-                    bound = None
-                index = self._get_nonuniform_index(d, source, request, bound)
+                bound = None if bounds is None else bounds[d]
+                index = (
+                    self._get_uniform_index(d, source, request, bound)
+                    if source_coordinates[d].is_uniform
+                    else self._get_nonuniform_index(d, source, request, bound)
+                )
                 index = self._resize_unstacked_index(index, d, eval_coordinates)
 
             data_index.append(index)
@@ -236,10 +233,9 @@ class NearestNeighbor(Interpolator):
         if isinstance(time, np.datetime64):
             time = time.astype(dtype).astype(float)
         elif isinstance(time, np.timedelta64):
-            time = time / np.timedelta64(1, 'ns')  # Convert timedelta64 to seconds as float
+            time = time / np.timedelta64(1, "ns")  # Convert timedelta64 to seconds as float
 
         return time
-
 
     def _get_stacked_index(self, dim, source, request, bounds=None):
         # The udims are in the order of the request so that the meshgrid calls will be in the right order
