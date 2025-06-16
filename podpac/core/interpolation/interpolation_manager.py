@@ -531,15 +531,21 @@ class InterpolationManager(object):
             validate_crs=False,
         )
         if index_type == "numpy":
-            selected_coords_idx2 = InterpolationManager._prepare_coord_indices_numpy(source_coordinates, selected_coords_idx)
+            selected_coords_idx2 = InterpolationManager._prepare_coord_indices_numpy(
+                source_coordinates, selected_coords_idx
+            )
         elif index_type == "xarray":
-            selected_coords_idx2 = InterpolationManager._prepare_coord_indices_xarray(selected_coords, selected_coords_idx)
+            selected_coords_idx2 = InterpolationManager._prepare_coord_indices_xarray(
+                selected_coords, selected_coords_idx
+            )
         elif index_type == "slice":
-            selected_coords_idx2 = InterpolationManager._prepare_coord_indices_slice(selected_coords, selected_coords_idx)
+            selected_coords_idx2 = InterpolationManager._prepare_coord_indices_slice(
+                selected_coords, selected_coords_idx
+            )
         else:
             raise ValueError("Unknown index_type '%s'" % index_type)
         return selected_coords, selected_coords_idx2
-    
+
     @staticmethod
     def _prepare_coord_indices_numpy(source_coordinates, selected_coords_idx):
         npcoords = []
@@ -560,7 +566,7 @@ class InterpolationManager(object):
             # for 90% of the cases
             selected_coords_idx2 = np.ix_(*[np.ravel(npc) for npc in npcoords])
         return tuple(selected_coords_idx2)
-    
+
     @staticmethod
     def _prepare_coord_indices_xarray(selected_coords, selected_coords_idx):
         selected_coords_idx2 = []
@@ -571,7 +577,7 @@ class InterpolationManager(object):
             else:
                 selected_coords_idx2.append(selected_coords_idx[i])
         return tuple(selected_coords_idx2)
-    
+
     @staticmethod
     def _prepare_coord_indices_slice(selected_coords, selected_coords_idx):
         selected_coords_idx2 = []
@@ -583,14 +589,51 @@ class InterpolationManager(object):
                 if isinstance(selected_coords_idx[i], np.ndarray):
                     # This happens when the interpolator_queue is empty, so we have to turn the
                     # initialized coordinates into slices instead of numpy arrays
-                    selected_coords_idx2.append(
-                        slice(selected_coords_idx[i].min(), selected_coords_idx[i].max() + 1)
-                    )
+                    selected_coords_idx2.append(slice(selected_coords_idx[i].min(), selected_coords_idx[i].max() + 1))
                 else:
                     selected_coords_idx2.append(selected_coords_idx[i])
 
         return tuple(selected_coords_idx2)
-    
+
+    def _process_interpolator_queue(
+        self,
+        interpolator_queue: OrderedDict,
+        source_coordinates: Coordinates,
+        source_data: UnitsDataArray,
+        eval_coordinates: Coordinates,
+        output_data: UnitsDataArray,
+    ):
+        # iterate through each dim tuple in the queue
+        dtype = output_data.dtype
+        attrs = source_data.attrs
+        for udims, interpolator in interpolator_queue.items():
+            # TODO move the above short-circuits into this loop
+            if all([ud not in source_coordinates.udims for ud in udims]):
+                # Skip this udim if it's not part of the source coordinates (can happen with default)
+                continue
+            # Check if parameters are being used
+            for k in self._interpolation_params:
+                self._interpolation_params[k] = hasattr(interpolator, k) or self._interpolation_params[k]
+
+            # interp_coordinates are essentially intermediate eval_coordinates
+            interp_dims = [dim for dim, c in source_coordinates.items() if set(c.dims).issubset(udims)]
+            other_dims = [dim for dim, c in eval_coordinates.items() if not set(c.dims).issubset(udims)]
+            interp_coordinates = merge_dims(
+                [source_coordinates.drop(interp_dims), eval_coordinates.drop(other_dims)], validate_crs=False
+            )
+            interp_data = UnitsDataArray.create(interp_coordinates, dtype=dtype)
+            interp_data = interpolator.interpolate(
+                udims, source_coordinates, source_data, interp_coordinates, interp_data
+            )
+
+            # prepare for the next iteration
+            source_data = interp_data.transpose(*interp_coordinates.xdims)
+            source_data.attrs = attrs
+            source_coordinates = interp_coordinates
+
+        output_data.data = interp_data.transpose(*output_data.dims)
+        return output_data
+
     def interpolate(self, source_coordinates, source_data, eval_coordinates, output_data):
         """Interpolate data from requested coordinates to source coordinates
 
@@ -642,11 +685,7 @@ class InterpolationManager(object):
         # TODO handle stacked issubset of unstacked case
         #      this case is currently skipped because of the set(eval_coordinates) == set(source_coordinates)))
         if eval_coordinates.issubset(source_coordinates) and set(eval_coordinates) == set(source_coordinates):
-            if any(isinstance(c, StackedCoordinates) and c.ndim > 1 for c in eval_coordinates.values()):
-                # TODO AFFINE
-                # currently this is bypassing the short-circuit in the shaped stacked coordinates case
-                pass
-            else:
+            if not any(isinstance(c, StackedCoordinates) and c.ndim > 1 for c in eval_coordinates.values()):
                 try:
                     data = source_data.interp(output_data.coords, method="nearest")
                 except (NotImplementedError, ValueError):
@@ -670,38 +709,11 @@ class InterpolationManager(object):
         self._last_interpolator_queue = interpolator_queue
 
         # reset interpolation parameters
-        for k in self._interpolation_params:
-            self._interpolation_params[k] = False
+        self._interpolation_params = {k: False for k in self._interpolation_params}
 
-        # iterate through each dim tuple in the queue
-        dtype = output_data.dtype
-        attrs = source_data.attrs
-        for udims, interpolator in interpolator_queue.items():
-            # TODO move the above short-circuits into this loop
-            if all([ud not in source_coordinates.udims for ud in udims]):
-                # Skip this udim if it's not part of the source coordinates (can happen with default)
-                continue
-            # Check if parameters are being used
-            for k in self._interpolation_params:
-                self._interpolation_params[k] = hasattr(interpolator, k) or self._interpolation_params[k]
-
-            # interp_coordinates are essentially intermediate eval_coordinates
-            interp_dims = [dim for dim, c in source_coordinates.items() if set(c.dims).issubset(udims)]
-            other_dims = [dim for dim, c in eval_coordinates.items() if not set(c.dims).issubset(udims)]
-            interp_coordinates = merge_dims(
-                [source_coordinates.drop(interp_dims), eval_coordinates.drop(other_dims)], validate_crs=False
-            )
-            interp_data = UnitsDataArray.create(interp_coordinates, dtype=dtype)
-            interp_data = interpolator.interpolate(
-                udims, source_coordinates, source_data, interp_coordinates, interp_data
-            )
-
-            # prepare for the next iteration
-            source_data = interp_data.transpose(*interp_coordinates.xdims)
-            source_data.attrs = attrs
-            source_coordinates = interp_coordinates
-
-        output_data.data = interp_data.transpose(*output_data.dims)
+        output_data = self._process_interpolator_queue(
+            interpolator_queue, source_coordinates, source_data, eval_coordinates, output_data
+        )
 
         # Throw warnings for unused parameters
         for k in self._interpolation_params:
@@ -725,7 +737,11 @@ class InterpolationManager(object):
         covered_udims = []
         for k in interpolator_queue:
             # Keep the eval_coordinates for some dimensions
-            dims = source_coordinates.dims if isinstance(interpolator_queue[k], NoneInterpolator) else eval_coordinates.dims
+            dims = (
+                source_coordinates.dims
+                if isinstance(interpolator_queue[k], NoneInterpolator)
+                else eval_coordinates.dims
+            )
             for d in dims:
                 ud = d.split("_")
                 for u in ud:
