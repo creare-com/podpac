@@ -3,6 +3,7 @@ Interpolator implementations
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
+from typing import Tuple
 
 import numpy as np
 import traitlets as tl
@@ -398,14 +399,60 @@ class NearestPreview(NearestNeighbor):
         else:
             return tuple()
 
+    @staticmethod
+    def _perform_selection(
+        src_coords: Coordinates, dst_coords: Coordinates, idx: slice, bounds: Tuple[float, float]
+    ) -> Tuple[Coordinates, slice]:
+        """Perform actual selection, after validation of coordinates."""
+        if isinstance(dst_coords, UniformCoordinates1d):
+            dst_delta = dst_coords.step
+        else:
+            dst_start = dst_coords.coordinates[0]
+            dst_stop = dst_coords.coordinates[-1]
+            with np.errstate(invalid="ignore"):
+                dst_delta = (dst_stop - dst_start) / (dst_coords.size - 1)
+
+        if isinstance(src_coords, UniformCoordinates1d):
+            src_start = src_coords.start
+            src_stop = src_coords.stop
+            src_delta = src_coords.step
+        else:
+            src_start = src_coords.coordinates[0]
+            src_stop = src_coords.coordinates[-1]
+            with np.errstate(invalid="ignore"):
+                src_delta = (src_stop - src_start) / (src_coords.size - 1)
+
+        ndelta = max(1, np.round(np.abs(dst_delta / src_delta)))
+        idx_offset = 0
+        if src_coords.size == 1:
+            coord = src_coords.copy()
+        else:
+            c_test = UniformCoordinates1d(src_start, src_stop, ndelta * src_delta, **src_coords.properties)
+            # The delta/2 ensures the endpoint is included when there is a floating point rounding error
+            # the delta/2 is more than needed, but does guarantee.
+            src_stop = np.clip(src_stop + ndelta * src_delta / 2, bounds[0], bounds[1])
+            coord = UniformCoordinates1d(src_start, src_stop, ndelta * src_delta, **src_coords.properties)
+            if coord.size > c_test.size:  # need to adjust the index as well
+                idx_offset = int(ndelta)
+
+        idx_start = idx.start if isinstance(idx, slice) else idx[0]
+        idx_stop = idx.stop if isinstance(idx, slice) else idx[-1]
+        if idx_stop is not None:
+            idx_stop += idx_offset
+        idx = slice(idx_start, idx_stop, int(ndelta))
+
+        return coord, idx
+
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def select_coordinates(self, udims, source_coordinates, eval_coordinates, index_type="numpy"):
+    def select_coordinates(self, udims, source_coordinates: Coordinates, eval_coordinates: Coordinates, index_type: str="numpy"):
         """
         {interpolator_select}
         """
         new_coords = []
         new_coords_idx = []
 
+        source_coords: Coordinates
+        source_coords_index: Tuple[slice, slice]
         source_coords, source_coords_index = source_coordinates.intersect(
             eval_coordinates, outer=True, return_index=True
         )
@@ -423,50 +470,12 @@ class NearestPreview(NearestNeighbor):
             if src_dim in eval_coordinates.dims:
                 src_coords = source_coords[src_dim]
                 dst_coords = eval_coordinates[src_dim]
-
-                if isinstance(dst_coords, UniformCoordinates1d):
-                    dst_start = dst_coords.start
-                    dst_stop = dst_coords.stop
-                    dst_delta = dst_coords.step
-                else:
-                    dst_start = dst_coords.coordinates[0]
-                    dst_stop = dst_coords.coordinates[-1]
-                    with np.errstate(invalid="ignore"):
-                        dst_delta = (dst_stop - dst_start) / (dst_coords.size - 1)
-
-                if isinstance(src_coords, UniformCoordinates1d):
-                    src_start = src_coords.start
-                    src_stop = src_coords.stop
-                    src_delta = src_coords.step
-                else:
-                    src_start = src_coords.coordinates[0]
-                    src_stop = src_coords.coordinates[-1]
-                    with np.errstate(invalid="ignore"):
-                        src_delta = (src_stop - src_start) / (src_coords.size - 1)
-
-                ndelta = max(1, np.round(np.abs(dst_delta / src_delta)))
-                idx_offset = 0
-                if src_coords.size == 1:
-                    c = src_coords.copy()
-                else:
-                    c_test = UniformCoordinates1d(src_start, src_stop, ndelta * src_delta, **src_coords.properties)
-                    bounds = source_coordinates[src_dim].bounds
-                    # The delta/2 ensures the endpoint is included when there is a floating point rounding error
-                    # the delta/2 is more than needed, but does guarantee.
-                    src_stop = np.clip(src_stop + ndelta * src_delta / 2, bounds[0], bounds[1])
-                    c = UniformCoordinates1d(src_start, src_stop, ndelta * src_delta, **src_coords.properties)
-                    if c.size > c_test.size:  # need to adjust the index as well
-                        idx_offset = int(ndelta)
-
-                idx_start = idx.start if isinstance(idx, slice) else idx[0]
-                idx_stop = idx.stop if isinstance(idx, slice) else idx[-1]
-                if idx_stop is not None:
-                    idx_stop += idx_offset
-                idx = slice(idx_start, idx_stop, int(ndelta))
+                bounds = source_coordinates[src_dim].bounds
+                coord, idx = NearestPreview._perform_selection(src_coords, dst_coords, idx, bounds)
             else:
-                c = source_coords[src_dim]
+                coord = source_coords[src_dim]
 
-            new_coords.append(c)
+            new_coords.append(coord)
             new_coords_idx.append(idx)
 
         return Coordinates(new_coords, validate_crs=False), tuple(new_coords_idx)
