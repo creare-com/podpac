@@ -246,10 +246,10 @@ class TestNearest(TestCase):
 
             for interpolation in ["nearest", "nearest_preview"]:
 
-            # unstacked 1D
-            source = _rand.random(size=(5,))
-            coords_src = Coordinates([np.linspace(0, 10, 5)], dims=["lat"])
-            node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(interpolation=interpolation)
+                # unstacked 1D
+                source = _rand.random(size=(5,))
+                coords_src = Coordinates([np.linspace(0, 10, 5)], dims=["lat"])
+                node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(interpolation=interpolation)
 
                 coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9]], dims=["lat"])
                 output = node.eval(coords_dst)
@@ -263,79 +263,79 @@ class TestNearest(TestCase):
                 coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
                 coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
-            node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(interpolation=interpolation)
-            output = node.eval(coords_dst)
+                node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(interpolation=interpolation)
+                output = node.eval(coords_dst)
 
                 assert isinstance(output, UnitsDataArray)
                 assert np.all(output.lat.values == coords_dst["lat"].coordinates)
                 assert output.values[0, 0] == source[1, 1]
 
-            # source = stacked, dest = stacked
-            source = _rand.random(size=(5,))
-            coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
-            node = MockArrayDataSource(
-                data=source,
-                coordinates=coords_src,
-            ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
-            coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
-            output = node.eval(coords_dst)
+                # source = stacked, dest = stacked
+                source = _rand.random(size=(5,))
+                coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
+                node = MockArrayDataSource(
+                    data=source,
+                    coordinates=coords_src,
+                ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
+                coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
+                output = node.eval(coords_dst)
 
                 assert isinstance(output, UnitsDataArray)
                 assert np.all(output.lat.values == coords_dst["lat"].coordinates)
                 assert all(output.values == source[[0, 2, 4]])
 
-            # source = stacked, dest = unstacked
-            source = _rand.random(size=(5,))
-            coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
-            node = MockArrayDataSource(
-                data=source,
-                coordinates=coords_src,
-            ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
-            coords_dst = Coordinates([np.linspace(1, 9, 3), np.linspace(1, 9, 3)], dims=["lat", "lon"])
+                # source = stacked, dest = unstacked
+                source = _rand.random(size=(5,))
+                coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
+                node = MockArrayDataSource(
+                    data=source,
+                    coordinates=coords_src,
+                ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
+                coords_dst = Coordinates([np.linspace(1, 9, 3), np.linspace(1, 9, 3)], dims=["lat", "lon"])
 
                 output = node.eval(coords_dst)
                 assert isinstance(output, UnitsDataArray)
                 assert np.all(output.lat.values == coords_dst["lat"].coordinates)
                 assert np.all(output.values == source[np.array([[0, 1, 2], [1, 2, 3], [2, 3, 4]])])
 
-            # source = unstacked, dest = stacked
-            source = _rand.random(size=(5, 5))
-            coords_src = Coordinates([np.linspace(0, 10, 5), np.linspace(0, 10, 5)], dims=["lat", "lon"])
-            node = MockArrayDataSource(
-                data=source,
-                coordinates=coords_src,
-            ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
-            coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
+                # source = unstacked, dest = stacked
+                source = _rand.random(size=(5, 5))
+                coords_src = Coordinates([np.linspace(0, 10, 5), np.linspace(0, 10, 5)], dims=["lat", "lon"])
+                node = MockArrayDataSource(
+                    data=source,
+                    coordinates=coords_src,
+                ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
+                coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
 
                 output = node.eval(coords_dst)
                 assert isinstance(output, UnitsDataArray)
                 assert np.all(output.lat.values == coords_dst["lat"].coordinates)
                 assert np.all(output.values == source[[0, 2, 4], [0, 2, 4]])
 
-            # source = unstacked and non-uniform, dest = stacked
-            source = _rand.random(size=(5, 5))
-            coords_src = Coordinates([[0, 1.1, 1.2, 6.1, 10], [0, 1.1, 4, 7.1, 9.9]], dims=["lat", "lon"])
-            node = MockArrayDataSource(
-                data=source,
-                coordinates=coords_src,
-            ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
-            coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
+                # source = unstacked and non-uniform, dest = stacked
+                source = _rand.random(size=(5, 5))
+                coords_src = Coordinates([[0, 1.1, 1.2, 6.1, 10], [0, 1.1, 4, 7.1, 9.9]], dims=["lat", "lon"])
+                node = MockArrayDataSource(
+                    data=source,
+                    coordinates=coords_src,
+                ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
+                coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
 
                 output = node.eval(coords_dst)
                 assert isinstance(output, UnitsDataArray)
                 assert np.all(output.lat.values == coords_dst["lat"].coordinates)
                 assert np.all(output.values == source[[1, 3, 4], [1, 2, 4]])
 
-            # lat_lon_time_alt --> lon, alt_time, lat
-            source = _rand.random(size=(5,))
-            coords_src = Coordinates([[[0, 1, 2, 3, 4]] * 4], dims=[["lat", "lon", "time", "alt"]])
-            node = MockArrayDataSource(
-                data=source,
-                coordinates=coords_src,
-            ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
-            coords_dst = Coordinates(
-                [[1, 2.4, 3.9], [[1, 2.4, 3.9], [1, 2.4, 3.9]], [1, 2.4, 3.9]], dims=["lon", "alt_time", "lat"]
-            )
+                # lat_lon_time_alt --> lon, alt_time, lat
+                source = _rand.random(size=(5,))
+                coords_src = Coordinates([[[0, 1, 2, 3, 4]] * 4], dims=[["lat", "lon", "time", "alt"]])
+                node = MockArrayDataSource(
+                    data=source,
+                    coordinates=coords_src,
+                ).interpolate(interpolation={"method": "nearest", "interpolators": [NearestNeighbor]})
+                coords_dst = Coordinates(
+                    [[1, 2.4, 3.9], [[1, 2.4, 3.9], [1, 2.4, 3.9]], [1, 2.4, 3.9]], dims=["lon", "alt_time", "lat"]
+                )
 
                 output = node.eval(coords_dst)
                 assert isinstance(output, UnitsDataArray)
@@ -751,12 +751,12 @@ class TestInterpolateRasterioInterpolator(TestCase):
             source = np.arange(0, 15)
             source.resize((3, 5))
 
-        # try one specific rasterio case to measure output
-        node = MockArrayDataSource(
-            data=source,
-            coordinates=coords_src,
-        ).interpolate(interpolation={"method": "min", "interpolators": [RasterioInterpolator]})
-        output = node.eval(coords_dst)
+            # try one specific rasterio case to measure output
+            node = MockArrayDataSource(
+                data=source,
+                coordinates=coords_src,
+            ).interpolate(interpolation={"method": "min", "interpolators": [RasterioInterpolator]})
+            output = node.eval(coords_dst)
 
             # try one specific rasterio case to measure output
             node = MockArrayDataSource(
