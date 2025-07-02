@@ -3,7 +3,7 @@ Interpolator implementations
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
-from typing import Tuple
+from typing import Tuple, Union
 
 import numpy as np
 import traitlets as tl
@@ -401,7 +401,7 @@ class NearestPreview(NearestNeighbor):
 
     @staticmethod
     def _perform_selection(
-        src_coords: Coordinates, dst_coords: Coordinates, idx: slice, bounds: Tuple[float, float]
+        src_coords: Coordinates, dst_coords: Coordinates, idx: Union[slice, Tuple[float, float]], bounds: Tuple[float, float]
     ) -> Tuple[Coordinates, slice]:
         """Perform actual selection, after validation of coordinates."""
         if isinstance(dst_coords, UniformCoordinates1d):
