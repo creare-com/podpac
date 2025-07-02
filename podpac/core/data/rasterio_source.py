@@ -319,7 +319,7 @@ class Rasterio(S3Mixin, BaseFileSource):
         match = np.ones(self.band_count, bool)
         for k, v in zip(key, value):
             match = match & (np.array(self.band_keys[k]) == v)
-        matches = np.where(match)[0] + 1
+        matches = np.nonzero(match)[0] + 1
 
         return matches
 

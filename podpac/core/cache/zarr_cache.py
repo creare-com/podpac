@@ -275,7 +275,7 @@ class ZarrCache(CacheNode):
         if np.all(bool_data):
             return None  # or any other indicator that all data is present
 
-        false_indices = np.where(bool_data == False)
+        false_indices = np.nonzero(bool_data == False)
 
         false_indices_unique = tuple(np.unique(indices) for indices in false_indices)
 

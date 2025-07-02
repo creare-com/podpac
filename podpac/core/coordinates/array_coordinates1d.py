@@ -412,8 +412,8 @@ class ArrayCoordinates1d(Coordinates1d):
         return index_inside_bounds
 
     def _get_index_outer_monotonic(self, bounds: Tuple[float, float]) -> np.array:
-        gt = np.where(self.coordinates >= bounds[0])[0]
-        lt = np.where(self.coordinates <= bounds[1])[0]
+        gt = np.nonzero(self.coordinates >= bounds[0])[0]
+        lt = np.nonzero(self.coordinates <= bounds[1])[0]
         lo, hi = bounds[0], bounds[1]
         if self.is_descending:
             lt, gt = gt, lt
