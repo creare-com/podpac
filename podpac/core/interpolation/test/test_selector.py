@@ -1,3 +1,5 @@
+import itertools
+from typing import Dict, List, Tuple
 import pytest
 import traitlets as tl
 import numpy as np
@@ -81,9 +83,7 @@ class TestSelector(object):
                 np.testing.assert_array_equal(
                     ci,
                     (np.array(list(truth)),),
-                    err_msg=_ERR_MSG.format(
-                        source, request, ci, list(truth)
-                    ),
+                    err_msg=_ERR_MSG.format(source, request, ci, list(truth)),
                 )
 
     def test_linear_selector(self):
@@ -106,9 +106,7 @@ class TestSelector(object):
                 np.testing.assert_array_equal(
                     ci,
                     (np.array(truth),),
-                    err_msg=_ERR_MSG.format(
-                        source, request, ci, truth
-                    ),
+                    err_msg=_ERR_MSG.format(source, request, ci, truth),
                 )
 
     def test_bilinear_selector(self):
@@ -131,9 +129,7 @@ class TestSelector(object):
                 np.testing.assert_array_equal(
                     ci,
                     (np.array(truth),),
-                    err_msg=_ERR_MSG.format(
-                        source, request, ci, truth
-                    ),
+                    err_msg=_ERR_MSG.format(source, request, ci, truth),
                 )
 
     def test_bilinear_selector_negative_step(self):
@@ -231,9 +227,7 @@ class TestSelector(object):
                 np.testing.assert_array_equal(
                     ci,
                     (np.array(truth),),
-                    err_msg=_ERR_MSG.format(
-                        source, request, ci, truth
-                    ),
+                    err_msg=_ERR_MSG.format(source, request, ci, truth),
                 )
 
     def test_uniform2uniform(self):
@@ -360,32 +354,49 @@ class TestSelector(object):
         """
         test_cases = [
             # Same datetime64 precision
-            (Coordinates([np.datetime64("2025-01-01","D")],['time']), 
-             Coordinates([np.datetime64("2025-01-03","D")],['time']),
-             "datetime64[D]"),
+            (
+                Coordinates([np.datetime64("2025-01-01", "D")], ["time"]),
+                Coordinates([np.datetime64("2025-01-03", "D")], ["time"]),
+                "datetime64[D]",
+            ),
             # Same timedelta64 precision
-            (Coordinates([np.timedelta64(1, "D")],['time']), 
-             Coordinates([np.timedelta64(3, "D")],['time']),
-             "timedelta64[D]"),
+            (
+                Coordinates([np.timedelta64(1, "D")], ["time"]),
+                Coordinates([np.timedelta64(3, "D")], ["time"]),
+                "timedelta64[D]",
+            ),
             # Different datetime64 precision
-            (Coordinates([np.datetime64("2025-01-01T12:00","s")],['time']), 
-             Coordinates([np.datetime64("2025-01-03","D")],['time']),
-             "datetime64[s]"),  # Should upcast to higher precision
+            (
+                Coordinates([np.datetime64("2025-01-01T12:00", "s")], ["time"]),
+                Coordinates([np.datetime64("2025-01-03", "D")], ["time"]),
+                "datetime64[s]",
+            ),  # Should upcast to higher precision
             # Different timedelta64 precision
-            (Coordinates([np.timedelta64(1, "s")],['time']), 
-             Coordinates([np.timedelta64(3, "D")],['time']),
-             "timedelta64[s]"),  # Should upcast to hours
+            (
+                Coordinates([np.timedelta64(1, "s")], ["time"]),
+                Coordinates([np.timedelta64(3, "D")], ["time"]),
+                "timedelta64[s]",
+            ),  # Should upcast to hours
             # Non-time data gets converted to float64 by Coordinates
-            # Same Non-time data type 
-            (Coordinates([np.array([1, 2, 3], dtype=np.float32)],['lat']), 
-             Coordinates([np.array([4, 5, 6], dtype=np.float32)],['lat']), "float64"),
-            # Different Non-time data type 
-            (Coordinates([np.array([1, 2, 3], dtype=np.int16)],['lat']), 
-             Coordinates([np.array([4, 5, 6], dtype=np.float32)],['lat']), "float64"),
+            # Same Non-time data type
+            (
+                Coordinates([np.array([1, 2, 3], dtype=np.float32)], ["lat"]),
+                Coordinates([np.array([4, 5, 6], dtype=np.float32)], ["lat"]),
+                "float64",
+            ),
+            # Different Non-time data type
+            (
+                Coordinates([np.array([1, 2, 3], dtype=np.int16)], ["lat"]),
+                Coordinates([np.array([4, 5, 6], dtype=np.float32)], ["lat"]),
+                "float64",
+            ),
             # Different Non-time data type ordered backwards
-            (Coordinates([np.array([1, 2, 3], dtype=np.float32)],['lat']), 
-             Coordinates([np.array([4, 5, 6], dtype=np.int16)],['lat']), "float64")
-        ] 
+            (
+                Coordinates([np.array([1, 2, 3], dtype=np.float32)], ["lat"]),
+                Coordinates([np.array([4, 5, 6], dtype=np.int16)], ["lat"]),
+                "float64",
+            ),
+        ]
         for coords0, coords1, expected_dtype in test_cases:
             dim = coords0.dims
             result0, result1 = _higher_precision_time_coords1d(coords0[dim[0]], coords1[dim[0]])
