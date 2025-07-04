@@ -717,8 +717,7 @@ class Coordinates(tl.HasTraits):
 
         return True
 
-    if sys.version_info[0] < 3:
-
+    if sys.version_info.major < 3:
         def __ne__(self, other):
             return not self.__eq__(other)
 
