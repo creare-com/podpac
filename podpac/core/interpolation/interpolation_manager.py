@@ -685,7 +685,7 @@ class InterpolationManager(object):
         # TODO handle stacked issubset of unstacked case
         #      this case is currently skipped because of the set(eval_coordinates) == set(source_coordinates)))
         if eval_coordinates.issubset(source_coordinates) and set(eval_coordinates) == set(source_coordinates):
-            if not any(isinstance(c, StackedCoordinates) and c.ndim > 1 for c in eval_coordinates.values()):
+            if not any(isinstance(c, StackedCoordinates) or c.ndim <= 1 for c in eval_coordinates.values()):
                 try:
                     data = source_data.interp(output_data.coords, method="nearest")
                 except (NotImplementedError, ValueError):
