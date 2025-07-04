@@ -1116,7 +1116,7 @@ class DayOfYearWindow(Algorithm):
                     loc_dict = {k: v for k, v in zip(dims, [lat, lon, alt]) if v is not None}
 
                     data = source.sel(time=time_in_window_flags, **loc_dict).dropna("time").data
-                    if not np.all(np.isnan(data)):
+                    if np.any(~np.isnan(data)):
                         # Fit function to the particular point
                         output.loc[loc_dict][{"time": time_index}] = self.function(
                             data, output.loc[loc_dict][{"time": time_index}]
