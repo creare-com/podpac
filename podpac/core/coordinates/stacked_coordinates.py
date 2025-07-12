@@ -477,7 +477,7 @@ class StackedCoordinates(BaseCoordinates):
             # for consistency
             if index.start == 0 and index.stop == self.size:
                 if self.ndim > 1:
-                    index = [slice(None, None)] * len(self.dims)
+                    index = [slice(None, None) for _ in self.dims]
                 else:
                     index = slice(None, None)
         elif any(self._index_len(index) == 0 for index in indices):
@@ -495,7 +495,7 @@ class StackedCoordinates(BaseCoordinates):
             # for consistency
             if np.all(index):
                 if self.ndim > 1:
-                    index = [slice(None, None)] * len(self.dims)
+                    index = [slice(None, None) for _ in self.dims]
                 else:
                     index = slice(None, None)
 
