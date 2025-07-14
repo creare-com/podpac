@@ -1675,10 +1675,6 @@ class TestCoordinatesSpecial(object):
         assert not c1.__eq__(c4)
         assert not c1.__eq__(c5)
 
-        # ne (this only matters in python 2)
-        assert not c1.__ne__(c1)
-        assert not c1.__ne__(deepcopy(c1))
-
         assert c1 != None
         assert c1 != c3
         assert c1 != c2

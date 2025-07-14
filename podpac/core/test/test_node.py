@@ -908,7 +908,6 @@ class TestSerialization(object):
         assert not n1.__eq__("other")
 
         # ne
-        assert not n1.__ne__(n2)
         assert n1 != n3
         assert n1 != m1
         assert n1 != "other"
