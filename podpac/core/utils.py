@@ -14,10 +14,8 @@ from collections import OrderedDict
 from copy import deepcopy
 from hashlib import sha256 as hash_alg
 
-try:
-    import urllib.parse as urllib
-except:  # Python 2.7
-    import urlparse as urllib
+import urllib.parse as urllib
+
 
 from six import string_types
 import lazy_import
@@ -127,7 +125,7 @@ def create_logfile(
     return log, handler, formatter
 
 
-if sys.version < "3.6":
+if sys.version_info[0:2] < (3, 6):
     # for Python 2 and Python < 3.6 compatibility
     class OrderedDictTrait(tl.Dict):
         """OrderedDict trait"""
@@ -188,7 +186,7 @@ class ArrayTrait(tl.TraitType):
         if self.dtype is not None:
             try:
                 value = value.astype(self.dtype)
-            except:
+            except Exception:
                 raise tl.TraitError(
                     "The '%s' trait of an %s instance must have dtype %s, but a value with dtype %s was specified"
                     % (self.name, obj.__class__.__name__, self.dtype, value.dtype)
@@ -287,7 +285,7 @@ class JSONEncoder(json.JSONEncoder):
 def is_json_serializable(obj, cls=json.JSONEncoder):
     try:
         json.dumps(obj, cls=cls)
-    except:
+    except Exception:
         return False
     else:
         return True
@@ -458,7 +456,7 @@ def _ind2slice(I):
 
     # convert boolean array to index array
     if I.dtype == bool:
-        (I,) = np.where(I)
+        (I,) = np.nonzero(I)
 
     # empty slice
     if I.size == 0:
@@ -578,7 +576,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
 
     c = [(v, d) for v, d in zip([lat, lon, time, alt], ["lat", "lon", "time", "alt"]) if v is not None]
     coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c], crs=crs)
-    v = float(node.eval(coords))
+    node.eval(coords)
     definition = node.definition
     out = OrderedDict()
     raw_values = {}  # Need this to keep track of actual value for evaluating active nodes in compositors
@@ -687,6 +685,6 @@ def align_xarray_dict(inputs):
     """
     keys = list(inputs.keys())
     for k in keys[1:]:
-        a,b = xr.align(inputs[keys[0]],inputs[k],join='override')
+        _,b = xr.align(inputs[keys[0]],inputs[k],join='override')
         inputs[k] = b
     return inputs

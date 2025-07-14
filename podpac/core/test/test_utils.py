@@ -75,28 +75,28 @@ class TestOrderedDictTrait(object):
         class MyClass(tl.HasTraits):
             d = OrderedDictTrait()
 
-        m = MyClass(d=OrderedDict([("a", 1)]))
+        MyClass(d=OrderedDict([("a", 1)]))
 
         with pytest.raises(tl.TraitError):
             MyClass(d=[])
 
-    @pytest.mark.skipif(sys.version < "3.6", reason="python < 3.6")
+    @pytest.mark.skipif(sys.version_info[0:2] < (3, 6), reason="python < 3.6")
     def test_dict_python36(self):
         class MyClass(tl.HasTraits):
             d = OrderedDictTrait()
 
-        m = MyClass(d={"a": 1})
+        MyClass(d={"a": 1})
 
-    @pytest.mark.skipif(sys.version >= "3.6", reason="python >= 3.6")
+    @pytest.mark.skipif(sys.version_info[0:2] >= (3, 6), reason="python >= 3.6")
     def test_dict_python2(self):
         class MyClass(tl.HasTraits):
             d = OrderedDictTrait()
 
         with pytest.raises(tl.TraitError):
-            m = MyClass(d={"a": 1})
+            MyClass(d={"a": 1})
 
         # empty is okay, will be converted
-        m = MyClass(d={})
+        MyClass(d={})
 
 
 class TestArrayTrait(object):

@@ -4,6 +4,7 @@ Stats Summary
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+from typing import Dict
 import warnings
 from operator import mul
 from functools import reduce
@@ -18,7 +19,6 @@ from six import string_types
 # Internal dependencies
 import podpac
 from podpac.core.coordinates import Coordinates
-from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import UnaryAlgorithm, Algorithm
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC
@@ -80,7 +80,7 @@ class Reduce(UnaryAlgorithm):
 
         chunk_size = podpac.settings["CHUNK_SIZE"]
         if chunk_size == "auto":
-            return 1024 ** 2  # TODO
+            return 1024**2  # TODO
         else:
             return chunk_size
 
@@ -611,7 +611,7 @@ class Skew(Reduce):
             Nx = np.isfinite(x).sum(dim=self._dims)
             M1x = x.mean(dim=self._dims)
             Ex = x - M1x
-            Ex2 = Ex ** 2
+            Ex2 = Ex**2
             Ex3 = Ex2 * Ex
             M2x = (Ex2).sum(dim=self._dims)
             M3x = (Ex3).sum(dim=self._dims)
@@ -632,13 +632,13 @@ class Skew(Reduce):
             n = Nb + Nx
             NNx = Nb * Nx
 
-            M3.data[b] += M3x + d ** 3 * NNx * (Nb - Nx) / n ** 2 + 3 * d * (Nb * M2x - Nx * M2b) / n
-            M2.data[b] += M2x + d ** 2 * NNx / n
+            M3.data[b] += M3x + d**3 * NNx * (Nb - Nx) / n**2 + 3 * d * (Nb * M2x - Nx * M2b) / n
+            M2.data[b] += M2x + d**2 * NNx / n
             M1.data[b] += d * Nx / n
             N.data[b] = n
 
         # calculate skew
-        skew = np.sqrt(N) * M3 / np.sqrt(M2 ** 3)
+        skew = np.sqrt(N) * M3 / np.sqrt(M2**3)
         return skew
 
 
@@ -697,9 +697,9 @@ class Kurtosis(Reduce):
             Nx = np.isfinite(x).sum(dim=self._dims)
             M1x = x.mean(dim=self._dims)
             Ex = x - M1x
-            Ex2 = Ex ** 2
+            Ex2 = Ex**2
             Ex3 = Ex2 * Ex
-            Ex4 = Ex2 ** 2
+            Ex4 = Ex2**2
             M2x = (Ex2).sum(dim=self._dims)
             M3x = (Ex3).sum(dim=self._dims)
             M4x = (Ex4).sum(dim=self._dims)
@@ -724,18 +724,18 @@ class Kurtosis(Reduce):
 
             M4.data[b] += (
                 M4x
-                + d ** 4 * NNx * (Nb ** 2 - NNx + Nx ** 2) / n ** 3
-                + 6 * d ** 2 * (Nb ** 2 * M2x + Nx ** 2 * M2b) / n ** 2
+                + d**4 * NNx * (Nb**2 - NNx + Nx**2) / n**3
+                + 6 * d**2 * (Nb**2 * M2x + Nx**2 * M2b) / n**2
                 + 4 * d * (Nb * M3x - Nx * M3b) / n
             )
 
-            M3.data[b] += M3x + d ** 3 * NNx * (Nb - Nx) / n ** 2 + 3 * d * (Nb * M2x - Nx * M2b) / n
-            M2.data[b] += M2x + d ** 2 * NNx / n
+            M3.data[b] += M3x + d**3 * NNx * (Nb - Nx) / n**2 + 3 * d * (Nb * M2x - Nx * M2b) / n
+            M2.data[b] += M2x + d**2 * NNx / n
             M1.data[b] += d * Nx / n
             N.data[b] = n
 
         # calculate kurtosis
-        kurtosis = N * M4 / M2 ** 2 - 3
+        kurtosis = N * M4 / M2**2 - 3
         return kurtosis
 
 
@@ -919,7 +919,7 @@ class GroupReduce(UnaryAlgorithm):
 
         return output
 
-    @tl.default('base_ref')
+    @tl.default("base_ref")
     def _default_base_ref(self):
         """
         Default node reference/name in node definitions
@@ -1011,7 +1011,7 @@ class ResampleReduce(UnaryAlgorithm):
 
         return output
 
-    @tl.default('base_ref')
+    @tl.default("base_ref")
     def _default_base_ref(self):
         """
         Default node reference/name in node definitions
@@ -1079,24 +1079,65 @@ class DayOfYearWindow(Algorithm):
     scale_float = tl.List(default_value=None, allow_none=True).tag(attr=True)
     rescale = tl.Bool(False).tag(attr=True)
 
-    def algorithm(self, inputs, coordinates):
+    _DAYS_PER_YEAR = 365  # disregard leap years
+
+    def _apply_function(
+        self,
+        time_in_window_flags: podpac.UnitsDataArray,
+        source: podpac.UnitsDataArray,
+        output: podpac.UnitsDataArray,
+        time_index: int,
+    ):
+        """Run self.function() over all spatial locations in the source node
+        and the times that lie within the window
+
+        Parameters
+        ----------
+        time_in_window_flags : podpac.UnitsDataArray
+            array of boolean flags, where True means that the corresponding
+            index into the time dimension of the source node is within the window.
+        source : podpac.UnitsDataArray
+            Source data node
+        output : podpac.UnitsDataArray
+            Output data
+        time_index : int
+            index into source time dimension
+        """
+        # Scipy's beta function doesn's support multi-dimensional arrays, so we have to loop over lat/lon/alt
+        lat_f = source["lat"].data if "lat" in source.dims else [None]
+        lon_f = source["lon"].data if "lon" in source.dims else [None]
+        alt_f = source["alt"].data if "alt" in source.dims else [None]
+
+        dims = ["lat", "lon", "alt"]
+        for alt in alt_f:
+            for lat in lat_f:
+                for lon in lon_f:
+                    # _log.debug(f'lat, lon, alt = {lat}, {lon}, {alt})
+                    loc_dict = {k: v for k, v in zip(dims, [lat, lon, alt]) if v is not None}
+
+                    data = source.sel(time=time_in_window_flags, **loc_dict).dropna("time").data
+                    if np.any(~np.isnan(data)):
+                        # Fit function to the particular point
+                        output.loc[loc_dict][{"time": time_index}] = self.function(
+                            data, output.loc[loc_dict][{"time": time_index}]
+                        )
+
+    def algorithm(self, inputs: Dict[str, podpac.UnitsDataArray], coordinates: Coordinates):
         win = self.window // 2
         source = inputs["source"]
 
         # Scale the source to range [0, 1], required for the beta distribution
+        scale_max = None
         if "scale_max" in inputs:
             scale_max = inputs["scale_max"]
         elif self.scale_float and self.scale_float[1] is not None:
             scale_max = self.scale_float[1]
-        else:
-            scale_max = None
 
+        scale_min = None
         if "scale_min" in inputs:
             scale_min = inputs["scale_min"]
         elif self.scale_float and self.scale_float[0] is not None:
             scale_min = self.scale_float[0]
-        else:
-            scale_min = None
 
         _log.debug("scale_min: {}\nscale_max: {}".format(scale_min, scale_max))
         if scale_min is not None and scale_max is not None:
@@ -1106,7 +1147,7 @@ class DayOfYearWindow(Algorithm):
 
         # Make the output coordinates with day-of-year as time
         coords = xr.Dataset({"time": coordinates["time"].coordinates})
-        dsdoy = np.sort(np.unique(coords.time.dt.dayofyear))
+        dsdoy: np.Array = np.sort(np.unique(coords.time.dt.dayofyear))
         latlon_coords = coordinates.drop("time")
         time_coords = podpac.Coordinates([dsdoy], ["time"])
         coords = podpac.coordinates.merge_dims([latlon_coords, time_coords])
@@ -1118,7 +1159,7 @@ class DayOfYearWindow(Algorithm):
             return output
 
         # convert source time coords to day-of-year as well
-        sdoy = source.time.dt.dayofyear
+        source_doy: podpac.UnitsDataArray = source.time.dt.dayofyear
 
         # loop over each day of year and compute window
         for i, doy in enumerate(dsdoy):
@@ -1127,45 +1168,25 @@ class DayOfYearWindow(Algorithm):
             # If either the start or end runs over the year, we need to do an OR on the bool index
             # ----->s....<=e------   .in -out
             # ..<=e----------->s..
-            do_or = False
+            if doy - win < 1: 
+                # Start of window is before the start of the year
+                window_is_split = True
+            elif doy + win > self._DAYS_PER_YEAR:
+                # End of the window is after the end of the year
+                window_is_split = True
+            else: 
+                window_is_split = False
 
-            start = doy - win
-            if start < 1:
-                start += 365
-                do_or = True
+            start = ((doy - 1) - win) % self._DAYS_PER_YEAR + 1
+            end = ((doy - 1) + win) % self._DAYS_PER_YEAR + 1
 
-            end = doy + win
-            if end > 365:
-                end -= 365
-                do_or = True
+            times_after_start = source_doy >= start
+            times_before_end = source_doy <= end
+            time_in_window_flags: podpac.UnitsDataArray = (
+                (times_after_start | times_before_end) if window_is_split else (times_after_start & times_before_end)
+            )
 
-            if do_or:
-                I = (sdoy >= start) | (sdoy <= end)
-            else:
-                I = (sdoy >= start) & (sdoy <= end)
-
-            # Scipy's beta function doesn's support multi-dimensional arrays, so we have to loop over lat/lon/alt
-            lat_f = lon_f = alt_f = [None]
-            dims = ["lat", "lon", "alt"]
-            if "lat" in source.dims:
-                lat_f = source["lat"].data
-            if "lon" in source.dims:
-                lon_f = source["lon"].data
-            if "alt" in source.dims:
-                alt_f = source["alt"].data
-
-            for alt in alt_f:
-                for lat in lat_f:
-                    for lon in lon_f:
-                        # _log.debug(f'lat, lon, alt = {lat}, {lon}, {alt})
-                        loc_dict = {k: v for k, v in zip(dims, [lat, lon, alt]) if v is not None}
-
-                        data = source.sel(time=I, **loc_dict).dropna("time").data
-                        if np.all(np.isnan(data)):
-                            continue
-
-                        # Fit function to the particular point
-                        output.loc[loc_dict][{"time": i}] = self.function(data, output.loc[loc_dict][{"time": i}])
+            self._apply_function(time_in_window_flags, source, output, i)
 
         # Rescale the outputs
         if self.rescale:

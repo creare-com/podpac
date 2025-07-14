@@ -64,7 +64,7 @@ def test_make_timedelta_string():
     assert make_timedelta_string(td64(-1, "s")) == "-1,s"
 
     with pytest.raises(TypeError):
-        assert make_timedelta_string(1)
+        make_timedelta_string(1)
 
 
 def test_make_coord_value():

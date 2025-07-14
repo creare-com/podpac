@@ -29,11 +29,11 @@ class TestHashCache:
 
         hash_cache_node = my_node.cache("hash", "ram")
         hash_cache_node2 = my_node.cache("hash", "ram")
-        o0 = hash_cache_node.eval(coords)
+        hash_cache_node.eval(coords)
         assert not hash_cache_node._from_cache
-        o1 = hash_cache_node.eval(coords)
+        hash_cache_node.eval(coords)
         assert hash_cache_node._from_cache
-        o2 = hash_cache_node2.eval(coords)
+        hash_cache_node2.eval(coords)
         assert hash_cache_node2._from_cache
 
     def test_relevant_dimensions_cache(self):
@@ -154,7 +154,7 @@ class TestZarrCache:
 
         # Get indices where the request coordinates intersect with the source coordinates
         valid_request_coords = request_coords.intersect(source.coordinates)
-        valid_indices = np.where(np.isin(request_coords["lat"].coordinates, valid_request_coords["lat"].coordinates))
+        valid_indices = np.nonzero(np.isin(request_coords["lat"].coordinates, valid_request_coords["lat"].coordinates))
 
         # Evaluate source at the valid coordinates
         expected_valid_data = source.eval(valid_request_coords)
@@ -163,7 +163,7 @@ class TestZarrCache:
         npt.assert_array_equal(data[valid_indices], expected_valid_data)
 
         # Check if the out-of-bounds data is filled with NaNs
-        invalid_indices = np.where(~np.isin(request_coords["lat"].coordinates, valid_request_coords["lat"].coordinates))
+        invalid_indices = np.nonzero(~np.isin(request_coords["lat"].coordinates, valid_request_coords["lat"].coordinates))
         assert np.isnan(data[invalid_indices]).all()
 
         node.rem_cache()  # Cleanup

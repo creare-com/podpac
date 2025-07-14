@@ -2,11 +2,11 @@
 Single-Dimensional Coordinates: Array
 """
 
-
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import copy
 from collections import OrderedDict
+from typing import Dict, Tuple, Union
 
 import numpy as np
 import traitlets as tl
@@ -371,86 +371,132 @@ class ArrayCoordinates1d(Coordinates1d):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def _select(self, bounds, return_index, outer):
+    def _get_index_default(self, bounds: Tuple[float, float]) -> np.array:
+        gt = self.coordinates >= bounds[0]
+        lt = self.coordinates <= bounds[1]
+        index_inside_bounds = gt & lt
+        index_outside_bounds = gt | lt
+        if (
+            index_outside_bounds.sum() != index_outside_bounds.size
+            or index_inside_bounds.sum() != 0
+            or not self.is_monotonic
+        ):
+            return index_inside_bounds
+
+        # bounds between data points
+        indlt = np.argwhere(lt).squeeze()
+        indgt = np.argwhere(gt).squeeze()
+        if self._is_descending:
+            indlt = indlt[0] if indlt.size > 0 else index_inside_bounds.size - 1
+            indgt = indgt[-1] if indgt.size > 0 else 0
+        else:
+            indlt = indlt[-1] if indlt.size > 0 else 0
+            indgt = indgt[0] if indgt.size > 0 else index_inside_bounds.size - 1
+
+        ind0 = min(indlt, indgt)
+        ind1 = max(indlt, indgt) + 1
+        index_inside_bounds[ind0:ind1] = True
+        if index_inside_bounds.sum() > 1:
+            # These two coordinates are candidates, we need
+            # to make sure that the bounds cross the edge between
+            # the two points (selects both) or not (only selects)
+            crds = self.coordinates[index_inside_bounds]
+            step = np.diff(self.coordinates[index_inside_bounds])[0]
+            edge = crds[0] + step / 2
+            bounds_lt = bounds <= edge
+            bounds_gt = bounds > edge
+            keep_point = [np.any(bounds_lt), np.any(bounds_gt)]
+            if self._is_descending:
+                keep_point = keep_point[::-1]
+            index_inside_bounds[ind0:ind1] = keep_point
+        return index_inside_bounds
+
+    def _get_index_outer_monotonic(self, bounds: Tuple[float, float]) -> np.array:
+        gt = np.nonzero(self.coordinates >= bounds[0])[0]
+        lt = np.nonzero(self.coordinates <= bounds[1])[0]
+        lo, hi = bounds[0], bounds[1]
+        if self.is_descending:
+            lt, gt = gt, lt
+            lo, hi = hi, lo
+        if self.coordinates[gt[0]] != lo:
+            gt[0] -= 1
+        if self.coordinates[lt[-1]] != hi:
+            lt[-1] += 1
+        start = max(0, gt[0])
+        stop = min(self.size - 1, lt[-1])
+        b = slice(start, stop + 1)
+        return b
+
+    def _get_index_outer_nonmonotonic(self, bounds: Tuple[float, float]) -> np.array:
+        try:
+            gt = self.coordinates >= max(self.coordinates[self.coordinates <= bounds[0]])
+        except ValueError:
+            if (self.dtype == np.datetime64) or (self.dtype == np.timedelta64):
+                gt = ~np.isnat(self.coordinates)
+            else:
+                gt = self.coordinates >= -np.inf
+        try:
+            lt = self.coordinates <= min(self.coordinates[self.coordinates >= bounds[1]])
+        except ValueError:
+            if self.dtype == np.datetime64 or (self.dtype == np.timedelta64):
+                lt = ~np.isnat(self.coordinates)
+            else:
+                lt = self.coordinates <= np.inf
+
+        b = gt & lt
+        return b
+
+    def _select(self, bounds: Tuple[float, float], return_index: bool, outer: bool):
+        """
+        Get the coordinate values that are within the given bounds.
+
+        The default selection returns coordinates that are within the bounds::
+
+            In [1]: c = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
+
+            In [2]: c.select([1.5, 2.5]).coordinates
+            Out[2]: array([2.])
+
+        The *outer* selection returns the minimal set of coordinates that contain the bounds::
+
+            In [3]: c.select([1.5, 2.5], outer=True).coordinates
+            Out[3]: array([1., 2., 3.])
+
+        The *outer* selection also returns a boundary coordinate if a bound is outside this coordinates bounds but
+        *inside* its area bounds::
+
+            In [4]: c.select([3.25, 3.35], outer=True).coordinates
+            Out[4]: array([3.0], dtype=float64)
+
+            In [5]: c.select([10.0, 11.0], outer=True).coordinates
+            Out[5]: array([], dtype=float64)
+
+
+        Parameters
+        ----------
+        bounds : (low, high)
+            Selection bounds.
+        outer : bool, optional
+            If True, do an *outer* selection. Default False.
+        return_index : bool, optional
+            If True, return index for the selection in addition to coordinates. Default False.
+
+        Returns
+        -------
+        selection : :class:`Coordinates1d`
+            Coordinates1d object with coordinates within the bounds.
+        I : slice, boolean array
+            index or slice for the selected coordinates (only if return_index=True)
+        """
         if self.dtype == np.datetime64:
             _, bounds = higher_precision_time_bounds(self.bounds, bounds, outer)
 
         if not outer:
-            gt = self.coordinates >= bounds[0]
-            lt = self.coordinates <= bounds[1]
-            b = gt & lt
-            b2 = gt | lt
-            if b2.sum() == b2.size and b.sum() == 0 and self.is_monotonic:
-                # bounds between data points
-                indlt = np.argwhere(lt).squeeze()
-                indgt = np.argwhere(gt).squeeze()
-                if self._is_descending:
-                    if indlt.size > 0:
-                        indlt = indlt[0]
-                    else:
-                        indlt = b.size - 1
-                    if indgt.size > 0:
-                        indgt = indgt[-1]
-                    else:
-                        indgt = 0
-                else:
-                    if indlt.size > 0:
-                        indlt = indlt[-1]
-                    else:
-                        indlt = 0
-                    if indgt.size > 0:
-                        indgt = indgt[0]
-                    else:
-                        indgt = b.size - 1
-
-                ind0 = min(indlt, indgt)
-                ind1 = max(indlt, indgt) + 1
-                b[ind0:ind1] = True
-                if b.sum() > 1:
-                    # These two coordinates are candidates, we need
-                    # to make sure that the bounds cross the edge between
-                    # the two points (selects both) or not (only selects)
-                    crds = self.coordinates[b]
-                    step = np.diff(self.coordinates[b])[0]
-                    edge = crds[0] + step / 2
-                    bounds_lt = bounds <= edge
-                    bounds_gt = bounds > edge
-                    keep_point = [np.any(bounds_lt), np.any(bounds_gt)]
-                    if self._is_descending:
-                        keep_point = keep_point[::-1]
-                    b[ind0:ind1] = keep_point
+            b = self._get_index_default(bounds)
         elif self.is_monotonic:
-            gt = np.where(self.coordinates >= bounds[0])[0]
-            lt = np.where(self.coordinates <= bounds[1])[0]
-            lo, hi = bounds[0], bounds[1]
-            if self.is_descending:
-                lt, gt = gt, lt
-                lo, hi = hi, lo
-            if self.coordinates[gt[0]] != lo:
-                gt[0] -= 1
-            if self.coordinates[lt[-1]] != hi:
-                lt[-1] += 1
-            start = max(0, gt[0])
-            stop = min(self.size - 1, lt[-1])
-            b = slice(start, stop + 1)
-
+            b = self._get_index_outer_monotonic(bounds)
         else:
-            try:
-                gt = self.coordinates >= max(self.coordinates[self.coordinates <= bounds[0]])
-            except ValueError as e:
-                if (self.dtype == np.datetime64) or (self.dtype == np.timedelta64):
-                    gt = ~np.isnat(self.coordinates)
-                else:
-                    gt = self.coordinates >= -np.inf
-            try:
-                lt = self.coordinates <= min(self.coordinates[self.coordinates >= bounds[1]])
-            except ValueError as e:
-                if self.dtype == np.datetime64 or (self.dtype == np.timedelta64):
-                    lt = ~np.isnat(self.coordinates)
-                else:
-                    lt = self.coordinates <= np.inf
-
-            b = gt & lt
+            b = self._get_index_outer_nonmonotonic(bounds)
 
         if return_index:
             return self[b], b

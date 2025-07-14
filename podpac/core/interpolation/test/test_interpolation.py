@@ -3,12 +3,11 @@ Test interpolation methods
 
 
 """
+
 # pylint: disable=C0111,W0212,R0903
 
 
-from unittest import TestCase
 import warnings
-
 import pytest
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -24,9 +23,7 @@ from podpac.core.compositor import TileCompositor
 
 _CRS = "+proj=longlat +datum=WGS84 +no_defs +vunits=m"
 # Set up the PRNG with a seed to stay deterministic
-_rand = np.random.default_rng(0xC * ord('r') + 0xea + ord('r') * 0xe)
-
-
+_rand = np.random.default_rng(0xC * ord("r") + 0xEA + ord("r") * 0xE)
 
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 
@@ -154,9 +151,7 @@ class TestInterpolationBehavior(object):
     def test_selection_crs(self):
         base = podpac.core.data.array_source.Array(
             source=[0, 1, 2],
-            coordinates=podpac.Coordinates(
-                [[1, 5, 9]], dims=["time"], crs=_CRS
-            ),
+            coordinates=podpac.Coordinates([[1, 5, 9]], dims=["time"], crs=_CRS),
         )
         node = podpac.interpolators.Interpolate(source=base, interpolation="linear")
         tocrds = podpac.Coordinates([podpac.crange(1, 9, 1, "time")], crs="EPSG:4326")

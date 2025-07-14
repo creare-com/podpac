@@ -1,10 +1,12 @@
+import itertools
+from typing import Dict, List, Tuple
 import pytest
 import traitlets as tl
 import numpy as np
 
 from podpac.core.node import Node
 from podpac.core.coordinates import Coordinates, clinspace
-from podpac.core.interpolation.selector import (Selector, _higher_precision_time_coords1d)
+from podpac.core.interpolation.selector import Selector, _higher_precision_time_coords1d
 
 _ERR_MSG = "Selection using source {} and request {} failed with {} != {} (truth)"
 
@@ -32,50 +34,35 @@ class TestSelector(object):
     nn_request_coarse_from_random_coarse = [0, 1, 2]
     nn_request_coarse_from_fine_grid = [1, 2, 3, 5, 6]
 
-    coords = {}
+    coords: Dict[str, Coordinates]
 
     @classmethod
     def setup_class(cls):
-        cls.make_coord_combos(cls)
+        cls.make_coord_combos()
 
-    @staticmethod
-    def make_coord_combos(self):
-        # Make 1-D ones
+    @classmethod
+    def make_coord_combos(cls):
+        cls.coords = {}
         dims = ["lat", "lon", "time", "alt"]
-        for r in ["fine", "coarse"]:
-            for i in range(4):
-                d = dims[i]
-                k = d + "_" + r
-                self.coords[k] = Coordinates([getattr(self, k)], [d])
-                # stack pairs 2D
-                for ii in range(i, 4):
-                    d2 = dims[ii]
-                    if d == d2:
-                        continue
-                    k2 = "_".join([d2, r])
-                    k2f = "_".join([d, d2, r])
-                    self.coords[k2f] = Coordinates([[getattr(self, k), getattr(self, k2)]], [[d, d2]])
-                    # stack pairs 3D
-                    for iii in range(ii, 4):
-                        d3 = dims[iii]
-                        if d3 == d or d3 == d2:
-                            continue
-                        k3 = "_".join([d3, r])
-                        k3f = "_".join([d, d2, d3, r])
-                        self.coords[k3f] = Coordinates(
-                            [[getattr(self, k), getattr(self, k2), getattr(self, k3)]], [[d, d2, d3]]
-                        )
-                        # stack pairs 4D
-                        for iv in range(iii, 4):
-                            d4 = dims[iv]
-                            if d4 == d or d4 == d2 or d4 == d3:
-                                continue
-                            k4 = "_".join([d4, r])
-                            k4f = "_".join([d, d2, d3, d4, r])
-                            self.coords[k4f] = Coordinates(
-                                [[getattr(self, k), getattr(self, k2), getattr(self, k3), getattr(self, k4)]],
-                                [[d, d2, d3, d4]],
-                            )
+        resolutions = ["fine", "coarse"]
+        # Generate all possible orders of dimensions, from length 1 to 4
+        dim_sequences: List[Tuple] = []
+        for i in range(0, len(dims)):
+            possible_combos = itertools.permutations(dims, r=i + 1)
+            # Exclude sequences of dimensions that begin with time.
+            # The Coordinates() constructor fails if we start with that one.
+            # When we fix that bug we can turn this back on.
+            dim_sequences += [combo for combo in possible_combos if combo[0] != "time"]
+
+        # Make Coordinates objects from those dimensions
+        for r in resolutions:
+            for dim_seq in dim_sequences:
+                key = "_".join(dim_seq + (r,))
+                if len(dim_seq) <= 1:
+                    new_coords = Coordinates([getattr(cls, d + "_" + r) for d in dim_seq], list(dim_seq))
+                else: 
+                    new_coords = Coordinates([[getattr(cls, d + "_" + r) for d in dim_seq]], [list(dim_seq)])
+                cls.coords[key] = new_coords
 
     def test_nn_nonmonotonic_selector(self):
         selector = Selector("nearest")
@@ -96,9 +83,7 @@ class TestSelector(object):
                 np.testing.assert_array_equal(
                     ci,
                     (np.array(list(truth)),),
-                    err_msg=_ERR_MSG.format(
-                        source, request, ci, list(truth)
-                    ),
+                    err_msg=_ERR_MSG.format(source, request, ci, list(truth)),
                 )
 
     def test_linear_selector(self):
@@ -121,9 +106,7 @@ class TestSelector(object):
                 np.testing.assert_array_equal(
                     ci,
                     (np.array(truth),),
-                    err_msg=_ERR_MSG.format(
-                        source, request, ci, truth
-                    ),
+                    err_msg=_ERR_MSG.format(source, request, ci, truth),
                 )
 
     def test_bilinear_selector(self):
@@ -146,9 +129,7 @@ class TestSelector(object):
                 np.testing.assert_array_equal(
                     ci,
                     (np.array(truth),),
-                    err_msg=_ERR_MSG.format(
-                        source, request, ci, truth
-                    ),
+                    err_msg=_ERR_MSG.format(source, request, ci, truth),
                 )
 
     def test_bilinear_selector_negative_step(self):
@@ -246,9 +227,7 @@ class TestSelector(object):
                 np.testing.assert_array_equal(
                     ci,
                     (np.array(truth),),
-                    err_msg=_ERR_MSG.format(
-                        source, request, ci, truth
-                    ),
+                    err_msg=_ERR_MSG.format(source, request, ci, truth),
                 )
 
     def test_uniform2uniform(self):
@@ -375,32 +354,49 @@ class TestSelector(object):
         """
         test_cases = [
             # Same datetime64 precision
-            (Coordinates([np.datetime64("2025-01-01","D")],['time']), 
-             Coordinates([np.datetime64("2025-01-03","D")],['time']),
-             "datetime64[D]"),
+            (
+                Coordinates([np.datetime64("2025-01-01", "D")], ["time"]),
+                Coordinates([np.datetime64("2025-01-03", "D")], ["time"]),
+                "datetime64[D]",
+            ),
             # Same timedelta64 precision
-            (Coordinates([np.timedelta64(1, "D")],['time']), 
-             Coordinates([np.timedelta64(3, "D")],['time']),
-             "timedelta64[D]"),
+            (
+                Coordinates([np.timedelta64(1, "D")], ["time"]),
+                Coordinates([np.timedelta64(3, "D")], ["time"]),
+                "timedelta64[D]",
+            ),
             # Different datetime64 precision
-            (Coordinates([np.datetime64("2025-01-01T12:00","s")],['time']), 
-             Coordinates([np.datetime64("2025-01-03","D")],['time']),
-             "datetime64[s]"),  # Should upcast to higher precision
+            (
+                Coordinates([np.datetime64("2025-01-01T12:00", "s")], ["time"]),
+                Coordinates([np.datetime64("2025-01-03", "D")], ["time"]),
+                "datetime64[s]",
+            ),  # Should upcast to higher precision
             # Different timedelta64 precision
-            (Coordinates([np.timedelta64(1, "s")],['time']), 
-             Coordinates([np.timedelta64(3, "D")],['time']),
-             "timedelta64[s]"),  # Should upcast to hours
+            (
+                Coordinates([np.timedelta64(1, "s")], ["time"]),
+                Coordinates([np.timedelta64(3, "D")], ["time"]),
+                "timedelta64[s]",
+            ),  # Should upcast to hours
             # Non-time data gets converted to float64 by Coordinates
-            # Same Non-time data type 
-            (Coordinates([np.array([1, 2, 3], dtype=np.float32)],['lat']), 
-             Coordinates([np.array([4, 5, 6], dtype=np.float32)],['lat']), "float64"),
-            # Different Non-time data type 
-            (Coordinates([np.array([1, 2, 3], dtype=np.int16)],['lat']), 
-             Coordinates([np.array([4, 5, 6], dtype=np.float32)],['lat']), "float64"),
+            # Same Non-time data type
+            (
+                Coordinates([np.array([1, 2, 3], dtype=np.float32)], ["lat"]),
+                Coordinates([np.array([4, 5, 6], dtype=np.float32)], ["lat"]),
+                "float64",
+            ),
+            # Different Non-time data type
+            (
+                Coordinates([np.array([1, 2, 3], dtype=np.int16)], ["lat"]),
+                Coordinates([np.array([4, 5, 6], dtype=np.float32)], ["lat"]),
+                "float64",
+            ),
             # Different Non-time data type ordered backwards
-            (Coordinates([np.array([1, 2, 3], dtype=np.float32)],['lat']), 
-             Coordinates([np.array([4, 5, 6], dtype=np.int16)],['lat']), "float64")
-        ] 
+            (
+                Coordinates([np.array([1, 2, 3], dtype=np.float32)], ["lat"]),
+                Coordinates([np.array([4, 5, 6], dtype=np.int16)], ["lat"]),
+                "float64",
+            ),
+        ]
         for coords0, coords1, expected_dtype in test_cases:
             dim = coords0.dims
             result0, result1 = _higher_precision_time_coords1d(coords0[dim[0]], coords1[dim[0]])

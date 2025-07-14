@@ -86,7 +86,7 @@ else:
         "numpydoc",
     ]
 
-if sys.version >= "3.6":
+if sys.version_info[0:2] >= (3, 6):
     extras_require["dev"] += [
         "black",
     ]
@@ -123,6 +123,7 @@ setup(
     author="Creare",
     url="https://podpac.org",
     license="APACHE 2.0",
+    python_requires='>=3.7',
     classifiers=[
         # How mature is this project? Common values are
         # 3 - Alpha

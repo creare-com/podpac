@@ -373,7 +373,7 @@ class TestCoordinateCreation(object):
         with pytest.raises(ValueError):
             Coordinates.grid(lat=lat, lon=lon, dims=["lat", "lon", "time"])
 
-        if sys.version < "3.6":
+        if sys.version_info[0:2] < (3, 6):
             with pytest.raises(TypeError):
                 Coordinates.grid(lat=lat, lon=lon, time=dates)
         else:
@@ -635,6 +635,8 @@ class TestCoordinateCreation(object):
         with pytest.warns(UserWarning):
             assert c.alt_units in ["us-ft", "US survey foot"]  # pyproj < 3.0  # pyproj >= 3.0
 
+    def test_create_from_uniform_coords(self):
+        Coordinates([[clinspace("2020-01-01T09:36", "2020-01-02T15:35", 8)]], [['time']])
 
 class TestCoordinatesSerialization(object):
     def test_definition(self):
@@ -1672,10 +1674,6 @@ class TestCoordinatesSpecial(object):
         assert not c1.__eq__(c3)
         assert not c1.__eq__(c4)
         assert not c1.__eq__(c5)
-
-        # ne (this only matters in python 2)
-        assert not c1.__ne__(c1)
-        assert not c1.__ne__(deepcopy(c1))
 
         assert c1 != None
         assert c1 != c3

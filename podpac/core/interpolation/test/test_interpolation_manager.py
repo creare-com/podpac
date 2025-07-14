@@ -174,7 +174,7 @@ class TestInterpolation(object):
             InterpolationManager([{"method": "nearest", "params": {"spatial_tolerance": "tol"}}])
 
         with pytest.raises(AttributeError):
-            assert interp.config[("default",)]["interpolators"][0].myarg == "tol"
+            interp.config[("default",)]["interpolators"][0].myarg
 
     def test_select_interpolator_queue(self):
 

@@ -79,6 +79,7 @@ class TestLoadFile(object):
         node.dataset
 
     @pytest.mark.aws  # TODO
+    @pytest.mark.skip("Unreachable source")
     def test_http(self):
         node = MockLoadFile(source="https://httpstat.us/200")
         node.dataset

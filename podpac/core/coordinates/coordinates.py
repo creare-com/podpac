@@ -4,6 +4,7 @@ Multidimensional Coordinates
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+from typing import List, Tuple, Union
 import warnings
 from copy import deepcopy
 import sys
@@ -120,6 +121,24 @@ class Coordinates(tl.HasTraits):
         if len(dims) != len(coords):
             raise ValueError("coords and dims size mismatch, %d != %d" % (len(dims), len(coords)))
 
+        self._init_coords(dims, coords)
+
+        if crs is not None:
+            # validate
+            if validate_crs:
+                # raises pyproj.CRSError if invalid
+                pyproj_crs = pyproj.CRS(crs)
+
+                # make sure CRS defines vertical units
+                if "alt" in self.udims and not has_alt_units(pyproj_crs):
+                    raise ValueError("Altitude dimension is defined, but CRS does not contain vertical unit")
+
+            crs = self.set_trait("crs", crs)
+
+        super(Coordinates, self).__init__()
+
+    def _init_coords(self, dims: Union[Tuple, List], coords: Union[List, Tuple, np.ndarray, xr.DataArray]) -> None:
+        """Initialize the trait self._coords.  Meant only to be called from __init__()."""
         # get/create coordinates
         dcoords = OrderedDict()
         for i, dim in enumerate(dims):
@@ -144,20 +163,6 @@ class Coordinates(tl.HasTraits):
             dcoords[dim] = c
 
         self.set_trait("_coords", dcoords)
-
-        if crs is not None:
-            # validate
-            if validate_crs:
-                # raises pyproj.CRSError if invalid
-                CRS = pyproj.CRS(crs)
-
-                # make sure CRS defines vertical units
-                if "alt" in self.udims and not has_alt_units(CRS):
-                    raise ValueError("Altitude dimension is defined, but CRS does not contain vertical unit")
-
-            crs = self.set_trait("crs", crs)
-
-        super(Coordinates, self).__init__()
 
     @tl.validate("_coords")
     def _validate_coords(self, d):
@@ -187,9 +192,8 @@ class Coordinates(tl.HasTraits):
 
     @staticmethod
     def _coords_from_dict(d, order=None):
-        if sys.version < "3.6":
-            if order is None and len(d) > 1:
-                raise TypeError("order required")
+        if sys.version_info[0:2] < (3, 6) and order is None and len(d) > 1:
+            raise TypeError("order required")
 
         if order is not None:
             if set(order) != set(d):
@@ -306,7 +310,7 @@ class Coordinates(tl.HasTraits):
         return cls([stacked], crs=crs)
 
     @classmethod
-    def from_xarray(cls, x, crs=None, validate_crs=False):
+    def from_xarray(cls, x, crs: str = None, validate_crs: bool = False):
         """
         Create podpac Coordinates from xarray coords.
 
@@ -333,25 +337,7 @@ class Coordinates(tl.HasTraits):
 
             xcoords = x.coords
             if "geotransform" in x.attrs:
-                other = cls.from_xarray(xcoords, crs=crs, validate_crs=validate_crs).udrop(["lat", "lon"])
-                latshape = xcoords["lat"].shape
-                lonshape = xcoords["lon"].shape
-                if latshape == lonshape and len(latshape) == 2:
-                    shape = latshape
-                else:
-                    shape = [latshape[0], lonshape[0]]
-                    xdims = list(xcoords.keys())
-                    if xdims.index("lat") > xdims.index("lon"):
-                        shape = shape[::-1]
-                lat_lon = cls.from_geotransform(x.geotransform, shape=shape, crs=crs, validate_crs=validate_crs)
-                coords = merge_dims([other, lat_lon])
-
-                # These dims might have something like lat_lon-1, lat_lon-2, so eliminate the '-' ...
-                dims = [d.split("-")[0] for d in xcoords.dims if d != "output"]
-                # ... and make sure it's all unique without changing order (np.unique would change order...)
-                dims = [d for i, d in enumerate(dims) if d not in dims[:i]]
-                coords = coords.transpose(*dims)
-                return coords
+                return cls._from_xarray_dataarray_or_dataset(x, crs, validate_crs)
 
         elif isinstance(x, (xarray.core.coordinates.DataArrayCoordinates, xarray.core.coordinates.DatasetCoordinates)):
             xcoords = x
@@ -384,6 +370,46 @@ class Coordinates(tl.HasTraits):
                 d[dim] = ArrayCoordinates1d.from_xarray(xcoords[dim])
 
         coords = cls(list(d.values()), crs=crs, validate_crs=validate_crs)
+        return coords
+
+    @classmethod
+    def _from_xarray_dataarray_or_dataset(cls, x: Union[xr.DataArray, xr.Dataset], crs=None, validate_crs=False):
+        """Subset of from_xarray() that handles the case where x is of type
+        xr.DataArray or xr.Dataset and x has a geotransform.
+
+        Parameters
+        ----------
+        x: Union[xr.DataArray, xr.Dataset]
+            _description_
+        crs : str, optional
+            _description_, by default None
+        validate_crs : bool, optional
+            _description_, by default False
+
+        Returns
+        -------
+        coords : :class:`Coordinates`
+            podpac Coordinates
+        """
+        xcoords = x.coords
+        other = cls.from_xarray(xcoords, crs=crs, validate_crs=validate_crs).udrop(["lat", "lon"])
+        latshape = xcoords["lat"].shape
+        lonshape = xcoords["lon"].shape
+        if latshape == lonshape and len(latshape) == 2:
+            shape = latshape
+        else:
+            shape = [latshape[0], lonshape[0]]
+            xdims = list(xcoords.keys())
+            if xdims.index("lat") > xdims.index("lon"):
+                shape = shape[::-1]
+        lat_lon = cls.from_geotransform(x.geotransform, shape=shape, crs=crs, validate_crs=validate_crs)
+        coords = merge_dims([other, lat_lon])
+
+        # These dims might have something like lat_lon-1, lat_lon-2, so eliminate the '-' ...
+        dims = [d.split("-")[0] for d in xcoords.dims if d != "output"]
+        # ... and make sure it's all unique without changing order (np.unique would change order...)
+        dims = [d for i, d in enumerate(dims) if d not in dims[:i]]
+        coords = coords.transpose(*dims)
         return coords
 
     @classmethod
@@ -690,11 +716,6 @@ class Coordinates(tl.HasTraits):
             return False
 
         return True
-
-    if sys.version < "3":
-
-        def __ne__(self, other):
-            return not self.__eq__(other)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties

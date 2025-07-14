@@ -154,8 +154,6 @@ class AffineCoordinates(StackedCoordinates):
             geotransform = [p0[1], dlonj, dloni, p0[0], dlatj, dlati]
 
             # get shape from indexed coordinates
-            shape = lat.shape
-
             return AffineCoordinates(geotransform=geotransform, shape=lat.shape)
 
         else:
@@ -292,7 +290,7 @@ class AffineCoordinates(StackedCoordinates):
             & (lon <= bounds["lon"][1])
         )
 
-        I, J = np.where(b)
+        I, J = np.nonzero(b)
         imin = max(0, np.min(I) - 1)
         jmin = max(0, np.min(J) - 1)
         imax = min(self.shape[0] - 1, np.max(I) + 1)
