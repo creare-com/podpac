@@ -1067,6 +1067,65 @@ class Node(tl.HasTraits):
 
         return cls.from_definition(d)
 
+    @staticmethod
+    def _get_schema_for_attr(cls, attr, function_defaults):
+        """Compute UI spec for the given attribute of the given class"""
+        attrt = getattr(cls, attr)
+        type_ = attrt.__class__.__name__
+
+        try:
+            schema = getattr(attrt, "_schema")
+        except AttributeError:
+            schema = None
+
+        type_extra = str(attrt)
+        if type_ == "Union":
+            type_ = [t.__class__.__name__ for t in attrt.trait_types]
+            type_extra = "Union"
+        elif type_ == "Instance":
+            type_ = attrt.klass.__name__
+            if type_ == "Node":
+                type_ = "NodeTrait"
+            type_extra = attrt.klass
+        elif type_ == "Dict" and schema is None:
+            try:
+                schema = {
+                    "key": getattr(attrt, "_key_trait").__class__.__name__,
+                    "value": getattr(attrt, "_value_trait").__class__.__name__,
+                }
+            except Exception:
+                _logger.exception(f"Could not find schema for {attrt} of type {type_}")
+                schema = None
+
+        required = attrt.metadata.get("required", False)
+        hidden = attrt.metadata.get("hidden", False)
+        if attr in function_defaults:
+            default_val = function_defaults[attr]
+        else:
+            default_val = attrt.default()
+        if not isinstance(type_extra, str):
+            type_extra = str(type_extra)
+        try:
+            if np.isnan(default_val):
+                default_val = "nan"
+        except Exception:
+            pass
+
+        if default_val == tl.Undefined:
+            default_val = None
+
+        return {
+            "type": type_,
+            "type_str": type_extra,  # May remove this if not needed
+            "values": getattr(attrt, "values", None),
+            "default": default_val,
+            "help": attrt.help,
+            "required": required,
+            "hidden": hidden,
+            "schema": schema,
+        }
+
+
     @classmethod
     def get_ui_spec(cls, help_as_html=False):
         """Get spec of node attributes for building a ui
@@ -1130,59 +1189,8 @@ class Node(tl.HasTraits):
                 continue
             if not attrt.metadata.get("attr", False):
                 continue
-            type_ = attrt.__class__.__name__
-
-            try:
-                schema = getattr(attrt, "_schema")
-            except AttributeError:
-                schema = None
-
-            type_extra = str(attrt)
-            if type_ == "Union":
-                type_ = [t.__class__.__name__ for t in attrt.trait_types]
-                type_extra = "Union"
-            elif type_ == "Instance":
-                type_ = attrt.klass.__name__
-                if type_ == "Node":
-                    type_ = "NodeTrait"
-                type_extra = attrt.klass
-            elif type_ == "Dict" and schema is None:
-                try:
-                    schema = {
-                        "key": getattr(attrt, "_key_trait").__class__.__name__,
-                        "value": getattr(attrt, "_value_trait").__class__.__name__,
-                    }
-                except Exception:
-                    _logger.exception(f"Could not find schema for {attrt} of type {type_}")
-                    schema = None
-
-            required = attrt.metadata.get("required", False)
-            hidden = attrt.metadata.get("hidden", False)
-            if attr in function_defaults:
-                default_val = function_defaults[attr]
-            else:
-                default_val = attrt.default()
-            if not isinstance(type_extra, str):
-                type_extra = str(type_extra)
-            try:
-                if np.isnan(default_val):
-                    default_val = "nan"
-            except Exception:
-                pass
-
-            if default_val == tl.Undefined:
-                default_val = None
-
-            spec["attrs"][attr] = {
-                "type": type_,
-                "type_str": type_extra,  # May remove this if not needed
-                "values": getattr(attrt, "values", None),
-                "default": default_val,
-                "help": attrt.help,
-                "required": required,
-                "hidden": hidden,
-                "schema": schema,
-            }
+            
+            spec["attrs"][attr] = Node._get_schema_for_attr(cls, attr, function_defaults)
 
         try:
             # This returns the
