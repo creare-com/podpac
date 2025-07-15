@@ -1326,6 +1326,42 @@ def _lookup_attr(nodes, name, value):
 
     return attr
 
+def _compute_style_class(d, node_class, name):
+    """Get style class from the provided node definition. Helper for _process_kwargs"""
+    if "style_class" in d:
+        style_string = d["style_class"]
+        module_style_name, style_name = style_string.rsplit(".", 1)
+
+        try:
+            style_module = importlib.import_module(module_style_name)
+        except ImportError:
+            raise ValueError(
+                "Invalid definition for style module '%s': no module found '%s'" % (name, module_style_name)
+            )
+        try:
+            style_class = getattr(style_module, style_name)
+        except AttributeError:
+            raise ValueError(
+                "Invalid definition for style '%s': style class '%s' not found in style module '%s'"
+                % (name, style_name, module_style_name)
+            )
+    else:
+        style_class = getattr(node_class, "style", Style)
+    if isinstance(style_class, tl.TraitType):
+        # Now we actually have to look through the class to see
+        # if there is a custom initializer for style
+        for attr in dir(node_class):
+            atr = getattr(node_class, attr)
+            if not isinstance(atr, tl.traitlets.DefaultHandler) or atr.trait_name != "style":
+                continue
+            try:
+                style_class = atr(node_class)
+            except Exception:
+                try:
+                    style_class = atr(node_class())
+                except Exception:
+                    style_class = style_class.klass
+    return style_class
 
 def _process_kwargs(name, d, definition, nodes):
     """create a node and add it to nodes
@@ -1383,41 +1419,7 @@ def _process_kwargs(name, d, definition, nodes):
         kwargs[k] = _lookup_attr(nodes, name, v)
 
     if "style" in d:
-        if "style_class" in d:
-            style_root = module_root
-            # style_string  = "%s.%s" % (style_root, d["style_class"])
-            style_string = d["style_class"]
-            module_style_name, style_name = style_string.rsplit(".", 1)
-
-            try:
-                style_module = importlib.import_module(module_style_name)
-            except ImportError:
-                raise ValueError(
-                    "Invalid definition for style module '%s': no module found '%s'" % (name, module_style_name)
-                )
-            try:
-                style_class = getattr(style_module, style_name)
-            except AttributeError:
-                raise ValueError(
-                    "Invalid definition for style '%s': style class '%s' not found in style module '%s'"
-                    % (name, style_name, module_style_name)
-                )
-        else:
-            style_class = getattr(node_class, "style", Style)
-        if isinstance(style_class, tl.TraitType):
-            # Now we actually have to look through the class to see
-            # if there is a custom initializer for style
-            for attr in dir(node_class):
-                atr = getattr(node_class, attr)
-                if not isinstance(atr, tl.traitlets.DefaultHandler) or atr.trait_name != "style":
-                    continue
-                try:
-                    style_class = atr(node_class)
-                except Exception:
-                    try:
-                        style_class = atr(node_class())
-                    except Exception:
-                        style_class = style_class.klass
+        style_class = _compute_style_class(d, node_class, name)
         try:
             kwargs["style"] = style_class.from_definition(d["style"])
         except Exception:
