@@ -7,6 +7,7 @@ from __future__ import division, print_function, absolute_import
 import re
 import json
 import importlib
+from typing import List
 import warnings
 from collections import OrderedDict
 from copy import deepcopy
@@ -142,7 +143,7 @@ class Node(tl.HasTraits):
         [tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default_value=None
     )
     property_cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
-    
+
     base_ref = tl.Unicode()
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
@@ -525,7 +526,7 @@ class Node(tl.HasTraits):
     # Serialization
     # -----------------------------------------------------------------------------------------------------------------
 
-    @tl.default('base_ref')
+    @tl.default("base_ref")
     def _default_base_ref(self):
         """
         Default reference/name in node definitions
@@ -535,7 +536,7 @@ class Node(tl.HasTraits):
         str
             Name of the node in node definitions
         """
-        return self.__class__.__name__ 
+        return self.__class__.__name__
 
     @property
     def _base_definition(self):
@@ -597,15 +598,59 @@ class Node(tl.HasTraits):
 
         return d
 
+    @staticmethod
+    def _add_node(node: "Node", refs: List[str], nodes: List["Node"], definitions: List[OrderedDict]) -> str:
+        """Recursive core functionality of definition()."""
+        for ref, n in zip(refs, nodes):
+            if node == n:
+                return ref
+
+        # get base definition
+        d = node._base_definition
+
+        if "inputs" in d:
+            # sort and shallow copy
+            d["inputs"] = OrderedDict([(key, d["inputs"][key]) for key in sorted(d["inputs"].keys())])
+
+            # replace nodes with references, adding nodes depth first
+            for key, value in d["inputs"].items():
+                if isinstance(value, Node):
+                    d["inputs"][key] = Node._add_node(value, refs, nodes, definitions)
+                elif isinstance(value, (list, tuple, np.ndarray)):
+                    d["inputs"][key] = [Node._add_node(item, refs, nodes, definitions) for item in value]
+                elif isinstance(value, dict):
+                    d["inputs"][key] = {k: Node._add_node(v, refs, nodes, definitions) for k, v in value.items()}
+                else:
+                    raise TypeError("Invalid input '%s' of type '%s': %r" % (key, type(value), value))
+
+        if "attrs" in d:
+            # sort and shallow copy
+            d["attrs"] = OrderedDict([(key, d["attrs"][key]) for key in sorted(d["attrs"].keys())])
+
+        # get base ref and then ensure it is unique
+        ref = node.base_ref
+        while ref in refs:
+            if re.search("_[1-9][0-9]*$", ref):
+                ref, i = ref.rsplit("_", 1)
+                i = int(i)
+            else:
+                i = 0
+            ref = "%s_%d" % (ref, i + 1)
+
+        nodes.append(node)
+        refs.append(ref)
+        definitions.append(d)
+
+        return ref
+
     @cached_property
     def definition(self):
         """
-                Full node definition.
-        1
-                Returns
-                -------
-                OrderedDict
-                    Dictionary-formatted node definition.
+        Full node definition.
+        Returns
+        -------
+        OrderedDict
+            Dictionary-formatted node definition.
         """
 
         if getattr(self, "_definition_guard", False):
@@ -621,51 +666,8 @@ class Node(tl.HasTraits):
             refs = []
             definitions = []
 
-            def add_node(node):
-                for ref, n in zip(refs, nodes):
-                    if node == n:
-                        return ref
-
-                # get base definition
-                d = node._base_definition
-
-                if "inputs" in d:
-                    # sort and shallow copy
-                    d["inputs"] = OrderedDict([(key, d["inputs"][key]) for key in sorted(d["inputs"].keys())])
-
-                    # replace nodes with references, adding nodes depth first
-                    for key, value in d["inputs"].items():
-                        if isinstance(value, Node):
-                            d["inputs"][key] = add_node(value)
-                        elif isinstance(value, (list, tuple, np.ndarray)):
-                            d["inputs"][key] = [add_node(item) for item in value]
-                        elif isinstance(value, dict):
-                            d["inputs"][key] = {k: add_node(v) for k, v in value.items()}
-                        else:
-                            raise TypeError("Invalid input '%s' of type '%s': %r" % (key, type(value), value))
-
-                if "attrs" in d:
-                    # sort and shallow copy
-                    d["attrs"] = OrderedDict([(key, d["attrs"][key]) for key in sorted(d["attrs"].keys())])
-
-                # get base ref and then ensure it is unique
-                ref = node.base_ref
-                while ref in refs:
-                    if re.search("_[1-9][0-9]*$", ref):
-                        ref, i = ref.rsplit("_", 1)
-                        i = int(i)
-                    else:
-                        i = 0
-                    ref = "%s_%d" % (ref, i + 1)
-
-                nodes.append(node)
-                refs.append(ref)
-                definitions.append(d)
-
-                return ref
-
             # add top level node
-            add_node(self)
+            Node._add_node(self, refs, nodes, definitions)
 
             # finalize, verify serializable, and return
             definition = OrderedDict(zip(refs, definitions))
@@ -1356,7 +1358,12 @@ def _process_kwargs(name, d, definition, nodes):
 
     kwargs = {}
     for k, v in d.get("attrs", {}).items():
-        if isinstance(getattr(node_class, k), tl.TraitType) and hasattr(getattr(node_class, k), "klass") and isinstance(v, OrderedDict) and  getattr(node_class, k).klass == Coordinates:
+        if (
+            isinstance(getattr(node_class, k), tl.TraitType)
+            and hasattr(getattr(node_class, k), "klass")
+            and isinstance(v, OrderedDict)
+            and getattr(node_class, k).klass == Coordinates
+        ):
             kwargs[k] = Coordinates.from_definition(v)
         else:
             kwargs[k] = v
@@ -1371,20 +1378,23 @@ def _process_kwargs(name, d, definition, nodes):
         if "style_class" in d:
             style_root = module_root
             # style_string  = "%s.%s" % (style_root, d["style_class"])
-            style_string  = d["style_class"]
+            style_string = d["style_class"]
             module_style_name, style_name = style_string.rsplit(".", 1)
-            
+
             try:
                 style_module = importlib.import_module(module_style_name)
             except ImportError:
-                raise ValueError("Invalid definition for style module '%s': no module found '%s'" % (name, module_style_name))
+                raise ValueError(
+                    "Invalid definition for style module '%s': no module found '%s'" % (name, module_style_name)
+                )
             try:
                 style_class = getattr(style_module, style_name)
             except AttributeError:
                 raise ValueError(
-                    "Invalid definition for style '%s': style class '%s' not found in style module '%s'" % (name, style_name, module_style_name)
+                    "Invalid definition for style '%s': style class '%s' not found in style module '%s'"
+                    % (name, style_name, module_style_name)
                 )
-        else:  
+        else:
             style_class = getattr(node_class, "style", Style)
         if isinstance(style_class, tl.TraitType):
             # Now we actually have to look through the class to see
@@ -1405,14 +1415,17 @@ def _process_kwargs(name, d, definition, nodes):
         except Exception:
             kwargs["style"] = Style.from_definition(d["style"])
 
-
     for k in d:
         if k not in ["node", "inputs", "attrs", "lookup_attrs", "plugin", "style", "style_class"]:
             raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
 
     for k in kwargs.keys():
         if not (hasattr(node_class, k) and isinstance(getattr(node_class, k), tl.TraitType)):
-            logging.warn("Node definition has key '{}' that will not be set at node creation: attribute is not of type tl.TraitType".format(k))
+            logging.warn(
+                "Node definition has key '{}' that will not be set at node creation: attribute is not of type tl.TraitType".format(
+                    k
+                )
+            )
 
     nodes[name] = node_class(**kwargs)
 
