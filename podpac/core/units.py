@@ -9,6 +9,7 @@ ureg : TYPE
 from copy import deepcopy
 from numbers import Number
 import operator
+from typing import Tuple, Union
 from six import string_types
 import json
 import warnings
@@ -541,7 +542,48 @@ for tp in ("mean", "min", "max", "sum", "cumsum"):
 del func
 
 
-def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
+def _validate_vmin_vmax(data, vmin: float, vmax: float, style: Style) -> Tuple[float, float]:
+    """Helper function for to_image() to compute color map range.
+    Ensure vmin and vmax are consistent with data and style.
+
+    Parameters
+    ----------
+    data : array-like
+        data to output, usually a UnitsDataArray
+    vmin : number, optional
+        Minimum value of colormap
+    vmax : number, optional
+        Maximum value of colormap
+    style : Style
+        Style to use
+
+    Returns
+    -------
+    Tuple[float, float]
+        Updated vmin, vmax
+    """
+    if not np.any(np.isfinite(data)):
+        vmin = 0
+        vmax = 1
+    else:
+        if vmin is None or np.isnan(vmin):
+            if style is not None and style.clim[0] != None:
+                vmin = style.clim[0]
+            else:
+                vmin = np.nanmin(data)
+        if vmax is None or np.isnan(vmax):
+            if style is not None and style.clim[1] != None:
+                vmax = style.clim[1]
+            else:
+                vmax = np.nanmax(data)
+    if vmax == vmin:
+        vmax += 1e-15
+    return vmin, vmax
+
+
+def to_image(
+    data: np.array, format: str = "png", vmin: float = None, vmax: float = None, return_base64: bool = False
+) -> Union[bytes, BytesIO]:
     """Return a base64-encoded image of data
 
     Parameters
@@ -552,7 +594,7 @@ def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
         Default is 'png'. Type of image.
     vmin : number, optional
         Minimum value of colormap
-    vmax : vmax, optional
+    vmax : number, optional
         Maximum value of colormap
     return_base64: bool, optional
         Default is False. Normally this returns an io.BytesIO, but if True, will return a base64 encoded string.
@@ -560,7 +602,7 @@ def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
 
     Returns
     -------
-    BytesIO/str
+    BytesIO/bytes
         Binary or Base64 encoded image.
     """
 
@@ -591,22 +633,7 @@ def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
 
     data = data.squeeze()
 
-    if not np.any(np.isfinite(data)):
-        vmin = 0
-        vmax = 1
-    else:
-        if vmin is None or np.isnan(vmin):
-            if style is not None and style.clim[0] != None:
-                vmin = style.clim[0]
-            else:
-                vmin = np.nanmin(data)
-        if vmax is None or np.isnan(vmax):
-            if style is not None and style.clim[1] != None:
-                vmax = style.clim[1]
-            else:
-                vmax = np.nanmax(data)
-    if vmax == vmin:
-        vmax += 1e-15
+    vmin, vmax = _validate_vmin_vmax(data, vmin, vmax, style)
 
     # get the colormap
     if style is None:

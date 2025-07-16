@@ -490,6 +490,52 @@ def resolve_bbox_order(bbox, crs, size):
     return {"lat": [lat_start, lat_stop, size[0]], "lon": [lon_start, lon_stop, size[1]]}
 
 
+def _partial_definition(key, definition):
+    """Helper for probe_node(). Needed to build partial node definitions"""
+    new_def = OrderedDict()
+    for k in definition:
+        new_def[k] = definition[k]
+        if k == key:
+            return new_def
+
+def _flatten_list(l):
+    """Helper for probe_node(). Needed to flatten the inputs list for all the dependencies"""
+    nl = []
+    for ll in l:
+        if isinstance(ll, list):
+            lll = _flatten_list(ll)
+            nl.extend(lll)
+        else:
+            nl.append(ll)
+    return nl
+
+def _get_entry(key, out, definition):
+    """Helper for probe_node(). Needed for the nested version of the pipeline"""
+    # We have to rearrange the outputs
+    entry = OrderedDict()
+    entry["name"] = out[key]["name"]
+    entry["value"] = str(out[key]["value"])
+    if out[key]["units"] not in [None, ""]:
+        entry["value"] = entry["value"] + " " + str(out[key]["units"])
+    entry["active"] = out[key]["active"]
+    entry["node_id"] = out[key]["node_hash"]
+    entry["params"] = {}
+    entry["inputs"] = {"inputs": [_get_entry(inp, out, definition) for inp in out[key]["inputs"]]}
+    if len(entry["inputs"]["inputs"]) == 0:
+        entry["inputs"] = {}
+    return entry
+
+def _format_value(value, style, add_enumeration_labels):
+    """Helper for probe_node()."""
+    if not add_enumeration_labels or style.enumeration_legend is None:
+        return value
+    if np.isnan(value):
+        return str(value) + " (unknown)"
+    try:
+        return str(int(value)) + " ({})".format(style.enumeration_legend[int(value)])
+    except ValueError:
+        return str(value) + " (unknown)"
+
 def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=False, add_enumeration_labels=True):
     """Evaluates every part of a node / pipeline at a point and records
     which nodes are actively being used.
@@ -529,51 +575,6 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
         ```
     """
 
-    def partial_definition(key, definition):
-        """Needed to build partial node definitions"""
-        new_def = OrderedDict()
-        for k in definition:
-            new_def[k] = definition[k]
-            if k == key:
-                return new_def
-
-    def flatten_list(l):
-        """Needed to flatten the inputs list for all the dependencies"""
-        nl = []
-        for ll in l:
-            if isinstance(ll, list):
-                lll = flatten_list(ll)
-                nl.extend(lll)
-            else:
-                nl.append(ll)
-        return nl
-
-    def get_entry(key, out, definition):
-        """Needed for the nested version of the pipeline"""
-        # We have to rearrange the outputs
-        entry = OrderedDict()
-        entry["name"] = out[key]["name"]
-        entry["value"] = str(out[key]["value"])
-        if out[key]["units"] not in [None, ""]:
-            entry["value"] = entry["value"] + " " + str(out[key]["units"])
-        entry["active"] = out[key]["active"]
-        entry["node_id"] = out[key]["node_hash"]
-        entry["params"] = {}
-        entry["inputs"] = {"inputs": [get_entry(inp, out, definition) for inp in out[key]["inputs"]]}
-        if len(entry["inputs"]["inputs"]) == 0:
-            entry["inputs"] = {}
-        return entry
-
-    def format_value(value, style, add_enumeration_labels):
-        if not add_enumeration_labels or style.enumeration_legend is None:
-            return value
-        if np.isnan(value):
-            return str(value) + " (unknown)"
-        try:
-            return str(int(value)) + " ({})".format(style.enumeration_legend[int(value)])
-        except ValueError:
-            return str(value) + " (unknown)"
-
     c = [(v, d) for v, d in zip([lat, lon, time, alt], ["lat", "lon", "time", "alt"]) if v is not None]
     coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c], crs=crs)
     node.eval(coords)
@@ -583,18 +584,18 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
     for item in definition:
         if item == "podpac_version":
             continue
-        d = partial_definition(item, definition)
+        d = _partial_definition(item, definition)
         n = podpac.Node.from_definition(d)
         o = n.eval(coords)
         if o.size == 1:
             value = float(o)
         else:
             value = o.data.tolist()
-        inputs = flatten_list(list(d[item].get("inputs", {}).values()))
+        inputs = _flatten_list(list(d[item].get("inputs", {}).values()))
         active = True
         out[item] = {
             "active": active,
-            "value": format_value(value, n.style, add_enumeration_labels),
+            "value": _format_value(value, n.style, add_enumeration_labels),
             "units": n.style.units,
             "inputs": inputs,
             "name": n.style.name if n.style.name else item,
@@ -611,7 +612,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
                     searching_for_active = False
 
     if nested:
-        out = get_entry(list(out.keys())[-1], out, definition)
+        out = _get_entry(list(out.keys())[-1], out, definition)
     return out
 
 

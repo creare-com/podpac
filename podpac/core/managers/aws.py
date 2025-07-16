@@ -597,13 +597,14 @@ class Lambda(Node):
         """Show a description of the Lambda Utilities"""
         # TODO: change this to format strings when we deprecate py 2
         status = "(staged)" if not self._function_valid else "(built)"
+        S3_URL_FORMAT = "s3://{}/{}"
 
         # source dist
         if not self._function_valid:
             source_dist = (
                 self.function_source_dist_zip
                 if self.function_source_dist_zip is not None
-                else "s3://{}/{}".format(self.function_source_bucket, self.function_source_dist_key)
+                else S3_URL_FORMAT.format(self.function_source_bucket, self.function_source_dist_key)
             )
         else:
             source_dist = self._function_code_sha256
@@ -613,10 +614,10 @@ class Lambda(Node):
             source_deps = (
                 self.function_source_dependencies_zip
                 if self.function_source_dependencies_zip is not None
-                else "s3://{}/{}".format(self.function_source_bucket, self.function_source_dependencies_key)
+                else S3_URL_FORMAT.format(self.function_source_bucket, self.function_source_dependencies_key)
             )
         else:
-            source_deps = "s3://{}/{}".format(self.function_s3_bucket, self.function_s3_dependencies_key)
+            source_deps = S3_URL_FORMAT.format(self.function_s3_bucket, self.function_s3_dependencies_key)
 
         # only show API if built or if its proposed in triggers
         if self._api is not None or (not self._function_valid and "APIGatway" in self.function_triggers):
