@@ -552,7 +552,7 @@ def _validate_vmin_vmax(data, vmin: float, vmax: float, style: Style) -> Tuple[f
         data to output, usually a UnitsDataArray
     vmin : number, optional
         Minimum value of colormap
-    vmax : vmax, optional
+    vmax : number, optional
         Maximum value of colormap
     style : Style
         Style to use
@@ -560,7 +560,7 @@ def _validate_vmin_vmax(data, vmin: float, vmax: float, style: Style) -> Tuple[f
     Returns
     -------
     Tuple[float, float]
-        vmin, vmax
+        Updated vmin, vmax
     """
     if not np.any(np.isfinite(data)):
         vmin = 0
@@ -583,7 +583,7 @@ def _validate_vmin_vmax(data, vmin: float, vmax: float, style: Style) -> Tuple[f
 
 def to_image(
     data: np.array, format: str = "png", vmin: float = None, vmax: float = None, return_base64: bool = False
-) -> Union[bytes, str]:
+) -> Union[bytes, BytesIO]:
     """Return a base64-encoded image of data
 
     Parameters
@@ -594,7 +594,7 @@ def to_image(
         Default is 'png'. Type of image.
     vmin : number, optional
         Minimum value of colormap
-    vmax : vmax, optional
+    vmax : number, optional
         Maximum value of colormap
     return_base64: bool, optional
         Default is False. Normally this returns an io.BytesIO, but if True, will return a base64 encoded string.
@@ -602,7 +602,7 @@ def to_image(
 
     Returns
     -------
-    BytesIO/str
+    BytesIO/bytes
         Binary or Base64 encoded image.
     """
 
