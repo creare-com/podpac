@@ -23,6 +23,8 @@ from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES, make_coord_delt
 from podpac.core.node import Node
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.interpolation.selector import Selector
+
 
 log = logging.getLogger(__name__)
 
@@ -418,6 +420,9 @@ class DataSource(Node):
         else:
             # get source coordinates that are within the requested coordinates bounds
             (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_index=True)
+            # make a nearest neighbor source to improse index_type restrictions
+            temp_selector = Selector(method="nearest")
+            (rsc, rsci) = temp_selector.select(self.coordinates, rsc, index_type=self.coordinate_index_type)
 
         # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
         if rsc.size == 0:
