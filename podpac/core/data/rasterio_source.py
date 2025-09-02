@@ -174,11 +174,7 @@ class Rasterio(S3Mixin, BaseFileSource):
         return data
 
     def _get_window_coords(self, coordinates, new_coords):
-        # import ipdb
         new_coords, slc = new_coords.intersect(coordinates, return_index=True, outer=True)
-        temp_selector = Selector(method="nearest")
-        new_coords, slc = temp_selector.select(coordinates, new_coords, index_type="slice")
-        new_coords = new_coords.transform(crs=self.coordinates.crs)
         window = ((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
         return window, new_coords
 
