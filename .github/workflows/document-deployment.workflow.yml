@@ -1,0 +1,61 @@
+# This workflow handles document deployment and runs testing prior on documents.
+name: Document Deployment Workflow
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  testing:
+    name: Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.7"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip setuptools && pip install .[devall]
+
+      - name: Run doc tests
+        run: |
+          cd doc && ./test-docs.sh && cd ..
+
+  deploy_documents:
+    name: Deploy Documents
+    needs: [testing]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: podpac
+
+      - name: Checkout Documents Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          repository: "https://github.com/creare-com/podpac-docs"
+          path: podpac-docs
+          token: ${{ secrets.DOCS_TOKEN }}
+
+      - name: Checkout Examples Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          repository: "https://github.com/creare-com/podpac-examples"
+          path: podpac-examples
+
+      - name: Run document deployment
+        env:
+          COMMIT_HASH: ${{ github.sha }}
+        run: |
+          cd podpac/doc && ./ci-deploy.sh && cd ../..
