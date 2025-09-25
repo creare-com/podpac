@@ -8,7 +8,7 @@ on:
 jobs:
   testing:
     name: Testing
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
   deploy_documents:
     name: Deploy Documents
     needs: [testing]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
