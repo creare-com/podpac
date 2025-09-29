@@ -6,31 +6,47 @@ on:
     branches: [main]
 
 jobs:
-  testing:
-    name: Testing
+  document-testing:
+    name: Document Testing
     runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
+          path: podpac
+
+      - name: Checkout Examples Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          repository: "creare-com/podpac-examples"
+          path: podpac-examples
 
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
           python-version: "3.7"
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
-          pip install --upgrade pip setuptools && pip install .[devall]
+          pip install --upgrade pip setuptools && pip install podpac[devall]
 
-      - name: Run doc tests
+      - name: Run Doctest
         run: |
-          cd doc && ./test-docs.sh && cd ..
+          cd podpac/doc && ./test-docs.sh && cd ../..
+
+      - name: Artifact Doctest Document
+        uses: actions/upload-artifact@v4
+        with:
+          name: doctest
+          path: podpac/build/output.txt
+          retention-days: 1
 
   deploy_documents:
     name: Deploy Documents
-    needs: [testing]
+    needs: [document-testing]
     runs-on: ubuntu-22.04
 
     steps:
@@ -43,7 +59,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          repository: "https://github.com/creare-com/podpac-docs"
+          repository: "creare-com/podpac-docs"
           path: podpac-docs
           token: ${{ secrets.DOCS_TOKEN }}
 
@@ -51,10 +67,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          repository: "https://github.com/creare-com/podpac-examples"
+          repository: "creare-com/podpac-examples"
           path: podpac-examples
 
-      - name: Run document deployment
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.7"
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip setuptools && pip install podpac[devall]
+
+      - name: Run Document Deployment
         env:
           COMMIT_HASH: ${{ github.sha }}
         run: |
