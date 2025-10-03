@@ -64,11 +64,10 @@ extras_require = {
     "node_ui": ["numpydoc"],
     "dev": [
         "pylint>=1.8.2",
-        "pytest-cov>=2.5.1",
+        "coverage>=4.5.1",
         "pytest-html>=1.7.0",
         "pytest-remotedata>=0.3.1",
         "myst-parser>=1.0.0",
-        "coveralls>=1.3",
         "six>=1.0",
         "attrs>=17.4.0",
         "pre_commit>=1",
@@ -79,7 +78,7 @@ if sys.version_info.major == 2:
     extras_require["dev"] += ["pytest>=3.3.2"]
 else:
     extras_require["dev"] += [
-        "sphinx>=2.3, <3.0",
+        "sphinx>=2.3",
         "sphinx-rtd-theme>=0.4",
         "sphinx-autobuild>=0.7",
         "pytest>=5.0",

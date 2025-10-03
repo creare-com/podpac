@@ -333,13 +333,13 @@ See `conftest.py` to add additional custom markers and behavior.
 
 ### Code Coverage
 
-We use [`pytest-cov`](https://github.com/pytest-dev/pytest-cov) (which uses [`coverage`](https://coverage.readthedocs.io/en/coverage-4.5.1/) underneath) to monitor code coverage of unit tests. To record coverage while running tests, run:
+We use [`coverage`](https://coverage.readthedocs.io/en/coverage-4.5.1/) to monitor code coverage of unit tests. To record coverage while running tests, run:
 
 ```bash
-$ pytest --cov=podpac --cov-report html:./artifacts/coverage podpac   # outputs html coverage to directory artifacts/coverage
+$ coverage run -m pytest podpac && coverage html -d artifacts/coverage_report # outputs html coverage to directory artifacts/coverage
 ```
 
-We use [`coveralls`](https://github.com/coveralls-clients/coveralls-python) to provide [coverage status and visualization](https://coveralls.io/github/creare-com/podpac). Commits will be marked as failing if coverage drops below 90% or drops by more than 0.5%.
+We use [`SonarQube`](https://sonarcloud.io/project/overview?id=creare-com_podpac) to provide coverage status and visualization. Commits will be marked as failing if coverage drops below 80% on new lines.
 
 ## Governance
 

@@ -1,0 +1,86 @@
+# This workflow handles document deployment and runs testing prior on documents.
+name: Document Deployment Workflow
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  document-testing:
+    name: Document Testing
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          path: podpac
+
+      - name: Checkout Examples Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          repository: "creare-com/podpac-examples"
+          path: podpac-examples
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.7"
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip setuptools && pip install podpac[devall]
+
+      - name: Run Doctest
+        run: |
+          cd podpac/doc && ./test-docs.sh && cd ../..
+
+      - name: Artifact Doctest Document
+        uses: actions/upload-artifact@v4
+        with:
+          name: doctest
+          path: podpac/build/output.txt
+          retention-days: 1
+
+  deploy_documents:
+    name: Deploy Documents
+    needs: [document-testing]
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: podpac
+
+      - name: Checkout Documents Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          repository: "creare-com/podpac-docs"
+          path: podpac-docs
+          token: ${{ secrets.DOCS_TOKEN }}
+
+      - name: Checkout Examples Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          repository: "creare-com/podpac-examples"
+          path: podpac-examples
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.7"
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip setuptools && pip install podpac[devall]
+
+      - name: Run Document Deployment
+        env:
+          COMMIT_HASH: ${{ github.sha }}
+        run: |
+          cd podpac/doc && ./ci-deploy.sh && cd ../..

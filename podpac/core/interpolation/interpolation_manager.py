@@ -1,7 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 import logging
 
-from typing import Dict, List
+from typing import Dict, List, Type
 from copy import deepcopy
 from collections import OrderedDict
 from six import string_types
@@ -99,7 +99,7 @@ def load_interpolators():
 load_interpolators()
 
 
-def assert_custom(condition: bool, exception_type: type[Exception], message: str) -> None:
+def assert_custom(condition: bool, exception_type: Type[Exception], message: str) -> None:
     """Check indicated condition.  If it's false, raise the indicated execption.
     This is much like `assert condition, message` only it will raise exception_type
     rather than AssertionError.
@@ -108,7 +108,7 @@ def assert_custom(condition: bool, exception_type: type[Exception], message: str
     ----------
     condition : bool
         Condition to check
-    exception_type : type[Exception]
+    exception_type : Type[Exception]
         The exception class to raise
     message : str
         Exception message
