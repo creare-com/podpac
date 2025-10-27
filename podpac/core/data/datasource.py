@@ -223,7 +223,6 @@ class DataSource(Node):
         else:
             nc = self.get_coordinates()
             self.set_trait("_coordinates", nc)
-            print("get_coordinates", nc)
             if self.cache_coordinates:
                 self.put_property_cache(nc, "coordinates")
         return nc
@@ -415,14 +414,18 @@ class DataSource(Node):
         log.debug("Evaluating {} data source".format(self.__class__.__name__))
 
         # Use the selector
+
         if _selector is not None:
             (rsc, rsci) = _selector(self.coordinates, coordinates, index_type=self.coordinate_index_type)
         else:
             # get source coordinates that are within the requested coordinates bounds
             (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_index=True)
-            # make a nearest neighbor source to improse index_type restrictions
+            # make a nearest neighbor source to impose index_type restrictions
+            # use the original coords if there was no intersection
             temp_selector = Selector(method="nearest")
-            (rsc, rsci) = temp_selector.select(self.coordinates, rsc, index_type=self.coordinate_index_type)
+            (rsc, rsci) = temp_selector.select(
+                coordinates, self.coordinates if rsc.size == 0 else rsc, index_type=self.coordinate_index_type
+            )
 
         # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
         if rsc.size == 0:
