@@ -422,10 +422,9 @@ class DataSource(Node):
             (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_index=True)
             # make a nearest neighbor source to impose index_type restrictions
             # use the original coords if there was no intersection
-            temp_selector = Selector(method="nearest")
-            (rsc, rsci) = temp_selector.select(
-                coordinates, self.coordinates if rsc.size == 0 else rsc, index_type=self.coordinate_index_type
-            )
+            if rsc.size != 0:
+                temp_selector = Selector(method="nearest")
+                (rsc, rsci) = temp_selector.select(coordinates, rsc, index_type=self.coordinate_index_type)
 
         # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
         if rsc.size == 0:
