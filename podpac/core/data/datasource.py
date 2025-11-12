@@ -424,7 +424,7 @@ class DataSource(Node):
             # use the original coords if there was no intersection
             if rsc.size != 0:
                 temp_selector = Selector(method="nearest")
-                (rsc, rsci) = temp_selector.select(coordinates, rsc, index_type=self.coordinate_index_type)
+                (rsc, rsci) = temp_selector.select(self.coordinates, rsc, index_type=self.coordinate_index_type)
 
         # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
         if rsc.size == 0:
@@ -462,7 +462,6 @@ class DataSource(Node):
         # get indexed boundary
         rsb = self._get_boundary(rsci)
         output.attrs["boundary_data"] = rsb
-        output.attrs["bounds"] = self.coordinates.bounds
 
         # save output to private for debugging
         if settings["DEBUG"]:
@@ -473,6 +472,32 @@ class DataSource(Node):
             self._requested_source_data = rsd
             self._output = output
 
+        return output
+
+    def create_output_array(self, coords, data=np.nan, attrs=None, outputs=None, **kwargs):
+        """
+        Initialize an output data array. This adds bounds to the output attrs
+
+        Parameters
+        ----------
+        coords : podpac.Coordinates
+            {arr_coords}
+        data : None, number, or array-like (optional)
+            {arr_init_type}
+        attrs : dict
+            Attributes to add to output -- UnitsDataArray.create uses the 'crs' portion contained in here
+        outputs : list[string], optional
+            Default is self.outputs. List of strings listing the outputs
+        **kwargs
+            {arr_kwargs}
+
+        Returns
+        -------
+        {arr_return}
+        """
+        output = super().create_output_array(coords, data=data, attrs=attrs, outputs=outputs, **kwargs)
+        output.attrs["bounds"], _ = self.get_bounds(crs=output.attrs["crs"])
+        output.attrs["boundary_data"] = {}
         return output
 
     def find_coordinates(self):
