@@ -527,7 +527,7 @@ def _get_entry(key, out, definition):
 
 def _format_value(value, style, add_enumeration_labels):
     """Helper for probe_node()."""
-    if not add_enumeration_labels or style.enumeration_legend is None:
+    if not add_enumeration_labels or style.enumeration_legend is None or isinstance(value, list):
         return value
     if np.isnan(value):
         return str(value) + " (unknown)"
