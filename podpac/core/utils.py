@@ -519,6 +519,7 @@ def _get_entry(key, out, definition):
     #     entry["value"] = entry["value"] + " " + str(out[key]["units"])
     entry['label'] = out[key]['label']
     entry["active"] = out[key]["active"]
+    entry['node_class'] = out[key]['node_class']
     if 'node_hash' in out[key]:
         entry["node_id"] = out[key]["node_hash"]
     entry["params"] = {}
@@ -526,22 +527,11 @@ def _get_entry(key, out, definition):
     if len(entry["inputs"]["inputs"]) == 0:
         entry["inputs"] = {}
     return entry
-
-def _format_value(value, style, add_enumeration_labels):
-    """Helper for probe_node()."""
-    if not add_enumeration_labels or style.enumeration_legend is None:
-        return value
-    if np.isnan(value):
-        return str(value) + " (unknown)"
-    try:
-        return str(int(value)) + " ({})".format(style.enumeration_legend[int(value)])
-    except ValueError:
-        return str(value) + " (unknown)"
     
 def _get_label(value, style, add_enumeration_labels):
     if not add_enumeration_labels or style.enumeration_legend is None:
         return style.units
-    if isinstance(value,list): # all list returns should be 2-D
+    if isinstance(value, list):  # all list returns should be 2-D
         ret = ''
         for v in np.unique(value):
             try:
@@ -549,7 +539,7 @@ def _get_label(value, style, add_enumeration_labels):
             except ValueError:
                 _log.warning('Enumeration label lookup failed for node of name {}, returning unknown'.format(style.name))
                 new_label = 'unknown'
-            ret += '{}={}, '.format(v,new_label)
+            ret += '{}={}, '.format(v, new_label)
         return ret[:-2]
     else:
         if np.isnan(value):
@@ -623,6 +613,7 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
             "label": _get_label(value, n.style, add_enumeration_labels),
             "inputs": inputs,
             "name": n.style.name if n.style.name else item,
+            "node_class": type(n).__name__
         }
         if compute_hash:
             out[item]['node_hash'] = n.hash
