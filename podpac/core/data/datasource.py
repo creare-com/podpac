@@ -496,7 +496,7 @@ class DataSource(Node):
         {arr_return}
         """
         output = super().create_output_array(coords, data=data, attrs=attrs, outputs=outputs, **kwargs)
-        output.attrs["bounds"] = coords.transform(output.attrs["crs"]).bounds
+        output.attrs["bounds"], _ = self.get_bounds(crs=output.attrs["crs"])
         output.attrs["boundary_data"] = {}
         return output
 
