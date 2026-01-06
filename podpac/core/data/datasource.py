@@ -474,9 +474,13 @@ class DataSource(Node):
 
         return output
 
+    @common_doc(COMMON_DATA_DOC)
     def create_output_array(self, coords, data=np.nan, attrs=None, outputs=None, **kwargs):
         """
         Initialize an output data array. This adds bounds to the output attrs
+
+        The boundary_data output.attrs is set to match this node's boundary.
+        For uniform grids, this expected to be an empty dictionary.
 
         Parameters
         ----------
@@ -496,8 +500,8 @@ class DataSource(Node):
         {arr_return}
         """
         output = super().create_output_array(coords, data=data, attrs=attrs, outputs=outputs, **kwargs)
-        output.attrs["bounds"], _ = self.get_bounds(crs=output.attrs["crs"])
-        output.attrs["boundary_data"] = {}
+        output.attrs["bounds"], _ = self.get_bounds(crs=output.attrs["crs"])  # this is the bounds of the full dataset
+        output.attrs["boundary_data"] = self.boundary  # this is the bounding polygon of the nonuniform dataset
         return output
 
     def find_coordinates(self):
