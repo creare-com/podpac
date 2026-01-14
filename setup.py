@@ -41,7 +41,7 @@ extras_require = {
         "lxml>=4.2",
         "pydap>=3.3",
         "rasterio>=1.0",
-        "zarr>=2.3",
+        "zarr>=2.3,<3",
         "owslib",
         "h5netcdf"
         # "intake>=0.5"  Not supported in Python 3.5
