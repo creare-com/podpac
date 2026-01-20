@@ -528,7 +528,14 @@ def _get_entry(key, out, definition):
         entry["inputs"] = {}
     return entry
     
+    
 def _get_label(value, style, add_enumeration_labels):
+    """Helper for probe_node(). Handles both enumerations and units to be given back to the label field
+    
+        If no enumeration_legend is detected in style, or the user opts out of enumeration labels
+        with add_enumeration_labels = False, then units are returned.
+        Else, an enumeration label is determined, defaulting to "unknown" in error cases
+    """
     if not add_enumeration_labels or style.enumeration_legend is None:
         return style.units
     if isinstance(value, list):  # all list returns should be 2-D
@@ -537,7 +544,9 @@ def _get_label(value, style, add_enumeration_labels):
             try:
                 new_label = style.enumeration_legend[int(v)]
             except ValueError:
-                _log.warning('Enumeration label lookup failed for node of name {}, returning unknown'.format(style.name))
+                _log.warning(
+                    'Enumeration label lookup failed for node of name {}, returning unknown'.format(style.name)
+                )
                 new_label = 'unknown'
             ret += '{}={}, '.format(v, new_label)
         return ret[:-2]

@@ -76,9 +76,6 @@ class Selector(tl.HasTraits):
         else:
             self.method = method
 
-    # def __call__(self, source_coords, request_coords, index_type="numpy"):
-    #     """Pass-through to select()"""
-    #     return self.select(source_coords, request_coords, index_type)
 
     def select(self, source_coords, request_coords, index_type="numpy"):
         """Sub-selects the source_coords based on the request_coords
