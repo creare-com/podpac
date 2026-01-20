@@ -515,8 +515,6 @@ def _get_entry(key, out, definition):
     entry = OrderedDict()
     entry["name"] = out[key]["name"]
     entry["value"] = str(out[key]["value"])
-    # if out[key]["units"] not in [None, ""]:
-    #     entry["value"] = entry["value"] + " " + str(out[key]["units"])
     entry['label'] = out[key]['label']
     entry["active"] = out[key]["active"]
     entry['node_class'] = out[key]['node_class']
