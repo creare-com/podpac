@@ -24,6 +24,7 @@ from podpac.core.utils import cached_property
 from podpac.core.utils import ind2slice
 from podpac.core.utils import probe_node
 from podpac.core.utils import align_xarray_dict
+from podpac.core.utils import _get_param
 
 
 class TestCommonDocs(object):
@@ -473,6 +474,9 @@ class TestInd2Slice(object):
         assert ind2slice([False, True, True, False, True, False]) == slice(1, 5)
         assert ind2slice([1, 3, 5]) == slice(1, 7, 2)
 
+    def test_empty_slice(self):
+        assert ind2slice([]) == slice(0, 0)
+
 
 class AnotherOne(podpac.algorithm.Algorithm):
     def algorithm(self, inputs, coordinates):
@@ -797,3 +801,25 @@ def test_align_xarray_dict():
     assert(np.all(inputs['B'].data==data_b))
     assert(np.all(inputs['C'].data==data_c))
     assert(np.all((inputs['A'] + inputs['B'] + inputs['C']).shape == inputs['A'].shape))
+
+
+class TestGetParam:
+    def test_key_in_params_not_a_list(self):
+        params = {"test_key": 0}
+        ret = _get_param(params, "test_key")
+        assert ret == 0
+
+    def test_key_in_params_list(self):
+        params = {"test_key": [4, 5, 3, 0]}
+        ret = _get_param(params, "test_key")
+        assert ret == 4
+
+    def test_key_not_in_params_upper_in_params(self):
+        params = {"TEST_KEY": 0}
+        ret = _get_param(params, "test_key")
+        assert ret == 0
+
+    def test_key_not_in_params_upper_not_in_params(self):
+        params = {"test_key": 0}
+        ret = _get_param(params, "not_test_key")
+        assert ret is None
