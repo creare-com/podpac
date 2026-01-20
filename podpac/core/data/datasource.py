@@ -479,7 +479,7 @@ class DataSource(Node):
         """
         Initialize an output data array. This adds bounds to the output attrs
 
-        The boundary_data output.attrs is set to match this node's boundary.
+        The `boundary_data` output.attrs is set to match this node's polygonal (i.e. non-rectangular) boundary.
         For uniform grids, this expected to be an empty dictionary.
 
         Parameters
