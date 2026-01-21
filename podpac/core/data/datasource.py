@@ -477,7 +477,7 @@ class DataSource(Node):
     @common_doc(COMMON_DATA_DOC)
     def create_output_array(self, coords, data=np.nan, attrs=None, outputs=None, **kwargs):
         """
-        Initialize an output data array. This adds bounds to the output attrs
+        Initialize an output data array.  This adds `bounds` and `boundary_data` to the output attrs
 
         The `boundary_data` output.attrs is set to match this node's polygonal (i.e. non-rectangular) boundary.
         For uniform grids, this expected to be an empty dictionary.
