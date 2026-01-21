@@ -71,8 +71,7 @@ extras_require = {
         "coveralls>=1.3",
         "six>=1.0",
         "attrs>=17.4.0",
-        "pre_commit>=1",
-        "unittest"
+        "pre_commit>=1"
     ],
 }
 
