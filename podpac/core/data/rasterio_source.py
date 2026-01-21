@@ -21,6 +21,7 @@ from podpac.core.coordinates import UniformCoordinates1d, Coordinates, merge_dim
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource
 from podpac.core.authentication import S3Mixin
+from podpac.core.interpolation.selector import Selector
 
 
 _logger = logging.getLogger(__name__)
@@ -172,10 +173,10 @@ class Rasterio(S3Mixin, BaseFileSource):
         data.data.ravel()[:] = raster_data.ravel()
         return data
 
-    def _get_window_coords(self,coordinates,new_coords):
-        new_coords,slc = new_coords.intersect(coordinates,return_index=True,outer=True)
-        window = ((slc[0].start,slc[0].stop),(slc[1].start,slc[1].stop))
-        return window,new_coords
+    def _get_window_coords(self, coordinates, new_coords):
+        new_coords, slc = new_coords.intersect(coordinates, return_index=True, outer=True)
+        window = ((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
+        return window, new_coords
 
     def get_data_overviews(self, coordinates):
         # Figure out how much coarser the request is than the actual data
@@ -219,11 +220,13 @@ class Rasterio(S3Mixin, BaseFileSource):
         try:
             # read data within coordinates_index window at the resolution of the overview
             # Rasterio will then automatically pull from the overview
+
             new_coords = Coordinates.from_geotransform(
                 dataset.transform.to_gdal(), dataset.shape, crs=self.coordinates.crs
             )
-            window,new_coords = self._get_window_coords(coordinates,new_coords)
+            window, new_coords = self._get_window_coords(coordinates, new_coords)
             missing_coords = self.coordinates.drop(["lat", "lon"])
+
             new_coords = merge_dims([new_coords, missing_coords])
             new_coords = new_coords.transpose(*self.coordinates.dims)
             coordinates_shape = new_coords.shape[:2]
@@ -322,4 +325,3 @@ class Rasterio(S3Mixin, BaseFileSource):
         matches = np.nonzero(match)[0] + 1
 
         return matches
-

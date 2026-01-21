@@ -70,7 +70,7 @@ extras_require = {
         "myst-parser>=1.0.0",
         "six>=1.0",
         "attrs>=17.4.0",
-        "pre_commit>=1",
+        "pre_commit>=1"
     ],
 }
 

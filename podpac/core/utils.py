@@ -347,6 +347,7 @@ def _get_from_url(url, session=None):
         r = None
     except RuntimeError as e:
         _log.warning("Cannot authenticate to {}. Check credentials. Error was as follows:".format(url) + str(e))
+        r = None
 
     return r
 
@@ -515,28 +516,49 @@ def _get_entry(key, out, definition):
     entry = OrderedDict()
     entry["name"] = out[key]["name"]
     entry["value"] = str(out[key]["value"])
-    if out[key]["units"] not in [None, ""]:
-        entry["value"] = entry["value"] + " " + str(out[key]["units"])
+    entry['label'] = out[key]['label']
     entry["active"] = out[key]["active"]
-    entry["node_id"] = out[key]["node_hash"]
+    entry['node_class'] = out[key]['node_class']
+    if 'node_hash' in out[key]:
+        entry["node_id"] = out[key]["node_hash"]
     entry["params"] = {}
     entry["inputs"] = {"inputs": [_get_entry(inp, out, definition) for inp in out[key]["inputs"]]}
     if len(entry["inputs"]["inputs"]) == 0:
         entry["inputs"] = {}
     return entry
-
-def _format_value(value, style, add_enumeration_labels):
-    """Helper for probe_node()."""
+    
+    
+def _get_label(value, style, add_enumeration_labels):
+    """Helper for probe_node(). Handles both enumerations and units to be given back to the label field
+    
+        If no enumeration_legend is detected in style, or the user opts out of enumeration labels
+        with add_enumeration_labels = False, then units are returned.
+        Else, an enumeration label is determined, defaulting to "unknown" in error cases
+    """
     if not add_enumeration_labels or style.enumeration_legend is None:
-        return value
-    if np.isnan(value):
-        return str(value) + " (unknown)"
-    try:
-        return str(int(value)) + " ({})".format(style.enumeration_legend[int(value)])
-    except ValueError:
-        return str(value) + " (unknown)"
+        return style.units
+    if isinstance(value, list):  # all list returns should be 2-D
+        ret = ''
+        for v in np.unique(value):
+            try:
+                new_label = style.enumeration_legend[int(v)]
+            except ValueError:
+                _log.warning(
+                    'Enumeration label lookup failed for node of name {}, returning unknown'.format(style.name)
+                )
+                new_label = 'unknown'
+            ret += '{}={}, '.format(v, new_label)
+        return ret[:-2]
+    else:
+        if np.isnan(value):
+            return 'unknown'
+        try:
+            return str(style.enumeration_legend[int(value)])
+        except ValueError:
+            _log.warning('Enumeration label lookup failed for node of name {}, returning unknown'.format(style.name))
+            return 'unknown'
 
-def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=False, add_enumeration_labels=True):
+def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=False, add_enumeration_labels=True, compute_hash=True):
     """Evaluates every part of a node / pipeline at a point and records
     which nodes are actively being used.
 
@@ -595,12 +617,14 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
         active = True
         out[item] = {
             "active": active,
-            "value": _format_value(value, n.style, add_enumeration_labels),
-            "units": n.style.units,
+            "value": value,
+            "label": _get_label(value, n.style, add_enumeration_labels),
             "inputs": inputs,
             "name": n.style.name if n.style.name else item,
-            "node_hash": n.hash,
+            "node_class": type(n).__name__
         }
+        if compute_hash:
+            out[item]['node_hash'] = n.hash
         raw_values[item] = value
         # Fix sources for Compositors
         if isinstance(n, podpac.compositor.OrderedCompositor):
