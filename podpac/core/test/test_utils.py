@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import traitlets as tl
+from requests import ConnectionError
+from unittest.mock import MagicMock, patch
 
 import podpac
 from podpac.core.utils import common_doc
@@ -25,6 +27,7 @@ from podpac.core.utils import ind2slice
 from podpac.core.utils import probe_node
 from podpac.core.utils import align_xarray_dict
 from podpac.core.utils import _get_param
+from podpac.core.utils import _get_from_url
 
 
 class TestCommonDocs(object):
@@ -823,3 +826,56 @@ class TestGetParam:
         params = {"test_key": 0}
         ret = _get_param(params, "not_test_key")
         assert ret is None
+
+
+class TestGetFromUrl:
+    def test_raise_requests_error(self):
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = ConnectionError("Test Connection Error")
+
+        with patch("podpac.core.utils.requests", mock_requests):
+            ret = _get_from_url("TEST/URL", None)
+        assert ret is None
+
+    def test_raise_runtime_error(self):
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = RuntimeError("Test Runtime Error")
+
+        with patch("podpac.core.utils.requests", mock_requests):
+            ret = _get_from_url("TEST/URL", None)      
+        assert ret is None
+
+    def test_session_is_none(self):
+        mock_get_return = MagicMock()
+        mock_get_return.status_code = 200
+        mock_get_return.validation_value = "Expected Return"
+        mock_requests = MagicMock()
+        mock_requests.get.return_value = mock_get_return
+
+        with patch("podpac.core.utils.requests", mock_requests):
+            ret = _get_from_url("TEST/URL", None)
+
+        assert ret.validation_value == "Expected Return"
+
+    def test_session_is_not_none(self):
+        mock_get_return = MagicMock()
+        mock_get_return.status_code = 200
+        mock_get_return.validation_value = "Expected Return"
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_get_return
+
+        ret = _get_from_url("TEST/URL", mock_session)
+
+        assert ret.validation_value == "Expected Return"
+
+    def test_status_code_not_200(self):
+        mock_get_return = MagicMock()
+        mock_get_return.status_code = 000
+        mock_get_return.validation_value = "Expected Return"
+        mock_requests = MagicMock()
+        mock_requests.get.return_value = mock_get_return
+
+        with patch("podpac.core.utils.requests", mock_requests):
+            ret = _get_from_url("TEST/URL", None)
+
+        assert ret.validation_value == "Expected Return"
