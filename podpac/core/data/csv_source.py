@@ -85,7 +85,7 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
     # -------------------------------------------------------------------------
 
     def open_dataset(self, f):
-        return pd.read_csv(f, parse_dates=True, infer_datetime_format=True, header=self.header)
+        return pd.read_csv(f, parse_dates=True, header=self.header)
 
     @cached_property
     def dims(self):
