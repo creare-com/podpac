@@ -519,7 +519,6 @@ def _get_entry(key, out, definition):
     entry["value"] = str(out[key]["value"])
     entry["label"] = out[key]["label"]
     entry["active"] = out[key]["active"]
-    entry["node_class"] = out[key]["node_class"]
     if "node_hash" in out[key]:
         entry["node_id"] = out[key]["node_hash"]
     entry["params"] = {}
@@ -632,8 +631,7 @@ def probe_node(
             "value": value,
             "label": _get_label(value, n.style, add_enumeration_labels),
             "inputs": inputs,
-            "name": n.style.name if n.style.name else item,
-            "node_class": type(n).__name__,
+            "name": n.style.name if n.style.name else item
         }
         if compute_hash:
             out[item]["node_hash"] = n.hash

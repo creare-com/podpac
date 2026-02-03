@@ -499,16 +499,16 @@ class TestNodeProber(object):
     another_one = AnotherOne()
 
     def test_single_prober(self):
-        expected = {
+        expected = OrderedDict({
             "Array": {
                 "active": True,
                 "value": 1,
-                "units": "o",
+                "label": "o",
                 "inputs": [],
                 "name": "one_style",
                 "node_hash": self.one.hash,
             }
-        }
+        })
         out = probe_node(self.one, lat=1, lon=1)
         assert out == expected
 
@@ -521,7 +521,7 @@ class TestNodeProber(object):
                 "Array": {
                     "active": True,
                     "value": 1.0,
-                    "units": "o",
+                    "label": "o",
                     "inputs": [],
                     "name": "one_style",
                     "node_hash": self.one.hash,
@@ -529,7 +529,7 @@ class TestNodeProber(object):
                 "Arithmetic": {
                     "active": True,
                     "value": 2.0,
-                    "units": "",
+                    "label": "",
                     "inputs": ["Array"],
                     "name": "Arithmetic",
                     "node_hash": a.hash,
@@ -537,7 +537,7 @@ class TestNodeProber(object):
                 "Arithmetic_1": {
                     "active": True,
                     "value": 6.0,
-                    "units": "m",
+                    "label": "m",
                     "inputs": ["Arithmetic"],
                     "name": "six_style",
                     "node_hash": b.hash,
@@ -554,7 +554,7 @@ class TestNodeProber(object):
                 "Array": {
                     "active": True,
                     "value": 1.0,
-                    "units": "o",
+                    "label": "o",
                     "inputs": [],
                     "name": "one_style",
                     "node_hash": self.one.hash,
@@ -562,7 +562,7 @@ class TestNodeProber(object):
                 "Array_1": {
                     "active": True,
                     "value": 2.0,
-                    "units": "t",
+                    "label": "t",
                     "inputs": [],
                     "name": "two_style",
                     "node_hash": self.two.hash,
@@ -570,7 +570,7 @@ class TestNodeProber(object):
                 "Arithmetic": {
                     "active": True,
                     "value": 2.0,
-                    "units": "",
+                    "label": "",
                     "inputs": ["Array", "Array_1"],
                     "name": "Arithmetic",
                     "node_hash": a.hash,
@@ -585,7 +585,7 @@ class TestNodeProber(object):
             "Array": {
                 "active": True,
                 "value": 1.0,
-                "units": "o",
+                "label": "o",
                 "inputs": [],
                 "name": "one_style",
                 "node_hash": self.one.hash,
@@ -593,7 +593,7 @@ class TestNodeProber(object):
             "Arange": {
                 "active": False,
                 "value": 0.0,
-                "units": "",
+                "label": "",
                 "inputs": [],
                 "name": "Arange",
                 "node_hash": self.arange.hash,
@@ -601,7 +601,7 @@ class TestNodeProber(object):
             "OrderedCompositor": {
                 "active": True,
                 "value": 1.0,
-                "units": "",
+                "label": "",
                 "inputs": ["Array", "Arange"],
                 "name": "OrderedCompositor",
                 "node_hash": a.hash,
@@ -615,7 +615,7 @@ class TestNodeProber(object):
             "Array": {
                 "active": False,
                 "value": "nan",
-                "units": "",
+                "label": "",
                 "inputs": [],
                 "name": "Array",
                 "node_hash": self.nan.hash,
@@ -623,7 +623,7 @@ class TestNodeProber(object):
             "Array_1": {
                 "active": True,
                 "value": 2.0,
-                "units": "t",
+                "label": "t",
                 "inputs": [],
                 "name": "two_style",
                 "node_hash": self.two.hash,
@@ -631,7 +631,7 @@ class TestNodeProber(object):
             "OrderedCompositor": {
                 "active": True,
                 "value": 2.0,
-                "units": "",
+                "label": "",
                 "inputs": ["Array", "Array_1"],
                 "name": "OrderedCompositor",
                 "node_hash": a.hash,
@@ -648,7 +648,7 @@ class TestNodeProber(object):
             "Array": {
                 "active": False,
                 "value": "nan",
-                "units": "",
+                "label": "",
                 "inputs": [],
                 "name": "Array",
                 "node_hash": self.nan.hash,
@@ -656,7 +656,7 @@ class TestNodeProber(object):
             "Array_1": {
                 "active": True,
                 "value": 1.0,
-                "units": "o",
+                "label": "o",
                 "inputs": [],
                 "name": "one_style",
                 "node_hash": self.one.hash,
@@ -664,7 +664,7 @@ class TestNodeProber(object):
             "AnotherOne": {
                 "active": False,
                 "value": 1.0,
-                "units": "",
+                "label": "",
                 "inputs": [],
                 "name": "AnotherOne",
                 "node_hash": self.another_one.hash,
@@ -672,7 +672,7 @@ class TestNodeProber(object):
             "OrderedCompositor": {
                 "active": True,
                 "value": 1.0,
-                "units": "",
+                "label": "",
                 "inputs": ["Array", "Array_1", "AnotherOne"],
                 "name": "OrderedCompositor",
                 "node_hash": a.hash,
@@ -688,33 +688,36 @@ class TestNodeProber(object):
         a = podpac.compositor.OrderedCompositor(
             sources=[self.one, self.arange], style=podpac.style.Style(name="composited", units="c")
         )
-        expected = {
+        expected = OrderedDict({
             "name": "composited",
-            "value": "1.0 c",
+            "value": "1.0",
+            "label": "c",
             "active": True,
             "node_id": a.hash,
             "params": {},
             "inputs": {
                 "inputs": [
-                    {
+                    OrderedDict({
                         "name": "one_style",
-                        "value": "1.0 o",
+                        "value": "1.0",
+                        "label": "o",
                         "active": True,
                         "node_id": self.one.hash,
                         "params": {},
                         "inputs": {},
-                    },
-                    {
+                    }),
+                    OrderedDict({
                         "name": "Arange",
                         "value": "0.0",
+                        "label": "",
                         "active": False,
                         "node_id": self.arange.hash,
                         "params": {},
                         "inputs": {},
-                    },
+                    }),
                 ]
             },
-        }
+        })
         out = probe_node(a, lat=1, lon=1, nested=True)
         assert out == expected
 
@@ -730,41 +733,45 @@ class TestNodeProber(object):
         zero = podpac.data.Array(source=np.zeros((3, 3), int), coordinates=self.coords, style=enumeration_style)
         a = podpac.compositor.OrderedCompositor(sources=[nan, one, zero], style=enumeration_style)
 
-        expected = {
+        expected = OrderedDict({
             "name": "composited",
-            "value": "1 (sand) my_units",
+            "value": "1.0",
+            "label": "sand",
             "active": True,
             "node_id": a.hash,
             "params": {},
             "inputs": {
                 "inputs": [
-                    {
+                    OrderedDict({
                         "name": "composited",
-                        "value": "nan (unknown) my_units",
+                        "value": "nan",
+                        "label": "unknown",
                         "active": False,
                         "node_id": nan.hash,
                         "params": {},
                         "inputs": {},
-                    },
-                    {
+                    }),
+                    OrderedDict({
                         "name": "composited",
-                        "value": "1 (sand) my_units",
+                        "value": "1.0",
+                        "label": "sand",
                         "active": True,
                         "node_id": one.hash,
                         "params": {},
                         "inputs": {},
-                    },
-                    {
+                    }),
+                    OrderedDict({
                         "name": "composited",
-                        "value": "0 (dirt) my_units",
+                        "value": "0.0",
+                        "label": "dirt",
                         "active": False,
                         "node_id": zero.hash,
                         "params": {},
                         "inputs": {},
-                    },
+                    }),
                 ]
             },
-        }
+        })
         out = probe_node(a, lat=1, lon=1, nested=True, add_enumeration_labels=True)
         assert out == expected
 
