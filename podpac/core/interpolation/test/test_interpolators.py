@@ -773,9 +773,8 @@ class TestInterpolateRasterioInterpolator(TestCase):
 
             node = MockArrayDataSource(
                 data=source,
-                coordinates=coords_src,
-                interpolation={"method": "nearest", "interpolators": [RasterioInterpolator]},
-            )
+                coordinates=coords_src
+            ).interpolate(interpolation={"method": "nearest", "interpolators": [RasterioInterpolator]})
             output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
@@ -879,12 +878,11 @@ class TestInterpolateScipyGrid(TestCase):
 
             node = MockArrayDataSource(
                 data=source,
-                coordinates=coords_src,
-                interpolation=[
-                    {"method": "nearest", "interpolators": [ScipyGrid]},
-                    {"method": "linear", "dims": ["time", "alt"]},
-                ],
-            )
+                coordinates=coords_src
+            ).interpolate(interpolation=[
+                {"method": "nearest", "interpolators": [ScipyGrid]},
+                {"method": "linear", "dims": ["time", "alt"]},
+            ],)
             output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
