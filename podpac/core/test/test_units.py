@@ -564,7 +564,7 @@ class TestToGeoTiff(object):
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, outputs=node.outputs)
+            rnode = Rasterio(source=fp.name, outputs=node.outputs, crs="EPSG:4326")
             assert rnode.coordinates == node.coordinates
 
             rout = rnode.eval(rnode.coordinates)
@@ -578,7 +578,7 @@ class TestToGeoTiff(object):
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, outputs=node.outputs)
+            rnode = Rasterio(source=fp.name, outputs=node.outputs, crs="EPSG:4326")
             assert rnode.coordinates == node.coordinates
 
             rout = rnode.eval(rnode.coordinates)
@@ -593,7 +593,7 @@ class TestToGeoTiff(object):
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, outputs=node.outputs)
+            rnode = Rasterio(source=fp.name, outputs=node.outputs, crs="EPSG:4326")
             assert rnode.coordinates == node.coordinates
 
             rout = rnode.eval(rnode.coordinates)
@@ -607,7 +607,7 @@ class TestToGeoTiff(object):
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, outputs=node.outputs)
+            rnode = Rasterio(source=fp.name, outputs=node.outputs, crs="EPSG:4326")
             assert rnode.coordinates == node.coordinates
 
             rout = rnode.eval(rnode.coordinates)
@@ -615,19 +615,19 @@ class TestToGeoTiff(object):
 
             # Check single output
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, outputs=node.outputs, output=node.outputs[1])
+            rnode = Rasterio(source=fp.name, outputs=node.outputs, output=node.outputs[1], crs="EPSG:4326")
             rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 1], rout.data)
 
             # Check single band 1
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, band=1)
+            rnode = Rasterio(source=fp.name, band=1, crs="EPSG:4326")
             rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 0], rout.data)
 
             # Check single band 2
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, band=2)
+            rnode = Rasterio(source=fp.name, band=2, crs="EPSG:4326")
             rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 1], rout.data)
 
@@ -642,7 +642,7 @@ class TestToGeoTiff(object):
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, outputs=node.outputs, mode="r")
+            rnode = Rasterio(source=fp.name, outputs=node.outputs, mode="r", crs="EPSG:4326")
             assert node.coordinates == rnode.coordinates
 
             rout = rnode.eval(rnode.coordinates)
