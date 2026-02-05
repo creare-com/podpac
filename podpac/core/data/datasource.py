@@ -263,7 +263,7 @@ class DataSource(Node):
 
         """
         # get data from data source at requested source coordinates and requested source coordinates index
-        data = self.get_data(rc, rci)
+        data = deepcopy(self.get_data(rc, rci))
 
         # convert data into UnitsDataArray depending on format
         # TODO: what other processing needs to happen here?

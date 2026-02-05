@@ -340,11 +340,7 @@ def _get_from_url(url, session=None):
                     url, r.status_code, r.text
                 )
             )
-
-    except requests.ConnectionError as e:
-        _log.warning("Cannot connect to {}:".format(url) + str(e))
-        r = None
-    except RuntimeError as e:
+    except Exception as e:
         _log.warning("Cannot authenticate to {}. Check credentials. Error was as follows:".format(url) + str(e))
         r = None
 

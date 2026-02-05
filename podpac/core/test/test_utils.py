@@ -838,7 +838,7 @@ class TestGetParam:
 class TestGetFromUrl:
     def test_raise_requests_error(self):
         mock_requests = MagicMock()
-        mock_requests.get.side_effect = ConnectionError("Test Connection Error")
+        mock_requests.get.side_effect = Exception("Test Connection Error")
 
         with patch("podpac.core.utils.requests", mock_requests):
             ret = _get_from_url("TEST/URL", None)
@@ -849,7 +849,7 @@ class TestGetFromUrl:
         mock_requests.get.side_effect = RuntimeError("Test Runtime Error")
 
         with patch("podpac.core.utils.requests", mock_requests):
-            ret = _get_from_url("TEST/URL", None)      
+            ret = _get_from_url("TEST/URL", None)
         assert ret is None
 
     def test_session_is_none(self):
