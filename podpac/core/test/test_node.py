@@ -20,7 +20,7 @@ import podpac
 from podpac.core.utils import ArrayTrait, NodeTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.style import Style
-from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore, DiskCacheMixin, clear_cache
+from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore, clear_cache
 from podpac.core.node import Node, NodeException, NodeDefinitionError
 
 _OUTPUTS = "outputs="
@@ -1448,27 +1448,6 @@ class TestUserDefinition(object):
         """
         with pytest.raises(ValueError):
             Node.from_json(wrong_name_json)
-
-
-class TestDiskCacheMixin(object):
-    class DiskCacheNode(DiskCacheMixin, Node):
-        pass
-
-    def test_default_disk_cache(self):
-        with podpac.settings:
-            # add disk cache
-            podpac.settings["DEFAULT_CACHE"] = ["ram"]
-            node = self.DiskCacheNode()
-            assert len(node.cache_ctrl._cache_stores) == 2
-
-            # don't add if it is already there
-            podpac.settings["DEFAULT_CACHE"] = ["ram", "disk"]
-            node = self.DiskCacheNode()
-            assert len(node.cache_ctrl._cache_stores) == 2
-
-    def test_customizable(self):
-        node = self.DiskCacheNode().cache(cache_type=["ram"])
-        assert len(node.cache_ctrl._cache_stores) == 1
 
 
 @pytest.mark.integration

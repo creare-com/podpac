@@ -737,17 +737,13 @@ class InterpolationManager(object):
         covered_udims = []
         for k in interpolator_queue:
             # Keep the eval_coordinates for some dimensions
-            dims = (
-                source_coordinates.dims
-                if isinstance(interpolator_queue[k], NoneInterpolator)
-                else eval_coordinates.dims
-            )
-            for d in dims:
+            coords = source_coordinates if isinstance(interpolator_queue[k], NoneInterpolator) else eval_coordinates
+            for d in coords.dims:
                 ud = d.split("_")
                 for u in ud:
                     if u in k:
                         new_dims.append(d)
-                        new_coords.append(eval_coordinates[d])
+                        new_coords.append(coords[d])
                         covered_udims.extend(ud)
                         break
         new_coordinates = Coordinates(new_coords, new_dims)

@@ -105,4 +105,4 @@ class TestDataset(object):
         node = Dataset(source=self.source, data_key="data", selection={"day": 1})
         assert np.all([d in ["lat", "lon"] for d in node.dims])
         out = node.eval(node.coordinates)
-        np.testing.assert_array_equal(out, self.data[1].T)
+        np.testing.assert_array_equal(out, self.data[1])

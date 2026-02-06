@@ -5,7 +5,6 @@ from podpac.core.cache.cache_ctrl import (
     make_cache_ctrl,
     clear_cache,
     cache_cleanup,
-    DiskCacheMixin,
 )
 from podpac.core.cache.ram_cache_store import RamCacheStore
 from podpac.core.cache.disk_cache_store import DiskCacheStore

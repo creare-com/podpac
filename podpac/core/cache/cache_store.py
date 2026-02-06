@@ -8,7 +8,7 @@ from podpac.core.settings import settings
 
 
 class CacheStore(object):
-    """Abstract parent class for classes representing actual data stores (e.g. RAM, local disk, network storage).
+    """Abstract parent class for classes representing actual data stores (e.g. RAM, local disk, s3 storage).
     Includes implementation of common hashing operations and call signature for required abstract methods:
     put(), get(), rem(), has()
     """

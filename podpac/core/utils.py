@@ -12,7 +12,6 @@ import logging
 import inspect
 from collections import OrderedDict
 from copy import deepcopy
-from hashlib import sha256 as hash_alg
 
 import urllib.parse as urllib
 

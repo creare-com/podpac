@@ -8,13 +8,15 @@ import logging
 
 import requests
 import traitlets as tl
-from lazy_import import lazy_module, lazy_function
+from lazy_import import lazy_module
 
 from podpac.core.settings import settings
 from podpac.core.utils import cached_property
 
 # Optional dependencies
-pydap_setup_session = lazy_function("pydap.cas.urs.setup_session")
+# see pydap_source.py for import note
+# pydap_setup_session = lazy_function("pydap.cas.urs.setup_session")
+from pydap.cas.urs import setup_session as pydap_setup_session
 
 _log = logging.getLogger(__name__)
 _USERNAME_AT = "username@{}"
