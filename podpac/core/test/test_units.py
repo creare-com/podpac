@@ -354,9 +354,12 @@ class TestUnitDataArray(object):
         assert "test" in (a1 * a2).attrs
 
         # Order is important
-        assert "test" not in (1 + a1).attrs
+        # As of 20260205, xarray seems to keep attributes regardless of order with constants
+        # old behavior with objects appears maintained.
+        # We're keeping this test just to track if this behavior changes again
+        assert "test" in (1 + a1).attrs
         assert "test" not in (a2 + a1).attrs
-        assert "test" not in (1 * a1).attrs
+        assert "test" in (1 * a1).attrs
         assert "test" not in (a2 * a1).attrs
 
 
@@ -553,7 +556,7 @@ class TestToGeoTiff(object):
             coordinates=c,
             outputs=[str(s) for s in list(range(bands))],
         )
-        return node
+        return node.interpolate(interpolation="nearest")
 
     def test_to_geotiff_roundtrip_1band(self):
         # lat/lon order, usual
@@ -564,7 +567,7 @@ class TestToGeoTiff(object):
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, outputs=node.outputs)
+            rnode = Rasterio(source=fp.name, outputs=node.outputs, crs="EPSG:4326")
             assert rnode.coordinates == node.coordinates
 
             rout = rnode.eval(rnode.coordinates)
@@ -578,7 +581,7 @@ class TestToGeoTiff(object):
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, outputs=node.outputs)
+            rnode = Rasterio(source=fp.name, outputs=node.outputs, crs="EPSG:4326")
             assert rnode.coordinates == node.coordinates
 
             rout = rnode.eval(rnode.coordinates)
@@ -593,7 +596,7 @@ class TestToGeoTiff(object):
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, outputs=node.outputs)
+            rnode = Rasterio(source=fp.name, outputs=node.outputs, crs="EPSG:4326")
             assert rnode.coordinates == node.coordinates
 
             rout = rnode.eval(rnode.coordinates)
@@ -607,7 +610,7 @@ class TestToGeoTiff(object):
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, outputs=node.outputs)
+            rnode = Rasterio(source=fp.name, outputs=node.outputs, crs="EPSG:4326")
             assert rnode.coordinates == node.coordinates
 
             rout = rnode.eval(rnode.coordinates)
@@ -615,19 +618,19 @@ class TestToGeoTiff(object):
 
             # Check single output
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, outputs=node.outputs, output=node.outputs[1])
+            rnode = Rasterio(source=fp.name, outputs=node.outputs, output=node.outputs[1], crs="EPSG:4326")
             rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 1], rout.data)
 
             # Check single band 1
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, band=1)
+            rnode = Rasterio(source=fp.name, band=1, crs="EPSG:4326")
             rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 0], rout.data)
 
             # Check single band 2
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, band=2)
+            rnode = Rasterio(source=fp.name, band=2, crs="EPSG:4326")
             rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 1], rout.data)
 
@@ -642,7 +645,9 @@ class TestToGeoTiff(object):
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
-            rnode = Rasterio(source=fp.name, outputs=node.outputs, mode="r")
+            rnode = Rasterio(source=fp.name, outputs=node.outputs, mode="r", crs="EPSG:4326").interpolate(
+                interpolation="nearest"
+            )
             assert node.coordinates == rnode.coordinates
 
             rout = rnode.eval(rnode.coordinates)

@@ -9,13 +9,15 @@ from podpac.core.cache.ram_cache_store import RamCacheStore
 from podpac.core.cache.disk_cache_store import DiskCacheStore
 from podpac.core.cache.s3_cache_store import S3CacheStore
 import traitlets as tl
+import logging
+
 
 
 _CACHE_STORES = {"ram": RamCacheStore, "disk": DiskCacheStore, "s3": S3CacheStore}
 
 _CACHE_NAMES = {RamCacheStore: "ram", DiskCacheStore: "disk", S3CacheStore: "s3"}
 
-_CACHE_MODES = ["ram", "disk", "network", "all"]
+_CACHE_MODES = ["ram", "disk", "s3", "all"]
 
 # Error messages used in 3 or more places
 _INVALID_NODE = "Invalid node (must be of type Node, not '%s')"
@@ -24,6 +26,7 @@ _INVALID_COORDS = "Invalid coordinates (must be of type 'Coordinates', not '%s')
 _INVALID_MODE = "Invalid mode (must be one of %s, not '%s')"
 _INVALID_ITEM_ASTERISK = "Invalid item ('*' is reserved)"
 
+_logger = logging.getLogger(__name__)
 
 def get_default_cache_ctrl():
     """
@@ -63,7 +66,15 @@ def make_cache_ctrl(names):
         if name not in _CACHE_STORES:
             raise ValueError("Unknown cache store type '%s', options are %s" % (name, list(_CACHE_STORES)))
 
-    return CacheCtrl([_CACHE_STORES[name]() for name in names])
+    cache_stores = []
+    for name in names:
+        try:
+            cache_store = _CACHE_STORES[name]()
+            cache_stores.append(cache_store)
+        except Exception as e:
+            _logger.warning("Cannot create cache_store of type {} -- error={}".format(name, e))
+
+    return CacheCtrl(cache_stores)
 
 
 def clear_cache(mode="all"):
@@ -73,10 +84,13 @@ def clear_cache(mode="all"):
     Arguments
     ---------
     mode : str
-        determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+        determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
     """
-
-    cache_ctrl = get_default_cache_ctrl()
+    if mode == "all":
+        modes = _CACHE_STORES.keys()
+    else:
+        modes = [mode]
+    cache_ctrl = make_cache_ctrl(modes)
     cache_ctrl.clear(mode=mode)
 
 
@@ -128,7 +142,7 @@ class CacheCtrl(object):
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         mode : str
-            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
         """
         if not isinstance(node, podpac.Node):
             raise TypeError(_INVALID_NODE % type(node))
@@ -159,7 +173,7 @@ class CacheCtrl(object):
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         mode : str
-            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
         expires : float, datetime, timedelta
             Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
         update : bool
@@ -182,7 +196,7 @@ class CacheCtrl(object):
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         mode : str
-            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
 
         Returns
         -------
@@ -213,7 +227,7 @@ class CacheCtrl(object):
         coordinates: Coordinate, optional
             Coordinates for which cached object should be checked
         mode : str
-            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
 
         Returns
         -------
@@ -240,7 +254,7 @@ class CacheCtrl(object):
         coordinates : :class:`podpac.Coordinates`, str
             Delete only cached objects for these coordinates. Use `'*'` to match all coordinates.
         mode : str
-            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
         """
 
         if not isinstance(node, podpac.Node):
@@ -271,7 +285,7 @@ class CacheCtrl(object):
         Parameters
         ------------
         mode : str
-            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
         """
 
         if mode not in _CACHE_MODES:
@@ -289,23 +303,3 @@ class CacheCtrl(object):
 
         for c in self._cache_stores:
             c.cleanup()
-
-
-# --------------------------------------------------------#
-#  Mixins
-# --------------------------------------------------------#
-
-
-class DiskCacheMixin(tl.HasTraits):
-    """Mixin to add disk caching to the Node by default."""
-
-    property_cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
-
-    @tl.default("property_cache_ctrl")
-    def _property_cache_ctrl_default(self):
-        # get the default cache_ctrl and addd a disk cache store if necessary
-        default_ctrl = get_default_cache_ctrl()
-        stores = default_ctrl._cache_stores
-        if not any(isinstance(store, DiskCacheStore) for store in default_ctrl._cache_stores):
-            stores.append(DiskCacheStore())
-        return CacheCtrl(stores)

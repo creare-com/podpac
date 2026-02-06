@@ -636,7 +636,7 @@ class TestCoordinateCreation(object):
             assert c.alt_units in ["us-ft", "US survey foot"]  # pyproj < 3.0  # pyproj >= 3.0
 
     def test_create_from_uniform_coords(self):
-        Coordinates([[clinspace("2020-01-01T09:36", "2020-01-02T15:35", 8)]], [['time']])
+        Coordinates([clinspace("2020-01-01T09:36", "2020-01-02T15:35", 8)], [['time']])
 
 class TestCoordinatesSerialization(object):
     def test_definition(self):

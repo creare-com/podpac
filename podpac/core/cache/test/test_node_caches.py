@@ -20,8 +20,12 @@ class TestHashCache:
         assert not hash_cache_node._from_cache
         o2 = hash_cache_node2.eval(coords)
         assert hash_cache_node2._from_cache
-        o3 = hash_cache_node3.eval(coords)
-        assert not hash_cache_node3._from_cache
+        try:
+            o3 = hash_cache_node3.eval(coords)
+            assert not hash_cache_node3._from_cache
+        finally:
+            hash_cache_node3.rem_cache("*",coordinates="*")
+
 
     def test_global_ram_cache(self):
         my_node = SinCoords(cache_output=True)

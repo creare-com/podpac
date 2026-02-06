@@ -52,6 +52,8 @@ class H5PY(FileKeysMixin, BaseFileSource):
     file_mode = tl.Unicode(default_value="r").tag(readonly=True)
     array_dims = tl.List(trait=tl.Unicode()).tag(readonly=True)
 
+    coordinate_index_type = "slice"
+
     @cached_property
     def dataset(self):
         return h5py.File(self.source, self.file_mode)

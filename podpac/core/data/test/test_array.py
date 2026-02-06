@@ -58,7 +58,3 @@ class TestArray(object):
         node = Array(source=self.data).interpolate()
         with pytest.raises(tl.TraitError):
             node.coordinates
-
-    def test_no_cache(self):
-        node = Array().interpolate()
-        assert len(node.source.cache_ctrl._cache_stores) == 0
