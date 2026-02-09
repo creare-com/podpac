@@ -2,17 +2,6 @@
 
 How to release `podpac`
 
-## Branch Notes
-There are currently two actively maintained versions of PODPAC:
-* 3.x version which uses main-3.X and develop-3.X
-* 4.x version which uses main and develop
-
-The 3.x is maintained for projects that have not migrated to the new 4.x interface. 
-
-The repercussions of this are as follows:
-* Most of the code bases are still compatible, so any new features or bug fixes can go to both branches
-* Process is: Feature or hotfix branch off develop-3.X, then when done coding, merge into both develop-3.X and develop
-
 ## Updating main
 
 1. Ensure your local main / main-3.X branch is synced to upstream:
@@ -21,7 +10,7 @@ The repercussions of this are as follows:
 $ git pull upstream main  # or just git pull
 ```
 
-2. Create a release branch: `release/3.x.y`
+2. Create a release branch: `release/4.x.y`
 
 3. Update [`version.py`](podpac/version.py) `MAJOR`, `MINOR`, and `HOTFIX` to the right semantic version
 
@@ -39,7 +28,7 @@ $ pytest podpac
 - <prefix>: <short description> ([<github issue>](https://github.com/creare-com/podpac/issues/<issue#>))
 ```
 
-5. Merge changes into main / main-3.X branch
+5. Merge changes into main 
 
 6. On the main branch, Tag the release:
 
@@ -47,12 +36,10 @@ $ pytest podpac
 $ git tag -a X.Y.Z -m 'X.Y.Z'
 ```
 
-6. Push your changes to main / main-3.X:
+6. Push your changes to main:
 
 ```bash
 $ git push upstream main
-$ # OR 
-$ git push upstream main-3.X
 $ git push upstream --tags
 ```
 

@@ -21,6 +21,10 @@ nodes being automatically interpolated on `eval`. Now users have to create `Inte
 ### Breaking changes
 * Removed `InterpolationMixin`, and corresponding `Nodes` built using it. For example, the `Rasterio` node will no
   longer automatically interpolate. Instead, use `node = Rasterio(...).interpolate()` to restore that functionality.
+* Renamed dataset_source.DatasetRaw class to Dataset
+
+### Bugfixes
+* Fixed issue where datasource._eval would not respect coordinate_index_type when _selector was None. 
 
 
 ## 3.5.3

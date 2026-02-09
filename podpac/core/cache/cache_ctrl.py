@@ -66,6 +66,7 @@ def make_cache_ctrl(names):
         if name not in _CACHE_STORES:
             raise ValueError("Unknown cache store type '%s', options are %s" % (name, list(_CACHE_STORES)))
 
+    # makes all requested cache stores and fails gracefully if one of the stores is unavailable
     cache_stores = []
     for name in names:
         try:

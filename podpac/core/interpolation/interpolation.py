@@ -95,15 +95,6 @@ class Interpolate(Node):
     _requested_source_data = tl.Instance(UnitsDataArray)
     _evaluated_coordinates = tl.Instance(Coordinates)
 
-    # def __getattr__(self, name):
-    #     # Check if the interpolation node has the method
-    #     if name in self.__dict__ or name in Node.__dict__ or name.startswith("_podpac_cached_property_"):
-    #         return getattr(self, name)
-    #     # Only call the method on the wrapped node if the interpolator doesn't implement it
-    #     else:
-    #         print(f"calling source method '{name}'")
-    #         return getattr(self.source, name)
-
     @tl.default("style")
     def _default_style(self):  # Pass through source style by default
         if self.source is not None:
