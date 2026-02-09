@@ -4,8 +4,8 @@
 
 > Pipeline for Observation Data Processing Analysis and Collaboration
 
-[![Build Status](https://travis-ci.org/creare-com/podpac.svg?branch=develop)](https://travis-ci.org/creare-com/podpac)
-[![Coverage Status](https://coveralls.io/repos/github/creare-com/podpac/badge.svg)](https://coveralls.io/github/creare-com/podpac)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=creare-com_podpac&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=creare-com_podpac)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=creare-com_podpac&metric=coverage)](https://sonarcloud.io/summary/new_code?id=creare-com_podpac)
 
 Data wrangling and processing of geospatial data should be seamless 
 so that earth scientists can focus on science. 

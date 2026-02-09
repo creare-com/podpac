@@ -1,7 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 import logging
 
-import warnings
+from typing import Dict, List, Type
 from copy import deepcopy
 from collections import OrderedDict
 from six import string_types
@@ -99,6 +99,28 @@ def load_interpolators():
 load_interpolators()
 
 
+def assert_custom(condition: bool, exception_type: Type[Exception], message: str) -> None:
+    """Check indicated condition.  If it's false, raise the indicated execption.
+    This is much like `assert condition, message` only it will raise exception_type
+    rather than AssertionError.
+
+    Parameters
+    ----------
+    condition : bool
+        Condition to check
+    exception_type : Type[Exception]
+        The exception class to raise
+    message : str
+        Exception message
+
+    Raises
+    ------
+    exception_type
+    """
+    if not condition:
+        raise exception_type(message)
+
+
 class InterpolationException(Exception):
     """
     Custom label for interpolation exceptions
@@ -146,32 +168,7 @@ class InterpolationManager(object):
             # convert dict to list
             if isinstance(definition, dict):
                 definition = [definition]
-
-            for interp_definition in definition:
-
-                # get interpolation method dict
-                method = self._parse_interpolation_method(interp_definition)
-
-                # specify dims
-                if "dims" in interp_definition:
-                    if isinstance(interp_definition["dims"], list):
-                        udims = tuple(
-                            sorted(interp_definition["dims"])
-                        )  # make sure the dims are always in the same order
-                    else:
-                        raise TypeError('The "dims" key of an interpolation definition must be a list')
-                else:
-                    udims = ("default",)
-
-                # make sure udims are not already specified in config
-                for config_dims in iter(self.config):
-                    if set(config_dims) & set(udims):
-                        raise InterpolationException(
-                            'Dimensions "{}" cannot be defined '.format(udims)
-                            + "multiple times in interpolation definition {}".format(interp_definition)
-                        )
-                # add all udims to definition
-                self.config = self._set_interpolation_method(udims, method)
+            self._parse_interp_definition(definition)
 
             # set default if its not been specified in the dict
             if ("default",) not in self.config:
@@ -200,6 +197,40 @@ class InterpolationManager(object):
             default = self.config.pop(("default",))
             self.config[("default",)] = default
 
+    def _parse_interp_definition(self, definition: List[Dict[str, Interpolator]]) -> None:
+        """Handle interpolation definition in the case that it is a list of dicts.
+
+        Parameters
+        ----------
+        definition : List[Dict[str, Interpolator]]
+            Interpolation definition used to define interpolation methods for each definiton.
+            See :attr:`podpac.data.DataSource.interpolation` for more details.
+        """
+
+        for interp_definition in definition:
+
+            # get interpolation method dict
+            method = self._parse_interpolation_method(interp_definition)
+
+            # specify dims
+            if "dims" in interp_definition:
+                if isinstance(interp_definition["dims"], list):
+                    udims = tuple(sorted(interp_definition["dims"]))  # make sure the dims are always in the same order
+                else:
+                    raise TypeError('The "dims" key of an interpolation definition must be a list')
+            else:
+                udims = ("default",)
+
+            # make sure udims are not already specified in config
+            for config_dims in iter(self.config):
+                if set(config_dims) & set(udims):
+                    raise InterpolationException(
+                        'Dimensions "{}" cannot be defined '.format(udims)
+                        + "multiple times in interpolation definition {}".format(interp_definition)
+                    )
+            # add all udims to definition
+            self.config = self._set_interpolation_method(udims, method)
+
     def __repr__(self):
         rep = str(self.__class__.__name__)
         for udims in iter(self.config):
@@ -213,7 +244,7 @@ class InterpolationManager(object):
 
         return rep
 
-    def _parse_interpolation_method(self, definition):
+    def _parse_interpolation_method(self, definition: Dict[str, Interpolator]) -> dict:
         """parse interpolation definitions into a tuple of (method, Interpolator)
 
         Parameters
@@ -233,71 +264,68 @@ class InterpolationManager(object):
         TypeError
         """
         if isinstance(definition, string_types):
-            if definition not in INTERPOLATION_METHODS:
-                raise InterpolationException(
-                    '"{}" is not a valid interpolation shortcut. '.format(definition)
-                    + "Valid interpolation shortcuts: {}".format(INTERPOLATION_METHODS)
-                )
+            assert_custom(
+                definition in INTERPOLATION_METHODS,
+                InterpolationException,
+                '"{}" is not a valid interpolation shortcut. '.format(definition)
+                + "Valid interpolation shortcuts: {}".format(INTERPOLATION_METHODS),
+            )
             return {"method": definition, "interpolators": INTERPOLATION_METHODS_DICT[definition], "params": {}}
 
         elif isinstance(definition, dict):
 
             # confirm method in dict
-            if "method" not in definition:
-                raise InterpolationException(
-                    "{} is not a valid interpolation definition. ".format(definition)
-                    + 'Interpolation definition dict must contain key "method" string value'
-                )
-            else:
-                method_string = definition["method"]
+            assert_custom(
+                "method" in definition,
+                InterpolationException,
+                "{} is not a valid interpolation definition. ".format(definition)
+                + 'Interpolation definition dict must contain key "method" string value',
+            )
+            method_string = definition["method"]
 
             # if specifying custom method, user must include interpolators
-            if "interpolators" not in definition and method_string not in INTERPOLATION_METHODS:
-                raise InterpolationException(
-                    '"{}" is not a valid interpolation shortcut. '.format(method_string)
-                    + 'Specify list "interpolators" or change "method" '
-                    + "to a valid interpolation shortcut: {}".format(INTERPOLATION_METHODS)
-                )
-            elif "interpolators" not in definition:
-                interpolators = INTERPOLATION_METHODS_DICT[method_string]
-            else:
-                interpolators = definition["interpolators"]
+            assert_custom(
+                "interpolators" in definition or method_string in INTERPOLATION_METHODS,
+                InterpolationException,
+                '"{}" is not a valid interpolation shortcut. '.format(method_string)
+                + 'Specify list "interpolators" or change "method" '
+                + "to a valid interpolation shortcut: {}".format(INTERPOLATION_METHODS),
+            )
+            interpolators = definition.get("interpolators", INTERPOLATION_METHODS_DICT.get(method_string))
 
             # default for params
-            if "params" in definition:
-                params = definition["params"]
-            else:
-                params = {}
+            params = definition.get("params", {})
 
             # confirm types
-            if not isinstance(method_string, string_types):
-                raise TypeError(
-                    "{} is not a valid interpolation method. ".format(method_string)
-                    + "Interpolation method must be a string"
-                )
-
-            if not isinstance(interpolators, list):
-                raise TypeError(
-                    "{} is not a valid interpolator definition. ".format(interpolators)
-                    + "Interpolator definition must be of type list containing Interpolator"
-                )
-
-            if not isinstance(params, dict):
-                raise TypeError(
-                    "{} is not a valid interpolation params definition. ".format(params)
-                    + "Interpolation params must be a dict"
-                )
+            assert_custom(
+                isinstance(method_string, string_types),
+                TypeError,
+                "{} is not a valid interpolation method. ".format(method_string)
+                + "Interpolation method must be a string",
+            )
+            assert_custom(
+                isinstance(interpolators, list),
+                TypeError,
+                "{} is not a valid interpolator definition. ".format(interpolators)
+                + "Interpolator definition must be of type list containing Interpolator",
+            )
+            assert_custom(
+                isinstance(params, dict),
+                TypeError,
+                "{} is not a valid interpolation params definition. ".format(params)
+                + "Interpolation params must be a dict",
+            )
 
             # handle when interpolator is a string (most commonly from a node definition)
             for idx, interpolator_class in enumerate(interpolators):
                 if isinstance(interpolator_class, string_types):
-                    if interpolator_class in INTERPOLATORS_DICT.keys():
-                        interpolators[idx] = INTERPOLATORS_DICT[interpolator_class]
-                    else:
-                        raise TypeError(
-                            'Interpolator "{}" is not in the dictionary of valid '.format(interpolator_class)
-                            + "interpolators: {}".format(INTERPOLATORS_DICT)
-                        )
+                    assert_custom(
+                        interpolator_class in INTERPOLATORS_DICT.keys(),
+                        TypeError,
+                        'Interpolator "{}" is not in the dictionary of valid '.format(interpolator_class)
+                        + "interpolators: {}".format(INTERPOLATORS_DICT),
+                    )
+                    interpolators[idx] = INTERPOLATORS_DICT[interpolator_class]
 
             # validate interpolator class
             for interpolator in interpolators:
@@ -351,7 +379,7 @@ class InterpolationManager(object):
         params = deepcopy(definition["params"])
 
         # instantiate interpolators
-        for (idx, interpolator) in enumerate(interpolators):
+        for idx, interpolator in enumerate(interpolators):
             parms = {k: v for k, v in params.items() if hasattr(interpolator, k)}
             interpolators[idx] = interpolator(method=method, **parms)
 
@@ -503,52 +531,108 @@ class InterpolationManager(object):
             validate_crs=False,
         )
         if index_type == "numpy":
-            npcoords = []
-            has_stacked = False
-            for k in source_coordinates.dims:
-                # Deal with nD stacked source coords (marked by coords being in tuple)
-                if isinstance(selected_coords_idx[k], tuple):
-                    has_stacked = True
-                    npcoords.extend([sci for sci in selected_coords_idx[k]])
-                else:
-                    npcoords.append(selected_coords_idx[k])
-            if has_stacked:
-                # When stacked coordinates are nD we cannot use the catchall of the next branch
-                selected_coords_idx2 = npcoords
-            else:
-                # This would not be needed if everything went as planned in
-                # interpolator.select_coordinates, but this is a catchall that works
-                # for 90% of the cases
-                selected_coords_idx2 = np.ix_(*[np.ravel(npc) for npc in npcoords])
+            selected_coords_idx2 = InterpolationManager._prepare_coord_indices_numpy(
+                source_coordinates, selected_coords_idx
+            )
         elif index_type == "xarray":
-            selected_coords_idx2 = []
-            for i in selected_coords.dims:
-                # Deal with nD stacked source coords (marked by coords being in tuple)
-                if isinstance(selected_coords_idx[i], tuple):
-                    selected_coords_idx2.extend([xr.DataArray(sci, dims=[i]) for sci in selected_coords_idx[i]])
-                else:
-                    selected_coords_idx2.append(selected_coords_idx[i])
-            selected_coords_idx2 = tuple(selected_coords_idx2)
+            selected_coords_idx2 = InterpolationManager._prepare_coord_indices_xarray(
+                selected_coords, selected_coords_idx
+            )
         elif index_type == "slice":
-            selected_coords_idx2 = []
-            for i in selected_coords.dims:
-                # Deal with nD stacked source coords (marked by coords being in tuple)
-                if isinstance(selected_coords_idx[i], tuple):
-                    selected_coords_idx2.extend(selected_coords_idx[i])
-                else:
-                    if isinstance(selected_coords_idx[i], np.ndarray):
-                        # This happens when the interpolator_queue is empty, so we have to turn the
-                        # initialized coordinates into slices instead of numpy arrays
-                        selected_coords_idx2.append(
-                            slice(selected_coords_idx[i].min(), selected_coords_idx[i].max() + 1)
-                        )
-                    else:
-                        selected_coords_idx2.append(selected_coords_idx[i])
-
-            selected_coords_idx2 = tuple(selected_coords_idx2)
+            selected_coords_idx2 = InterpolationManager._prepare_coord_indices_slice(
+                selected_coords, selected_coords_idx
+            )
         else:
             raise ValueError("Unknown index_type '%s'" % index_type)
-        return selected_coords, tuple(selected_coords_idx2)
+        return selected_coords, selected_coords_idx2
+
+    @staticmethod
+    def _prepare_coord_indices_numpy(source_coordinates, selected_coords_idx):
+        npcoords = []
+        has_stacked = False
+        for k in source_coordinates.dims:
+            # Deal with nD stacked source coords (marked by coords being in tuple)
+            if isinstance(selected_coords_idx[k], tuple):
+                has_stacked = True
+                npcoords.extend([sci for sci in selected_coords_idx[k]])
+            else:
+                npcoords.append(selected_coords_idx[k])
+        if has_stacked:
+            # When stacked coordinates are nD we cannot use the catchall of the next branch
+            selected_coords_idx2 = npcoords
+        else:
+            # This would not be needed if everything went as planned in
+            # interpolator.select_coordinates, but this is a catchall that works
+            # for 90% of the cases
+            selected_coords_idx2 = np.ix_(*[np.ravel(npc) for npc in npcoords])
+        return tuple(selected_coords_idx2)
+
+    @staticmethod
+    def _prepare_coord_indices_xarray(selected_coords, selected_coords_idx):
+        selected_coords_idx2 = []
+        for i in selected_coords.dims:
+            # Deal with nD stacked source coords (marked by coords being in tuple)
+            if isinstance(selected_coords_idx[i], tuple):
+                selected_coords_idx2.extend([xr.DataArray(sci, dims=[i]) for sci in selected_coords_idx[i]])
+            else:
+                selected_coords_idx2.append(selected_coords_idx[i])
+        return tuple(selected_coords_idx2)
+
+    @staticmethod
+    def _prepare_coord_indices_slice(selected_coords, selected_coords_idx):
+        selected_coords_idx2 = []
+        for i in selected_coords.dims:
+            # Deal with nD stacked source coords (marked by coords being in tuple)
+            if isinstance(selected_coords_idx[i], tuple):
+                selected_coords_idx2.extend(selected_coords_idx[i])
+            else:
+                if isinstance(selected_coords_idx[i], np.ndarray):
+                    # This happens when the interpolator_queue is empty, so we have to turn the
+                    # initialized coordinates into slices instead of numpy arrays
+                    selected_coords_idx2.append(slice(selected_coords_idx[i].min(), selected_coords_idx[i].max() + 1))
+                else:
+                    selected_coords_idx2.append(selected_coords_idx[i])
+
+        return tuple(selected_coords_idx2)
+
+    def _process_interpolator_queue(
+        self,
+        interpolator_queue: OrderedDict,
+        source_coordinates: Coordinates,
+        source_data: UnitsDataArray,
+        eval_coordinates: Coordinates,
+        output_data: UnitsDataArray,
+    ):
+        # iterate through each dim tuple in the queue
+        dtype = output_data.dtype
+        attrs = source_data.attrs
+        for udims, interpolator in interpolator_queue.items():
+            # TODO move the above short-circuits into this loop
+            if all([ud not in source_coordinates.udims for ud in udims]):
+                # Skip this udim if it's not part of the source coordinates (can happen with default)
+                continue
+            # Check if parameters are being used
+            for k in self._interpolation_params:
+                self._interpolation_params[k] = hasattr(interpolator, k) or self._interpolation_params[k]
+
+            # interp_coordinates are essentially intermediate eval_coordinates
+            interp_dims = [dim for dim, c in source_coordinates.items() if set(c.dims).issubset(udims)]
+            other_dims = [dim for dim, c in eval_coordinates.items() if not set(c.dims).issubset(udims)]
+            interp_coordinates = merge_dims(
+                [source_coordinates.drop(interp_dims), eval_coordinates.drop(other_dims)], validate_crs=False
+            )
+            interp_data = UnitsDataArray.create(interp_coordinates, dtype=dtype)
+            interp_data = interpolator.interpolate(
+                udims, source_coordinates, source_data, interp_coordinates, interp_data
+            )
+
+            # prepare for the next iteration
+            source_data = interp_data.transpose(*interp_coordinates.xdims)
+            source_data.attrs = attrs
+            source_coordinates = interp_coordinates
+
+        output_data.data = interp_data.transpose(*output_data.dims)
+        return output_data
 
     def interpolate(self, source_coordinates, source_data, eval_coordinates, output_data):
         """Interpolate data from requested coordinates to source coordinates
@@ -601,11 +685,7 @@ class InterpolationManager(object):
         # TODO handle stacked issubset of unstacked case
         #      this case is currently skipped because of the set(eval_coordinates) == set(source_coordinates)))
         if eval_coordinates.issubset(source_coordinates) and set(eval_coordinates) == set(source_coordinates):
-            if any(isinstance(c, StackedCoordinates) and c.ndim > 1 for c in eval_coordinates.values()):
-                # TODO AFFINE
-                # currently this is bypassing the short-circuit in the shaped stacked coordinates case
-                pass
-            else:
+            if not any(isinstance(c, StackedCoordinates) or c.ndim <= 1 for c in eval_coordinates.values()):
                 try:
                     data = source_data.interp(output_data.coords, method="nearest")
                 except (NotImplementedError, ValueError):
@@ -629,44 +709,16 @@ class InterpolationManager(object):
         self._last_interpolator_queue = interpolator_queue
 
         # reset interpolation parameters
-        for k in self._interpolation_params:
-            self._interpolation_params[k] = False
+        self._interpolation_params = {k: False for k in self._interpolation_params}
 
-        # iterate through each dim tuple in the queue
-        dtype = output_data.dtype
-        attrs = source_data.attrs
-        for udims, interpolator in interpolator_queue.items():
-            # TODO move the above short-circuits into this loop
-            if all([ud not in source_coordinates.udims for ud in udims]):
-                # Skip this udim if it's not part of the source coordinates (can happen with default)
-                continue
-            # Check if parameters are being used
-            for k in self._interpolation_params:
-                self._interpolation_params[k] = hasattr(interpolator, k) or self._interpolation_params[k]
-
-            # interp_coordinates are essentially intermediate eval_coordinates
-            interp_dims = [dim for dim, c in source_coordinates.items() if set(c.dims).issubset(udims)]
-            other_dims = [dim for dim, c in eval_coordinates.items() if not set(c.dims).issubset(udims)]
-            interp_coordinates = merge_dims(
-                [source_coordinates.drop(interp_dims), eval_coordinates.drop(other_dims)], validate_crs=False
-            )
-            interp_data = UnitsDataArray.create(interp_coordinates, dtype=dtype)
-            interp_data = interpolator.interpolate(
-                udims, source_coordinates, source_data, interp_coordinates, interp_data
-            )
-
-            # prepare for the next iteration
-            source_data = interp_data.transpose(*interp_coordinates.xdims)
-            source_data.attrs = attrs
-            source_coordinates = interp_coordinates
-
-        output_data.data = interp_data.transpose(*output_data.dims)
+        output_data = self._process_interpolator_queue(
+            interpolator_queue, source_coordinates, source_data, eval_coordinates, output_data
+        )
 
         # Throw warnings for unused parameters
         for k in self._interpolation_params:
-            if self._interpolation_params[k]:
-                continue
-            _logger.warning("The interpolation parameter '{}' was ignored during interpolation.".format(k))
+            if not self._interpolation_params[k]:
+                _logger.warning("The interpolation parameter '{}' was ignored during interpolation.".format(k))
 
         return output_data
 
@@ -684,25 +736,16 @@ class InterpolationManager(object):
         new_coords = []
         covered_udims = []
         for k in interpolator_queue:
-            if not isinstance(interpolator_queue[k], NoneInterpolator):
-                # Keep the eval_coordinates for these dimensions
-                for d in eval_coordinates.dims:
-                    ud = d.split("_")
-                    for u in ud:
-                        if u in k:
-                            new_dims.append(d)
-                            new_coords.append(eval_coordinates[d])
-                            covered_udims.extend(ud)
-                            break
-            else:
-                for d in source_coordinates.dims:
-                    ud = d.split("_")
-                    for u in ud:
-                        if u in k:
-                            new_dims.append(d)
-                            new_coords.append(source_coordinates[d])
-                            covered_udims.extend(ud)
-                            break
+            # Keep the eval_coordinates for some dimensions
+            coords = source_coordinates if isinstance(interpolator_queue[k], NoneInterpolator) else eval_coordinates
+            for d in coords.dims:
+                ud = d.split("_")
+                for u in ud:
+                    if u in k:
+                        new_dims.append(d)
+                        new_coords.append(coords[d])
+                        covered_udims.extend(ud)
+                        break
         new_coordinates = Coordinates(new_coords, new_dims)
         return new_coordinates
 

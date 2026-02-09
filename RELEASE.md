@@ -2,24 +2,23 @@
 
 How to release `podpac`
 
-1. Ensure your master branch is synced to upstream:
+## Updating main
+
+1. Ensure your local main / main-3.X branch is synced to upstream:
 
 ```bash
-$ git pull upstream master
+$ git pull upstream main  # or just git pull
 ```
 
-2. Update [`version.py`](podpac/version.py) `MAJOR`, `MINOR`, and `HOTFIX` to the right semantic version
+2. Create a release branch: `release/4.x.y`
 
-3. Run unit tests for python 2 and python 3 environments
+3. Update [`version.py`](podpac/version.py) `MAJOR`, `MINOR`, and `HOTFIX` to the right semantic version
+
+4. Run unit tests
 
 ```bash
-# python 3 (assumes conda environment is named `podpac`)
-$ source activate podpac
+$ # Activate Python environment
 $ pytest podpac             
-
-# python 2 (assumes conda environment is named `podpac27`)
-$ source activate podpac27
-$ pytest podpac
 ```
 
 4. Review the [CHANGELOG](CHANGELOG.md) and update
@@ -28,20 +27,23 @@ $ pytest podpac
 ```markdown
 - <prefix>: <short description> ([<github issue>](https://github.com/creare-com/podpac/issues/<issue#>))
 ```
-5. On the master branch, Tag the release:
+
+5. Merge changes into main 
+
+6. On the main branch, Tag the release:
 
 ```bash
 $ git tag -a X.Y.Z -m 'X.Y.Z'
 ```
 
-6. Push your changes to master:
+6. Push your changes to main:
 
 ```bash
-$ git push upstream master
+$ git push upstream main
 $ git push upstream --tags
 ```
 
-7. Build source and binary wheels for pypi:
+7. Build source and binary wheels for pypi (you have to have the `wheels` package installed):
 
 ```bash
 $ git clean -xdf  # this deletes all uncommited changes!
@@ -49,7 +51,7 @@ $ python setup.py bdist_wheel sdist
 ```
 
 8. Upload package to [TestPypi](https://packaging.python.org/guides/using-testpypi/). You will need to be listed as a package owner at
-https://pypi.python.org/pypi/podpac for this to work.
+https://pypi.python.org/pypi/podpac for this to work. You now need to use a pypi generated token, can no longer use your password. 
 
 ```bash
 $ twine upload --repository-url https://test.pypi.org/legacy/ dist/podpac-X.Y.Z*
@@ -63,6 +65,4 @@ https://pypi.python.org/pypi/podpac for this to work.
 $ twine upload dist/podpac-X.Y.Z*
 ```
 
-10. Tag the `master` branch of [creare-com/podpac-examples](https://github.com/creare-com/podpac-examples) with the same semantic version.
-
-11. Issue the release announcement (tbd)
+11. Issue the release announcement (via github)

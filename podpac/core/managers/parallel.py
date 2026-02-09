@@ -24,7 +24,7 @@ zarr = lazy_module("zarr")
 zarrGroup = lazy_class("zarr.Group")
 try:
     import botocore
-except:
+except ImportError:
 
     class dum:
         pass

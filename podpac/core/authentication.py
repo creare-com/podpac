@@ -8,15 +8,19 @@ import logging
 
 import requests
 import traitlets as tl
-from lazy_import import lazy_module, lazy_function
+from lazy_import import lazy_module
 
 from podpac.core.settings import settings
 from podpac.core.utils import cached_property
 
 # Optional dependencies
-pydap_setup_session = lazy_function("pydap.cas.urs.setup_session")
+# see pydap_source.py for import note
+# pydap_setup_session = lazy_function("pydap.cas.urs.setup_session")
+from pydap.cas.urs import setup_session as pydap_setup_session
 
 _log = logging.getLogger(__name__)
+_USERNAME_AT = "username@{}"
+_PASSWORD_AT = "password@{}"
 
 
 def set_credentials(hostname, uname=None, password=None):
@@ -40,16 +44,16 @@ def set_credentials(hostname, uname=None, password=None):
         raise ValueError("`hostname` must be defined")
 
     # see whats stored in settings already
-    u_settings = settings.get("username@{}".format(hostname))
-    p_settings = settings.get("password@{}".format(hostname))
+    u_settings = settings.get(_USERNAME_AT.format(hostname))
+    p_settings = settings.get(_PASSWORD_AT.format(hostname))
 
     # get username from 1. function input 2. settings 3. python input()
     u = uname or u_settings or getpass.getpass("Username: ")
     p = password or p_settings or getpass.getpass()
 
     # set values in settings
-    settings["username@{}".format(hostname)] = u
-    settings["password@{}".format(hostname)] = p
+    settings[_USERNAME_AT.format(hostname)] = u
+    settings[_PASSWORD_AT.format(hostname)] = p
 
     _log.debug("Set credentials for hostname {}".format(hostname))
 
@@ -73,7 +77,7 @@ class RequestsSessionMixin(tl.HasTraits):
         ValueError
             Raises a ValueError if not username is stored in settings for `self.hostname`
         """
-        key = "username@{}".format(self.hostname)
+        key = _USERNAME_AT.format(self.hostname)
         username = settings.get(key)
         if not username:
             raise ValueError(
@@ -99,7 +103,7 @@ class RequestsSessionMixin(tl.HasTraits):
         ValueError
             Raises a ValueError if not password is stored in settings for `self.hostname`
         """
-        key = "password@{}".format(self.hostname)
+        key = _PASSWORD_AT.format(self.hostname)
         password = settings.get(key)
         if not password:
             raise ValueError(
@@ -190,6 +194,7 @@ class S3Mixin(tl.HasTraits):
     """Mixin to add S3 credentials and access to a Node."""
 
     anon = tl.Bool(False).tag(attr=True)
+    aws_get_auth_from_env = tl.Bool()
     aws_access_key_id = tl.Unicode(allow_none=True)
     aws_secret_access_key = tl.Unicode(allow_none=True)
     aws_region_name = tl.Unicode(allow_none=True)
@@ -213,12 +218,24 @@ class S3Mixin(tl.HasTraits):
     def _get_requester_pays(self):
         return settings["AWS_REQUESTER_PAYS"]
 
+    @tl.default("aws_get_auth_from_env")
+    def _get_aws_get_auth_from_env(self):
+        """
+        Should this class obtain its authentication
+        information from environment variables?
+        Pulls from settings, and if not present in settings,
+        defaults to False.
+        """
+        return settings.get("AWS_GET_AUTH_FROM_ENV", False)
+
     @cached_property
     def s3(self):
         # this has to be done here for multithreading to work
         s3fs = lazy_module("s3fs")
 
-        if self.anon:
+        if self.aws_get_auth_from_env:
+            return s3fs.S3FileSystem()
+        elif self.anon:
             return s3fs.S3FileSystem(anon=True, client_kwargs=self.aws_client_kwargs)
         else:
             return s3fs.S3FileSystem(

@@ -56,6 +56,7 @@ from podpac import compositor
 from podpac import managers
 from podpac import utils
 from podpac import style
+from podpac import caches
 
 ## Developer API
 from podpac import core

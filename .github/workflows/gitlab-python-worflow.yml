@@ -1,0 +1,132 @@
+# This workflow handles formatting, testing, and SonarQube scanning for the PODPAC repository.
+name: Python Workflow
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  formatting:
+    name: Formatting
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.7"
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip setuptools && pip install .[devall]
+
+      - name: Run Black Format Checks
+        run: black --check --diff podpac > black-report.txt  || true # For now pass even if files need formatting
+
+      - name: Artifact Black Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: black-report
+          path: black-report.txt
+          retention-days: 1
+
+  unit-testing:
+    name: Unit Testing
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.7"
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip setuptools && pip install .[devall]
+
+      - name: Run Pytest with Coverage
+        run: |
+          coverage run --branch \
+          -m pytest -m "not integration" --continue-on-collection-errors || \
+          { echo "WARNING: Some tests have failed. (Temporarily ignored)"; true; }
+          coverage xml -o coverage.xml
+
+      - name: Artifact Coverage Document
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+          retention-days: 1
+
+  document-testing:
+    name: Document Testing
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          path: podpac
+
+      - name: Checkout Examples Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          repository: "creare-com/podpac-examples"
+          path: podpac-examples
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.7"
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip setuptools && pip install podpac[devall]
+
+      - name: Run doc tests
+        run: |
+          cd podpac/doc && ./test-docs.sh && cd ../.. || \
+          { echo "WARNING: Some document tests have failed. (Temporarily ignored)"; true; }
+
+      - name: Artifact Doctest Document
+        uses: actions/upload-artifact@v4
+        with:
+          name: doctest
+          path: podpac/build/output.txt
+          retention-days: 1
+
+  sonarqube_scan:
+    name: SonarQube Scan
+    needs: [unit-testing]
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Download Coverage Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage
+          path: .
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

@@ -21,6 +21,7 @@ from podpac.core.utils import common_doc
 from podpac.core.coordinates.utils import get_timedelta
 from podpac.core.interpolation.selector import Selector, _higher_precision_time_coords1d, _higher_precision_time_stack
 
+
 @common_doc(COMMON_INTERPOLATOR_DOCS)
 class NoneInterpolator(Interpolator):
     """None Interpolation"""

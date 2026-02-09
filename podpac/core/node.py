@@ -5,10 +5,9 @@ Node Summary
 from __future__ import division, print_function, absolute_import
 
 import re
-import functools
 import json
-import inspect
 import importlib
+from typing import List
 import warnings
 from collections import OrderedDict
 from copy import deepcopy
@@ -31,8 +30,10 @@ from podpac.core.utils import NodeTrait
 from podpac.core.utils import hash_alg
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
-from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl, S3CacheStore, DiskCacheStore
 from podpac.core.managers.multi_threading import thread_manager
+from podpac.core.cache import CacheCtrl, make_cache_ctrl, get_default_cache_ctrl
+from podpac.core.cache.cache_ctrl import _CACHE_STORES
+
 
 _logger = logging.getLogger(__name__)
 
@@ -79,6 +80,7 @@ COMMON_NODE_DOC = {
 }
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
+_CACHE_UNAVAILABLE = "Cache unavailable, %s (key='%s')"
 
 
 class NodeException(Exception):
@@ -101,14 +103,12 @@ class Node(tl.HasTraits):
     ----------
     cache_output: bool
         Should the node's output be cached? If not provided or None, uses default based on settings
-        (CACHE_NODE_OUTPUT_DEFAULT for general Nodes, and CACHE_DATASOURCE_OUTPUT_DEFAULT  for DataSource nodes).
+        (podpac.settings["ENABLE_CACHE"]).
         If True, outputs will be cached and retrieved from cache. If False, outputs will not be cached OR retrieved from cache (even if
         they exist in cache).
     force_eval: bool
         Default is False. Should the node's cached output be updated from the source data? If True it ignores the cache
         when computing outputs but puts results into the cache (thereby updating the cache)
-    cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
-        Class that controls caching. If not provided, uses default based on settings.
     dtype : type
         The numpy datatype of the output. Currently only ``float`` is supported.
     style : :class:`podpac.Style`
@@ -126,7 +126,6 @@ class Node(tl.HasTraits):
     Additional attributes are available for debugging after evaluation, including:
      * ``_requested_coordinates``: the requested coordinates of the most recent call to eval
      * ``_output``: the output of the most recent call to eval
-     * ``_from_cache``: whether the most recent call to eval used the cache
      * ``_multi_threaded``: whether the most recent call to eval was executed using multiple threads
     """
 
@@ -137,8 +136,15 @@ class Node(tl.HasTraits):
 
     dtype = tl.Enum([float], default_value=float)
     cache_output = tl.Bool()
+    _from_cache = False
     force_eval = tl.Bool(False)
-    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+
+    property_cache_type = tl.Union(
+        [tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default_value=None
+    )
+    property_cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+
+    base_ref = tl.Unicode()
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     # e.g. data sources use ['source']
@@ -168,16 +174,17 @@ class Node(tl.HasTraits):
 
     @tl.default("cache_output")
     def _cache_output_default(self):
-        return settings["CACHE_NODE_OUTPUT_DEFAULT"]
+        return settings["ENABLE_CACHE"]
 
-    @tl.default("cache_ctrl")
-    def _cache_ctrl_default(self):
-        return get_default_cache_ctrl()
+    @tl.default("property_cache_ctrl")
+    def _property_cache_ctrl_default(self):
+        if self.property_cache_type is None:
+            return get_default_cache_ctrl()
+        return make_cache_ctrl(self.property_cache_type)
 
     # debugging
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _output = tl.Instance(UnitsDataArray, allow_none=True)
-    _from_cache = tl.Bool(allow_none=True, default_value=None)
     # Flag that is True if the Node was run multi-threaded, or None if the question doesn't apply
     _multi_threaded = tl.Bool(allow_none=True, default_value=None)
 
@@ -187,10 +194,6 @@ class Node(tl.HasTraits):
 
     def __init__(self, **kwargs):
         """Do not overwrite me"""
-
-        # Shortcut for users to make setting the cache_ctrl simpler:
-        if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
-            kwargs["cache_ctrl"] = make_cache_ctrl(kwargs["cache_ctrl"])
 
         tkwargs = self._first_init(**kwargs)
 
@@ -281,22 +284,9 @@ class Node(tl.HasTraits):
 
         if settings["DEBUG"]:
             self._requested_coordinates = coordinates
-        item = "output"
 
-        # get standardized coordinates for caching
-        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims)).simplify()
-
-        if not self.force_eval and self.cache_output and self.has_cache(item, cache_coordinates):
-            data = self.get_cache(item, cache_coordinates)
-            if output is not None:
-                order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
-                output.transpose(*order)[:] = data
-            self._from_cache = True
-        else:
-            data = self._eval(coordinates, **kwargs)
-            if self.cache_output:
-                self.put_cache(data, item, cache_coordinates)
-            self._from_cache = False
+        # Caching is now done explicitly with a Caching node
+        data = self._eval(coordinates, **kwargs)
 
         # extract single output, if necessary
         # subclasses should extract single outputs themselves if possible, but this provides a backup
@@ -463,12 +453,81 @@ class Node(tl.HasTraits):
         """
         return probe_node(self, lat, lon, time, alt, crs)
 
+    def cache(self, node_type="hash", cache_type=None, uid=None, **kwargs):
+        """This is a convenience function that creates a Cache node following this Node.
+        This means that any evaluation of the output of this function is cached using the
+        requested caching method
+
+        Parameters
+        ----------
+        node_type : str, optional
+            One of "hash" or "Zarr", "hash" by default.
+        cache_type : str, optional
+            One of "ram" or "disk", controlling where the output is cached, by default uses podpac.settings["DEFAULT_CACHE"].
+            Note, "disk" caching uses the path specified by the user in `podpac.settings.cache_path`.
+        uid : str, optional
+            A unique identifier for this node. This is used to extract data from the cache. By default uses
+            self.hash of the output `CacheNode` from this function.
+        **kwargs : dict
+            Any remaining key-word arguments are passed on to the constructor of the `CacheNode`.
+
+        Returns
+        -------
+        podpac.core.cache.cache_interface.CacheNode
+            The cache node using this node as its source.
+
+        Raises
+        ------
+        ValueError
+            When an invalid cache_type is specified
+        ValueError
+            If cache_type == 'zarr', but self.coordinates is None
+        """
+        if uid is not None:
+            kwargs["cache_uid"] = uid
+
+        if cache_type is None:
+            cache_type = settings["DEFAULT_CACHE"]
+
+        # Decide whether to use the ZarrCache or HashCache
+        # check is self.coordinates exists
+        if node_type == "hash":
+            if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
+                kwargs["cache_ctrl"] = podpac.core.cache.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
+            return podpac.caches.HashCache(source=self, cache_type=cache_type, **kwargs)
+        elif node_type == "zarr":
+            if not trait_is_defined(self, "coordinates") or self.coordinates is None:
+                raise ValueError("Cannot use ZarrCache without coordinates")
+            else:
+                return podpac.caches.ZarrCache(source=self, cache_type=cache_type, **kwargs)
+        else:
+            raise ValueError("Invalid cache type: %s. Valid cache types: zarr, hash" % cache_type)
+
+    def interpolate(self, interpolation="nearest", **kwargs):
+        """This is a convenient function that creates an Interpolation Node following this Node.
+        This means any evaluation of the output of this function will be interpolated to the
+        request coordinates.
+
+        Parameters
+        ----------
+        interpolation : str, optional
+            Interpolation type, see `podpac.interpolators.Interpolate` for options, by default "nearest"
+        **kwargs : dict
+            Additional key-word arguments passed on to the `Interpolate` node instantiation
+
+        Returns
+        -------
+        podpac.interpolators.Interpolate
+            The interpolation mode, using this node as its source
+        """
+        return podpac.interpolators.Interpolate(source=self, interpolation=interpolation, **kwargs)
+
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
     # -----------------------------------------------------------------------------------------------------------------
 
-    @property
-    def base_ref(self):
+    @tl.default("base_ref")
+    def _default_base_ref(self):
         """
         Default reference/name in node definitions
 
@@ -531,17 +590,63 @@ class Node(tl.HasTraits):
         if inputs:
             d["inputs"] = inputs
 
+        if type(self.style) is not Style and isinstance(self.style, Style):
+            d["style_class"] = self.style.__class__.__module__ + "." + self.style.__class__.__name__
         # style
         if self.style.definition:
             d["style"] = self.style.definition
 
         return d
 
+    @staticmethod
+    def _add_node(node: "Node", refs: List[str], nodes: List["Node"], definitions: List[OrderedDict]) -> str:
+        """Recursive core functionality of definition()."""
+        for ref, n in zip(refs, nodes):
+            if node == n:
+                return ref
+
+        # get base definition
+        d = node._base_definition
+
+        if "inputs" in d:
+            # sort and shallow copy
+            d["inputs"] = OrderedDict([(key, d["inputs"][key]) for key in sorted(d["inputs"].keys())])
+
+            # replace nodes with references, adding nodes depth first
+            for key, value in d["inputs"].items():
+                if isinstance(value, Node):
+                    d["inputs"][key] = Node._add_node(value, refs, nodes, definitions)
+                elif isinstance(value, (list, tuple, np.ndarray)):
+                    d["inputs"][key] = [Node._add_node(item, refs, nodes, definitions) for item in value]
+                elif isinstance(value, dict):
+                    d["inputs"][key] = {k: Node._add_node(v, refs, nodes, definitions) for k, v in value.items()}
+                else:
+                    raise TypeError("Invalid input '%s' of type '%s': %r" % (key, type(value), value))
+
+        if "attrs" in d:
+            # sort and shallow copy
+            d["attrs"] = OrderedDict([(key, d["attrs"][key]) for key in sorted(d["attrs"].keys())])
+
+        # get base ref and then ensure it is unique
+        ref = node.base_ref
+        while ref in refs:
+            if re.search("_[1-9][0-9]*$", ref):
+                ref, i = ref.rsplit("_", 1)
+                i = int(i)
+            else:
+                i = 0
+            ref = "%s_%d" % (ref, i + 1)
+
+        nodes.append(node)
+        refs.append(ref)
+        definitions.append(d)
+
+        return ref
+
     @cached_property
     def definition(self):
         """
         Full node definition.
-
         Returns
         -------
         OrderedDict
@@ -561,51 +666,8 @@ class Node(tl.HasTraits):
             refs = []
             definitions = []
 
-            def add_node(node):
-                for ref, n in zip(refs, nodes):
-                    if node == n:
-                        return ref
-
-                # get base definition
-                d = node._base_definition
-
-                if "inputs" in d:
-                    # sort and shallow copy
-                    d["inputs"] = OrderedDict([(key, d["inputs"][key]) for key in sorted(d["inputs"].keys())])
-
-                    # replace nodes with references, adding nodes depth first
-                    for key, value in d["inputs"].items():
-                        if isinstance(value, Node):
-                            d["inputs"][key] = add_node(value)
-                        elif isinstance(value, (list, tuple, np.ndarray)):
-                            d["inputs"][key] = [add_node(item) for item in value]
-                        elif isinstance(value, dict):
-                            d["inputs"][key] = {k: add_node(v) for k, v in value.items()}
-                        else:
-                            raise TypeError("Invalid input '%s' of type '%s': %s" % (key, type(value)))
-
-                if "attrs" in d:
-                    # sort and shallow copy
-                    d["attrs"] = OrderedDict([(key, d["attrs"][key]) for key in sorted(d["attrs"].keys())])
-
-                # get base ref and then ensure it is unique
-                ref = node.base_ref
-                while ref in refs:
-                    if re.search("_[1-9][0-9]*$", ref):
-                        ref, i = ref.rsplit("_", 1)
-                        i = int(i)
-                    else:
-                        i = 0
-                    ref = "%s_%d" % (ref, i + 1)
-
-                nodes.append(node)
-                refs.append(ref)
-                definitions.append(d)
-
-                return ref
-
             # add top level node
-            add_node(self)
+            Node._add_node(self, refs, nodes, definitions)
 
             # finalize, verify serializable, and return
             definition = OrderedDict(zip(refs, definitions))
@@ -643,6 +705,8 @@ class Node(tl.HasTraits):
         for k in d:
             if "style" in d[k]:
                 del d[k]["style"]
+            if "style_class" in d[k]:
+                del d[k]["style_class"]
 
         s = json.dumps(d, separators=(",", ":"), cls=JSONEncoder)
         return hash_alg(s.encode("utf-8")).hexdigest()
@@ -678,22 +742,19 @@ class Node(tl.HasTraits):
     # Caching Interface
     # -----------------------------------------------------------------------------------------------------------------
 
-    def get_cache(self, key, coordinates=None):
+    def get_property_cache(self, key, coordinates=None):
         """
         Get cached data for this node.
-
         Parameters
         ----------
         key : str
             Key for the cached data, e.g. 'output'
         coordinates : podpac.Coordinates, optional
             Coordinates for which the cached data should be retrieved. Omit for coordinate-independent data.
-
         Returns
         -------
         data : any
             The cached data.
-
         Raises
         ------
         NodeException
@@ -703,17 +764,16 @@ class Node(tl.HasTraits):
         try:
             self.definition
         except NodeDefinitionError as e:
-            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+            raise NodeException(_CACHE_UNAVAILABLE % (e.args[0], key))
 
-        if self.cache_ctrl is None or not self.has_cache(key, coordinates=coordinates):
+        if self.property_cache_ctrl is None or not self.has_property_cache(key, coordinates=coordinates):
             raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
 
-        return self.cache_ctrl.get(self, key, coordinates=coordinates)
+        return self.property_cache_ctrl.get(self, key, coordinates=coordinates)
 
-    def put_cache(self, data, key, coordinates=None, expires=None, overwrite=True):
+    def put_property_cache(self, data, key, coordinates=None, expires=None, overwrite=True):
         """
         Cache data for this node.
-
         Parameters
         ----------
         data : any
@@ -726,7 +786,6 @@ class Node(tl.HasTraits):
             Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
         overwrite : bool, optional
             Overwrite existing data, default True.
-
         Raises
         ------
         NodeException
@@ -736,28 +795,26 @@ class Node(tl.HasTraits):
         try:
             self.definition
         except NodeDefinitionError as e:
-            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+            raise NodeException(_CACHE_UNAVAILABLE % (e.args[0], key))
 
-        if self.cache_ctrl is None:
+        if self.property_cache_ctrl is None:
             return
 
-        if not overwrite and self.has_cache(key, coordinates=coordinates):
+        if not overwrite and self.has_property_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
         with thread_manager.cache_lock:
-            self.cache_ctrl.put(self, data, key, coordinates=coordinates, expires=expires, update=overwrite)
+            self.property_cache_ctrl.put(self, data, key, coordinates=coordinates, expires=expires, update=overwrite)
 
-    def has_cache(self, key, coordinates=None):
+    def has_property_cache(self, key, coordinates=None):
         """
         Check for cached data for this node.
-
         Parameters
         ----------
         key : str
             Key for the cached data, e.g. 'output'
         coordinates : podpac.Coordinates, optional
             Coordinates for which the cached data should be retrieved. Omit for coordinate-independent data.
-
         Returns
         -------
         bool
@@ -767,15 +824,15 @@ class Node(tl.HasTraits):
         try:
             self.definition
         except NodeDefinitionError as e:
-            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+            raise NodeException(_CACHE_UNAVAILABLE % (e.args[0], key))
 
-        if self.cache_ctrl is None:
+        if self.property_cache_ctrl is None:
             return False
 
         with thread_manager.cache_lock:
-            return self.cache_ctrl.has(self, key, coordinates=coordinates)
+            return self.property_cache_ctrl.has(self, key, coordinates=coordinates)
 
-    def rem_cache(self, key, coordinates=None, mode="all"):
+    def rem_property_cache(self, key, coordinates=None, mode="all"):
         """
         Clear cached data for this node.
 
@@ -798,12 +855,12 @@ class Node(tl.HasTraits):
         try:
             self.definition
         except NodeDefinitionError as e:
-            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+            raise NodeException(_CACHE_UNAVAILABLE % (e.args[0], key))
 
-        if self.cache_ctrl is None:
+        if self.property_cache_ctrl is None:
             return
 
-        self.cache_ctrl.rem(self, item=key, coordinates=coordinates, mode=mode)
+        self.property_cache_ctrl.rem(self, item=key, coordinates=coordinates, mode=mode)
 
     # --------------------------------------------------------#
     #  Class Methods (Deserialization)
@@ -1010,6 +1067,65 @@ class Node(tl.HasTraits):
 
         return cls.from_definition(d)
 
+    @staticmethod
+    def _get_schema_for_attr(cls, attr, function_defaults):
+        """Compute UI spec for the given attribute of the given class"""
+        attrt = getattr(cls, attr)
+        type_ = attrt.__class__.__name__
+
+        try:
+            schema = getattr(attrt, "_schema")
+        except AttributeError:
+            schema = None
+
+        type_extra = str(attrt)
+        if type_ == "Union":
+            type_ = [t.__class__.__name__ for t in attrt.trait_types]
+            type_extra = "Union"
+        elif type_ == "Instance":
+            type_ = attrt.klass.__name__
+            if type_ == "Node":
+                type_ = "NodeTrait"
+            type_extra = attrt.klass
+        elif type_ == "Dict" and schema is None:
+            try:
+                schema = {
+                    "key": getattr(attrt, "_key_trait").__class__.__name__,
+                    "value": getattr(attrt, "_value_trait").__class__.__name__,
+                }
+            except Exception:
+                _logger.exception(f"Could not find schema for {attrt} of type {type_}")
+                schema = None
+
+        required = attrt.metadata.get("required", False)
+        hidden = attrt.metadata.get("hidden", False)
+        if attr in function_defaults:
+            default_val = function_defaults[attr]
+        else:
+            default_val = attrt.default()
+        if not isinstance(type_extra, str):
+            type_extra = str(type_extra)
+        try:
+            if np.isnan(default_val):
+                default_val = "nan"
+        except Exception:
+            pass
+
+        if default_val == tl.Undefined:
+            default_val = None
+
+        return {
+            "type": type_,
+            "type_str": type_extra,  # May remove this if not needed
+            "values": getattr(attrt, "values", None),
+            "default": default_val,
+            "help": attrt.help,
+            "required": required,
+            "hidden": hidden,
+            "schema": schema,
+        }
+
+
     @classmethod
     def get_ui_spec(cls, help_as_html=False):
         """Get spec of node attributes for building a ui
@@ -1024,7 +1140,7 @@ class Node(tl.HasTraits):
         dict
             Spec for this node that is readily json-serializable
         """
-        filter = []
+        filter_attrs = []
         spec = {"help": cls.__doc__, "module": cls.__module__ + "." + cls.__name__, "attrs": {}, "style": {}}
         # Strip out starting spaces in the help text so that markdown parsing works correctly
         if spec["help"] is None:
@@ -1051,7 +1167,7 @@ class Node(tl.HasTraits):
             try:
                 try:
                     def_val = atr(cls())
-                except:
+                except Exception:
                     def_val = atr(cls)
                 if isinstance(def_val, NodeTrait):
                     def_val = def_val.name
@@ -1066,71 +1182,20 @@ class Node(tl.HasTraits):
                 )
 
         for attr in dir(cls):
-            if attr in filter:
+            if attr in filter_attrs:
                 continue
             attrt = getattr(cls, attr)
             if not isinstance(attrt, tl.TraitType):
                 continue
             if not attrt.metadata.get("attr", False):
                 continue
-            type_ = attrt.__class__.__name__
-
-            try:
-                schema = getattr(attrt, "_schema")
-            except:
-                schema = None
-
-            type_extra = str(attrt)
-            if type_ == "Union":
-                type_ = [t.__class__.__name__ for t in attrt.trait_types]
-                type_extra = "Union"
-            elif type_ == "Instance":
-                type_ = attrt.klass.__name__
-                if type_ == "Node":
-                    type_ = "NodeTrait"
-                type_extra = attrt.klass
-            elif type_ == "Dict" and schema is None:
-                try:
-                    schema = {
-                        "key": getattr(attrt, "_key_trait").__class__.__name__,
-                        "value": getattr(attrt, "_value_trait").__class__.__name__,
-                    }
-                except Exception as e:
-                    print("Could not find schema for", attrt, " of type", type_)
-                    schema = None
-
-            required = attrt.metadata.get("required", False)
-            hidden = attrt.metadata.get("hidden", False)
-            if attr in function_defaults:
-                default_val = function_defaults[attr]
-            else:
-                default_val = attrt.default()
-            if not isinstance(type_extra, str):
-                type_extra = str(type_extra)
-            try:
-                if np.isnan(default_val):
-                    default_val = "nan"
-            except:
-                pass
-
-            if default_val == tl.Undefined:
-                default_val = None
-
-            spec["attrs"][attr] = {
-                "type": type_,
-                "type_str": type_extra,  # May remove this if not needed
-                "values": getattr(attrt, "values", None),
-                "default": default_val,
-                "help": attrt.help,
-                "required": required,
-                "hidden": hidden,
-                "schema": schema,
-            }
+            
+            spec["attrs"][attr] = Node._get_schema_for_attr(cls, attr, function_defaults)
 
         try:
             # This returns the
             style_json = json.loads(cls().style.json)  # load the style from the cls
-        except:
+        except Exception:
             style_json = {}
 
         spec["style"] = style_json  # this does not work, because node not created yet?
@@ -1201,7 +1266,7 @@ def _lookup_input(nodes, name, value, definition):
             % (name, value, type(value))
         )
     # node not yet discovered yet
-    if not value in nodes:
+    if value not in nodes:
         # Look for it in the definition items:
         for found_name, d in definition.items():
             if value != found_name:
@@ -1211,7 +1276,7 @@ def _lookup_input(nodes, name, value, definition):
 
             break
 
-    if not value in nodes:
+    if value not in nodes:
         raise ValueError(
             "Invalid definition for node '%s': reference to nonexistent node '%s' in inputs" % (name, value)
         )
@@ -1261,6 +1326,42 @@ def _lookup_attr(nodes, name, value):
 
     return attr
 
+def _compute_style_class(d, node_class, name):
+    """Get style class from the provided node definition. Helper for _process_kwargs"""
+    if "style_class" in d:
+        style_string = d["style_class"]
+        module_style_name, style_name = style_string.rsplit(".", 1)
+
+        try:
+            style_module = importlib.import_module(module_style_name)
+        except ImportError:
+            raise ValueError(
+                "Invalid definition for style module '%s': no module found '%s'" % (name, module_style_name)
+            )
+        try:
+            style_class = getattr(style_module, style_name)
+        except AttributeError:
+            raise ValueError(
+                "Invalid definition for style '%s': style class '%s' not found in style module '%s'"
+                % (name, style_name, module_style_name)
+            )
+    else:
+        style_class = getattr(node_class, "style", Style)
+    if isinstance(style_class, tl.TraitType):
+        # Now we actually have to look through the class to see
+        # if there is a custom initializer for style
+        for attr in dir(node_class):
+            atr = getattr(node_class, attr)
+            if not isinstance(atr, tl.traitlets.DefaultHandler) or atr.trait_name != "style":
+                continue
+            try:
+                style_class = atr(node_class)
+            except Exception:
+                try:
+                    style_class = atr(node_class())
+                except Exception:
+                    style_class = style_class.klass
+    return style_class
 
 def _process_kwargs(name, d, definition, nodes):
     """create a node and add it to nodes
@@ -1301,7 +1402,15 @@ def _process_kwargs(name, d, definition, nodes):
 
     kwargs = {}
     for k, v in d.get("attrs", {}).items():
-        kwargs[k] = v
+        if (
+            isinstance(getattr(node_class, k), tl.TraitType)
+            and hasattr(getattr(node_class, k), "klass")
+            and isinstance(v, OrderedDict)
+            and getattr(node_class, k).klass == Coordinates
+        ):
+            kwargs[k] = Coordinates.from_definition(v)
+        else:
+            kwargs[k] = v
 
     for k, v in d.get("inputs", {}).items():
         kwargs[k] = _lookup_input(nodes, name, v, definition)
@@ -1310,64 +1419,25 @@ def _process_kwargs(name, d, definition, nodes):
         kwargs[k] = _lookup_attr(nodes, name, v)
 
     if "style" in d:
-        style_class = getattr(node_class, "style", Style)
-        if isinstance(style_class, tl.TraitType):
-            # Now we actually have to look through the class to see
-            # if there is a custom initializer for style
-            for attr in dir(node_class):
-                atr = getattr(node_class, attr)
-                if not isinstance(atr, tl.traitlets.DefaultHandler) or atr.trait_name != "style":
-                    continue
-                try:
-                    style_class = atr(node_class)
-                except Exception as e:
-                    # print ("couldn't make style from class", e)
-                    try:
-                        style_class = atr(node_class())
-                    except:
-                        # print ("couldn't make style from class instance", e)
-                        style_class = style_class.klass
+        style_class = _compute_style_class(d, node_class, name)
         try:
             kwargs["style"] = style_class.from_definition(d["style"])
-        except Exception as e:
+        except Exception:
             kwargs["style"] = Style.from_definition(d["style"])
-            # print ("couldn't make style from inferred style class", e)
 
     for k in d:
-        if k not in ["node", "inputs", "attrs", "lookup_attrs", "plugin", "style"]:
+        if k not in ["node", "inputs", "attrs", "lookup_attrs", "plugin", "style", "style_class"]:
             raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
 
+    for k in kwargs.keys():
+        if not (hasattr(node_class, k) and isinstance(getattr(node_class, k), tl.TraitType)):
+            logging.warn(
+                "Node definition has key '{}' that will not be set at node creation: attribute is not of type tl.TraitType".format(
+                    k
+                )
+            )
+
     nodes[name] = node_class(**kwargs)
-
-
-# --------------------------------------------------------#
-#  Mixins
-# --------------------------------------------------------#
-
-
-class NoCacheMixin(tl.HasTraits):
-    """Mixin to use no cache by default."""
-
-    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
-
-    @tl.default("cache_ctrl")
-    def _cache_ctrl_default(self):
-        return CacheCtrl([])
-
-
-class DiskCacheMixin(tl.HasTraits):
-    """Mixin to add disk caching to the Node by default."""
-
-    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
-
-    @tl.default("cache_ctrl")
-    def _cache_ctrl_default(self):
-        # get the default cache_ctrl and addd a disk cache store if necessary
-        default_ctrl = get_default_cache_ctrl()
-        stores = default_ctrl._cache_stores
-        if not any(isinstance(store, DiskCacheStore) for store in default_ctrl._cache_stores):
-            stores.append(DiskCacheStore())
-        return CacheCtrl(stores)
 
 
 # --------------------------------------------------------#

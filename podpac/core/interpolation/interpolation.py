@@ -1,5 +1,4 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
-from podpac.core.cache import cache_ctrl
 
 import traitlets as tl
 from copy import deepcopy
@@ -20,39 +19,6 @@ from podpac.core.cache.cache_ctrl import CacheCtrl
 from podpac.core.data.datasource import DataSource
 
 _logger = logging.getLogger(__name__)
-
-
-class InterpolationMixin(tl.HasTraits):
-    # interpolation = InterpolationTrait().tag(attr=True, required=False, default = "nearesttt")
-    interpolation = InterpolationTrait().tag(attr=True)
-
-    _interp_node = None
-
-    @property
-    def _repr_keys(self):
-        return super()._repr_keys + ["interpolation"]
-
-    def _eval(self, coordinates, output=None, _selector=None):
-        node = Interpolate(
-            interpolation=self.interpolation,
-            source_id=self.hash,
-            force_eval=True,
-            cache_ctrl=CacheCtrl([]),
-            style=self.style,
-        )
-        node._set_interpolation()
-        selector = node._interpolation.select_coordinates
-        node._source_xr = super()._eval(coordinates, _selector=selector)
-        self._interp_node = node
-        if isinstance(self, DataSource):
-            # This is required to ensure that the output coordinates
-            # match the requested coordinates to floating point precision
-            r = node.eval(self._requested_coordinates, output=output)
-        else:
-            r = node.eval(coordinates, output=output)
-        # Helpful for debugging
-        self._from_cache = node._from_cache
-        return r
 
 
 class Interpolate(Node):
@@ -91,7 +57,7 @@ class Interpolate(Node):
         class will be used without modification.
     cache_output : bool
         Should the node's output be cached? If not provided or None, uses default based on
-        settings["CACHE_DATASOURCE_OUTPUT_DEFAULT"]. If True, outputs will be cached and retrieved from cache. If False,
+        settings["ENABLE_CACHE"]. If True, outputs will be cached and retrieved from cache. If False,
         outputs will not be cached OR retrieved from cache (even if they exist in cache).
 
     Examples
@@ -144,7 +110,7 @@ class Interpolate(Node):
 
     @tl.default("cache_output")
     def _cache_output_default(self):
-        return settings["CACHE_NODE_OUTPUT_DEFAULT"]
+        return settings["ENABLE_CACHE"]
 
     @tl.default("units")
     def _use_source_units(self):
@@ -153,6 +119,16 @@ class Interpolate(Node):
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
+
+    @property
+    def outputs(self):
+        """ Pass through outputs from source """
+        return self.source.outputs
+
+    @property
+    def coordinates(self):
+        """ Pass through coordinates from source """
+        return self.source.coordinates
 
     @property
     def interpolation_class(self):
@@ -226,6 +202,8 @@ class Interpolate(Node):
         ValueError
             Cannot evaluate these coordinates
         """
+        self._set_interpolation()
+        _selector = self._interpolation.select_coordinates
 
         _logger.debug("Evaluating {} data source".format(self.__class__.__name__))
 
@@ -257,7 +235,7 @@ class Interpolate(Node):
 
         if output is None:
             if "output" in source_out.dims:
-                self.set_trait("outputs", source_out.coords["output"].data.tolist())
+                self.source.set_trait("outputs", source_out.coords["output"].data.tolist())
             output = self.create_output_array(coordinates)
 
         if source_out.size == 0:  # short cut

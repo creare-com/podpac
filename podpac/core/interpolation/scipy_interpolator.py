@@ -12,7 +12,7 @@ try:
     import scipy
     from scipy.interpolate import griddata, RectBivariateSpline, RegularGridInterpolator
     from scipy.spatial import KDTree
-except:
+except ImportError:
     scipy = None
 
 # podac imports

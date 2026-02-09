@@ -16,6 +16,11 @@ ALT = [1, 2, 3, 4]
 DATA = np.arange(48).reshape((3, 2, 2, 4))
 OTHER = 2 * np.arange(48).reshape((3, 2, 2, 4))
 
+_SOURCE_EQ = "source="
+_DATA_KEY_EQ = "data_key="
+_LOCAL_CSV_PATH = "assets/points-single.csv"
+_FILE_PREFIX = "file:///%s"
+_INVALID_DATA_KEY = "Invalid data_key"
 
 class TestBaseFileSource(object):
     def test_source_required(self):
@@ -34,8 +39,8 @@ class TestBaseFileSource(object):
 
     def test_repr_str(self):
         node = BaseFileSource(source="mysource")
-        assert "source=" in repr(node)
-        assert "source=" in str(node)
+        assert _SOURCE_EQ in repr(node)
+        assert _SOURCE_EQ in str(node)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -55,65 +60,68 @@ class TestLoadFile(object):
             node.open_dataset(None)
 
     def test_local(self):
-        path = os.path.join(os.path.dirname(__file__), "assets/points-single.csv")
+        path = os.path.join(os.path.dirname(__file__), _LOCAL_CSV_PATH)
         node = MockLoadFile(source=path)
         node.dataset
 
     @pytest.mark.aws
+    @pytest.mark.skip("Unreachable source")
     def test_s3(self):
         # TODO replace this with a better public s3 fileobj for testing
         path = "s3://modis-pds/MCD43A4.006/00/08/2020018/MCD43A4.A2020018.h00v08.006.2020027031229_meta.json"
         node = MockLoadFile(source=path)
         node.dataset
 
-    @pytest.mark.aws  # TODO
+    @pytest.mark.aws
+    @pytest.mark.skip("Unreachable source")
     def test_ftp(self):
         node = MockLoadFile(source="ftp://speedtest.tele2.net/1KB.zip")
         node.dataset
 
     @pytest.mark.aws  # TODO
+    @pytest.mark.skip("Unreachable source")
     def test_http(self):
         node = MockLoadFile(source="https://httpstat.us/200")
         node.dataset
 
     def test_file(self):
-        path = os.path.join(os.path.dirname(__file__), "assets/points-single.csv")
-        node = MockLoadFile(source="file:///%s" % path)
+        path = os.path.join(os.path.dirname(__file__), _LOCAL_CSV_PATH)
+        node = MockLoadFile(source=_FILE_PREFIX % path)
         node.dataset
 
     def test_cache_dataset(self):
-        path = os.path.join(os.path.dirname(__file__), "assets/points-single.csv")
+        path = os.path.join(os.path.dirname(__file__), _LOCAL_CSV_PATH)
 
         with podpac.settings:
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
-            node = MockLoadFile(source="file:///%s" % path, cache_dataset=True)
+            node = MockLoadFile(source=_FILE_PREFIX % path, cache_dataset=True)
             node.dataset
 
             # node caches dataset object
-            assert node._dataset_caching_node.has_cache("dataset")
+            assert node._dataset_caching_node.has_property_cache("dataset")
 
             # another node can get cached object
-            node2 = MockLoadFile(source="file:///%s" % path)
-            assert node2._dataset_caching_node.has_cache("dataset")
+            node2 = MockLoadFile(source=_FILE_PREFIX % path)
+            assert node2._dataset_caching_node.has_property_cache("dataset")
             node2.dataset
 
     def test_dataset_expires(self):
-        path = os.path.join(os.path.dirname(__file__), "assets/points-single.csv")
+        path = os.path.join(os.path.dirname(__file__), _LOCAL_CSV_PATH)
 
         with podpac.settings:
             # not expired
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
-            node = MockLoadFile(source="file:///%s" % path, cache_dataset=True, dataset_expires="1,D")
+            node = MockLoadFile(source=_FILE_PREFIX % path, cache_dataset=True, dataset_expires="1,D").cache()
             node.cache_ctrl.clear()
-            node.dataset
-            assert node._dataset_caching_node.has_cache("dataset")
+            node.source.dataset
+            assert node.source._dataset_caching_node.has_property_cache("dataset")  # # don't know about the datasource cache
 
             # expired
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
-            node = MockLoadFile(source="file:///%s" % path, cache_dataset=True, dataset_expires="-1,D")
+            node = MockLoadFile(source=_FILE_PREFIX % path, cache_dataset=True, dataset_expires="-1,D").cache()
             node.cache_ctrl.clear()
-            node.dataset
-            assert not node._dataset_caching_node.has_cache("dataset")
+            node.source.dataset
+            assert not node.source._dataset_caching_node.has_property_cache("dataset")
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -173,8 +181,8 @@ class TestFileKeys(object):
         node = MockFileKeys(data_key="data")
         assert node.data_key == "data"
 
-        with pytest.raises(ValueError, match="Invalid data_key"):
-            node = MockFileKeys(data_key="misc")
+        with pytest.raises(ValueError, match=_INVALID_DATA_KEY):
+            MockFileKeys(data_key="misc")
 
     def test_data_key_multiple_outputs(self):
         node = MockFileKeysMultipleAvailable()
@@ -186,11 +194,11 @@ class TestFileKeys(object):
         node = MockFileKeysMultipleAvailable(data_key="other")
         assert node.data_key == "other"
 
-        with pytest.raises(ValueError, match="Invalid data_key"):
-            node = MockFileKeysMultipleAvailable(data_key=["data", "misc"])
+        with pytest.raises(ValueError, match=_INVALID_DATA_KEY):
+            MockFileKeysMultipleAvailable(data_key=["data", "misc"])
 
-        with pytest.raises(ValueError, match="Invalid data_key"):
-            node = MockFileKeysMultipleAvailable(data_key="misc")
+        with pytest.raises(ValueError, match=_INVALID_DATA_KEY):
+            MockFileKeysMultipleAvailable(data_key="misc")
 
     def test_no_outputs(self):
         node = MockFileKeys(data_key="data")
@@ -199,14 +207,15 @@ class TestFileKeys(object):
         node = MockFileKeysMultipleAvailable(data_key="data")
         assert node.outputs == None
 
-        with pytest.raises(TypeError, match="outputs must be None for single-output nodes"):
-            node = MockFileKeys(data_key="data", outputs=["a"])
+        OUTPUTS_NONE = "outputs must be None for single-output nodes"
+        with pytest.raises(TypeError, match=OUTPUTS_NONE):
+            MockFileKeys(data_key="data", outputs=["a"])
 
-        with pytest.raises(TypeError, match="outputs must be None for single-output nodes"):
-            node = MockFileKeysMultipleAvailable(data_key="data", outputs=["a"])
+        with pytest.raises(TypeError, match=OUTPUTS_NONE):
+            MockFileKeysMultipleAvailable(data_key="data", outputs=["a"])
 
-        with pytest.raises(TypeError, match="outputs must be None for single-output nodes"):
-            node = MockFileKeys(outputs=["a"])
+        with pytest.raises(TypeError, match=OUTPUTS_NONE):
+            MockFileKeys(outputs=["a"])
 
     def test_outputs(self):
         # for multi-output nodes, use the dataset's keys by default
@@ -234,13 +243,13 @@ class TestFileKeys(object):
 
         # but the outputs and data_key must match
         with pytest.raises(TypeError, match="outputs and data_key mismatch"):
-            node = MockFileKeysMultipleAvailable(data_key=["data"], outputs=None)
+            MockFileKeysMultipleAvailable(data_key=["data"], outputs=None)
 
         with pytest.raises(ValueError, match="outputs and data_key size mismatch"):
-            node = MockFileKeysMultipleAvailable(data_key=["data"], outputs=["a", "b"])
+            MockFileKeysMultipleAvailable(data_key=["data"], outputs=["a", "b"])
 
         with pytest.raises(ValueError, match="outputs and data_key size mismatch"):
-            node = MockFileKeysMultipleAvailable(data_key=["data", "other"], outputs=["a"])
+            MockFileKeysMultipleAvailable(data_key=["data", "other"], outputs=["a"])
 
     def test_coordinates(self):
         node = MockFileKeys()
@@ -254,25 +263,25 @@ class TestFileKeys(object):
     def test_repr_str(self):
         node = MockFileKeys()
 
-        assert "source=" in repr(node)
-        assert "data_key=" not in repr(node)
+        assert _SOURCE_EQ in repr(node)
+        assert _DATA_KEY_EQ not in repr(node)
 
-        assert "source=" in str(node)
-        assert "data_key=" not in str(node)
+        assert _SOURCE_EQ in str(node)
+        assert _DATA_KEY_EQ not in str(node)
 
     def test_repr_str_multiple_outputs(self):
         node = MockFileKeysMultipleAvailable()
 
-        assert "source=" in repr(node)
-        assert "data_key=" not in repr(node)
+        assert _SOURCE_EQ in repr(node)
+        assert _DATA_KEY_EQ not in repr(node)
 
-        assert "source=" in str(node)
-        assert "data_key=" not in str(node)
+        assert _SOURCE_EQ in str(node)
+        assert _DATA_KEY_EQ not in str(node)
 
         node = MockFileKeysMultipleAvailable(data_key="data")
 
-        assert "source=" in repr(node)
-        assert "data_key=" in repr(node)
+        assert _SOURCE_EQ in repr(node)
+        assert _DATA_KEY_EQ in repr(node)
 
-        assert "source=" in str(node)
-        assert "data_key=" in str(node)
+        assert _SOURCE_EQ in str(node)
+        assert _DATA_KEY_EQ in str(node)

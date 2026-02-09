@@ -4,12 +4,11 @@ import traitlets as tl
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin, LoadFileMixin
-from podpac.core.interpolation.interpolation import InterpolationMixin
 from podpac.core.coordinates.coordinates import Coordinates
 
 
 @common_doc(COMMON_DATA_DOC)
-class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
+class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
     """Create a DataSource node using xarray.open_dataset.
 
     Attributes
@@ -45,6 +44,7 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
     --------
     Dataset : Interpolated xarray dataset source for general use.
     """
+
     # selection lets you use other dims
     # dataset = tl.Instance(xr.Dataset).tag(readonly=True)
     selection = tl.Dict(allow_none=True, default_value=None).tag(attr=True)
@@ -60,7 +60,7 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
         return xr.open_dataset(fp, decode_cf=self.decode_cf)
 
     def close_dataset(self):
-        super(DatasetRaw, self).close_dataset()
+        super(Dataset, self).close_dataset()
         self.dataset.close()
 
     @cached_property
@@ -93,9 +93,3 @@ class DatasetRaw(FileKeysMixin, LoadFileMixin, BaseFileSource):
         if self.infer_podpac_coords:
             return Coordinates.from_xarray(self.dataset, crs=self.crs)
         return super().get_coordinates()
-
-
-class Dataset(InterpolationMixin, DatasetRaw):
-    """xarray dataset source with interpolation."""
-
-    pass

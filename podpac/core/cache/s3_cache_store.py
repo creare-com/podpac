@@ -37,8 +37,8 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
             overides podpac settings if both `aws_access_key_id` and `aws_secret_access_key` are specified
         """
 
-        if not settings["S3_CACHE_ENABLED"]:
-            raise CacheException("S3 cache is disabled in the podpac settings.")
+        if not settings["ENABLE_CACHE"]:
+            raise CacheException("Cache is disabled in the podpac settings.")
 
         self._root_dir_path = settings["S3_CACHE_DIR"]
 

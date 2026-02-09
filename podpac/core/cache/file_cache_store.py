@@ -9,7 +9,7 @@ import time
 
 try:
     import cPickle as pickle  # python 2
-except:
+except ImportError:
     import pickle
 
 import numpy as np
@@ -308,7 +308,7 @@ class FileCacheStore(CacheStore):
     # file storage abstraction
     # -----------------------------------------------------------------------------------------------------------------
 
-    def _save(self, path, s):
+    def _save(self, path, s, metadata=None):
         raise NotImplementedError
 
     def _load(self, path):

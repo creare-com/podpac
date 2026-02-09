@@ -174,7 +174,7 @@ class TestInterpolation(object):
             InterpolationManager([{"method": "nearest", "params": {"spatial_tolerance": "tol"}}])
 
         with pytest.raises(AttributeError):
-            assert interp.config[("default",)]["interpolators"][0].myarg == "tol"
+            interp.config[("default",)]["interpolators"][0].myarg
 
     def test_select_interpolator_queue(self):
 
@@ -356,7 +356,7 @@ class TestHeterogenousInterpolation(object):
 
     def test_nearest(self):
         interpolation = "nearest"
-        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS).interpolate(interpolation=interpolation)
 
         assert node.eval(self.C1)[0, 0, 0] == 21.0
         assert node.eval(self.C2)[0, 0, 0] == 21.0
@@ -372,7 +372,7 @@ class TestHeterogenousInterpolation(object):
 
     def test_mixed(self):
         interpolation = [{"method": "nearest", "dims": ["time"]}, {"method": "bilinear", "dims": ["lat", "lon"]}]
-        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS).interpolate(interpolation=interpolation)
 
         assert node.eval(self.C1)[0, 0, 0] == 21.0
         assert node.eval(self.C2)[0, 0, 0] == 25.4
@@ -388,7 +388,7 @@ class TestHeterogenousInterpolation(object):
 
         # other order
         interpolation = [{"method": "bilinear", "dims": ["lat", "lon"]}, {"method": "nearest", "dims": ["time"]}]
-        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS).interpolate(interpolation=interpolation)
 
         assert node.eval(self.C1)[0, 0, 0] == 21.0
         assert node.eval(self.C2)[0, 0, 0] == 25.4
@@ -404,7 +404,9 @@ class TestHeterogenousInterpolation(object):
 
     def test_mixed_linear_time(self):
         interpolation = [{"method": "bilinear", "dims": ["time"]}, {"method": "nearest", "dims": ["lat", "lon"]}]
-        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation).interpolate(
+            interpolation=interpolation
+        )
 
         assert node.eval(self.C1)[0, 0, 0] == 21.0
         assert node.eval(self.C2)[0, 0, 0] == 21.0
@@ -423,9 +425,8 @@ class TestHeterogenousInterpolation(object):
         node = podpac.data.Array(
             source=np.transpose([self.DATA, 2 * self.DATA], [1, 2, 3, 0]),
             coordinates=self.COORDS,
-            interpolation=interpolation,
             outputs=["a", "b"],
-        )
+        ).interpolate(interpolation=interpolation)
 
         np.testing.assert_array_equal(node.eval(self.C1)[0, 0, 0], [21.0, 2 * 21.0])
         np.testing.assert_array_equal(node.eval(self.C2)[0, 0, 0], [21.0, 2 * 21.0])
@@ -444,7 +445,7 @@ class TestHeterogenousInterpolation(object):
             coordinates=self.COORDS,
             interpolation=interpolation,
             outputs=["a", "b"],
-        )
+        ).interpolate(interpolation=interpolation)
 
         np.testing.assert_array_equal(node.eval(self.C1)[0, 0, 0], [21.0, 2 * 21.0])
         np.testing.assert_array_equal(node.eval(self.C2)[0, 0, 0], [25.4, 2 * 25.4])

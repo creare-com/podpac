@@ -27,6 +27,8 @@ install_requires = [
     "psutil",
     "affine",
     "geopy",
+    "webob",
+    "pydap>=3.3",
 ]
 
 if sys.version_info.major == 2:
@@ -39,15 +41,15 @@ extras_require = {
         "beautifulsoup4>=4.6",
         "h5py>=2.9",
         "lxml>=4.2",
-        "pydap>=3.3",
         "rasterio>=1.0",
-        "zarr>=2.3",
+        "zarr>=2.3,<3",
         "owslib",
-        "h5netcdf"
+        "h5netcdf",
         # "intake>=0.5"  Not supported in Python 3.5
     ],
     "aws": ["awscli>=1.16", "boto3>=1.9.200", "s3fs>=0.4"],
     "algorithms": ["numexpr>=2.6"],
+    # "datalib": ["podpacdatalib"],
     "notebook": [
         "jupyterlab",
         "ipyleaflet",
@@ -60,28 +62,31 @@ extras_require = {
         "sat-search>=0.2",
         "sat-stac>=0.3",
     ],
-    "node_ui": [
-        "numpydoc"
-    ],
+    "node_ui": ["numpydoc"],
     "dev": [
         "pylint>=1.8.2",
-        "pytest-cov>=2.5.1",
+        "coverage>=4.5.1",
         "pytest-html>=1.7.0",
         "pytest-remotedata>=0.3.1",
         "myst-parser>=1.0.0",
-        "coveralls>=1.3",
         "six>=1.0",
         "attrs>=17.4.0",
-        "pre_commit>=1",
+        "pre_commit>=1"
     ],
 }
 
 if sys.version_info.major == 2:
     extras_require["dev"] += ["pytest>=3.3.2"]
 else:
-    extras_require["dev"] += ["sphinx>=2.3, <3.0", "sphinx-rtd-theme>=0.4", "sphinx-autobuild>=0.7", "pytest>=5.0", "numpydoc"]
+    extras_require["dev"] += [
+        "sphinx>=2.3",
+        "sphinx-rtd-theme>=0.4",
+        "sphinx-autobuild>=0.7",
+        "pytest>=5.0",
+        "numpydoc",
+    ]
 
-if sys.version >= "3.6":
+if sys.version_info[0:2] >= (3, 6):
     extras_require["dev"] += [
         "black",
     ]
@@ -118,6 +123,7 @@ setup(
     author="Creare",
     url="https://podpac.org",
     license="APACHE 2.0",
+    python_requires='>=3.7',
     classifiers=[
         # How mature is this project? Common values are
         # 3 - Alpha

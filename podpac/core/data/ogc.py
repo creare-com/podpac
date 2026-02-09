@@ -13,7 +13,7 @@ import pyproj
 
 from podpac.core.utils import common_doc, cached_property, resolve_bbox_order
 from podpac.core.data.datasource import DataSource
-from podpac.core.interpolation.interpolation import InterpolationMixin, InterpolationTrait
+from podpac.core.interpolation.interpolation import  InterpolationTrait
 from podpac.core.node import NodeException
 from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d, Coordinates1d, StackedCoordinates
@@ -122,7 +122,7 @@ class WCSError(NodeException):
     pass
 
 
-class WCSRaw(DataSource):
+class WCS(DataSource):
     """
     Access data from a WCS source.
 
@@ -445,8 +445,3 @@ class WCSRaw(DataSource):
         client = owslib_wcs.WebCoverageService(source)
         return list(client.contents)
 
-
-class WCS(InterpolationMixin, WCSRaw):
-    """WCS datasource with podpac interpolation."""
-
-    coordinate_index_type = tl.Unicode("slice", read_only=True)

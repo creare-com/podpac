@@ -44,8 +44,8 @@ class RamCacheStore(CacheStore):
         use_settings_limit : bool, optional
             Use podpac settings to determine cache limits if True, this will also cause subsequent runtime changes to podpac settings module to effect the limit on this cache. Default is True.
         """
-        if not settings["RAM_CACHE_ENABLED"]:
-            raise CacheException("RAM cache is disabled in the podpac settings.")
+        if not settings["ENABLE_CACHE"]:
+            raise CacheException("Cache is disabled in the podpac settings.")
 
         super(CacheStore, self).__init__()
 

@@ -1,7 +1,8 @@
-import pytest
 import os
 
 from podpac.core.settings import PodpacSettings
+
+_SETTINGS_FILENAME = "settings.json"
 
 
 class TestSettingsFile(object):
@@ -18,7 +19,7 @@ class TestSettingsFile(object):
     def teardown_method(self):
         path = self.tmp_dir_path()
         try:
-            os.remove(os.path.join(path, "settings.json"))
+            os.remove(os.path.join(path, _SETTINGS_FILENAME))
         except OSError:  # FileNotFoundError in py 3
             pass
 
@@ -28,7 +29,7 @@ class TestSettingsFile(object):
         self.make_settings_tmp_dir()  # so teardown method has something ot tear down
         settings = PodpacSettings()
         path = os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~"))
-        assert settings.settings_path == os.path.join(path, ".config", "podpac", "settings.json")
+        assert settings.settings_path == os.path.join(path, ".config", "podpac", _SETTINGS_FILENAME)
 
     def test_single_saved_setting_persists(self):
         path = self.make_settings_tmp_dir()
@@ -66,7 +67,7 @@ class TestSettingsFile(object):
     def test_misconfigured_settings_file_fall_back_on_default(self):
         path = self.make_settings_tmp_dir()
 
-        with open(os.path.join(path, "settings.json"), "w") as f:
+        with open(os.path.join(path, _SETTINGS_FILENAME), "w") as f:
             f.write("not proper json")
 
         settings = PodpacSettings()
@@ -74,4 +75,4 @@ class TestSettingsFile(object):
         assert isinstance(settings, dict)
 
         path = os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~"))
-        assert settings.settings_path == os.path.join(path, ".config", "podpac", "settings.json")
+        assert settings.settings_path == os.path.join(path, ".config", "podpac", _SETTINGS_FILENAME)

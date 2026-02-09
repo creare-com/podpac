@@ -29,14 +29,12 @@ class GroupCoordinates(tl.HasTraits):
     @tl.validate("_items")
     def _validate_items(self, d):
         items = d["value"]
-        if not items:
-            return items
-
-        # unstacked dims must match, but not necessarily in order
-        udims = items[0].udims
-        for c in items:
-            if set(c.udims) != set(udims):
-                raise ValueError("Mismatching dims: %s !~ %s" % (udims, c.udims))
+        if items:
+            # unstacked dims must match, but not necessarily in order
+            udims = items[0].udims
+            for c in items:
+                if set(c.udims) != set(udims):
+                    raise ValueError("Mismatching dims: %s !~ %s" % (udims, c.udims))
 
         return items
 
@@ -50,7 +48,7 @@ class GroupCoordinates(tl.HasTraits):
             list of :class:`Coordinates`
         """
 
-        return super(GroupCoordinates, self).__init__(_items=coords_list)
+        super(GroupCoordinates, self).__init__(_items=coords_list)
 
     def __repr__(self):
         rep = self.__class__.__name__

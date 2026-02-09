@@ -2,12 +2,9 @@
 Signal Summary
 """
 
-import podpac
-from collections import OrderedDict
-
+from typing import List, Tuple
 import traitlets as tl
 import numpy as np
-import xarray as xr
 import scipy.signal
 
 from podpac.core.settings import settings
@@ -15,7 +12,7 @@ from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoor
 from podpac.core.coordinates import add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import UnaryAlgorithm
-from podpac.core.utils import common_doc, ArrayTrait, NodeTrait
+from podpac.core.utils import common_doc, ArrayTrait
 from podpac.core.node import COMMON_NODE_DOC
 
 
@@ -102,8 +99,53 @@ class Convolution(UnaryAlgorithm):
         kwargs["kernel_dims"] = kernel_dims
         return super(Convolution, self)._first_init(**kwargs)
 
+    def _expand_coords(self, coordinates: Coordinates, kernel_dims: List[Tuple[str]]):
+        exp_coords = []
+        exp_slice = []
+        for dim in kernel_dims:
+            coord = coordinates[dim]
+            s = self.kernel.shape[self.kernel_dims.index(dim)]
+            if s == 1 or not isinstance(coord, (UniformCoordinates1d, ArrayCoordinates1d)):
+                exp_coords.append(coord)
+                exp_slice.append(slice(None))
+            elif isinstance(coord, UniformCoordinates1d):
+                s_start = -s // 2
+                s_end = max(s // 2 - ((s + 1) % 2), 1)
+                # The 1e-14 is for floating point error because if endpoint is slightly
+                # in front of step * N then the endpoint is excluded
+                # ALSO: MUST use size instead of step otherwise floating point error
+                # makes the xarray arrays not align. The following HAS to be true:
+                #     np.diff(coord.coordinates).mean() == coord.step
+                exp_coords.append(
+                    UniformCoordinates1d(
+                        add_coord(coord.start, s_start * coord.step),
+                        add_coord(coord.stop, s_end * coord.step + 1e-14 * coord.step),
+                        size=coord.size - s_start + s_end,  # HAVE to use size, see note above
+                        **coord.properties
+                    )
+                )
+                exp_slice.append(slice(-s_start, -s_end))
+            elif isinstance(coord, ArrayCoordinates1d):
+                if not coord.is_monotonic or coord.size < 2:
+                    exp_coords.append(coord)
+                    exp_slice.append(slice(None))
+                else:
+                    arr_coords = coord.coordinates
+                    delta_start = arr_coords[1] - arr_coords[0]
+                    extra_start = np.arange(arr_coords[0] - delta_start * (s // 2), arr_coords[0], delta_start)
+                    delta_end = arr_coords[-1] - arr_coords[-2]
+                    # The 1e-14 is for floating point error to make sure endpoint is included
+                    extra_end = np.arange(
+                        arr_coords[-1] + delta_end, arr_coords[-1] + delta_end * (s // 2) + delta_end * 1e-14, delta_end
+                    )
+                    arr_coords = np.concatenate([extra_start, arr_coords, extra_end])
+                    exp_coords.append(ArrayCoordinates1d(arr_coords, **coord.properties))
+                    exp_slice.append(slice(extra_start.size, -extra_end.size))
+
+        return exp_coords, exp_slice
+
     @common_doc(COMMON_DOC)
-    def _eval(self, coordinates, output=None, _selector=None):
+    def _eval(self, coordinates: Coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -127,51 +169,7 @@ class Convolution(UnaryAlgorithm):
         # source is some sort of reduction Node.
         kernel_dims = [kd for kd in coordinates.dims if kd in self.kernel_dims]
         missing_dims = [kd for kd in coordinates.dims if kd not in self.kernel_dims]
-
-        exp_coords = []
-        exp_slice = []
-        for dim in kernel_dims:
-            coord = coordinates[dim]
-            s = full_kernel.shape[self.kernel_dims.index(dim)]
-            if s == 1 or not isinstance(coord, (UniformCoordinates1d, ArrayCoordinates1d)):
-                exp_coords.append(coord)
-                exp_slice.append(slice(None))
-                continue
-
-            if isinstance(coord, UniformCoordinates1d):
-                s_start = -s // 2
-                s_end = max(s // 2 - ((s + 1) % 2), 1)
-                # The 1e-14 is for floating point error because if endpoint is slightly
-                # in front of step * N then the endpoint is excluded
-                # ALSO: MUST use size instead of step otherwise floating point error
-                # makes the xarray arrays not align. The following HAS to be true:
-                #     np.diff(coord.coordinates).mean() == coord.step
-                exp_coords.append(
-                    UniformCoordinates1d(
-                        add_coord(coord.start, s_start * coord.step),
-                        add_coord(coord.stop, s_end * coord.step + 1e-14 * coord.step),
-                        size=coord.size - s_start + s_end,  # HAVE to use size, see note above
-                        **coord.properties
-                    )
-                )
-                exp_slice.append(slice(-s_start, -s_end))
-            elif isinstance(coord, ArrayCoordinates1d):
-                if not coord.is_monotonic or coord.size < 2:
-                    exp_coords.append(coord)
-                    exp_slice.append(slice(None))
-                    continue
-
-                arr_coords = coord.coordinates
-                delta_start = arr_coords[1] - arr_coords[0]
-                extra_start = np.arange(arr_coords[0] - delta_start * (s // 2), arr_coords[0], delta_start)
-                delta_end = arr_coords[-1] - arr_coords[-2]
-                # The 1e-14 is for floating point error to make sure endpoint is included
-                extra_end = np.arange(
-                    arr_coords[-1] + delta_end, arr_coords[-1] + delta_end * (s // 2) + delta_end * 1e-14, delta_end
-                )
-                arr_coords = np.concatenate([extra_start, arr_coords, extra_end])
-                exp_coords.append(ArrayCoordinates1d(arr_coords, **coord.properties))
-                exp_slice.append(slice(extra_start.size, -extra_end.size))
+        exp_coords, exp_slice = self._expand_coords(coordinates, kernel_dims)
 
         # Add missing dims back in -- this is needed in case the source is a reduce node.
         exp_coords += [coordinates[d] for d in missing_dims]
@@ -200,22 +198,12 @@ class Convolution(UnaryAlgorithm):
 
         # Check for extra dimensions in the source and reshape the kernel appropriately
         if any([d not in kernel_dims for d in source.dims if d != "output"]):
-            new_axis = []
-            new_exp_slice = []
-            for d in source.dims:
-                if d in kernel_dims:
-                    new_axis.append(slice(None))
-                    new_exp_slice.append(exp_slice[kernel_dims.index(d)])
-                else:
-                    new_axis.append(None)
-                    new_exp_slice.append(slice(None))
+            new_axis = [slice(None) if d in kernel_dims else None for d in source.dims]
+            new_exp_slice = [exp_slice[kernel_dims.index(d)] if d in kernel_dims else slice(None) for d in source.dims]
             full_kernel = full_kernel[tuple(new_axis)]
             exp_slice = new_exp_slice
 
-        if np.any(np.isnan(source)):
-            method = "direct"
-        else:
-            method = "auto"
+        method = "direct" if np.any(np.isnan(source)) else "auto"
 
         if ("output" not in source.dims) or ("output" in source.dims and "output" in kernel_dims):
             result = scipy.signal.convolve(source, full_kernel, mode="same", method=method)
@@ -246,10 +234,14 @@ class Convolution(UnaryAlgorithm):
             k = np.ones([size] * ndim)
         else:
             args = [float(a) for a in kernel_type.split(",")[2:]]
-            f = getattr(scipy.signal, ktype)
+            # scipy moved where "gaussian" is placed, this handles similar circumstances
+            if hasattr(scipy.signal, ktype):
+                f = getattr(scipy.signal, ktype)
+            else:
+                f = getattr(scipy.signal.windows, ktype)
             k1d = f(size, *args)
             k = k1d.copy()
-            for i in range(ndim - 1):
+            for _ in range(ndim - 1):
                 k = np.tensordot(k, k1d, 0)
 
         return k / k.sum()

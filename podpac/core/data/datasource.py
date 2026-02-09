@@ -23,6 +23,8 @@ from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES, make_coord_delt
 from podpac.core.node import Node
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.interpolation.selector import Selector
+
 
 log = logging.getLogger(__name__)
 
@@ -143,7 +145,7 @@ class DataSource(Node):
         Whether to cache coordinates using the podpac ``cache_ctrl``. Default False.
     cache_output : bool
         Should the node's output be cached? If not provided or None, uses default based on
-        settings["CACHE_DATASOURCE_OUTPUT_DEFAULT"]. If True, outputs will be cached and retrieved from cache. If False,
+        settings["ENABLE_CACHE"]. If True, outputs will be cached and retrieved from cache. If False,
         outputs will not be cached OR retrieved from cache (even if they exist in cache).
 
     Notes
@@ -203,7 +205,7 @@ class DataSource(Node):
 
     @tl.default("cache_output")
     def _cache_output_default(self):
-        return settings["CACHE_DATASOURCE_OUTPUT_DEFAULT"]
+        return settings["ENABLE_CACHE"]
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -215,14 +217,14 @@ class DataSource(Node):
 
         if self._coordinates is not None:
             nc = self._coordinates
-        elif self.cache_coordinates and self.has_cache("coordinates"):
-            nc = self.get_cache("coordinates")
+        elif self.cache_coordinates and self.has_property_cache("coordinates"):
+            nc = self.get_property_cache("coordinates")
             self.set_trait("_coordinates", nc)
         else:
             nc = self.get_coordinates()
             self.set_trait("_coordinates", nc)
             if self.cache_coordinates:
-                self.put_cache(nc, "coordinates")
+                self.put_property_cache(nc, "coordinates")
         return nc
 
     @property
@@ -261,7 +263,7 @@ class DataSource(Node):
 
         """
         # get data from data source at requested source coordinates and requested source coordinates index
-        data = self.get_data(rc, rci)
+        data = deepcopy(self.get_data(rc, rci))
 
         # convert data into UnitsDataArray depending on format
         # TODO: what other processing needs to happen here?
@@ -412,11 +414,17 @@ class DataSource(Node):
         log.debug("Evaluating {} data source".format(self.__class__.__name__))
 
         # Use the selector
+
         if _selector is not None:
             (rsc, rsci) = _selector(self.coordinates, coordinates, index_type=self.coordinate_index_type)
         else:
             # get source coordinates that are within the requested coordinates bounds
             (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_index=True)
+            # make a nearest neighbor source to impose index_type restrictions
+            # use the original coords if there was no intersection
+            if rsc.size != 0:
+                temp_selector = Selector(method="nearest")
+                (rsc, rsci) = temp_selector.select(self.coordinates, rsc, index_type=self.coordinate_index_type)
 
         # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
         if rsc.size == 0:
@@ -454,7 +462,6 @@ class DataSource(Node):
         # get indexed boundary
         rsb = self._get_boundary(rsci)
         output.attrs["boundary_data"] = rsb
-        output.attrs["bounds"] = self.coordinates.bounds
 
         # save output to private for debugging
         if settings["DEBUG"]:
@@ -465,6 +472,36 @@ class DataSource(Node):
             self._requested_source_data = rsd
             self._output = output
 
+        return output
+
+    @common_doc(COMMON_DATA_DOC)
+    def create_output_array(self, coords, data=np.nan, attrs=None, outputs=None, **kwargs):
+        """
+        Initialize an output data array.  This adds `bounds` and `boundary_data` to the output attrs
+
+        The `boundary_data` output.attrs is set to match this node's polygonal (i.e. non-rectangular) boundary.
+        For uniform grids, this expected to be an empty dictionary.
+
+        Parameters
+        ----------
+        coords : podpac.Coordinates
+            {arr_coords}
+        data : None, number, or array-like (optional)
+            {arr_init_type}
+        attrs : dict
+            Attributes to add to output -- UnitsDataArray.create uses the 'crs' portion contained in here
+        outputs : list[string], optional
+            Default is self.outputs. List of strings listing the outputs
+        **kwargs
+            {arr_kwargs}
+
+        Returns
+        -------
+        {arr_return}
+        """
+        output = super().create_output_array(coords, data=data, attrs=attrs, outputs=outputs, **kwargs)
+        output.attrs["bounds"], _ = self.get_bounds(crs=output.attrs["crs"])  # this is the bounds of the full dataset
+        output.attrs["boundary_data"] = self.boundary  # this is the bounding polygon of the nonuniform dataset
         return output
 
     def find_coordinates(self):

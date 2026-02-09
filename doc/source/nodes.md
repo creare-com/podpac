@@ -141,6 +141,9 @@ output = node.execute(coords)
 
 You will also be able to set these tagged attrs in node definitions.
 
+
+The values of tagged attributes are preserved in node definitions, so it is important to tag all attributes that meaningfully contribute to a node's state as `attr=True`.
+
 ## Serialization
 
 Any podpac Node can be saved, shared, and loaded using a JSON definition. This definition describes all of the nodes required to create and evaluate the final Node.

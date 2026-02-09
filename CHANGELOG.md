@@ -1,10 +1,91 @@
 # Changelog
+## 4.0.0
+
+### Introduction
+With this version, we are making backwards-incompatible changes. These changes give users greater control over
+which nodes are cached, and how they are cached. The functionality moved away from the parent `Node` class, and
+now resides in the `CacheNode` child classes. Now caching is just part of a processing pipeline. For convenience,
+we added the `Node.cache` method, which will add a `CacheNode` to a `Node`, which basically restores the original
+functionality.
+
+We also removed the `InterpolationMixin` node that restored the functionality of every certain `DataSource`
+nodes being automatically interpolated on `eval`. Now users have to create `Interpolation` nodes explicitly. To make the transition smoother, we added a convenience function `Node.interpolate` that will add an `Interpolation` node to the pipeline, restoring the original functionality.
+
+### Features
+* Added the `ZarrCache`. This node enables partial caching of nodes based on the source's coordinate. This means you can
+  requeste data for half the globe in one request and have that cached. Then, on a subsequent request for the whole
+  globe, the cached data will be used for the cached half, and new data will be retrieved/computed for the new half.
+* Added the `HashCache`. This node caches based on specific requested `Coordinates`. If the data from two requests overlap,
+  no existing cached information is reused (unlike the `ZarrCache`)
+
+### Breaking changes
+* Removed `InterpolationMixin`, and corresponding `Nodes` built using it. For example, the `Rasterio` node will no
+  longer automatically interpolate. Instead, use `node = Rasterio(...).interpolate()` to restore that functionality.
+* Renamed dataset_source.DatasetRaw class to Dataset
+
+### Bugfixes
+* Fixed issue where datasource._eval would not respect coordinate_index_type when _selector was None. 
+
+
+## 3.5.3
+
+### Bugfixes
+* Fixed Python 2/3 compatibility that's not longer supported by Numpy. This prevented PODPAC from using numpy version > 2.
+
+## 3.5.2
+
+### Bugfixes
+* Corrected issue with algorithm coorindate alignment implementation
+
+## 3.5.1
+
+### Features
+* Added setting that makes algorithm nodes force aligment of xarray coordinates to prevent floating-point issues causing values to drop out
+
+## 3.5.0
+
+### Features
+* Allows users to specify the name of a node when serializing to json #517
+* Allows users to specify custom style class in json node definition #517
+
+### Bugfixes
+* Matplotlib colormap deprecation fix #518
+* Fixed incorrect overview selection in rasterio #519
+
+## 3.4.1 Point Probe Value Format for Enumerated Legends HOTFIX
+
+### Hotfix
+* Deals with 'nan' value for enumerated legends.
+
+## 3.4.0 Point Probe Value Format for Enumerated Legends
+
+### Features
+* Adds the label next to the value for enumerated legends in the point prober.
+  * Before: "value": 1.0
+  * After: "value": "1 (Sand)"
+
+
+## 3.3.1
+
+### Hotfix
+* Can now use `np.timedelta64` as a valid type for coordinates (merge issues on 3.3.0 accidentally removed this feature)
+
+## 3.3.0
+
+### Features
+* Now supporting custom coordinate dimensions for downstream applications. Just use `podpac.utils.add_valid_dimension("my_dimension_name")` to register and start using your custom dimension name.
+* Can now use `np.timedelta64` as a valid type for coordinates
+
+### Maintenance
+* Removed the "datalib" module, and made it its own package `podpacdatalib`.
+
 
 ## 3.2.1
 ### Bugfixes
 * Fixed documentation build
 * Fixed nearest neighbor interpolation bug where same pixel could
   give different values due to rounding ambiguity (0.5-->0, 1.5-->2)
+
 
 ## 3.2.0
 

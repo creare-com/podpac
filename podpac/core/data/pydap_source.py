@@ -12,27 +12,33 @@ import traitlets as tl
 import requests
 from webob.exc import HTTPError
 
-# Helper utility for optional imports
-from lazy_import import lazy_module, lazy_class
+# # Helper utility for optional imports
+# from lazy_import import lazy_module, lazy_class
 
 # Internal dependencies
 from podpac.core import authentication
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
-from podpac.core.interpolation.interpolation import InterpolationMixin
 
 
 # Optional dependencies
-pydap = lazy_module("pydap")
-lazy_module("pydap.client")
-lazy_module("pydap.model")
+# pydap = lazy_module("pydap")
+# lazy_module("pydap.client")
+# lazy_module("pydap.model")
+# lazy_class("pydap.__spec__")
+
+# Lazy loading was conflicting with xarray access of pyap.__spec__
+import pydap
+import pydap.model
+import pydap.client
+
 
 
 _logger = logging.getLogger(__name__)
 
 
 @common_doc(COMMON_DATA_DOC)
-class PyDAPRaw(authentication.RequestsSessionMixin, DataSource):
+class PyDAP(authentication.RequestsSessionMixin, DataSource):
     """Create a DataSource from an OpenDAP server feed.
 
     Attributes
@@ -68,7 +74,7 @@ class PyDAPRaw(authentication.RequestsSessionMixin, DataSource):
     def _hostname(self):
         try:
             return requests.utils.urlparse(self.source).netloc
-        except:
+        except Exception:
             return self.source
 
     @common_doc(COMMON_DATA_DOC)
@@ -134,9 +140,3 @@ class PyDAPRaw(authentication.RequestsSessionMixin, DataSource):
             The list of available keys from the OpenDAP dataset. Any of these keys can be set as self.data_key
         """
         return self.dataset.keys()
-
-
-class PyDAP(InterpolationMixin, PyDAPRaw):
-    """OpenDAP datasource with interpolation."""
-
-    pass

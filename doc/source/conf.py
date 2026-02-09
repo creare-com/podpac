@@ -85,7 +85,7 @@ release = podpac.version.version()
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = 'en'
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -169,18 +169,18 @@ latex_elements = {
     #
     # 'figure_align': 'htbp',
 }
-
+POPAC_DOCUMENTATION = "podpac Documentation"
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
-latex_documents = [(master_doc, "podpac.tex", "podpac Documentation", "Creare", "manual")]
+latex_documents = [(master_doc, "podpac.tex", POPAC_DOCUMENTATION, "Creare", "manual")]
 
 
 # -- Options for manual page output ---------------------------------------
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "podpac", "podpac Documentation", [author], 1)]
+man_pages = [(master_doc, "podpac", POPAC_DOCUMENTATION, [author], 1)]
 
 
 # -- Options for Texinfo output -------------------------------------------
@@ -192,7 +192,7 @@ texinfo_documents = [
     (
         master_doc,
         "podpac",
-        "podpac Documentation",
+        POPAC_DOCUMENTATION,
         author,
         "podpac",
         "One line description of project.",

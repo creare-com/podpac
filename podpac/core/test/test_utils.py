@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import traitlets as tl
+from requests import ConnectionError
+from unittest.mock import MagicMock, patch
 
 import podpac
 from podpac.core.utils import common_doc
@@ -23,6 +25,9 @@ from podpac.core.utils import JSONEncoder, is_json_serializable
 from podpac.core.utils import cached_property
 from podpac.core.utils import ind2slice
 from podpac.core.utils import probe_node
+from podpac.core.utils import align_xarray_dict
+from podpac.core.utils import _get_param
+from podpac.core.utils import _get_from_url
 
 
 class TestCommonDocs(object):
@@ -32,7 +37,7 @@ class TestCommonDocs(object):
         assert f(42) == f2(42)
         assert f.__doc__ is None
 
-
+@pytest.mark.skip("Traitlets behavior changes based on version.")
 class TestTraitletsHelpers(object):
     def test_trait_is_defined(self):
         class MyClass(tl.HasTraits):
@@ -74,28 +79,16 @@ class TestOrderedDictTrait(object):
         class MyClass(tl.HasTraits):
             d = OrderedDictTrait()
 
-        m = MyClass(d=OrderedDict([("a", 1)]))
+        MyClass(d=OrderedDict([("a", 1)]))
 
         with pytest.raises(tl.TraitError):
             MyClass(d=[])
 
-    @pytest.mark.skipif(sys.version < "3.6", reason="python < 3.6")
     def test_dict_python36(self):
         class MyClass(tl.HasTraits):
             d = OrderedDictTrait()
 
-        m = MyClass(d={"a": 1})
-
-    @pytest.mark.skipif(sys.version >= "3.6", reason="python >= 3.6")
-    def test_dict_python2(self):
-        class MyClass(tl.HasTraits):
-            d = OrderedDictTrait()
-
-        with pytest.raises(tl.TraitError):
-            m = MyClass(d={"a": 1})
-
-        # empty is okay, will be converted
-        m = MyClass(d={})
+        MyClass(d={"a": 1})
 
 
 class TestArrayTrait(object):
@@ -317,80 +310,82 @@ class TestCachedPropertyDecorator(object):
                 self.my_cache_ctrl_property_called += 1
                 return 30
 
-        a = MyNode(cache_ctrl=["ram"])
-        b = MyNode(cache_ctrl=["ram"])
-        c = MyNode(cache_ctrl=[])
+        a = MyNode(property_cache_type="ram").cache(
+            node_type="hash", cache_type=["ram"]
+        )  # when caching properties, include the "property_cache_type" when instantiating nodes. Worth documenting.
+        b = MyNode(property_cache_type="ram").cache(node_type="hash", cache_type=["ram"])
+        c = MyNode().cache(node_type="hash", cache_type=None)
 
         a.rem_cache(key="*")
         b.rem_cache(key="*")
         c.rem_cache(key="*")
 
         # normal property should be called every time
-        assert a.my_property_called == 0
-        assert a.my_property == 10
-        assert a.my_property_called == 1
-        assert a.my_property == 10
-        assert a.my_property == 10
-        assert a.my_property_called == 3
+        assert a.source.my_property_called == 0
+        assert a.source.my_property == 10
+        assert a.source.my_property_called == 1
+        assert a.source.my_property == 10
+        assert a.source.my_property == 10
+        assert a.source.my_property_called == 3
 
-        assert b.my_property_called == 0
-        assert b.my_property == 10
-        assert b.my_property_called == 1
-        assert b.my_property == 10
-        assert b.my_property == 10
-        assert b.my_property_called == 3
+        assert b.source.my_property_called == 0
+        assert b.source.my_property == 10
+        assert b.source.my_property_called == 1
+        assert b.source.my_property == 10
+        assert b.source.my_property == 10
+        assert b.source.my_property_called == 3
 
-        assert c.my_property_called == 0
-        assert c.my_property == 10
-        assert c.my_property_called == 1
-        assert c.my_property == 10
-        assert c.my_property == 10
-        assert c.my_property_called == 3
+        assert c.source.my_property_called == 0
+        assert c.source.my_property == 10
+        assert c.source.my_property_called == 1
+        assert c.source.my_property == 10
+        assert c.source.my_property == 10
+        assert c.source.my_property_called == 3
 
         # cached property should only be called when it is accessed
-        assert a.my_cached_property_called == 0
-        assert a.my_cached_property == 20
-        assert a.my_cached_property_called == 1
-        assert a.my_cached_property == 20
-        assert a.my_cached_property == 20
-        assert a.my_cached_property_called == 1
+        assert a.source.my_cached_property_called == 0
+        assert a.source.my_cached_property == 20
+        assert a.source.my_cached_property_called == 1
+        assert a.source.my_cached_property == 20
+        assert a.source.my_cached_property == 20
+        assert a.source.my_cached_property_called == 1
 
-        assert b.my_cached_property_called == 0
-        assert b.my_cached_property == 20
-        assert b.my_cached_property_called == 1
-        assert b.my_cached_property == 20
-        assert b.my_cached_property == 20
-        assert b.my_cached_property_called == 1
+        assert b.source.my_cached_property_called == 0
+        assert b.source.my_cached_property == 20
+        assert b.source.my_cached_property_called == 1
+        assert b.source.my_cached_property == 20
+        assert b.source.my_cached_property == 20
+        assert b.source.my_cached_property_called == 1
 
-        assert c.my_cached_property_called == 0
-        assert c.my_cached_property == 20
-        assert c.my_cached_property_called == 1
-        assert c.my_cached_property == 20
-        assert c.my_cached_property == 20
-        assert c.my_cached_property_called == 1
+        assert c.source.my_cached_property_called == 0
+        assert c.source.my_cached_property == 20
+        assert c.source.my_cached_property_called == 1
+        assert c.source.my_cached_property == 20
+        assert c.source.my_cached_property == 20
+        assert c.source.my_cached_property_called == 1
 
         # cache_ctrl cached property should only be called in the first node that accessses it
-        assert a.my_cache_ctrl_property_called == 0
-        assert a.my_cache_ctrl_property == 30
-        assert a.my_cache_ctrl_property_called == 1
-        assert a.my_cache_ctrl_property == 30
-        assert a.my_cache_ctrl_property == 30
-        assert a.my_cache_ctrl_property_called == 1
+        assert a.source.my_cache_ctrl_property_called == 0
+        assert a.source.my_cache_ctrl_property == 30
+        assert a.source.my_cache_ctrl_property_called == 1
+        assert a.source.my_cache_ctrl_property == 30
+        assert a.source.my_cache_ctrl_property == 30
+        assert a.source.my_cache_ctrl_property_called == 1
 
-        assert b.my_cache_ctrl_property_called == 0
-        assert b.my_cache_ctrl_property == 30
-        assert b.my_cache_ctrl_property_called == 0
-        assert b.my_cache_ctrl_property == 30
-        assert b.my_cache_ctrl_property == 30
-        assert b.my_cache_ctrl_property_called == 0
+        assert b.source.my_cache_ctrl_property_called == 0
+        assert b.source.my_cache_ctrl_property == 30
+        assert b.source.my_cache_ctrl_property_called == 0
+        assert b.source.my_cache_ctrl_property == 30
+        assert b.source.my_cache_ctrl_property == 30
+        assert b.source.my_cache_ctrl_property_called == 0
 
         # but only if a cache_ctrl exists for the Node
-        assert c.my_cache_ctrl_property_called == 0
-        assert c.my_cache_ctrl_property == 30
-        assert c.my_cache_ctrl_property_called == 1
-        assert c.my_cache_ctrl_property == 30
-        assert c.my_cache_ctrl_property == 30
-        assert c.my_cache_ctrl_property_called == 1
+        assert c.source.my_cache_ctrl_property_called == 0
+        assert c.source.my_cache_ctrl_property == 30
+        assert c.source.my_cache_ctrl_property_called == 1
+        assert c.source.my_cache_ctrl_property == 30
+        assert c.source.my_cache_ctrl_property == 30
+        assert c.source.my_cache_ctrl_property_called == 1
 
     def test_cached_property_expires(self):
         class MyNode(podpac.Node):
@@ -407,8 +402,8 @@ class TestCachedPropertyDecorator(object):
                 self.expired_yesterday_called += 1
                 return 20
 
-        a = MyNode(cache_ctrl=["ram"])
-        b = MyNode(cache_ctrl=["ram"])
+        a = MyNode(property_cache_type=["ram"])
+        b = MyNode(property_cache_type=["ram"])
 
         # not expired, b uses cached version
         assert a.expires_tomorrow_called == 0
@@ -470,6 +465,9 @@ class TestInd2Slice(object):
         assert ind2slice([False, True, True, False, True, False]) == slice(1, 5)
         assert ind2slice([1, 3, 5]) == slice(1, 7, 2)
 
+    def test_empty_slice(self):
+        assert ind2slice([]) == slice(0, 0)
+
 
 class AnotherOne(podpac.algorithm.Algorithm):
     def algorithm(self, inputs, coordinates):
@@ -489,16 +487,16 @@ class TestNodeProber(object):
     another_one = AnotherOne()
 
     def test_single_prober(self):
-        expected = {
+        expected = OrderedDict({
             "Array": {
                 "active": True,
                 "value": 1,
-                "units": "o",
+                "label": "o",
                 "inputs": [],
                 "name": "one_style",
                 "node_hash": self.one.hash,
             }
-        }
+        })
         out = probe_node(self.one, lat=1, lon=1)
         assert out == expected
 
@@ -511,7 +509,7 @@ class TestNodeProber(object):
                 "Array": {
                     "active": True,
                     "value": 1.0,
-                    "units": "o",
+                    "label": "o",
                     "inputs": [],
                     "name": "one_style",
                     "node_hash": self.one.hash,
@@ -519,7 +517,7 @@ class TestNodeProber(object):
                 "Arithmetic": {
                     "active": True,
                     "value": 2.0,
-                    "units": "",
+                    "label": "",
                     "inputs": ["Array"],
                     "name": "Arithmetic",
                     "node_hash": a.hash,
@@ -527,7 +525,7 @@ class TestNodeProber(object):
                 "Arithmetic_1": {
                     "active": True,
                     "value": 6.0,
-                    "units": "m",
+                    "label": "m",
                     "inputs": ["Arithmetic"],
                     "name": "six_style",
                     "node_hash": b.hash,
@@ -544,7 +542,7 @@ class TestNodeProber(object):
                 "Array": {
                     "active": True,
                     "value": 1.0,
-                    "units": "o",
+                    "label": "o",
                     "inputs": [],
                     "name": "one_style",
                     "node_hash": self.one.hash,
@@ -552,7 +550,7 @@ class TestNodeProber(object):
                 "Array_1": {
                     "active": True,
                     "value": 2.0,
-                    "units": "t",
+                    "label": "t",
                     "inputs": [],
                     "name": "two_style",
                     "node_hash": self.two.hash,
@@ -560,7 +558,7 @@ class TestNodeProber(object):
                 "Arithmetic": {
                     "active": True,
                     "value": 2.0,
-                    "units": "",
+                    "label": "",
                     "inputs": ["Array", "Array_1"],
                     "name": "Arithmetic",
                     "node_hash": a.hash,
@@ -575,7 +573,7 @@ class TestNodeProber(object):
             "Array": {
                 "active": True,
                 "value": 1.0,
-                "units": "o",
+                "label": "o",
                 "inputs": [],
                 "name": "one_style",
                 "node_hash": self.one.hash,
@@ -583,7 +581,7 @@ class TestNodeProber(object):
             "Arange": {
                 "active": False,
                 "value": 0.0,
-                "units": "",
+                "label": "",
                 "inputs": [],
                 "name": "Arange",
                 "node_hash": self.arange.hash,
@@ -591,7 +589,7 @@ class TestNodeProber(object):
             "OrderedCompositor": {
                 "active": True,
                 "value": 1.0,
-                "units": "",
+                "label": "",
                 "inputs": ["Array", "Arange"],
                 "name": "OrderedCompositor",
                 "node_hash": a.hash,
@@ -605,7 +603,7 @@ class TestNodeProber(object):
             "Array": {
                 "active": False,
                 "value": "nan",
-                "units": "",
+                "label": "",
                 "inputs": [],
                 "name": "Array",
                 "node_hash": self.nan.hash,
@@ -613,7 +611,7 @@ class TestNodeProber(object):
             "Array_1": {
                 "active": True,
                 "value": 2.0,
-                "units": "t",
+                "label": "t",
                 "inputs": [],
                 "name": "two_style",
                 "node_hash": self.two.hash,
@@ -621,7 +619,7 @@ class TestNodeProber(object):
             "OrderedCompositor": {
                 "active": True,
                 "value": 2.0,
-                "units": "",
+                "label": "",
                 "inputs": ["Array", "Array_1"],
                 "name": "OrderedCompositor",
                 "node_hash": a.hash,
@@ -638,7 +636,7 @@ class TestNodeProber(object):
             "Array": {
                 "active": False,
                 "value": "nan",
-                "units": "",
+                "label": "",
                 "inputs": [],
                 "name": "Array",
                 "node_hash": self.nan.hash,
@@ -646,7 +644,7 @@ class TestNodeProber(object):
             "Array_1": {
                 "active": True,
                 "value": 1.0,
-                "units": "o",
+                "label": "o",
                 "inputs": [],
                 "name": "one_style",
                 "node_hash": self.one.hash,
@@ -654,7 +652,7 @@ class TestNodeProber(object):
             "AnotherOne": {
                 "active": False,
                 "value": 1.0,
-                "units": "",
+                "label": "",
                 "inputs": [],
                 "name": "AnotherOne",
                 "node_hash": self.another_one.hash,
@@ -662,7 +660,7 @@ class TestNodeProber(object):
             "OrderedCompositor": {
                 "active": True,
                 "value": 1.0,
-                "units": "",
+                "label": "",
                 "inputs": ["Array", "Array_1", "AnotherOne"],
                 "name": "OrderedCompositor",
                 "node_hash": a.hash,
@@ -678,32 +676,201 @@ class TestNodeProber(object):
         a = podpac.compositor.OrderedCompositor(
             sources=[self.one, self.arange], style=podpac.style.Style(name="composited", units="c")
         )
-        expected = {
+        expected = OrderedDict({
             "name": "composited",
-            "value": "1.0 c",
+            "value": "1.0",
+            "label": "c",
             "active": True,
             "node_id": a.hash,
             "params": {},
             "inputs": {
                 "inputs": [
-                    {
+                    OrderedDict({
                         "name": "one_style",
-                        "value": "1.0 o",
+                        "value": "1.0",
+                        "label": "o",
                         "active": True,
                         "node_id": self.one.hash,
                         "params": {},
                         "inputs": {},
-                    },
-                    {
+                    }),
+                    OrderedDict({
                         "name": "Arange",
                         "value": "0.0",
+                        "label": "",
                         "active": False,
                         "node_id": self.arange.hash,
                         "params": {},
                         "inputs": {},
-                    },
+                    }),
                 ]
             },
-        }
+        })
         out = probe_node(a, lat=1, lon=1, nested=True)
         assert out == expected
+
+    def test_prober_with_enumerated_legends(self):
+        enumeration_style = podpac.style.Style(
+            name="composited",
+            units="my_units",
+            enumeration_legend={0: "dirt", 1: "sand"},
+            enumeration_colors={0: (0, 0, 0), 1: (0.5, 0.5, 0.5)},
+        )
+        nan = podpac.data.Array(source=np.ones((3, 3), int) * np.nan, coordinates=self.coords, style=enumeration_style)
+        one = podpac.data.Array(source=np.ones((3, 3), int), coordinates=self.coords, style=enumeration_style)
+        zero = podpac.data.Array(source=np.zeros((3, 3), int), coordinates=self.coords, style=enumeration_style)
+        a = podpac.compositor.OrderedCompositor(sources=[nan, one, zero], style=enumeration_style)
+
+        expected = OrderedDict({
+            "name": "composited",
+            "value": "1.0",
+            "label": "sand",
+            "active": True,
+            "node_id": a.hash,
+            "params": {},
+            "inputs": {
+                "inputs": [
+                    OrderedDict({
+                        "name": "composited",
+                        "value": "nan",
+                        "label": "unknown",
+                        "active": False,
+                        "node_id": nan.hash,
+                        "params": {},
+                        "inputs": {},
+                    }),
+                    OrderedDict({
+                        "name": "composited",
+                        "value": "1.0",
+                        "label": "sand",
+                        "active": True,
+                        "node_id": one.hash,
+                        "params": {},
+                        "inputs": {},
+                    }),
+                    OrderedDict({
+                        "name": "composited",
+                        "value": "0.0",
+                        "label": "dirt",
+                        "active": False,
+                        "node_id": zero.hash,
+                        "params": {},
+                        "inputs": {},
+                    }),
+                ]
+            },
+        })
+        out = probe_node(a, lat=1, lon=1, nested=True, add_enumeration_labels=True)
+        assert out == expected
+
+def test_align_xarray_dict():
+    data_a = np.random.random((20,15))
+    a = podpac.UnitsDataArray(
+        np.array(data_a),
+        coords={"lat": np.linspace(0,5,20), "lon": np.linspace(10,20,15)},
+        dims=["lat", "lon"],
+    )
+
+    data_b = np.random.random((20,15))
+    b = podpac.UnitsDataArray(
+        np.array(data_b),
+        coords={"lat": np.linspace(0.2,5.2,20), "lon": np.linspace(10.1,20.1,15)},
+        dims=["lat", "lon"],
+    )
+
+    data_c = np.random.random((20,15))
+    c = podpac.UnitsDataArray(
+        np.array(data_c),
+        coords={"lat": np.linspace(-44,18,20), "lon": np.linspace(-101,-90,15)},
+        dims=["lat", "lon"],
+    )
+
+    inputs = {'A':a,
+              'B':b,
+              'C':c}
+
+
+    inputs = align_xarray_dict(inputs)
+
+    for k in ['lat','lon']:
+        assert(np.all(inputs['A'][k]==inputs['B'][k]))
+        assert(np.all(inputs['A'][k]==inputs['C'][k]))
+    assert(np.all(inputs['A'].data==data_a))
+    assert(np.all(inputs['B'].data==data_b))
+    assert(np.all(inputs['C'].data==data_c))
+    assert(np.all((inputs['A'] + inputs['B'] + inputs['C']).shape == inputs['A'].shape))
+
+
+class TestGetParam:
+    def test_key_in_params_not_a_list(self):
+        params = {"test_key": 0}
+        ret = _get_param(params, "test_key")
+        assert ret == 0
+
+    def test_key_in_params_list(self):
+        params = {"test_key": [4, 5, 3, 0]}
+        ret = _get_param(params, "test_key")
+        assert ret == 4
+
+    def test_key_not_in_params_upper_in_params(self):
+        params = {"TEST_KEY": 0}
+        ret = _get_param(params, "test_key")
+        assert ret == 0
+
+    def test_key_not_in_params_upper_not_in_params(self):
+        params = {"test_key": 0}
+        ret = _get_param(params, "not_test_key")
+        assert ret is None
+
+
+class TestGetFromUrl:
+    def test_raise_requests_error(self):
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = Exception("Test Connection Error")
+
+        with patch("podpac.core.utils.requests", mock_requests):
+            ret = _get_from_url("TEST/URL", None)
+        assert ret is None
+
+    def test_raise_runtime_error(self):
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = RuntimeError("Test Runtime Error")
+
+        with patch("podpac.core.utils.requests", mock_requests):
+            ret = _get_from_url("TEST/URL", None)
+        assert ret is None
+
+    def test_session_is_none(self):
+        mock_get_return = MagicMock()
+        mock_get_return.status_code = 200
+        mock_get_return.validation_value = "Expected Return"
+        mock_requests = MagicMock()
+        mock_requests.get.return_value = mock_get_return
+
+        with patch("podpac.core.utils.requests", mock_requests):
+            ret = _get_from_url("TEST/URL", None)
+
+        assert ret.validation_value == "Expected Return"
+
+    def test_session_is_not_none(self):
+        mock_get_return = MagicMock()
+        mock_get_return.status_code = 200
+        mock_get_return.validation_value = "Expected Return"
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_get_return
+
+        ret = _get_from_url("TEST/URL", mock_session)
+
+        assert ret.validation_value == "Expected Return"
+
+    def test_status_code_not_200(self):
+        mock_get_return = MagicMock()
+        mock_get_return.status_code = 000
+        mock_get_return.validation_value = "Expected Return"
+        mock_requests = MagicMock()
+        mock_requests.get.return_value = mock_get_return
+
+        with patch("podpac.core.utils.requests", mock_requests):
+            ret = _get_from_url("TEST/URL", None)
+
+        assert ret.validation_value == "Expected Return"

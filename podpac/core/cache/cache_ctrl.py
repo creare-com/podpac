@@ -8,14 +8,25 @@ from podpac.core.cache.utils import CacheWildCard, CacheException
 from podpac.core.cache.ram_cache_store import RamCacheStore
 from podpac.core.cache.disk_cache_store import DiskCacheStore
 from podpac.core.cache.s3_cache_store import S3CacheStore
+import traitlets as tl
+import logging
+
 
 
 _CACHE_STORES = {"ram": RamCacheStore, "disk": DiskCacheStore, "s3": S3CacheStore}
 
 _CACHE_NAMES = {RamCacheStore: "ram", DiskCacheStore: "disk", S3CacheStore: "s3"}
 
-_CACHE_MODES = ["ram", "disk", "network", "all"]
+_CACHE_MODES = ["ram", "disk", "s3", "all"]
 
+# Error messages used in 3 or more places
+_INVALID_NODE = "Invalid node (must be of type Node, not '%s')"
+_INVALID_ITEM = "Invalid item (must be a string, not '%s')"
+_INVALID_COORDS = "Invalid coordinates (must be of type 'Coordinates', not '%s')"
+_INVALID_MODE = "Invalid mode (must be one of %s, not '%s')"
+_INVALID_ITEM_ASTERISK = "Invalid item ('*' is reserved)"
+
+_logger = logging.getLogger(__name__)
 
 def get_default_cache_ctrl():
     """
@@ -55,7 +66,16 @@ def make_cache_ctrl(names):
         if name not in _CACHE_STORES:
             raise ValueError("Unknown cache store type '%s', options are %s" % (name, list(_CACHE_STORES)))
 
-    return CacheCtrl([_CACHE_STORES[name]() for name in names])
+    # makes all requested cache stores and fails gracefully if one of the stores is unavailable
+    cache_stores = []
+    for name in names:
+        try:
+            cache_store = _CACHE_STORES[name]()
+            cache_stores.append(cache_store)
+        except Exception as e:
+            _logger.warning("Cannot create cache_store of type {} -- error={}".format(name, e))
+
+    return CacheCtrl(cache_stores)
 
 
 def clear_cache(mode="all"):
@@ -65,10 +85,13 @@ def clear_cache(mode="all"):
     Arguments
     ---------
     mode : str
-        determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+        determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
     """
-
-    cache_ctrl = get_default_cache_ctrl()
+    if mode == "all":
+        modes = _CACHE_STORES.keys()
+    else:
+        modes = [mode]
+    cache_ctrl = make_cache_ctrl(modes)
     cache_ctrl.clear(mode=mode)
 
 
@@ -106,6 +129,36 @@ class CacheCtrl(object):
 
     def _get_cache_stores_by_mode(self, mode="all"):
         return [c for c in self._cache_stores if mode in c.cache_modes]
+    
+    @staticmethod
+    def _validate_args(node, item, coordinates,  mode):
+        """Raise an exception if any of the provided arguments are invalid
+
+        Parameters
+        ------------
+        node : Node
+            node requesting storage.
+        item : str
+            Cached object item or key, e.g. 'output'.
+        coordinates : :class:`podpac.Coordinates`, optional
+            Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
+        mode : str
+            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
+        """
+        if not isinstance(node, podpac.Node):
+            raise TypeError(_INVALID_NODE % type(node))
+
+        if not isinstance(item, six.string_types):
+            raise TypeError(_INVALID_ITEM % (type(item)))
+
+        if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
+            raise TypeError(_INVALID_COORDS % type(coordinates))
+
+        if mode not in _CACHE_MODES:
+            raise ValueError(_INVALID_MODE % (_CACHE_MODES, mode))
+
+        if item == "*":
+            raise ValueError(_INVALID_ITEM_ASTERISK)
 
     def put(self, node, data, item, coordinates=None, expires=None, mode="all", update=True):
         """Cache data for specified node.
@@ -121,27 +174,13 @@ class CacheCtrl(object):
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         mode : str
-            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
         expires : float, datetime, timedelta
             Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         """
-
-        if not isinstance(node, podpac.Node):
-            raise TypeError("Invalid node (must be of type Node, not '%s')" % type(node))
-
-        if not isinstance(item, six.string_types):
-            raise TypeError("Invalid item (must be a string, not '%s')" % (type(item)))
-
-        if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
-            raise TypeError("Invalid coordinates (must be of type 'Coordinates', not '%s')" % type(coordinates))
-
-        if mode not in _CACHE_MODES:
-            raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
-
-        if item == "*":
-            raise ValueError("Invalid item ('*' is reserved)")
+        CacheCtrl._validate_args(node, item, coordinates, mode)
 
         for c in self._get_cache_stores_by_mode(mode):
             c.put(node=node, data=data, item=item, coordinates=coordinates, expires=expires, update=update)
@@ -158,7 +197,7 @@ class CacheCtrl(object):
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         mode : str
-            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
 
         Returns
         -------
@@ -170,21 +209,7 @@ class CacheCtrl(object):
         CacheError
             If the data is not in the cache.
         """
-
-        if not isinstance(node, podpac.Node):
-            raise TypeError("Invalid node (must be of type Node, not '%s')" % type(node))
-
-        if not isinstance(item, six.string_types):
-            raise TypeError("Invalid item (must be a string, not '%s')" % (type(item)))
-
-        if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
-            raise TypeError("Invalid coordinates (must be of type 'Coordinates', not '%s')" % type(coordinates))
-
-        if mode not in _CACHE_MODES:
-            raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
-
-        if item == "*":
-            raise ValueError("Invalid item ('*' is reserved)")
+        CacheCtrl._validate_args(node, item, coordinates, mode)
 
         for c in self._get_cache_stores_by_mode(mode):
             if c.has(node=node, item=item, coordinates=coordinates):
@@ -203,28 +228,14 @@ class CacheCtrl(object):
         coordinates: Coordinate, optional
             Coordinates for which cached object should be checked
         mode : str
-            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
 
         Returns
         -------
         has_cache : bool
              True if there as a cached object for this node for the given key and coordinates.
         """
-
-        if not isinstance(node, podpac.Node):
-            raise TypeError("Invalid node (must be of type Node, not '%s')" % type(node))
-
-        if not isinstance(item, six.string_types):
-            raise TypeError("Invalid item (must be a string, not '%s')" % (type(item)))
-
-        if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
-            raise TypeError("Invalid coordinates (must be of type 'Coordinates', not '%s')" % type(coordinates))
-
-        if mode not in _CACHE_MODES:
-            raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
-
-        if item == "*":
-            raise ValueError("Invalid item ('*' is reserved)")
+        CacheCtrl._validate_args(node, item, coordinates, mode)
 
         for c in self._get_cache_stores_by_mode(mode):
             if c.has(node=node, item=item, coordinates=coordinates):
@@ -244,20 +255,20 @@ class CacheCtrl(object):
         coordinates : :class:`podpac.Coordinates`, str
             Delete only cached objects for these coordinates. Use `'*'` to match all coordinates.
         mode : str
-            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
         """
 
         if not isinstance(node, podpac.Node):
-            raise TypeError("Invalid node (must be of type Node, not '%s')" % type(node))
+            raise TypeError(_INVALID_NODE % type(node))
 
         if not isinstance(item, six.string_types):
-            raise TypeError("Invalid item (must be a string, not '%s')" % (type(item)))
+            raise TypeError(_INVALID_ITEM % (type(item)))
 
         if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None and coordinates != "*":
             raise TypeError("Invalid coordinates (must be '*' or of type 'Coordinates', not '%s')" % type(coordinates))
 
         if mode not in _CACHE_MODES:
-            raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
+            raise ValueError(_INVALID_MODE % (_CACHE_MODES, mode))
 
         if item == "*":
             item = CacheWildCard()
@@ -275,11 +286,11 @@ class CacheCtrl(object):
         Parameters
         ------------
         mode : str
-            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+            determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 's3', 'all'. Default 'all'.
         """
 
         if mode not in _CACHE_MODES:
-            raise ValueError("Invalid mode (must be one of %s, not '%s')" % (_CACHE_MODES, mode))
+            raise ValueError(_INVALID_MODE % (_CACHE_MODES, mode))
 
         for c in self._get_cache_stores_by_mode(mode):
             c.clear()

@@ -13,7 +13,7 @@ try:
     import rasterio
     from rasterio import transform
     from rasterio.warp import reproject, Resampling
-except:
+except ImportError:
     rasterio = None
 
 # podac imports

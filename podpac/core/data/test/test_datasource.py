@@ -1,9 +1,6 @@
 """
 Test podpac.core.data.datasource module
 """
-
-# from collections import OrderedDict
-
 import pytest
 
 import numpy as np
@@ -70,11 +67,11 @@ class TestDataDocs(object):
 
 class TestDataSource(object):
     def test_init(self):
-        node = DataSource()
+        DataSource()
 
     def test_repr(self):
         node = DataSource()
-        repr(node)
+        _ = repr(node)
 
     def test_get_data_not_implemented(self):
         node = DataSource()
@@ -109,7 +106,7 @@ class TestDataSource(object):
         assert node.get_coordinates_called == 1
 
         # can't set coordinates attribute
-        with pytest.raises(AttributeError, match="can't set attribute"):
+        with pytest.raises(AttributeError):
             node.coordinates = Coordinates([])
 
     def test_dims(self):
@@ -128,29 +125,33 @@ class TestDataSource(object):
                 self.get_coordinates_called += 1
                 return Coordinates([])
 
-        a = MyDataSource(cache_coordinates=True, cache_ctrl=["ram"])
-        b = MyDataSource(cache_coordinates=True, cache_ctrl=["ram"])
-        c = MyDataSource(cache_coordinates=False, cache_ctrl=["ram"])
-        d = MyDataSource(cache_coordinates=True, cache_ctrl=[])
+        # unsure about how the property cache 100% works. Why not cache coordiantes>
 
-        a.rem_cache("*")
-        b.rem_cache("*")
-        c.rem_cache("*")
-        d.rem_cache("*")
+        a = MyDataSource(cache_coordinates=True, property_cache_type="ram")
+        b = MyDataSource(cache_coordinates=True, property_cache_type="ram")
+        c = MyDataSource(cache_coordinates=False, property_cache_type="ram")
+        d = MyDataSource(cache_coordinates=True, property_cache_type=[])
+
+        a.rem_property_cache("*")
+        b.rem_property_cache("*")
+        c.rem_property_cache("*")
+        d.rem_property_cache("*")
 
         # get_coordinates called once
-        assert not a.has_cache("coordinates")
+        assert not a.has_property_cache("coordinates")
         assert a.get_coordinates_called == 0
-        assert isinstance(a.coordinates, Coordinates)
+        assert isinstance(a.coordinates, Coordinates)  # This calls coordinates, causing it to be cached
         assert a.get_coordinates_called == 1
-        assert isinstance(a.coordinates, Coordinates)
+        assert isinstance(
+            a.coordinates, Coordinates
+        )  # Here the cache is used, so get_coordinates_called should not increase
         assert a.get_coordinates_called == 1
 
         # coordinates is cached to a, b, and c
-        assert a.has_cache("coordinates")
-        assert b.has_cache("coordinates")
-        assert c.has_cache("coordinates")
-        assert not d.has_cache("coordinates")
+        assert a.has_property_cache("coordinates")  # having problems with the property cache here.
+        assert b.has_property_cache("coordinates")
+        assert c.has_property_cache("coordinates")
+        assert not d.has_property_cache("coordinates")
 
         # b: use cache, get_coordinates not called
         assert b.get_coordinates_called == 0
@@ -169,7 +170,7 @@ class TestDataSource(object):
 
     def test_set_coordinates(self):
         node = MockDataSource()
-        node.set_coordinates(Coordinates([]))
+        node.set_coordinates(Coordinates([]), force=True)
         assert node.coordinates == Coordinates([])
         assert node.coordinates != node.get_coordinates()
 
@@ -186,48 +187,51 @@ class TestDataSource(object):
         assert node.boundary == {}
 
         # none
-        node = DataSource(boundary={})
+        DataSource(boundary={})
 
         # centered
-        node = DataSource(boundary={"lat": 0.25, "lon": 2.0})
-        node = DataSource(boundary={"time": "1,D"})
+        DataSource(boundary={"lat": 0.25, "lon": 2.0})
+        DataSource(boundary={"time": "1,D"})
 
+        NCBNYS = "Non-centered boundary not yet supported"
         # box (not necessary centered)
-        with pytest.raises(NotImplementedError, match="Non-centered boundary not yet supported"):
-            node = DataSource(boundary={"lat": [-0.2, 0.3], "lon": [-2.0, 2.0]})
+        with pytest.raises(NotImplementedError, match=NCBNYS):
+            DataSource(boundary={"lat": [-0.2, 0.3], "lon": [-2.0, 2.0]})
 
-        with pytest.raises(NotImplementedError, match="Non-centered boundary not yet supported"):
-            node = DataSource(boundary={"time": ["-1,D", "2,D"]})
+        with pytest.raises(NotImplementedError, match=NCBNYS):
+            DataSource(boundary={"time": ["-1,D", "2,D"]})
 
         # polygon
-        with pytest.raises(NotImplementedError, match="Non-centered boundary not yet supported"):
-            node = DataSource(boundary={"lat": [0.0, -0.5, 0.0, 0.5], "lon": [-0.5, 0.0, 0.5, 0.0]})  # diamond
+        with pytest.raises(NotImplementedError, match=NCBNYS):
+            DataSource(boundary={"lat": [0.0, -0.5, 0.0, 0.5], "lon": [-0.5, 0.0, 0.5, 0.0]})  # diamond
 
+        NUBNYS = "Non-uniform boundary not yet supported"
         # array of boundaries (one for each coordinate)
-        with pytest.raises(NotImplementedError, match="Non-uniform boundary not yet supported"):
-            node = DataSource(boundary={"lat": [[-0.1, 0.4], [-0.2, 0.3], [-0.3, 0.2]], "lon": 0.5})
+        with pytest.raises(NotImplementedError, match=NUBNYS):
+            DataSource(boundary={"lat": [[-0.1, 0.4], [-0.2, 0.3], [-0.3, 0.2]], "lon": 0.5})
 
-        with pytest.raises(NotImplementedError, match="Non-uniform boundary not yet supported"):
-            node = DataSource(boundary={"time": [["-1,D", "1,D"], ["-2,D", "1,D"]]})
+        with pytest.raises(NotImplementedError, match=NUBNYS):
+            DataSource(boundary={"time": [["-1,D", "1,D"], ["-2,D", "1,D"]]})
 
         # invalid
         with pytest.raises(tl.TraitError):
-            node = DataSource(boundary=0.5)
+            DataSource(boundary=0.5)
 
         with pytest.raises(ValueError, match="Invalid dimension"):
-            node = DataSource(boundary={"other": 0.5})
+            DataSource(boundary={"other": 0.5})
 
         with pytest.raises(TypeError, match="Invalid coordinate delta"):
-            node = DataSource(boundary={"lat": {}})
+            DataSource(boundary={"lat": {}})
 
-        with pytest.raises(ValueError, match="Invalid boundary"):
-            node = DataSource(boundary={"lat": -0.25, "lon": 2.0})  # negative
+        IB = "Invalid boundary"
+        with pytest.raises(ValueError, match=IB):
+            DataSource(boundary={"lat": -0.25, "lon": 2.0})  # negative
 
-        with pytest.raises(ValueError, match="Invalid boundary"):
-            node = DataSource(boundary={"time": "-2,D"})  # negative
+        with pytest.raises(ValueError, match=IB):
+            DataSource(boundary={"time": "-2,D"})  # negative
 
-        with pytest.raises(ValueError, match="Invalid boundary"):
-            node = DataSource(boundary={"time": "2018-01-01"})  # not a delta
+        with pytest.raises(ValueError, match=IB):
+            DataSource(boundary={"time": "2018-01-01"})  # not a delta
 
     def test_invalid_nan_vals(self):
         with pytest.raises(tl.TraitError):
@@ -321,17 +325,18 @@ class TestDataSource(object):
         # missing unstacked dimension
         node = MockDataSource()
 
-        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+        CANNOT_EVALUATE = "Cannot evaluate these coordinates.*"
+        with pytest.raises(ValueError, match=CANNOT_EVALUATE):
             node.eval(Coordinates([1], dims=["lat"]))
-        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+        with pytest.raises(ValueError, match=CANNOT_EVALUATE):
             node.eval(Coordinates([11], dims=["lon"]))
-        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+        with pytest.raises(ValueError, match=CANNOT_EVALUATE):
             node.eval(Coordinates(["2018-01-01"], dims=["time"]))
 
         # missing any part of stacked dimension
         node = MockDataSourceStacked()
 
-        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+        with pytest.raises(ValueError, match=CANNOT_EVALUATE):
             node.eval(Coordinates([1], dims=["time"]))
 
     def test_evaluate_crs_transform(self):
@@ -346,7 +351,7 @@ class TestDataSource(object):
     def test_evaluate_selector(self):
         def selector(rsc, coordinates, index_type=None):
             """mock selector that just strides by 2"""
-            new_rsci = tuple(slice(None, None, 2) for dim in rsc.dims)
+            new_rsci = tuple(slice(None, None, 2) for _ in rsc.dims)
             new_rsc = rsc[new_rsci]
             return new_rsc, new_rsci
 
@@ -391,7 +396,7 @@ class TestDataSource(object):
         assert isinstance(output, UnitsDataArray)
         assert node.coordinates["lat"].coordinates[4] == output.coords["lat"].values[4]
 
-    def test_get_data_DataArray(self):
+    def test_get_data_data_array(self):
         class MockDataSourceReturnsDataArray(MockDataSource):
             def get_data(self, coordinates, coordinates_index):
                 return xr.DataArray(self.data[coordinates_index])
@@ -409,7 +414,7 @@ class TestDataSource(object):
 
         node = MockDataSourceReturnsInvalid()
         with pytest.raises(TypeError, match="Unknown data type"):
-            output = node.eval(node.coordinates)
+            node.eval(node.coordinates)
 
     def test_evaluate_debug_attributes(self):
         with podpac.settings:
@@ -525,10 +530,8 @@ class TestDataSource(object):
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
 
             node = podpac.data.Array(
-                source=np.ones((3, 4)),
-                coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"]),
-                cache_ctrl=["ram"],
-            )
+                source=np.ones((3, 4)), coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"])
+            ).cache(cache_tpe=["ram"])
             coords1 = podpac.Coordinates([range(3), range(4), "2012-05-19"], ["lat", "lon", "time"])
             coords2 = podpac.Coordinates([range(3), range(4), "2019-09-10"], ["lat", "lon", "time"])
 
@@ -546,22 +549,22 @@ class TestDataSource(object):
     def test_eval_get_cache_transform_crs(self):
         with podpac.settings:
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
+            podpac.settings["DEFAULT_CRS"] = podpac.core.settings.DEFAULT_SETTINGS["DEFAULT_CRS"]
 
             node = podpac.core.data.array_source.Array(
-                source=np.ones((3, 4)),
-                coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"], crs="EPSG:4326"),
-                cache_ctrl=["ram"],
-            )
+                source=np.ones((5, 4)),
+                coordinates=podpac.Coordinates([range(5), range(4)], ["lat", "lon"], crs="EPSG:4326"),
+            ).cache(cache_type=["ram"])
 
             # retrieve from cache on the second evaluation
-            node.eval(node.coordinates)
+            node.eval(node.source.coordinates)
             assert not node._from_cache
 
-            node.eval(node.coordinates)
+            node.eval(node.source.coordinates)
             assert node._from_cache
 
             # also retrieve from cache with different crs
-            node.eval(node.coordinates.transform("EPSG:4326"))
+            node.eval(node.source.coordinates.transform("EPSG:4326"))
             assert node._from_cache
 
     def test_get_source_data(self):

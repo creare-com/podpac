@@ -4,6 +4,7 @@ Multidimensional Coordinates
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+from typing import List, Tuple, Union
 import warnings
 from copy import deepcopy
 import sys
@@ -120,6 +121,24 @@ class Coordinates(tl.HasTraits):
         if len(dims) != len(coords):
             raise ValueError("coords and dims size mismatch, %d != %d" % (len(dims), len(coords)))
 
+        self._init_coords(dims, coords)
+
+        if crs is not None:
+            # validate
+            if validate_crs:
+                # raises pyproj.CRSError if invalid
+                pyproj_crs = pyproj.CRS(crs)
+
+                # make sure CRS defines vertical units
+                if "alt" in self.udims and not has_alt_units(pyproj_crs):
+                    raise ValueError("Altitude dimension is defined, but CRS does not contain vertical unit")
+
+            crs = self.set_trait("crs", crs)
+
+        super(Coordinates, self).__init__()
+
+    def _init_coords(self, dims: Union[Tuple, List], coords: Union[List, Tuple, np.ndarray, xr.DataArray]) -> None:
+        """Initialize the trait self._coords.  Meant only to be called from __init__()."""
         # get/create coordinates
         dcoords = OrderedDict()
         for i, dim in enumerate(dims):
@@ -144,20 +163,6 @@ class Coordinates(tl.HasTraits):
             dcoords[dim] = c
 
         self.set_trait("_coords", dcoords)
-
-        if crs is not None:
-            # validate
-            if validate_crs:
-                # raises pyproj.CRSError if invalid
-                CRS = pyproj.CRS(crs)
-
-                # make sure CRS defines vertical units
-                if "alt" in self.udims and not has_alt_units(CRS):
-                    raise ValueError("Altitude dimension is defined, but CRS does not contain vertical unit")
-
-            crs = self.set_trait("crs", crs)
-
-        super(Coordinates, self).__init__()
 
     @tl.validate("_coords")
     def _validate_coords(self, d):
@@ -187,9 +192,8 @@ class Coordinates(tl.HasTraits):
 
     @staticmethod
     def _coords_from_dict(d, order=None):
-        if sys.version < "3.6":
-            if order is None and len(d) > 1:
-                raise TypeError("order required")
+        if sys.version_info[0:2] < (3, 6) and order is None and len(d) > 1:
+            raise TypeError("order required")
 
         if order is not None:
             if set(order) != set(d):
@@ -306,7 +310,7 @@ class Coordinates(tl.HasTraits):
         return cls([stacked], crs=crs)
 
     @classmethod
-    def from_xarray(cls, x, crs=None, validate_crs=False):
+    def from_xarray(cls, x, crs: str = None, validate_crs: bool = False):
         """
         Create podpac Coordinates from xarray coords.
 
@@ -333,25 +337,7 @@ class Coordinates(tl.HasTraits):
 
             xcoords = x.coords
             if "geotransform" in x.attrs:
-                other = cls.from_xarray(xcoords, crs=crs, validate_crs=validate_crs).udrop(["lat", "lon"])
-                latshape = xcoords["lat"].shape
-                lonshape = xcoords["lon"].shape
-                if latshape == lonshape and len(latshape) == 2:
-                    shape = latshape
-                else:
-                    shape = [latshape[0], lonshape[0]]
-                    xdims = list(xcoords.keys())
-                    if xdims.index("lat") > xdims.index("lon"):
-                        shape = shape[::-1]
-                lat_lon = cls.from_geotransform(x.geotransform, shape=shape, crs=crs, validate_crs=validate_crs)
-                coords = merge_dims([other, lat_lon])
-
-                # These dims might have something like lat_lon-1, lat_lon-2, so eliminate the '-' ...
-                dims = [d.split("-")[0] for d in xcoords.dims if d != "output"]
-                # ... and make sure it's all unique without changing order (np.unique would change order...)
-                dims = [d for i, d in enumerate(dims) if d not in dims[:i]]
-                coords = coords.transpose(*dims)
-                return coords
+                return cls._from_xarray_dataarray_or_dataset(x, crs, validate_crs)
 
         elif isinstance(x, (xarray.core.coordinates.DataArrayCoordinates, xarray.core.coordinates.DatasetCoordinates)):
             xcoords = x
@@ -384,6 +370,46 @@ class Coordinates(tl.HasTraits):
                 d[dim] = ArrayCoordinates1d.from_xarray(xcoords[dim])
 
         coords = cls(list(d.values()), crs=crs, validate_crs=validate_crs)
+        return coords
+
+    @classmethod
+    def _from_xarray_dataarray_or_dataset(cls, x: Union[xr.DataArray, xr.Dataset], crs=None, validate_crs=False):
+        """Subset of from_xarray() that handles the case where x is of type
+        xr.DataArray or xr.Dataset and x has a geotransform.
+
+        Parameters
+        ----------
+        x: Union[xr.DataArray, xr.Dataset]
+            _description_
+        crs : str, optional
+            _description_, by default None
+        validate_crs : bool, optional
+            _description_, by default False
+
+        Returns
+        -------
+        coords : :class:`Coordinates`
+            podpac Coordinates
+        """
+        xcoords = x.coords
+        other = cls.from_xarray(xcoords, crs=crs, validate_crs=validate_crs).udrop(["lat", "lon"])
+        latshape = xcoords["lat"].shape
+        lonshape = xcoords["lon"].shape
+        if latshape == lonshape and len(latshape) == 2:
+            shape = latshape
+        else:
+            shape = [latshape[0], lonshape[0]]
+            xdims = list(xcoords.keys())
+            if xdims.index("lat") > xdims.index("lon"):
+                shape = shape[::-1]
+        lat_lon = cls.from_geotransform(x.geotransform, shape=shape, crs=crs, validate_crs=validate_crs)
+        coords = merge_dims([other, lat_lon])
+
+        # These dims might have something like lat_lon-1, lat_lon-2, so eliminate the '-' ...
+        dims = [d.split("-")[0] for d in xcoords.dims if d != "output"]
+        # ... and make sure it's all unique without changing order (np.unique would change order...)
+        dims = [d for i, d in enumerate(dims) if d not in dims[:i]]
+        coords = coords.transpose(*dims)
         return coords
 
     @classmethod
@@ -474,7 +500,7 @@ class Coordinates(tl.HasTraits):
                 crs = pyproj.CRS(coords["crs"])
                 if crs.axis_info[0].direction != "north":
                     r = -1
-            except:
+            except Exception:
                 pass
         else:
             r = 1
@@ -682,7 +708,7 @@ class Coordinates(tl.HasTraits):
 
         # properties
         # TODO check transform instead
-        if self.CRS != other.CRS:
+        if self.pyproj_crs != other.pyproj_crs:
             return False
 
         # full check of underlying coordinates
@@ -690,11 +716,6 @@ class Coordinates(tl.HasTraits):
             return False
 
         return True
-
-    if sys.version < "3":
-
-        def __ne__(self, other):
-            return not self.__eq__(other)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -799,12 +820,13 @@ class Coordinates(tl.HasTraits):
         return xcoords
 
     @property
-    def CRS(self):
+    def pyproj_crs(self):
+        """Get the pyproj.CRS version of self.crs field"""
         return pyproj.CRS(self.crs)
 
     @property
     def alt_units(self):
-        CRS = self.CRS
+        CRS = self.pyproj_crs
 
         if not has_alt_units(CRS):
             return None
@@ -815,7 +837,7 @@ class Coordinates(tl.HasTraits):
             return d["vunits"]
 
         # get from axis info (is this is ever useful)
-        for axis in self.CRS.axis_info:
+        for axis in self.pyproj_crs.axis_info:
             if axis.direction == "up":
                 return axis.unit_name  # may need to be converted, e.g. "centimetre" > "cm"
 
@@ -845,7 +867,7 @@ class Coordinates(tl.HasTraits):
         d = OrderedDict()
         d["coords"] = [c.full_definition for c in self._coords.values()]
         # "wkt" is suggested as best format: https://proj.org/faq.html#what-is-the-best-format-for-describing-coordinate-reference-systems
-        d["crs"] = self.CRS.to_wkt()
+        d["crs"] = self.pyproj_crs.to_wkt()
         return d
 
     @property
@@ -1379,7 +1401,7 @@ class Coordinates(tl.HasTraits):
         ValueError
             Coordinates must have both lat and lon dimensions if either is defined
         """
-        from_crs = self.CRS
+        from_crs = self.pyproj_crs
         to_crs = pyproj.CRS(crs)
 
         # no transform needed
@@ -1565,9 +1587,9 @@ class Coordinates(tl.HasTraits):
 
         # ellipsoid tuple to pass to geodesic
         ellipsoid_tuple = (
-            self.CRS.ellipsoid.semi_major_metre / 1000,
-            self.CRS.ellipsoid.semi_minor_metre / 1000,
-            1 / self.CRS.ellipsoid.inverse_flattening,
+            self.pyproj_crs.ellipsoid.semi_major_metre / 1000,
+            self.pyproj_crs.ellipsoid.semi_minor_metre / 1000,
+            1 / self.pyproj_crs.ellipsoid.inverse_flattening,
         )
 
         # main execution loop
@@ -1576,23 +1598,23 @@ class Coordinates(tl.HasTraits):
             if dim.is_stacked:
                 if "lat" in dim.dims and "lon" in dim.dims:
                     resolutions[name] = dim.horizontal_resolution(
-                        None, ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                        None, ellipsoid_tuple, self.pyproj_crs.coordinate_system.name, restype, units
                     )
                 elif "lat" in dim.dims:
                     # Calling self['lat'] forces UniformCoordinates1d, even if stacked
                     resolutions["lat"] = self["lat"].horizontal_resolution(
-                        self["lat"], ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                        self["lat"], ellipsoid_tuple, self.pyproj_crs.coordinate_system.name, restype, units
                     )
                 elif "lon" in dim.dims:
                     # Calling self['lon'] forces UniformCoordinates1d, even if stacked
                     resolutions["lon"] = self["lon"].dim.horizontal_resolution(
-                        self["lat"], ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                        self["lat"], ellipsoid_tuple, self.pyproj_crs.coordinate_system.name, restype, units
                     )
             elif (
                 name == "lat" or name == "lon"
             ):  # need to do this inside of loop in case of stacked [[alt,time]] but unstacked [lat, lon]
                 resolutions[name] = dim.horizontal_resolution(
-                    self["lat"], ellipsoid_tuple, self.CRS.coordinate_system.name, restype, units
+                    self["lat"], ellipsoid_tuple, self.pyproj_crs.coordinate_system.name, restype, units
                 )
 
         return resolutions

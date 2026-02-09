@@ -1,14 +1,11 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import copy
-import warnings
+from typing import List
 
 import numpy as np
-import xarray as xr
 import pandas as pd
 import traitlets as tl
 from six import string_types
-import lazy_import
 from scipy import spatial
 
 import podpac
@@ -253,7 +250,7 @@ class StackedCoordinates(BaseCoordinates):
     def __contains__(self, item):
         try:
             item = np.array([make_coord_value(value) for value in item])
-        except:
+        except Exception:
             return False
 
         if len(item) != len(self._coords):
@@ -455,33 +452,35 @@ class StackedCoordinates(BaseCoordinates):
         else:
             return self[index]
 
-    def _and_indices(self, indices):
-        def _index_len(index):
-            if isinstance(index, slice):
-                if index.stop is None:
-                    stop = self.size
-                elif index.stop < 0:
-                    stop = self.size - index.stop
-                else:
-                    stop = index.stop
-                if index.start is None:
-                    start = 0
-                elif index.start < 0:
-                    start = self.size - index.start
-                else:
-                    start = index.start
-                return stop - start
-            return len(index)
+    def _index_len(self, index: "Coordinates"):
+        if isinstance(index, slice):
+            if index.stop is None:
+                stop = self.size
+            elif index.stop < 0:
+                stop = self.size - index.stop
+            else:
+                stop = index.stop
+            if index.start is None:
+                start = 0
+            elif index.start < 0:
+                start = self.size - index.start
+            else:
+                start = index.start
+            return stop - start
+        return len(index)
 
+
+    def _and_indices(self, indices: List["Coordinates"]):
+        """logical AND of the selection in each dimension"""
         if all(isinstance(index, slice) for index in indices):
             index = slice(max(index.start or 0 for index in indices), min(index.stop or self.size for index in indices))
             # for consistency
             if index.start == 0 and index.stop == self.size:
                 if self.ndim > 1:
-                    index = [slice(None, None) for dim in self.dims]
+                    index = [slice(None, None) for _ in self.dims]
                 else:
                     index = slice(None, None)
-        elif any(_index_len(index) == 0 for index in indices):
+        elif any(self._index_len(index) == 0 for index in indices):
             index = slice(0, 0)
         else:
             # convert any slices to boolean array
@@ -496,7 +495,7 @@ class StackedCoordinates(BaseCoordinates):
             # for consistency
             if np.all(index):
                 if self.ndim > 1:
-                    index = [slice(None, None) for dim in self.dims]
+                    index = [slice(None, None) for _ in self.dims]
                 else:
                     index = slice(None, None)
 

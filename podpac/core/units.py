@@ -9,6 +9,7 @@ ureg : TYPE
 from copy import deepcopy
 from numbers import Number
 import operator
+from typing import Tuple, Union
 from six import string_types
 import json
 import warnings
@@ -19,7 +20,7 @@ import logging
 
 try:
     import cPickle  # Python 2.7
-except:
+except ImportError:
     import _pickle as cPickle
 
 import numpy as np
@@ -212,7 +213,7 @@ class UnitsDataArray(xr.DataArray):
         else:
             try:
                 getattr(self, "to_" + format)(*args, **kwargs)
-            except:
+            except Exception:
                 raise NotImplementedError("Format {} is not implemented.".format(format))
         self._pp_deserialize()
         return r
@@ -304,13 +305,13 @@ class UnitsDataArray(xr.DataArray):
             # transpose with shared dims first
             shared_dims = [dim for dim in self.dims if dim in key.dims]
             missing_dims = [dim for dim in self.dims if dim not in key.dims]
-            xT = self.transpose(*shared_dims + missing_dims)
+            x_t = self.transpose(*shared_dims + missing_dims)
 
             # index
-            outT = xT[key.data]
+            out_t = x_t[key.data]
 
             # transpose back to original dimensions
-            out = outT.transpose(*self.dims)
+            out = out_t.transpose(*self.dims)
             return out
 
         return super(UnitsDataArray, self).__getitem__(key)
@@ -541,7 +542,48 @@ for tp in ("mean", "min", "max", "sum", "cumsum"):
 del func
 
 
-def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
+def _validate_vmin_vmax(data, vmin: float, vmax: float, style: Style) -> Tuple[float, float]:
+    """Helper function for to_image() to compute color map range.
+    Ensure vmin and vmax are consistent with data and style.
+
+    Parameters
+    ----------
+    data : array-like
+        data to output, usually a UnitsDataArray
+    vmin : number, optional
+        Minimum value of colormap
+    vmax : number, optional
+        Maximum value of colormap
+    style : Style
+        Style to use
+
+    Returns
+    -------
+    Tuple[float, float]
+        Updated vmin, vmax
+    """
+    if not np.any(np.isfinite(data)):
+        vmin = 0
+        vmax = 1
+    else:
+        if vmin is None or np.isnan(vmin):
+            if style is not None and style.clim[0] != None:
+                vmin = style.clim[0]
+            else:
+                vmin = np.nanmin(data)
+        if vmax is None or np.isnan(vmax):
+            if style is not None and style.clim[1] != None:
+                vmax = style.clim[1]
+            else:
+                vmax = np.nanmax(data)
+    if vmax == vmin:
+        vmax += 1e-15
+    return vmin, vmax
+
+
+def to_image(
+    data: np.array, format: str = "png", vmin: float = None, vmax: float = None, return_base64: bool = False
+) -> Union[bytes, BytesIO]:
     """Return a base64-encoded image of data
 
     Parameters
@@ -552,7 +594,7 @@ def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
         Default is 'png'. Type of image.
     vmin : number, optional
         Minimum value of colormap
-    vmax : vmax, optional
+    vmax : number, optional
         Maximum value of colormap
     return_base64: bool, optional
         Default is False. Normally this returns an io.BytesIO, but if True, will return a base64 encoded string.
@@ -560,7 +602,7 @@ def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
 
     Returns
     -------
-    BytesIO/str
+    BytesIO/bytes
         Binary or Base64 encoded image.
     """
 
@@ -591,22 +633,7 @@ def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
 
     data = data.squeeze()
 
-    if not np.any(np.isfinite(data)):
-        vmin = 0
-        vmax = 1
-    else:
-        if vmin is None or np.isnan(vmin):
-            if style is not None and style.clim[0] != None:
-                vmin = style.clim[0]
-            else:
-                vmin = np.nanmin(data)
-        if vmax is None or np.isnan(vmax):
-            if style is not None and style.clim[1] != None:
-                vmax = style.clim[1]
-            else:
-                vmax = np.nanmax(data)
-    if vmax == vmin:
-        vmax += 1e-15
+    vmin, vmax = _validate_vmin_vmax(data, vmin, vmax, style)
 
     # get the colormap
     if style is None:
@@ -664,9 +691,9 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
     if "lat" not in dims or "lon" not in dims:
         raise NotImplementedError("Cannot export GeoTIFF for dataset with lat/lon coordinates.")
     if "time" in dims and len(data.coords["time"]) > 1:
-        raise NotImplemented("Cannot export GeoTIFF for dataset with multiple times,")
+        raise NotImplementedError("Cannot export GeoTIFF for dataset with multiple times,")
     if "alt" in dims and len(data.coords["alt"]) > 1:
-        raise NotImplemented("Cannot export GeoTIFF for dataset with multiple altitudes.")
+        raise NotImplementedError("Cannot export GeoTIFF for dataset with multiple altitudes.")
 
     # TODO: add proper checks, etc. to make sure we handle edge cases and throw errors when we cannot support
     #       i.e. do work to remove this warning.

@@ -26,12 +26,12 @@ class TestOrderedCompositor(object):
             acoords = podpac.Coordinates([[-1, 0, 1], [10, 20, 30]], dims=["lat", "lon"])
             asource = np.ones(acoords.shape)
             asource[0, :] = np.nan
-            a = Array(source=asource, coordinates=acoords, interpolation="bilinear")
+            a = Array(source=asource, coordinates=acoords).interpolate(interpolation="bilinear")
 
             bcoords = podpac.Coordinates([[0, 1, 2, 3], [10, 20, 30, 40]], dims=["lat", "lon"])
             bsource = np.zeros(bcoords.shape)
             bsource[:, 0] = np.nan
-            b = Array(source=bsource, coordinates=bcoords, interpolation="bilinear")
+            b = Array(source=bsource, coordinates=bcoords).interpolate(interpolation="bilinear")
 
             coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40, 50]], dims=["lat", "lon"])
 
@@ -55,12 +55,12 @@ class TestOrderedCompositor(object):
             acoords = podpac.Coordinates([[-1, 0, 1], [10, 20, 30]], dims=["lat", "lon"])
             asource = np.ones(acoords.shape)
             asource[0, :] = np.nan
-            a = Array(source=asource, coordinates=acoords, interpolation="bilinear")
+            a = Array(source=asource, coordinates=acoords).interpolate(interpolation="bilinear")
 
             bcoords = podpac.Coordinates([[0, 1, 2, 3], [10, 20, 30, 40]], dims=["lat", "lon"])
             bsource = np.zeros(bcoords.shape)
             bsource[:, 0] = np.nan
-            b = Array(source=bsource, coordinates=bcoords, interpolation="bilinear")
+            b = Array(source=bsource, coordinates=bcoords).interpolate(interpolation="bilinear")
 
             coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40, 50]], dims=["lat", "lon"])
 
@@ -162,8 +162,8 @@ class TestOrderedCompositor(object):
     def test_composite_stacked_unstacked(self):
         anative = podpac.Coordinates([podpac.clinspace((0, 1), (1, 2), size=3)], dims=["lat_lon"])
         bnative = podpac.Coordinates([podpac.clinspace(-2, 3, 3), podpac.clinspace(-1, 4, 3)], dims=["lat", "lon"])
-        a = Array(source=np.random.rand(3), coordinates=anative, interpolation="nearest")
-        b = Array(source=np.random.rand(3, 3) + 2, coordinates=bnative, interpolation="nearest")
+        a = Array(source=np.random.rand(3), coordinates=anative).interpolate(interpolation="nearest")
+        b = Array(source=np.random.rand(3, 3) + 2, coordinates=bnative).interpolate(interpolation="nearest")
 
         coords = podpac.Coordinates([podpac.clinspace(-3, 4, 32), podpac.clinspace(-2, 5, 32)], dims=["lat", "lon"])
 

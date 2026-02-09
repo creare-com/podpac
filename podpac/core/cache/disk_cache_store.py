@@ -15,6 +15,9 @@ from podpac.core.cache.file_cache_store import FileCacheStore
 
 logger = logging.getLogger(__name__)
 
+_DOT_META = "%s.meta"
+_ERROR_READING_METADATA_FILE = "Error reading metadata file: '%s'"
+
 
 class DiskCacheStore(FileCacheStore):
     """Cache that uses a folder on a local disk file system."""
@@ -26,8 +29,8 @@ class DiskCacheStore(FileCacheStore):
     def __init__(self):
         """Initialize a cache that uses a folder on a local disk file system."""
 
-        if not settings["DISK_CACHE_ENABLED"]:
-            raise CacheException("Disk cache is disabled in the podpac settings.")
+        if not settings["ENABLE_CACHE"]:
+            raise CacheException("Cache is disabled in the podpac settings.")
 
         self._root_dir_path = settings.cache_path
 
@@ -61,7 +64,7 @@ class DiskCacheStore(FileCacheStore):
             f.write(s)
 
         if metadata:
-            metadata_path = "%s.meta" % path
+            metadata_path = _DOT_META % path
             with open(metadata_path, "w") as f:
                 json.dump(metadata, f)
 
@@ -77,8 +80,8 @@ class DiskCacheStore(FileCacheStore):
 
     def _remove(self, path):
         os.remove(path)
-        if os.path.exists("%s.meta" % path):
-            os.remove("%s.meta" % path)
+        if os.path.exists(_DOT_META % path):
+            os.remove(_DOT_META % path)
 
     def _exists(self, path):
         return os.path.exists(path)
@@ -100,23 +103,23 @@ class DiskCacheStore(FileCacheStore):
         return os.path.dirname(path)
 
     def _get_metadata(self, path, key):
-        metadata_path = "%s.meta" % path
+        metadata_path = _DOT_META % path
         try:
             with open(metadata_path, "r") as f:
                 metadata = json.load(f)
         except IOError:
             # missing, permissions
-            logger.exception("Error reading metadata file: '%s'" % metadata_path)
+            logger.exception(_ERROR_READING_METADATA_FILE % metadata_path)
             return None
         except ValueError:
             # invalid json
-            logger.exception("Error reading metadata file: '%s'" % metadata_path)
+            logger.exception(_ERROR_READING_METADATA_FILE % metadata_path)
             return None
 
         return metadata.get(key)
 
     def _set_metadata(self, path, key, value):
-        metadata_path = "%s.meta" % path
+        metadata_path = _DOT_META % path
 
         # read existing
         try:
@@ -124,11 +127,11 @@ class DiskCacheStore(FileCacheStore):
                 metadata = json.load(f)
         except IOError:
             # missing, permissions
-            logger.exception("Error reading metadata file: '%s'" % metadata_path)
+            logger.exception(_ERROR_READING_METADATA_FILE % metadata_path)
             metadata = {}
         except ValueError:
             # invalid json
-            logger.exception("Error reading metadata file: '%s'" % metadata_path)
+            logger.exception(_ERROR_READING_METADATA_FILE % metadata_path)
             metadata = {}
 
         # write

@@ -52,26 +52,22 @@ class TestCacheCtrl(object):
         ctrl = CacheCtrl()
         assert len(ctrl._cache_stores) == 0
         assert ctrl.cache_stores == []
-        repr(ctrl)
 
     def test_init_list(self):
         ctrl = CacheCtrl(cache_stores=[])
         assert len(ctrl._cache_stores) == 0
         assert ctrl.cache_stores == []
-        repr(ctrl)
 
         ctrl = CacheCtrl(cache_stores=[RamCacheStore()])
         assert len(ctrl._cache_stores) == 1
         assert isinstance(ctrl._cache_stores[0], RamCacheStore)
         assert ctrl.cache_stores == ["ram"]
-        repr(ctrl)
 
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
         assert len(ctrl._cache_stores) == 2
         assert isinstance(ctrl._cache_stores[0], RamCacheStore)
         assert isinstance(ctrl._cache_stores[1], DiskCacheStore)
         assert ctrl.cache_stores == ["ram", "disk"]
-        repr(ctrl)
 
     def test_put_has_get(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
@@ -149,6 +145,7 @@ class TestCacheCtrl(object):
         assert not ctrl.has(NODE, "key")
 
     def test_rem_wildcard_coordinates(self):
+        # It might be useful to test rem() with wildcard coordinates
         pass
 
     def test_put_clear(self):
@@ -225,44 +222,44 @@ class TestCacheCtrl(object):
 
     def test_invalid_node(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
-
+        INVALID_NODE = "Invalid node"
         # type
-        with pytest.raises(TypeError, match="Invalid node"):
+        with pytest.raises(TypeError, match=INVALID_NODE):
             ctrl.put("node", 10, "key")
 
-        with pytest.raises(TypeError, match="Invalid node"):
+        with pytest.raises(TypeError, match=INVALID_NODE):
             ctrl.get("node", "key")
 
-        with pytest.raises(TypeError, match="Invalid node"):
+        with pytest.raises(TypeError, match=INVALID_NODE):
             ctrl.has("node", "key")
 
-        with pytest.raises(TypeError, match="Invalid node"):
+        with pytest.raises(TypeError, match=INVALID_NODE):
             ctrl.rem("node", "key")
 
     def test_invalid_key(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
-
+        INVALID_ITEM = "Invalid item"
         # type
-        with pytest.raises(TypeError, match="Invalid item"):
+        with pytest.raises(TypeError, match=INVALID_ITEM):
             ctrl.put(NODE, 10, 10)
 
-        with pytest.raises(TypeError, match="Invalid item"):
+        with pytest.raises(TypeError, match=INVALID_ITEM):
             ctrl.get(NODE, 10)
 
-        with pytest.raises(TypeError, match="Invalid item"):
+        with pytest.raises(TypeError, match=INVALID_ITEM):
             ctrl.has(NODE, 10)
 
-        with pytest.raises(TypeError, match="Invalid item"):
+        with pytest.raises(TypeError, match=INVALID_ITEM):
             ctrl.rem(NODE, 10)
 
         # wildcard
-        with pytest.raises(ValueError, match="Invalid item"):
+        with pytest.raises(ValueError, match=INVALID_ITEM):
             ctrl.put(NODE, 10, "*")
 
-        with pytest.raises(ValueError, match="Invalid item"):
+        with pytest.raises(ValueError, match=INVALID_ITEM):
             ctrl.get(NODE, "*")
 
-        with pytest.raises(ValueError, match="Invalid item"):
+        with pytest.raises(ValueError, match=INVALID_ITEM):
             ctrl.has(NODE, "*")
 
         # allowed
@@ -270,36 +267,36 @@ class TestCacheCtrl(object):
 
     def test_invalid_coordinates(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
-
+        INVALID_COORDINATES = "Invalid coordinates"
         # type
-        with pytest.raises(TypeError, match="Invalid coordinates"):
+        with pytest.raises(TypeError, match=INVALID_COORDINATES):
             ctrl.put(NODE, 10, "key", coordinates="coords")
 
-        with pytest.raises(TypeError, match="Invalid coordinates"):
+        with pytest.raises(TypeError, match=INVALID_COORDINATES):
             ctrl.get(NODE, "key", coordinates="coords")
 
-        with pytest.raises(TypeError, match="Invalid coordinates"):
+        with pytest.raises(TypeError, match=INVALID_COORDINATES):
             ctrl.has(NODE, "key", coordinates="coords")
 
-        with pytest.raises(TypeError, match="Invalid coordinates"):
+        with pytest.raises(TypeError, match=INVALID_COORDINATES):
             ctrl.rem(NODE, "key", coordinates="coords")
 
     def test_invalid_mode(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
-
-        with pytest.raises(ValueError, match="Invalid mode"):
+        INVALID_MODE = "Invalid mode"
+        with pytest.raises(ValueError, match=INVALID_MODE):
             ctrl.put(NODE, 10, "key", mode="other")
 
-        with pytest.raises(ValueError, match="Invalid mode"):
+        with pytest.raises(ValueError, match=INVALID_MODE):
             ctrl.get(NODE, "key", mode="other")
 
-        with pytest.raises(ValueError, match="Invalid mode"):
+        with pytest.raises(ValueError, match=INVALID_MODE):
             ctrl.has(NODE, "key", mode="other")
 
-        with pytest.raises(ValueError, match="Invalid mode"):
+        with pytest.raises(ValueError, match=INVALID_MODE):
             ctrl.rem(NODE, "key", mode="other")
 
-        with pytest.raises(ValueError, match="Invalid mode"):
+        with pytest.raises(ValueError, match=INVALID_MODE):
             ctrl.clear(mode="other")
 
 
@@ -341,10 +338,10 @@ class TestMakeCacheCtrl(object):
 
     def test_invalid(self):
         with pytest.raises(ValueError, match="Unknown cache store type"):
-            ctrl = make_cache_ctrl("other")
+            make_cache_ctrl("other")
 
         with pytest.raises(ValueError, match="Unknown cache store type"):
-            ctrl = make_cache_ctrl(["other"])
+            make_cache_ctrl(["other"])
 
 
 def test_clear_cache():
@@ -353,7 +350,7 @@ def test_clear_cache():
         podpac.settings["DEFAULT_CACHE"] = ["ram"]
 
         # fill the default cache
-        node = podpac.algorithm.Arange()
+        node = podpac.algorithm.Arange().cache()
         node.put_cache(0, "mykey")
         assert node.has_cache("mykey")
 
@@ -367,4 +364,4 @@ def test_cache_cleanup():
         # make a default cache
         podpac.settings["DEFAULT_CACHE"] = ["ram"]
 
-        cache_cleanup()
+        cache_cleanup() # this fails. Not sure whats happening with the "_thread_local" object in ram_cache_store.py

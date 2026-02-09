@@ -14,10 +14,8 @@ from collections import OrderedDict
 from copy import deepcopy
 from hashlib import sha256 as hash_alg
 
-try:
-    import urllib.parse as urllib
-except:  # Python 2.7
-    import urlparse as urllib
+import urllib.parse as urllib
+
 
 from six import string_types
 import lazy_import
@@ -36,6 +34,10 @@ _log = logging.getLogger(__name__)
 import podpac
 from . import settings
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
+
+
+OrderedDictTrait = tl.Dict
+
 
 def common_doc(doc_dict):
     """Decorator: replaces commond fields in a function docstring
@@ -126,28 +128,6 @@ def create_logfile(
     return log, handler, formatter
 
 
-if sys.version < "3.6":
-    # for Python 2 and Python < 3.6 compatibility
-    class OrderedDictTrait(tl.Dict):
-        """OrderedDict trait"""
-
-        default_value = OrderedDict()
-
-        def validate(self, obj, value):
-            if value == {}:
-                value = OrderedDict()
-            elif not isinstance(value, OrderedDict):
-                raise tl.TraitError(
-                    "The '%s' trait of an %s instance must be an OrderedDict, but a value of %s %s was specified"
-                    % (self.name, obj.__class__.__name__, value, type(value))
-                )
-            super(OrderedDictTrait, self).validate(obj, value)
-            return value
-
-else:
-    OrderedDictTrait = tl.Dict
-
-
 class ArrayTrait(tl.TraitType):
     """A coercing numpy array trait."""
 
@@ -155,9 +135,9 @@ class ArrayTrait(tl.TraitType):
         if ndim is not None and shape is not None and len(shape) != ndim:
             raise ValueError("Incompatible ndim and shape (ndim=%d, shape=%s)" % (ndim, shape))
         if dtype is not None and not isinstance(dtype, type):
-            if dtype not in np.typeDict:
+            if dtype not in np.sctypeDict:
                 raise ValueError("Unknown dtype '%s'" % dtype)
-            dtype = np.typeDict[dtype]
+            dtype = np.sctypeDict[dtype]
         self.ndim = ndim
         self.shape = shape
         self.dtype = dtype
@@ -186,7 +166,7 @@ class ArrayTrait(tl.TraitType):
         if self.dtype is not None:
             try:
                 value = value.astype(self.dtype)
-            except:
+            except Exception:
                 raise tl.TraitError(
                     "The '%s' trait of an %s instance must have dtype %s, but a value with dtype %s was specified"
                     % (self.name, obj.__class__.__name__, self.dtype, value.dtype)
@@ -285,7 +265,7 @@ class JSONEncoder(json.JSONEncoder):
 def is_json_serializable(obj, cls=json.JSONEncoder):
     try:
         json.dumps(obj, cls=cls)
-    except:
+    except Exception:
         return False
     else:
         return True
@@ -341,12 +321,9 @@ def _get_from_url(url, session=None):
                     url, r.status_code, r.text
                 )
             )
-
-    except requests.ConnectionError as e:
-        _log.warning("Cannot connect to {}:".format(url) + str(e))
-        r = None
-    except RuntimeError as e:
+    except Exception as e:
         _log.warning("Cannot authenticate to {}. Check credentials. Error was as follows:".format(url) + str(e))
+        r = None
 
     return r
 
@@ -405,14 +382,14 @@ def cached_property(*args, **kwargs):
         def wrapper(self):
             if hasattr(self, key):
                 value = getattr(self, key)
-            elif use_cache_ctrl and self.has_cache(key):
-                value = self.get_cache(key)
+            elif use_cache_ctrl and self.has_property_cache(key):
+                value = self.get_property_cache(key)
                 setattr(self, key, value)
             else:
                 value = fn(self)
                 setattr(self, key, value)
                 if use_cache_ctrl:
-                    self.put_cache(value, key, expires=expires)
+                    self.put_property_cache(value, key, expires=expires)
             return value
 
         return wrapper
@@ -456,7 +433,7 @@ def _ind2slice(I):
 
     # convert boolean array to index array
     if I.dtype == bool:
-        (I,) = np.where(I)
+        (I,) = np.nonzero(I)
 
     # empty slice
     if I.size == 0:
@@ -490,7 +467,86 @@ def resolve_bbox_order(bbox, crs, size):
     return {"lat": [lat_start, lat_stop, size[0]], "lon": [lon_start, lon_stop, size[1]]}
 
 
-def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=False):
+def _partial_definition(key, definition):
+    """Helper for probe_node(). Needed to build partial node definitions"""
+    new_def = OrderedDict()
+    for k in definition:
+        new_def[k] = definition[k]
+        if k == key:
+            return new_def
+
+
+def _flatten_list(l):
+    """Helper for probe_node(). Needed to flatten the inputs list for all the dependencies"""
+    nl = []
+    for ll in l:
+        if isinstance(ll, list):
+            lll = _flatten_list(ll)
+            nl.extend(lll)
+        else:
+            nl.append(ll)
+    return nl
+
+
+def _get_entry(key, out, definition):
+    """Helper for probe_node(). Needed for the nested version of the pipeline"""
+    # We have to rearrange the outputs
+    entry = OrderedDict()
+    entry["name"] = out[key]["name"]
+    entry["value"] = str(out[key]["value"])
+    entry["label"] = out[key]["label"]
+    entry["active"] = out[key]["active"]
+    if "node_hash" in out[key]:
+        entry["node_id"] = out[key]["node_hash"]
+    entry["params"] = {}
+    entry["inputs"] = {"inputs": [_get_entry(inp, out, definition) for inp in out[key]["inputs"]]}
+    if len(entry["inputs"]["inputs"]) == 0:
+        entry["inputs"] = {}
+    return entry
+
+
+def _get_label(value, style, add_enumeration_labels):
+    """Helper for probe_node(). Handles both enumerations and units to be given back to the label field
+
+    If no enumeration_legend is detected in style, or the user opts out of enumeration labels
+    with add_enumeration_labels = False, then units are returned.
+    Else, an enumeration label is determined, defaulting to "unknown" in error cases
+    """
+    if not add_enumeration_labels or style.enumeration_legend is None:
+        return style.units
+    if isinstance(value, list):  # all list returns should be 2-D
+        ret = ""
+        for v in np.unique(value):
+            try:
+                new_label = style.enumeration_legend[int(v)]
+            except ValueError:
+                _log.warning(
+                    "Enumeration label lookup failed for node of name {}, returning unknown".format(style.name)
+                )
+                new_label = "unknown"
+            ret += "{}={}, ".format(v, new_label)
+        return ret[:-2]
+    else:
+        if np.isnan(value):
+            return "unknown"
+        try:
+            return str(style.enumeration_legend[int(value)])
+        except ValueError:
+            _log.warning("Enumeration label lookup failed for node of name {}, returning unknown".format(style.name))
+            return "unknown"
+
+
+def probe_node(
+    node,
+    lat=None,
+    lon=None,
+    time=None,
+    alt=None,
+    crs=None,
+    nested=False,
+    add_enumeration_labels=True,
+    compute_hash=True,
+):
     """Evaluates every part of a node / pipeline at a point and records
     which nodes are actively being used.
 
@@ -511,6 +567,9 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
     nested : bool, optional
         Default is False. If True, will return a nested version of the
         output dictionary isntead
+    add_enumeration_labels : bool, optional
+        Default is True. If True, the "value" will be replaced by str(value) + "({})".format(node.style.enumeration_legend[int(value)])
+        if node.style.enumeration_legend is specified by the style.
 
     Returns
     dict
@@ -526,77 +585,45 @@ def probe_node(node, lat=None, lon=None, time=None, alt=None, crs=None, nested=F
         ```
     """
 
-    def partial_definition(key, definition):
-        """Needed to build partial node definitions"""
-        new_def = OrderedDict()
-        for k in definition:
-            new_def[k] = definition[k]
-            if k == key:
-                return new_def
-
-    def flatten_list(l):
-        """Needed to flatten the inputs list for all the dependencies"""
-        nl = []
-        for ll in l:
-            if isinstance(ll, list):
-                lll = flatten_list(ll)
-                nl.extend(lll)
-            else:
-                nl.append(ll)
-        return nl
-
-    def get_entry(key, out, definition):
-        """Needed for the nested version of the pipeline"""
-        # We have to rearrange the outputs
-        entry = OrderedDict()
-        entry["name"] = out[key]["name"]
-        entry["value"] = str(out[key]["value"])
-        if out[key]["units"] not in [None, ""]:
-            entry["value"] = entry["value"] + " " + str(out[key]["units"])
-        entry["active"] = out[key]["active"]
-        entry["node_id"] = out[key]["node_hash"]
-        entry["params"] = {}
-        entry["inputs"] = {"inputs": [get_entry(inp, out, definition) for inp in out[key]["inputs"]]}
-        if len(entry["inputs"]["inputs"]) == 0:
-            entry["inputs"] = {}
-        return entry
-
     c = [(v, d) for v, d in zip([lat, lon, time, alt], ["lat", "lon", "time", "alt"]) if v is not None]
     coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c], crs=crs)
-    v = float(node.eval(coords))
+    node.eval(coords)
     definition = node.definition
     out = OrderedDict()
+    raw_values = {}  # Need this to keep track of actual value for evaluating active nodes in compositors
     for item in definition:
         if item == "podpac_version":
             continue
-        d = partial_definition(item, definition)
+        d = _partial_definition(item, definition)
         n = podpac.Node.from_definition(d)
         o = n.eval(coords)
         if o.size == 1:
-            value = float(o)
+            value = float(o.data.flatten()[0])  # making robust to all shapes of size=1
         else:
             value = o.data.tolist()
-        inputs = flatten_list(list(d[item].get("inputs", {}).values()))
+        inputs = _flatten_list(list(d[item].get("inputs", {}).values()))
         active = True
         out[item] = {
             "active": active,
             "value": value,
-            "units": n.style.units,
+            "label": _get_label(value, n.style, add_enumeration_labels),
             "inputs": inputs,
-            "name": n.style.name if n.style.name else item,
-            "node_hash": n.hash,
+            "name": n.style.name if n.style.name else item
         }
+        if compute_hash:
+            out[item]["node_hash"] = n.hash
+        raw_values[item] = value
         # Fix sources for Compositors
         if isinstance(n, podpac.compositor.OrderedCompositor):
             searching_for_active = True
             for inp in inputs:
                 out[inp]["active"] = False
-                if out[inp]["value"] == out[item]["value"] and np.isfinite(out[inp]["value"]) and searching_for_active:
+                if raw_values[inp] == raw_values[item] and np.isfinite(raw_values[inp]) and searching_for_active:
                     out[inp]["active"] = True
                     searching_for_active = False
 
     if nested:
-        out = get_entry(list(out.keys())[-1], out, definition)
+        out = _get_entry(list(out.keys())[-1], out, definition)
     return out
 
 
@@ -652,3 +679,25 @@ def get_ui_node_spec(module=None, category="default", help_as_html=False):
         spec[category][obj] = ob.get_ui_spec(help_as_html=help_as_html)
 
     return spec
+
+
+def align_xarray_dict(inputs):
+    """
+    Overrides the coordinates of each xarray entry so that they match to avoid
+    floating-point issues
+
+    Parameters
+    -----------
+    inputs: dict containing xarrays
+        The keys are the attribute names. Each item is a `UnitsDataArray`.
+
+    Returns
+    --------
+    dict
+        Dictionary of {string: UnitsDataArray} with the coorindates of each value matching.
+    """
+    keys = list(inputs.keys())
+    for k in keys[1:]:
+        _, b = xr.align(inputs[keys[0]], inputs[k], join="override")
+        inputs[k] = b
+    return inputs
