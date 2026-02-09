@@ -84,14 +84,12 @@ class TestOrderedDictTrait(object):
         with pytest.raises(tl.TraitError):
             MyClass(d=[])
 
-    @pytest.mark.skipif(sys.version_info[0:2] < (3, 6), reason="python < 3.6")
     def test_dict_python36(self):
         class MyClass(tl.HasTraits):
             d = OrderedDictTrait()
 
         MyClass(d={"a": 1})
 
-    @pytest.mark.skipif(sys.version_info[0:2] >= (3, 6), reason="python >= 3.6")
     def test_dict_python2(self):
         class MyClass(tl.HasTraits):
             d = OrderedDictTrait()

@@ -334,9 +334,7 @@ class TestInterpolation(object):
         assert np.all(outdata == srcdata)
 
 
-class TestHeterogenousInterpolation(
-    object
-):  # I don't think heterogeneou interpolation works with current .interpolate() scheme.
+class TestHeterogenousInterpolation(object):
     DATA = np.arange(64).reshape((4, 4, 4))
     COORDS = Coordinates(
         [[0, 1, 2, 3], [0, 1, 2, 3], ["2020-01-01", "2020-01-05", "2020-01-09", "2020-01-13"]],

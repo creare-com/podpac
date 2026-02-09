@@ -36,6 +36,9 @@ from . import settings
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 
 
+OrderedDictTrait = tl.Dict
+
+
 def common_doc(doc_dict):
     """Decorator: replaces commond fields in a function docstring
 
@@ -123,28 +126,6 @@ def create_logfile(
     _log.info("Logging to file {}".format(filename))
 
     return log, handler, formatter
-
-
-if sys.version_info[0:2] < (3, 6):
-    # for Python 2 and Python < 3.6 compatibility
-    class OrderedDictTrait(tl.Dict):
-        """OrderedDict trait"""
-
-        default_value = OrderedDict()
-
-        def validate(self, obj, value):
-            if value == {}:
-                value = OrderedDict()
-            elif not isinstance(value, OrderedDict):
-                raise tl.TraitError(
-                    "The '%s' trait of an %s instance must be an OrderedDict, but a value of %s %s was specified"
-                    % (self.name, obj.__class__.__name__, value, type(value))
-                )
-            super(OrderedDictTrait, self).validate(obj, value)
-            return value
-
-else:
-    OrderedDictTrait = tl.Dict
 
 
 class ArrayTrait(tl.TraitType):
