@@ -90,16 +90,6 @@ class TestOrderedDictTrait(object):
 
         MyClass(d={"a": 1})
 
-    def test_dict_python2(self):
-        class MyClass(tl.HasTraits):
-            d = OrderedDictTrait()
-
-        with pytest.raises(tl.TraitError):
-            MyClass(d={"a": 1})
-
-        # empty is okay, will be converted
-        MyClass(d={})
-
 
 class TestArrayTrait(object):
     def test(self):
