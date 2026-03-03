@@ -98,12 +98,12 @@ class RasterioInterpolator(Interpolator):
 
         with rasterio.Env():
             src_transform = transform.Affine.from_gdal(*source_coordinates.geotransform)
-            src_crs = rasterio.crs.CRS.from_proj4(source_coordinates.crs)
+            src_crs = rasterio.crs.CRS.from_string(source_coordinates.crs)
             # Need to make sure array is c-contiguous
             source = np.ascontiguousarray(source_data.data)
 
             dst_transform = transform.Affine.from_gdal(*eval_coordinates.geotransform)
-            dst_crs = rasterio.crs.CRS.from_proj4(eval_coordinates.crs)
+            dst_crs = rasterio.crs.CRS.from_string(eval_coordinates.crs)
             # Need to make sure array is c-contiguous
             if not output_data.data.flags["C_CONTIGUOUS"]:
                 destination = np.ascontiguousarray(output_data.data)
