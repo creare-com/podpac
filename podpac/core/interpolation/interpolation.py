@@ -122,12 +122,12 @@ class Interpolate(Node):
 
     @property
     def outputs(self):
-        """ Pass through outputs from source """
+        """Pass through outputs from source"""
         return self.source.outputs
 
     @property
     def coordinates(self):
-        """ Pass through coordinates from source """
+        """Pass through coordinates from source"""
         return self.source.coordinates
 
     @property
@@ -247,7 +247,7 @@ class Interpolate(Node):
         # if requested crs is differented than coordinates,
         # fabricate a new output with the original coordinates and new values
         if self._evaluated_coordinates.crs != coordinates.crs:
-            output = self.create_output_array(self._evaluated_coordinates.drop(extra_dims), data=output[:].values)
+            output = self.create_output_array(self._evaluated_coordinates.udrop(extra_dims), data=output[:].values)
 
         # save output to private for debugging
         if settings["DEBUG"]:
