@@ -783,12 +783,14 @@ class TestStackedCoordinatesMethods(object):
         sc_3 = StackedCoordinates([lat[::-1], lon], name="lat_lon")  # same coordinates, paired differently
         sc_t = sc.transpose("lon", "lat")
         sc_time = StackedCoordinates([lat, lon, time], name="lat_lon_time")
+        sc_single_value = StackedCoordinates([lat[0], lon[0]], name="lat_lon")
 
         assert sc.issubset(sc)
         assert sc[:2].issubset(sc)
         assert not sc.issubset(sc[:2])
         assert not sc_2.issubset(sc)
         assert not sc_3.issubset(sc)
+        assert sc_single_value.issubset(sc_single_value)
 
         assert sc_t.issubset(sc)
 

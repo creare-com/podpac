@@ -329,7 +329,7 @@ class StackedCoordinates(BaseCoordinates):
             dtype = dtypes[0]
         else:
             dtype = object
-        return np.dstack([c.coordinates.astype(dtype) for c in self._coords]).squeeze()
+        return np.stack([c.coordinates.astype(dtype) for c in self._coords], axis=-1)
 
     @property
     def xcoords(self):
@@ -468,7 +468,6 @@ class StackedCoordinates(BaseCoordinates):
                 start = index.start
             return stop - start
         return len(index)
-
 
     def _and_indices(self, indices: List["Coordinates"]):
         """logical AND of the selection in each dimension"""
