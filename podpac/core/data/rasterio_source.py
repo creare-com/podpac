@@ -137,12 +137,10 @@ class Rasterio(S3Mixin, BaseFileSource):
             crs = self.crs
         elif isinstance(self.dataset.crs, rasterio.crs.CRS) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
-            if self.dataset.crs.is_valid:
-                validate_crs = False
+            validate_crs = False
         elif isinstance(self.dataset.crs, dict) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
-            if self.dataset.crs.is_valid:
-                validate_crs = False
+            validate_crs = False
         else:
             try:
                 crs = pyproj.CRS(self.dataset.crs).to_wkt()

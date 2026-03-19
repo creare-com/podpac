@@ -663,7 +663,6 @@ def get_ui_node_spec(module=None, category="default", help_as_html=False):
     spec[category] = {}
     disabled_categories = ["Algorithm", "DataSource", "DroughtMonitorCategory", "DroughtCategory", "IntakeCatalog"]
     for obj in dir(module):
-        # print(obj)
         if obj in disabled_categories:
             ob = getattr(module, obj)
             # print(ob)

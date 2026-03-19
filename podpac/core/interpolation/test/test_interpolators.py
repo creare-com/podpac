@@ -9,6 +9,7 @@ Test interpolation methods
 import pytest
 import traitlets as tl
 import numpy as np
+import logging
 from unittest import TestCase
 
 import podpac
@@ -26,6 +27,8 @@ from podpac.core.interpolation.xarray_interpolator import XarrayInterpolator
 _TIMEDELTA64 = "timedelta64[h]"
 # Set up the PRNG with a seed to stay deterministic
 _rand = np.random.default_rng(0xC * ord("r") + 0xEA + ord("r") * 0xE)
+
+_log = logging.getLogger(__name__)
 
 
 class MockArrayDataSource(DataSource):
@@ -340,8 +343,8 @@ class TestNearest(TestCase):
         coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9]], dims=["lat"])
         output = node.eval(coords_dst)
 
-        print(output)
-        print(source)
+        _log.debug(output)
+        _log.debug(source)
         assert isinstance(output, UnitsDataArray)
         assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         assert output.values[0] == source[0] and np.isnan(output.values[1]) and output.values[2] == source[1]
@@ -357,8 +360,8 @@ class TestNearest(TestCase):
         coords_dst = Coordinates([[[1, 1.2, 1.5, 5, 9], [1, 1.2, 1.5, 5, 9]]], dims=[["lat", "lon"]])
         output = node.eval(coords_dst)
 
-        print(output)
-        print(source)
+        _log.debug(output)
+        _log.debug(source)
         assert isinstance(output, UnitsDataArray)
         assert np.all(output.lat.values == coords_dst["lat"].coordinates)
         assert output.values[0] == source[0] and np.isnan(output.values[1]) and output.values[2] == source[1]
@@ -802,7 +805,7 @@ class TestInterpolateScipyGrid(TestCase):
 
         assert isinstance(output, UnitsDataArray)
         assert np.all(output.lat.values == coords_dst["lat"].coordinates)
-        print(output)
+        _log.debug(output)
         assert output.data[0, 0] == 0.0
         assert output.data[0, 3] == 3.0
         assert output.data[1, 3] == 8.0
@@ -1047,7 +1050,6 @@ class TestXarrayInterpolator(TestCase):
 
         assert isinstance(output, UnitsDataArray)
         assert np.all(output.lat.values == coords_dst["lat"].coordinates)
-        # print(output)
         assert output.data[0, 0] == 0.0
         assert output.data[0, 3] == 3.0
         assert output.data[1, 3] == 8.0

@@ -10,6 +10,7 @@ VERSION_INFO : tuple of int
 
 import subprocess
 import os
+import logging
 from collections import OrderedDict
 
 ##############
@@ -24,6 +25,8 @@ HOTFIX = 0
 VERSION_INFO = OrderedDict([("MAJOR", MAJOR), ("MINOR", MINOR), ("HOTFIX", HOTFIX)])
 
 VERSION = (VERSION_INFO["MAJOR"], VERSION_INFO["MINOR"], VERSION_INFO["HOTFIX"])
+
+_log = logging.getLogger(__name__)
 
 
 def semver():
@@ -68,6 +71,6 @@ def version():
         version_full = version_full.replace("-", "+", 1).replace("-", ".")  # Make this consistent with PEP440
 
     except Exception as e:
-        print("Could not determine PODPAC version from git repo.\n" + str(e))
+        _log.warning("Could not determine PODPAC version from git repo.\n" + str(e))
 
     return version_full

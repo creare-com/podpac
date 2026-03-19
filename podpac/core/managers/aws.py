@@ -737,7 +737,7 @@ Lambda Node {status}
             budget_output=budget_output,
         )
 
-        print(output)
+        _log.debug(output)
 
     # Function
     def create_function(self):

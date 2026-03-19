@@ -11,6 +11,7 @@ from copy import deepcopy
 import pytest
 import traitlets as tl
 import numpy as np
+import logging
 
 import podpac
 from podpac.core.units import UnitsDataArray
@@ -23,6 +24,8 @@ from podpac.core.interpolation.interpolation_manager import (
 )
 from podpac.core.interpolation.interpolator import Interpolator, InterpolatorException
 from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
+
+_log = logging.getLogger(__name__)
 
 
 class TestInterpolation(object):
@@ -64,7 +67,7 @@ class TestInterpolation(object):
 
         # handle string methods
         interp = InterpolationManager({"method": "nearest", "dims": ["lat", "lon"]})
-        print(interp.config)
+        _log.debug(interp.config)
         assert isinstance(interp.config[("lat", "lon")], dict)
         assert interp.config[("lat", "lon")]["method"] == "nearest"
         assert isinstance(interp.config[list(interp.config.keys())[-1]]["interpolators"][0], Interpolator)
