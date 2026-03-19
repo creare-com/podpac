@@ -1171,7 +1171,7 @@ class Node(tl.HasTraits):
                     def_val = atr(cls)
                 if isinstance(def_val, NodeTrait):
                     def_val = def_val.name
-                    print("Changing Nodetrait to string")
+                    _logger.info("Changing Nodetrait to string")
                 # if "NodeTrait" not in str(atr(cls)):
                 function_defaults[atr.trait_name] = def_val
             except Exception:
