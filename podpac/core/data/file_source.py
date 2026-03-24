@@ -5,6 +5,7 @@ Datasources from files
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import sys
+import os 
 
 if sys.version_info.major == 2:
     from urllib2 import urlopen
@@ -117,6 +118,8 @@ class LoadFileMixin(S3Mixin):
         elif self.source.startswith("file://"):
             addinfourl = urlopen(self.source)
             self._file = BytesIO(addinfourl.read())
+        elif os.path.isdir(self.source):
+            return self.open_dataset(self.source)
         else:
             self._file = open(self.source, "rb")
 
