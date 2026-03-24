@@ -11,6 +11,7 @@ from podpac import settings
 import numpy as np
 import traitlets as tl
 import zarr
+zarr.__version__
 
 
 class ZarrCache(CacheNode):
@@ -24,9 +25,9 @@ class ZarrCache(CacheNode):
         The path to the Zarr archive for storing data. Default is f"{self.base_path}/zarr_cache_{self.hash}"
     base_path : str
         Base path for caching to disk. Default is `podpac.settings.cache_path`
-    group_data : zarr.hierarchy.Group
+    group_data : zarr.Group
         The Zarr group for storing data.
-    group_bool : zarr.hierarchy.Group
+    group_bool : zarr.Group
         The Zarr group for storing boolean indicators of data availability.
     chunks: list
         Chunk size for the Zarr array. If None, the default chunk size is used.
@@ -46,8 +47,8 @@ class ZarrCache(CacheNode):
     # Public Traits
     zarr_path = tl.Unicode()
     base_path = tl.Unicode().tag(attr=True, required=True)
-    group_data = tl.Instance(zarr.hierarchy.Group)
-    group_bool = tl.Instance(zarr.hierarchy.Group)
+    group_data = tl.Instance(zarr.Group)
+    group_bool = tl.Instance(zarr.Group)
     chunks = tl.List(allow_none=True).tag(attr=True)
     selector_method = tl.Unicode(allow_none=True).tag(attr=True)
     cache_type = tl.Enum(["disk", "ram"], default_value="disk")
