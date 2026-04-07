@@ -62,7 +62,7 @@ jobs:
           -m pytest -m "not integration" --continue-on-collection-errors || \
           { echo "WARNING: Some tests have failed. (Temporarily ignored)"; true; }
           coverage xml -o coverage.xml
-
+          sed -i 's,<source>.*/podpac</source>,<source>podpac</source>,' coverage.xml
       - name: Artifact Coverage Document
         uses: actions/upload-artifact@v4
         with:
