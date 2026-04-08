@@ -791,6 +791,7 @@ class TestStackedCoordinatesMethods(object):
         assert not sc_2.issubset(sc)
         assert not sc_3.issubset(sc)
         assert sc_single_value.issubset(sc_single_value)
+        assert sc_single_value.issubset(sc)
 
         assert sc_t.issubset(sc)
 
