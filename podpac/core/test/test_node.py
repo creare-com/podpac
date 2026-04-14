@@ -20,7 +20,7 @@ import podpac
 from podpac.core.utils import ArrayTrait, NodeTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.style import Style
-from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore, clear_cache
+from podpac.core.cache import RamCacheStore, DiskCacheStore
 from podpac.core.node import Node, NodeException, NodeDefinitionError
 
 _OUTPUTS = "outputs="

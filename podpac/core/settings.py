@@ -5,7 +5,6 @@ Podpac Settings
 import os
 import json
 from copy import deepcopy
-import errno
 import uuid
 import logging
 

@@ -31,7 +31,7 @@ from podpac.core.utils import hash_alg
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.managers.multi_threading import thread_manager
-from podpac.core.cache import CacheCtrl, make_cache_ctrl, get_default_cache_ctrl
+from podpac.core.cache import CacheCtrl, make_cache_ctrl, get_default_cache_ctrl, S3CacheStore
 from podpac.core.cache.cache_ctrl import _CACHE_STORES
 
 

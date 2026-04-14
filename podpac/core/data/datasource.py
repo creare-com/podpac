@@ -6,9 +6,7 @@ including user defined data sources.
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
-from collections import OrderedDict
 from copy import deepcopy
-import warnings
 import logging
 
 import numpy as np
@@ -21,7 +19,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES, make_coord_delta, make_coord_delta_array
 from podpac.core.node import Node
-from podpac.core.utils import common_doc, cached_property
+from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.interpolation.selector import Selector
 
@@ -366,7 +364,7 @@ class DataSource(Node):
             except KeyError:
                 # 'output' does not exist in the data, so outputs should be empty
                 outputs = []
-            except Exception as e:
+            except Exception:
                 outputs = self.outputs
             coords = Coordinates.from_xarray(output, crs=output.attrs.get("crs", None))
             # the coords.transform in the next line can cause floating point discrepancies between

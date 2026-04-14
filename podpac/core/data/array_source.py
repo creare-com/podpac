@@ -4,16 +4,12 @@ Array Datasource
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import warnings
 from collections import OrderedDict
 from six import string_types
 
-import numpy as np
 import traitlets as tl
-import pandas as pd  # Core dependency of xarray
 
 from podpac.core.utils import common_doc, ArrayTrait
-from podpac.core.cache import CacheCtrl
 from podpac.core.coordinates import Coordinates
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 

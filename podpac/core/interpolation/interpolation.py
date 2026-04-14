@@ -5,8 +5,6 @@ from copy import deepcopy
 from collections import OrderedDict
 import logging
 
-import traitlets as tl
-
 from podpac.core.settings import settings
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait

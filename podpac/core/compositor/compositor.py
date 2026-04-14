@@ -5,8 +5,6 @@ Compositor Summary
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import copy
-
 import numpy as np
 import traitlets as tl
 
@@ -15,7 +13,7 @@ from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.coordinates.utils import Dimension
 from podpac.core.utils import common_doc, NodeTrait
-from podpac.core.node import COMMON_NODE_DOC, Node
+from podpac.core.node import Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.managers.multi_threading import thread_manager
 

@@ -1,9 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import pytest
-
 import podpac.core.common_test_utils as ctu
-from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d
+from podpac.core.coordinates import ArrayCoordinates1d
 
 
 class TestMakeCoordinates(object):

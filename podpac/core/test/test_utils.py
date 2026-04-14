@@ -162,7 +162,7 @@ class TestNodeTrait(object):
         class MyClass(tl.HasTraits):
             node = NodeTrait()
 
-        t = MyClass(node=podpac.Node())
+        MyClass(node=podpac.Node())
 
         with pytest.raises(tl.TraitError):
             MyClass(node=0)

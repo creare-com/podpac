@@ -9,18 +9,16 @@ import traitlets as tl
 
 # Optional dependencies
 try:
-    import scipy
-    from scipy.interpolate import griddata, RectBivariateSpline, RegularGridInterpolator
+    from scipy.interpolate import RectBivariateSpline, RegularGridInterpolator
     from scipy.spatial import KDTree
 except ImportError:
     scipy = None
 
 # podac imports
-from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
+from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
+from podpac.core.coordinates import UniformCoordinates1d
 from podpac.core.utils import common_doc
-from podpac.core.coordinates.utils import get_timedelta
 
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)

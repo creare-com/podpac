@@ -700,3 +700,5 @@ def align_xarray_dict(inputs):
         _, b = xr.align(inputs[keys[0]], inputs[k], join="override")
         inputs[k] = b
     return inputs
+
+__all__ = ["hash_alg"]

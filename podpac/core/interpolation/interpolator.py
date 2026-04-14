@@ -11,7 +11,6 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import logging
 
-import numpy as np
 import traitlets as tl
 import six
 from podpac.core.utils import common_doc

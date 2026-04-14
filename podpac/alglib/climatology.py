@@ -3,8 +3,6 @@ PODPAC node to compute beta fit of seasonal variables
 """
 
 import logging
-import numpy as np
-import xarray as xr
 import traitlets as tl
 from lazy_import import lazy_module
 from scipy.stats import beta
@@ -14,7 +12,6 @@ from scipy.stats._continuous_distns import FitSolverError
 h5py = lazy_module("h5py")
 
 # Internal dependencies
-import podpac
 from podpac.core.algorithm.stats import DayOfYearWindow
 
 # Set up logging

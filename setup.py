@@ -109,7 +109,7 @@ class PostDevelopCommand(develop):
     def run(self):
         try:
             subprocess.check_call(["pre-commit", "install"])
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
             print("Failed to install pre-commit hook")
 
         develop.run(self)

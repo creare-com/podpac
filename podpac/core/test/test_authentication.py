@@ -78,10 +78,10 @@ class TestRequestsSessionMixin(object):
         node = SomeNode(hostname="propertyerrors.com")
 
         with pytest.raises(ValueError, match="set_credentials"):
-            u = node.username
+            _ = node.username
 
         with pytest.raises(ValueError, match="set_credentials"):
-            p = node.password
+            _ = node.password
 
     def test_set_credentials(self):
         with settings:
