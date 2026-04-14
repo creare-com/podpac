@@ -1,7 +1,5 @@
 import pytest
-import traitlets as tl
 from io import BytesIO
-import numpy as np
 
 import podpac
 from podpac.core.data.ogc import WCS
@@ -45,16 +43,6 @@ class MockWCS(WCS):
         return COORDS
 
 
-class MockWCS(WCS):
-    """Test node that uses the MockClient above, and injects podpac interpolation."""
-
-    @property
-    def client(self):
-        return MockClient()
-
-    def get_coordinates(self):
-        return COORDS
-
 @pytest.mark.skip("Dataset is closed")
 class TestWCS(object):
     def test_eval_grid(self):
@@ -88,6 +76,14 @@ class TestWCS(object):
         output = node.eval(c)
         assert output.shape == (100, 100)
         assert output.data.sum() == 1256581.0
+
+    def test_eval_nonuniform2(self):
+        c = COORDS[[0, 10, 99], [0, 99]]
+
+        node = MockWCS(source="mock", layer="mock").interpolate()
+        output = node.eval(c)
+        assert output.shape == (3, 2)
+        assert output.data.sum() == 0
 
     def test_eval_uniform_stacked(self):
         c = podpac.Coordinates([[COORDS["lat"], COORDS["lon"]]], dims=["lat_lon"])
@@ -141,33 +137,6 @@ class TestWCS(object):
         assert output.shape == (100, 100)
         assert output.data.sum() == 1256581.0
 
-@pytest.mark.skip("Dataset is closed")
-class TestWCS(object):
-    def test_eval_grid(self):
-        c = COORDS
-
-        node = MockWCS(source="mock", layer="mock").interpolate()
-        output = node.eval(c)
-        assert output.shape == (100, 100)
-        assert output.data.sum() == 1256581.0
-
-    def test_eval_nonuniform(self):
-        c = COORDS[[0, 10, 99], [0, 99]]
-
-        node = MockWCS(source="mock", layer="mock").interpolate()
-        output = node.eval(c)
-        assert output.shape == (3, 2)
-        assert output.data.sum() == 0
-
-    def test_eval_uniform_stacked(self):
-        c = podpac.Coordinates([[COORDS["lat"], COORDS["lon"]]], dims=["lat_lon"])
-
-        node = MockWCS(source="mock", layer="mock").interpolate()
-        output = node.eval(c)
-        assert output.shape == (100,)
-        # MPU Note: changed from 14350.0 to 12640.0 based on np.diag(node.eval(COORDS)).sum()
-        assert output.data.sum() == 12640.0
-
 
 @pytest.mark.integration
 @pytest.mark.skip("Dataset is closed")
@@ -203,7 +172,7 @@ class TestWCSIntegration(object):
 
     def test_eval_chunked(self):
         node = WCS(source=self.source, layer="sand_0-5cm_mean", format="geotiff_byte", max_size=4000)
-        o1 = node.eval(COORDS)
+        _ = node.eval(COORDS)
 
     def test_eval_other_crs(self):
         c = COORDS.transform("EPSG:3395")
