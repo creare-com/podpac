@@ -1,11 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
-from io import StringIO
 
-import os
-import sys
 import json
 import datetime
-import warnings
 from collections import OrderedDict
 
 import pytest
@@ -13,7 +9,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import traitlets as tl
-from requests import ConnectionError
 from unittest.mock import MagicMock, patch
 
 import podpac

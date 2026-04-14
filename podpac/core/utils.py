@@ -5,14 +5,12 @@ Utils Summary
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import os
-import sys
 import json
 import datetime
 import logging
 import inspect
 from collections import OrderedDict
 from copy import deepcopy
-from hashlib import sha256 as hash_alg
 
 import urllib.parse as urllib
 
@@ -81,7 +79,7 @@ def trait_is_defined(obj, trait_name):
 def create_logfile(
     filename=settings.settings["LOG_FILE_PATH"],
     level=logging.INFO,
-    format="[%(asctime)s] %(name)s.%(funcName)s[%(lineno)d] - %(levelname)s - %(message)s",
+    fmt="[%(asctime)s] %(name)s.%(funcName)s[%(lineno)d] - %(levelname)s - %(message)s",
 ):
     """Convience method to create a log file that only logs
     podpac related messages
@@ -116,7 +114,7 @@ def create_logfile(
 
     # create a logging format
     # see https://docs.python.org/3/library/logging.html#logrecord-attributes
-    formatter = logging.Formatter(format)
+    formatter = logging.Formatter(fmt)
     handler.setFormatter(formatter)
 
     # add the handlers to the logger
