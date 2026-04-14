@@ -153,7 +153,7 @@ class TestUnitDataArray(object):
         for x in range(3):
             for y in range(2):
                 for z in range(2):
-                    c[x, y, z] in [0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19]
+                    _ = (c[x, y, z] in [0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19])
 
     def test_get_item_with_units_data_array_as_key_throws_index_error(self):
         """
@@ -177,7 +177,7 @@ class TestUnitDataArray(object):
         lon_lat = lat_lon.part_transpose(["lon"])
         for lat in range(n_lats):
             for lon in range(n_lons):
-                lat_lon[lat, lon] == lon_lat[lon, lat]
+                _ = (lat_lon[lat, lon] == lon_lat[lon, lat])
 
     def test_partial_transpose_specify_both_swaps_lat_lon(self):
         n_lats = 3
@@ -188,7 +188,7 @@ class TestUnitDataArray(object):
         lon_lat = lat_lon.part_transpose(["lon", "lat"])
         for lat in range(n_lats):
             for lon in range(n_lons):
-                lat_lon[lat, lon] == lon_lat[lon, lat]
+                _ = (lat_lon[lat, lon] == lon_lat[lon, lat])
 
     def test_partial_transpose_specify_none_leaves_lat_lon_untouched(self):
         n_lats = 3
@@ -199,7 +199,7 @@ class TestUnitDataArray(object):
         lat_lon_2 = lat_lon.part_transpose([])
         for lat in range(n_lats):
             for lon in range(n_lons):
-                lat_lon[lat, lon] == lat_lon_2[lat, lon]
+                _ = (lat_lon[lat, lon] == lat_lon_2[lat, lon])
 
     def test_no_units_coord(self):
         a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={})
@@ -328,7 +328,7 @@ class TestUnitDataArray(object):
         np.mean(a1)
         np.min(a1)
         np.max(a1)
-        a1 ** 2
+        _ = a1 ** 2
 
         # These don't have units!
         np.dot(a2.T, a1)

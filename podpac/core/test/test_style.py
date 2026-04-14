@@ -105,9 +105,9 @@ class TestStyle(object):
         assert style1 is not style3
         assert style2 is not style3
 
-        assert style1 == style1
-        assert style2 == style2
-        assert style3 == style3
+        assert style1.__eq__(style1)
+        assert style2.__eq__(style2)
+        assert style3.__eq__(style3)
 
         assert style1 == style2
         assert style1 != style3
