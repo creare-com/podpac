@@ -605,7 +605,6 @@ class Skew(Reduce):
         M1 = xr.zeros_like(output)
         M2 = xr.zeros_like(output)
         M3 = xr.zeros_like(output)
-        check_empty = True
 
         for x in xs:
             Nx = np.isfinite(x).sum(dim=self._dims)

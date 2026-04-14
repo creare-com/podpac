@@ -1,7 +1,6 @@
 import os
 
 import numpy as np
-import traitlets as tl
 import pytest
 
 import podpac

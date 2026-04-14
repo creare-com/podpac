@@ -1,9 +1,7 @@
 import os.path
 
-import zarr
 import pytest
 import numpy as np
-from traitlets import TraitError
 
 from podpac.core.coordinates import Coordinates
 from podpac.core.data.zarr_source import Zarr
@@ -18,7 +16,7 @@ class TestZarr(object):
 
     def test_local_invalid_path(self):
         with pytest.raises(ValueError, match="No Zarr store found"):
-            node = Zarr(source="/does/not/exist", data_key="a")
+            _ = Zarr(source="/does/not/exist", data_key="a")
 
     def test_dims(self):
         node = Zarr(source=self.path)

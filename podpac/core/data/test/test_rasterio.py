@@ -3,8 +3,6 @@ from collections import OrderedDict
 
 import numpy as np
 import rasterio
-import pytest
-from traitlets import TraitError
 
 from podpac.core.coordinates import Coordinates
 from podpac.core.units import UnitsDataArray

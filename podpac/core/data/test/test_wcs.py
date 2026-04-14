@@ -119,7 +119,7 @@ class TestWCS(object):
 
         node = MockWCS()
         with pytest.raises(ValueError, match="Cannot evaluate these coordinates"):
-            output = node.eval(c)
+            _ = node.eval(c)
 
     def test_eval_transpose(self):
         c = COORDS.transpose("lon", "lat")

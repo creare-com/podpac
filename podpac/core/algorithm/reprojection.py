@@ -6,8 +6,6 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 from six import string_types
 
-import numpy as np
-import xarray as xr
 import traitlets as tl
 
 # Internal dependencies
