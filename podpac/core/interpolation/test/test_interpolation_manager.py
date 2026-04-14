@@ -294,7 +294,6 @@ class TestInterpolation(object):
                 return udims
 
             def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
-                output_data = source_data
                 return output_data
 
         # test basic functionality
