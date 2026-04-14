@@ -139,6 +139,6 @@ class XarrayInterpolator(Interpolator):
         if nn_coords:
             source_data = source_data.sel(method="nearest", **nn_coords)
 
-        output_data = source_data.interp(method=self.method, **coords)
+        new_output_data = source_data.interp(method=self.method, **coords)
 
-        return output_data.transpose(*eval_coordinates.xdims)
+        return new_output_data.transpose(*eval_coordinates.xdims)
