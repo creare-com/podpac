@@ -414,7 +414,7 @@ class TestAlgorithm(object):
             podpac.settings["DEFAULT_CACHE"] = []
             podpac.settings.set_unsafe_eval(True)
 
-            omt = node3.eval(coords)
+            _ = node3.eval(coords)
 
         assert node3._multi_threaded
         assert not node2._multi_threaded
