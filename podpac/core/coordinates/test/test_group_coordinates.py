@@ -135,13 +135,13 @@ class TestGroupCoordinates(object):
     def test_repr(self):
         # empty
         g = GroupCoordinates([])
-        repr(g)
+        _ = repr(g)
 
         # nonempty
         c1 = Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])
         c2 = Coordinates([[[10, 11], [10, 11]]], dims=["lat_lon"])
         g = GroupCoordinates([c1, c2])
-        repr(g)
+        _ = repr(g)
 
     def test_intersect(self):
         c1 = Coordinates([[0, 1, 2], [0, 1, 2]], dims=["lat", "lon"])

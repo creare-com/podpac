@@ -33,7 +33,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
     def test_numerical_singleton(self):
         a = np.array([10], dtype=float)
@@ -52,7 +52,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
     def test_numerical_array(self):
         # unsorted
@@ -73,7 +73,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
         # sorted ascending
         values = [0, 1, 4, 6]
@@ -93,7 +93,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
         # sorted descending
         values = [6, 4, 1, 0]
@@ -113,7 +113,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
         # uniform ascending
         values = [0, 2, 4, 6]
@@ -133,7 +133,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start == 0.0
         assert c.stop == 6.0
         assert c.step == 2
-        repr(c)
+        _ = repr(c)
 
         # uniform descending
         values = [6, 4, 2, 0]
@@ -153,7 +153,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start == 6.0
         assert c.stop == 0.0
         assert c.step == -2
-        repr(c)
+        _ = repr(c)
 
     def test_datetime_singleton(self):
         a = np.array("2018-01-01").astype(np.datetime64)
@@ -172,7 +172,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
     def test_datetime_array(self):
         # unsorted
@@ -193,7 +193,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
         # sorted ascending
         values = ["2017-01-01", "2018-01-01", "2018-01-02", "2019-01-01"]
@@ -213,7 +213,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
         # sorted descending
         values = ["2019-01-01", "2018-01-02", "2018-01-01", "2017-01-01"]
@@ -233,7 +233,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
         # uniform ascending
         values = ["2017-01-01", "2018-01-01", "2019-01-01"]
@@ -253,7 +253,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start == np.datetime64("2017-01-01")
         assert c.stop == np.datetime64("2019-01-01")
         assert c.step == np.timedelta64(365, "D")
-        repr(c)
+        _ = repr(c)
 
         # uniform descending
         values = ["2019-01-01", "2018-01-01", "2017-01-01"]
@@ -273,7 +273,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start == np.datetime64("2019-01-01")
         assert c.stop == np.datetime64("2017-01-01")
         assert c.step == np.timedelta64(-365, "D")
-        repr(c)
+        _ = repr(c)
 
     def test_timedelta_array(self):
         # unsorted
@@ -294,7 +294,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
         # sorted ascending
         values = [np.timedelta64(-1, "h"), np.timedelta64(1, "h"), np.timedelta64(2, "h"), np.timedelta64(3, "h")]
@@ -314,7 +314,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
         # sorted descending
         values = [np.timedelta64(-1, "h"), np.timedelta64(1, "h"), np.timedelta64(2, "h"), np.timedelta64(3, "h")]
@@ -335,7 +335,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
         # uniform ascending
         values = [np.timedelta64(0, "h"), np.timedelta64(1, "h"), np.timedelta64(2, "h"), np.timedelta64(3, "h")]
@@ -355,7 +355,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start == np.timedelta64(0, "h")
         assert c.stop == np.timedelta64(3, "h")
         assert c.step == np.timedelta64(1, "h")
-        repr(c)
+        _ = repr(c)
 
         # uniform descending
         values = [np.timedelta64(0, "h"), np.timedelta64(1, "h"), np.timedelta64(2, "h"), np.timedelta64(3, "h")][::-1]
@@ -375,7 +375,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start == np.timedelta64(3, "h")
         assert c.stop == np.timedelta64(0, "h")
         assert c.step == np.timedelta64(-1, "h")
-        repr(c)
+        _ = repr(c)
 
     def test_numerical_shaped(self):
         values = [[1.0, 2.0, 3.0], [11.0, 12.0, 13.0]]
@@ -395,7 +395,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
     def test_datetime_shaped(self):
         values = [["2017-01-01", "2018-01-01"], ["2019-01-01", "2020-01-01"]]
@@ -415,7 +415,7 @@ class TestArrayCoordinatesInit(object):
         assert c.start is None
         assert c.stop is None
         assert c.step is None
-        repr(c)
+        _ = repr(c)
 
     def test_invalid_coords(self):
         with pytest.raises(ValueError, match="Invalid coordinate values"):
@@ -455,7 +455,7 @@ class TestArrayCoordinatesInit(object):
         with pytest.raises(tl.TraitError):
             ArrayCoordinates1d([], name="depth")
 
-        repr(ArrayCoordinates1d([], name="lat"))
+        _ = repr(ArrayCoordinates1d([], name="lat"))
 
     def test_set_name(self):
         # set if not already set

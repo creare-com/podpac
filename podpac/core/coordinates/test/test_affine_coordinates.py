@@ -36,7 +36,7 @@ class TestAffineCoordinatesCreation(object):
         assert c.udims == ("lat", "lon")
         assert len(set(c.xdims)) == 2
         assert c.name == "lat_lon"
-        repr(c)
+        _ = repr(c)
 
     def test_rotated(self):
         c = AffineCoordinates(geotransform=GEOTRANSFORM_ROTATED, shape=(3, 4))
@@ -48,7 +48,7 @@ class TestAffineCoordinatesCreation(object):
         assert c.udims == ("lat", "lon")
         assert len(set(c.xdims)) == 2
         assert c.name == "lat_lon"
-        repr(c)
+        _ = repr(c)
 
     def test_invalid(self):
         with pytest.raises(ValueError, match="Invalid shape"):

@@ -26,7 +26,7 @@ class TestStackedCoordinatesCreation(object):
         assert c.dims == ("lat", "lon", "time")
         assert c.udims == ("lat", "lon", "time")
         assert c.name == "lat_lon_time"
-        repr(c)
+        _ = repr(c)
 
         # un-named
         lat = ArrayCoordinates1d([0, 1, 2])
@@ -43,7 +43,7 @@ class TestStackedCoordinatesCreation(object):
         assert c.udims == ("lat", None, None)
         assert c.name == "lat_?_?"
 
-        repr(c)
+        _ = repr(c)
 
     def test_init_explicit_shaped(self):
         lat = ArrayCoordinates1d([[0, 1, 2], [10, 11, 12]], name="lat")
@@ -52,7 +52,7 @@ class TestStackedCoordinatesCreation(object):
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
         assert c.name == "lat_lon"
-        repr(c)
+        _ = repr(c)
 
     def test_coercion_with_dims(self):
         lat = [0, 1, 2]

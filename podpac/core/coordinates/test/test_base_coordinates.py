@@ -66,7 +66,7 @@ class TestBaseCoordinates(object):
             pass
 
         try:
-            repr(c)
+            _ = repr(c)
         except NotImplementedError:
             pass
 

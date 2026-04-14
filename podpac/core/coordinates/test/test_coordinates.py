@@ -207,7 +207,7 @@ class TestCoordinateCreation(object):
         assert c.shape == (3, 2)
         assert c.ndim == 2
         assert c.size == 6
-        repr(c)
+        _ = repr(c)
 
         # stacked, nested dims version
         c = Coordinates([[lat, lon], dates], dims=[["lat", "lon"], "time"])
@@ -217,7 +217,7 @@ class TestCoordinateCreation(object):
         assert c.shape == (3, 2)
         assert c.ndim == 2
         assert c.size == 6
-        repr(c)
+        _ = repr(c)
 
     def test_mixed_shaped(self):
         lat = np.linspace(0, 1, 12).reshape((3, 4))
@@ -230,7 +230,7 @@ class TestCoordinateCreation(object):
         assert c.shape == (3, 4, 2, 3)
         assert c.ndim == 4
         assert c.size == 72
-        repr(c)
+        _ = repr(c)
 
     def test_mixed_affine(self):
         latlon = AffineCoordinates(geotransform=(10.0, 2.0, 0.0, 20.0, 0.0, -3.0), shape=(3, 4))
@@ -242,7 +242,7 @@ class TestCoordinateCreation(object):
         assert c.shape == (3, 4, 2, 3)
         assert c.ndim == 4
         assert c.size == 72
-        repr(c)
+        _ = repr(c)
 
     def test_invalid_dims(self):
         lat = [0, 1, 2]

@@ -28,7 +28,7 @@ class TestPolarCoordinatesCreation(object):
         assert c.xdims == ("r", "t")
         assert c.name == "lat_lon"
         assert c.shape == (4, 8)
-        repr(c)
+        _ = repr(c)
 
         # uniform theta
         c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
@@ -39,7 +39,7 @@ class TestPolarCoordinatesCreation(object):
         assert c.xdims == ("r", "t")
         assert c.name == "lat_lon"
         assert c.shape == (4, 8)
-        repr(c)
+        _ = repr(c)
 
     def test_invalid(self):
         with pytest.raises(TypeError, match="PolarCoordinates expected theta or theta_size, not both"):
