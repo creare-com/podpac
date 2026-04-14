@@ -1,7 +1,5 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from datetime import datetime
-
 import pytest
 import numpy as np
 import pandas as pd

@@ -1,10 +1,7 @@
-from datetime import datetime
 import json
 
 import pytest
-import traitlets as tl
 import numpy as np
-import pandas as pd
 import xarray as xr
 from numpy.testing import assert_equal
 

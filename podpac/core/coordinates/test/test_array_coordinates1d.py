@@ -1,4 +1,3 @@
-from datetime import datetime
 import json
 
 import pytest
@@ -11,7 +10,6 @@ import podpac
 from podpac.core.coordinates.utils import make_coord_array
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
-from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.coordinates import Coordinates
 
 

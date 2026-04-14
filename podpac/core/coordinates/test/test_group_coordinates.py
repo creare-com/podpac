@@ -150,9 +150,9 @@ class TestGroupCoordinates(object):
 
         g = GroupCoordinates([c1, c2])
 
-        g2 = g.intersect(c3)
-        g2 = g.intersect(c3, outer=True)
-        g2, I = g.intersect(c3, return_index=True)
+        _ = g.intersect(c3)
+        _ = g.intersect(c3, outer=True)
+        _, _ = g.intersect(c3, return_index=True)
 
     def test_definition(self):
         c1 = Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])
@@ -161,7 +161,7 @@ class TestGroupCoordinates(object):
 
         d = g.definition
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)
-        g2 = GroupCoordinates.from_definition(d)
+        _ = GroupCoordinates.from_definition(d)
 
     def test_json(self):
         c1 = Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])
@@ -169,7 +169,7 @@ class TestGroupCoordinates(object):
         g = GroupCoordinates([c1, c2])
 
         s = g.json
-        g2 = GroupCoordinates.from_json(s)
+        _ = GroupCoordinates.from_json(s)
 
     def test_hash(self):
         c1 = Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])

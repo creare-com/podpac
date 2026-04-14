@@ -8,7 +8,6 @@ import logging
 import time
 import re
 from copy import deepcopy
-import base64
 from datetime import datetime
 
 from six import string_types
@@ -23,7 +22,6 @@ from podpac.core.utils import common_doc, JSONEncoder
 from podpac import version
 
 # Optional imports
-from lazy_import import lazy_module, lazy_class
 
 try:
     import boto3
@@ -1397,7 +1395,7 @@ Lambda Node {status}
         budget : dict
         """
         if budget is not None:
-            budget_filter_tags = {"_podpac_resource_hash": self.hash}
+            _ = {"_podpac_resource_hash": self.hash}
 
             self.set_trait("function_budget_amount", float(budget["BudgetLimit"]["Amount"]))
             self.set_trait("function_budget_name", budget["BudgetName"])
@@ -2768,7 +2766,7 @@ def delete_budget(session, budget_name):
 
     try:
         budgets.delete_budget(AccountId=session.get_account_id(), BudgetName=budget_name)
-    except budgets.exceptions.NotFoundException as e:
+    except budgets.exceptions.NotFoundException:
         pass
 
     _log.debug("Successfully removed budget with name '{}'".format(budget_name))

@@ -291,7 +291,7 @@ class TestCoordinateCreation(object):
     def test_invalid_coords(self):
         lat = [0, 1, 2]
         lon = [10, 20, 30]
-        dates = ["2018-01-01", "2018-01-02"]
+        _ = ["2018-01-01", "2018-01-02"]
 
         with pytest.raises(TypeError, match="Invalid coords"):
             Coordinates({"lat": lat, "lon": lon})
@@ -563,7 +563,7 @@ class TestCoordinateCreation(object):
         # from xarray
         dims = c.xdims + ("output",)
         coords = {"output": ["a", "b"], **c.xcoords}
-        shape = c.shape + (2,)
+        _ = c.shape + (2,)
 
         x = xr.DataArray(np.empty(c.shape + (2,)), coords=coords, dims=dims, attrs={"crs": c.crs})
         c2 = Coordinates.from_xarray(x)

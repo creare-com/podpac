@@ -20,7 +20,6 @@ import xarray.core.coordinates
 from six import string_types
 import pyproj
 import logging
-from scipy import spatial
 
 import podpac
 from podpac.core.settings import settings
@@ -37,7 +36,7 @@ from podpac.core.coordinates.cfunctions import clinspace
 from podpac.core.utils import hash_alg
 
 # Optional dependencies
-from lazy_import import lazy_module, lazy_class
+from lazy_import import lazy_module
 
 rasterio = lazy_module("rasterio")
 
