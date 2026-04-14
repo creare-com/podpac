@@ -3,7 +3,6 @@ Interpolator implementations
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
-from six import string_types
 
 import traitlets as tl
 import numpy as np
@@ -14,7 +13,6 @@ import xarray as xr
 
 # podac imports
 from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 from podpac.core.utils import common_doc
 from podpac.core.coordinates.utils import get_timedelta

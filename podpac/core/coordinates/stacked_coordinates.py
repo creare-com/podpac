@@ -9,7 +9,6 @@ from six import string_types
 from scipy import spatial
 
 import podpac
-from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
@@ -453,7 +452,7 @@ class StackedCoordinates(BaseCoordinates):
         else:
             return self[index]
 
-    def _index_len(self, index: "Coordinates"):
+    def _index_len(self, index: "BaseCoordinates"):
         if isinstance(index, slice):
             if index.stop is None:
                 stop = self.size
@@ -470,7 +469,7 @@ class StackedCoordinates(BaseCoordinates):
             return stop - start
         return len(index)
 
-    def _and_indices(self, indices: List["Coordinates"]):
+    def _and_indices(self, indices: List["BaseCoordinates"]):
         """logical AND of the selection in each dimension"""
         if all(isinstance(index, slice) for index in indices):
             index = slice(max(index.start or 0 for index in indices), min(index.stop or self.size for index in indices))

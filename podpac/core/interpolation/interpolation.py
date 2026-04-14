@@ -3,20 +3,16 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import traitlets as tl
 from copy import deepcopy
 from collections import OrderedDict
-from six import string_types
 import logging
 
 import traitlets as tl
-import numpy as np
 
 from podpac.core.settings import settings
 from podpac.core.node import Node
-from podpac.core.utils import NodeTrait, common_doc, cached_property
+from podpac.core.utils import NodeTrait
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import merge_dims, Coordinates
+from podpac.core.coordinates import Coordinates
 from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationTrait
-from podpac.core.cache.cache_ctrl import CacheCtrl
-from podpac.core.data.datasource import DataSource
 
 _logger = logging.getLogger(__name__)
 
@@ -203,7 +199,8 @@ class Interpolate(Node):
             Cannot evaluate these coordinates
         """
         self._set_interpolation()
-        _selector = self._interpolation.select_coordinates
+        if _selector is None:
+            _selector = self._interpolation.select_coordinates
 
         _logger.debug("Evaluating {} data source".format(self.__class__.__name__))
 
