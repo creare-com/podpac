@@ -9,6 +9,7 @@ from six import string_types
 from scipy import spatial
 
 import podpac
+from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d

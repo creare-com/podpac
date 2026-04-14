@@ -8,7 +8,6 @@ from podpac.core.cache.utils import CacheWildCard, CacheException
 from podpac.core.cache.ram_cache_store import RamCacheStore
 from podpac.core.cache.disk_cache_store import DiskCacheStore
 from podpac.core.cache.s3_cache_store import S3CacheStore
-import traitlets as tl
 import logging
 
 

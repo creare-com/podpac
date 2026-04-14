@@ -17,22 +17,22 @@ class TestGroupCoordinates(object):
         # same dims, unstacked
         c1 = Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])
         c2 = Coordinates([[10, 11], [10, 11]], dims=["lat", "lon"])
-        g = GroupCoordinates([c1, c2])
+        _ = GroupCoordinates([c1, c2])
 
         # same dims, stacked
         c2 = Coordinates([[[0, 1], [0, 1]]], dims=["lat_lon"])
         c2 = Coordinates([[[10, 11], [10, 11]]], dims=["lat_lon"])
-        g = GroupCoordinates([c1, c2])
+        _ = GroupCoordinates([c1, c2])
 
         # different order
         c1 = Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])
         c2 = Coordinates([[10, 11], [10, 11]], dims=["lon", "lat"])
-        g = GroupCoordinates([c1, c2])
+        _ = GroupCoordinates([c1, c2])
 
         # different stacking
         c1 = Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])
         c2 = Coordinates([[[10, 11], [10, 11]]], dims=["lat_lon"])
-        g = GroupCoordinates([c1, c2])
+        _ = GroupCoordinates([c1, c2])
 
     def test_init_mismatching_dims(self):
         # mismatching dims

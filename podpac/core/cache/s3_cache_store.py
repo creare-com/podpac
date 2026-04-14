@@ -5,7 +5,6 @@ from lazy_import import lazy_module
 
 boto3 = lazy_module("boto3")
 
-import podpac
 from podpac.core.settings import settings
 from podpac.core.cache.utils import CacheException, CacheWildCard
 from podpac.core.cache.file_cache_store import FileCacheStore

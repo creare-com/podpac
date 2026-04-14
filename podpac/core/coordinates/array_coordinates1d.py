@@ -4,12 +4,9 @@ Single-Dimensional Coordinates: Array
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import copy
-from collections import OrderedDict
-from typing import Dict, Tuple, Union
+from typing import Tuple
 
 import numpy as np
-import traitlets as tl
 from collections import OrderedDict
 
 from podpac.core.utils import ArrayTrait

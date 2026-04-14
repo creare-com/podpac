@@ -1,7 +1,6 @@
 from podpac.core.node import NodeDefinitionError, NodeException
 
 import traitlets as tl
-from podpac.core.coordinates import Coordinates
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl
 from podpac.core.managers.multi_threading import thread_manager
 from podpac import settings
