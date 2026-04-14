@@ -62,7 +62,7 @@ class TestLoadFile(object):
     def test_local(self):
         path = os.path.join(os.path.dirname(__file__), _LOCAL_CSV_PATH)
         node = MockLoadFile(source=path)
-        node.dataset
+        _ = node.dataset
 
     @pytest.mark.aws
     @pytest.mark.skip("Unreachable source")
@@ -70,24 +70,24 @@ class TestLoadFile(object):
         # TODO replace this with a better public s3 fileobj for testing
         path = "s3://modis-pds/MCD43A4.006/00/08/2020018/MCD43A4.A2020018.h00v08.006.2020027031229_meta.json"
         node = MockLoadFile(source=path)
-        node.dataset
+        _ = node.dataset
 
     @pytest.mark.aws
     @pytest.mark.skip("Unreachable source")
     def test_ftp(self):
         node = MockLoadFile(source="ftp://speedtest.tele2.net/1KB.zip")
-        node.dataset
+        _ = node.dataset
 
     @pytest.mark.aws  # TODO
     @pytest.mark.skip("Unreachable source")
     def test_http(self):
         node = MockLoadFile(source="https://httpstat.us/200")
-        node.dataset
+        _ = node.dataset
 
     def test_file(self):
         path = os.path.join(os.path.dirname(__file__), _LOCAL_CSV_PATH)
         node = MockLoadFile(source=_FILE_PREFIX % path)
-        node.dataset
+        _ = node.dataset
 
     def test_cache_dataset(self):
         path = os.path.join(os.path.dirname(__file__), _LOCAL_CSV_PATH)
@@ -95,7 +95,7 @@ class TestLoadFile(object):
         with podpac.settings:
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
             node = MockLoadFile(source=_FILE_PREFIX % path, cache_dataset=True)
-            node.dataset
+            _ = node.dataset
 
             # node caches dataset object
             assert node._dataset_caching_node.has_property_cache("dataset")
@@ -103,7 +103,7 @@ class TestLoadFile(object):
             # another node can get cached object
             node2 = MockLoadFile(source=_FILE_PREFIX % path)
             assert node2._dataset_caching_node.has_property_cache("dataset")
-            node2.dataset
+            _ = node2.dataset
 
     def test_dataset_expires(self):
         path = os.path.join(os.path.dirname(__file__), _LOCAL_CSV_PATH)
@@ -158,10 +158,10 @@ class TestFileKeys(object):
         node = MySource(source="mysource")
 
         with pytest.raises(NotImplementedError):
-            node.keys
+            _ = node.keys
 
         with pytest.raises(NotImplementedError):
-            node.dims
+            _ = node.dims
 
     def test_available_data_keys(self):
         node = MockFileKeys()
@@ -172,7 +172,7 @@ class TestFileKeys(object):
 
         node = MockFileKeysEmpty()
         with pytest.raises(ValueError, match="No data keys found"):
-            node.available_data_keys
+            _ = node.available_data_keys
 
     def test_data_key(self):
         node = MockFileKeys()

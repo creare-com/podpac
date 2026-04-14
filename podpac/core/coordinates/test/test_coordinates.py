@@ -835,15 +835,15 @@ class TestCoordinatesDict(object):
     def test_setitem(self):
         coords = deepcopy(self.coords)
 
-        coords["time"] = [1, 2, 3]
-        coords["time"] = ArrayCoordinates1d([1, 2, 3])
-        coords["time"] = ArrayCoordinates1d([1, 2, 3], name="time")
-        coords["time"] = Coordinates([[1, 2, 3]], dims=["time"])
+        coords.__setitem__("time", [1, 2, 3])
+        coords.__setitem__("time", ArrayCoordinates1d([1, 2, 3]))
+        coords.__setitem__("time", ArrayCoordinates1d([1, 2, 3], name="time"))
+        coords.__setitem__("time", Coordinates([[1, 2, 3]], dims=["time"]))
 
         # coords['lat_lon'] = [np.linspace(0, 10, 5), np.linspace(0, 10, 5)]
-        coords["lat_lon"] = clinspace((0, 1), (10, 20), 5)
-        coords["lat_lon"] = (np.linspace(0, 10, 5), np.linspace(0, 10, 5))
-        coords["lat_lon"] = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
+        coords.__setitem__("lat_lon", clinspace((0, 1), (10, 20), 5))
+        coords.__setitem__("lat_lon", (np.linspace(0, 10, 5), np.linspace(0, 10, 5)))
+        coords.__setitem__("lat_lon", Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"]))
 
         # update a single stacked dimension
         coords["lat"] = np.linspace(5, 20, 5)
@@ -1682,7 +1682,9 @@ class TestCoordinatesSpecial(object):
         assert c1 != c5
 
         # hash
-        assert c1.hash == c1.hash
+        first_hash = c1.hash
+        second_hash = c1.hash
+        assert second_hash == first_hash
         assert c1.hash == deepcopy(c1).hash
 
         assert c1.hash != c3.hash

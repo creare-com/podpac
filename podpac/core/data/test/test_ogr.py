@@ -14,7 +14,7 @@ class TestOGR(object):
 
     def test_extents(self):
         node = OGR(source=self.source, driver=self.driver, layer=self.layer, attribute=self.attribute)
-        node.extents
+        _ = node.extents
 
     def test_eval_uniform(self):
         node = OGR(source=self.source, driver=self.driver, layer=self.layer, attribute=self.attribute)

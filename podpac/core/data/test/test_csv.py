@@ -57,7 +57,7 @@ class TestCSV(object):
 
         node = CSV(source=self.source_no_data, alt_key="altitude", crs=_CRS)
         with pytest.raises(ValueError, match="No data keys found"):
-            node.available_data_keys
+            _ = node.available_data_keys
 
     def test_data_key(self):
         # default

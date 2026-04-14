@@ -103,10 +103,10 @@ class TestGroupCoordinates(object):
         assert g._items[1] is c2
 
         with pytest.raises(ValueError):
-            g1 + g3
+            _ = g1 + g3
 
         with pytest.raises(TypeError):
-            g1 + c1
+            _ = g1 + c1
 
     def test_iadd(self):
         c1 = Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])
@@ -182,7 +182,9 @@ class TestGroupCoordinates(object):
         g3 = GroupCoordinates([c1, c3])
         g4 = GroupCoordinates([c1, c4])
 
-        assert g1.hash == g1.hash
+        first_hash = g1.hash
+        second_hash = g1.hash
+        assert second_hash == first_hash
         assert g1.hash == g2.hash
         assert g1.hash == g3.hash
         assert g1.hash != g4.hash

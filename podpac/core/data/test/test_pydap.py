@@ -89,7 +89,7 @@ class TestPyDAP(object):
     def test_url_error(self):
         node = PyDAP(source="mysource")
         with pytest.raises(Exception):
-            node.dataset
+            _ = node.dataset
 
     def test_get_data(self):
         """test get_data function of pydap"""
