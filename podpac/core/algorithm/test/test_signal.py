@@ -4,7 +4,6 @@ import pytest
 
 import numpy as np
 from numpy.testing import assert_equal, assert_array_equal
-import traitlets as tl
 
 import podpac
 from podpac import Coordinates, clinspace, crange

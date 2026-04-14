@@ -86,7 +86,7 @@ class TestAlgorithm(object):
         coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
         node = MyAlgorithm()
         with pytest.raises(podpac.NodeException, match="algorithm returned unsupported type"):
-            output = node.eval(coords)
+            _ = node.eval(coords)
 
     def test_eval_algorithm_drops_dimension(self):
         class MyAlgorithm(Algorithm):
@@ -371,7 +371,7 @@ class TestAlgorithm(object):
             F = MyPow(source=array_node, exponent=2).cache()
 
             node2 = MySum(A=A, B=B, C=C, D=D, E=E, F=F)
-            om = node2.eval(coords)
+            _ = node2.eval(coords)
             assert sum(n._from_cache for n in node2.inputs.values()) > 0
 
     def test_eval_multi_threading_stress_nthreads(self):
@@ -426,7 +426,7 @@ class TestAlgorithm(object):
             podpac.settings["DEFAULT_CACHE"] = []
             podpac.settings.set_unsafe_eval(True)
 
-            omt = node3.eval(coords)
+            _ = node3.eval(coords)
 
         assert node3._multi_threaded
         assert node2._multi_threaded

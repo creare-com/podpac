@@ -12,7 +12,7 @@ from podpac.core.coordinates.group_coordinates import GroupCoordinates
 class TestGroupCoordinates(object):
     def test_init(self):
         # empty
-        g = GroupCoordinates([])
+        _ = GroupCoordinates([])
 
         # same dims, unstacked
         c1 = Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])

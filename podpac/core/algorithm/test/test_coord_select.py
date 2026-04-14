@@ -1,7 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import xarray as xr
-import pytest
 import numpy as np
 
 import podpac

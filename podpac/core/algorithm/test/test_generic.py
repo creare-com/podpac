@@ -5,7 +5,6 @@ import warnings
 
 import pytest
 import numpy as np
-import xarray as xr
 
 import podpac
 from podpac.core.algorithm.utility import Arange, SinCoords
