@@ -1,9 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from collections import OrderedDict
-import io
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
-import re
 
 from six import string_types
 import traitlets as tl
@@ -18,10 +16,9 @@ boto3 = lazy_module("boto3")
 
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.coordinates import UniformCoordinates1d, Coordinates, merge_dims
-from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
+from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.data.file_source import BaseFileSource
 from podpac.core.authentication import S3Mixin
-from podpac.core.interpolation.selector import Selector
 
 
 _logger = logging.getLogger(__name__)
@@ -210,7 +207,7 @@ class Rasterio(S3Mixin, BaseFileSource):
             else:
                 diffs[diffs < 0] = np.inf
             overview_level = np.argmin(diffs)
-            overview = self.overviews[np.argmin(diffs)]
+            # overview = self.overviews[np.argmin(diffs)]
 
         # Now read the data
         if overview_level is None:

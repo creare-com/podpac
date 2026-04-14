@@ -1,8 +1,6 @@
 import os.path
 import numpy as np
 
-import pytest
-
 from podpac.core.data.dataset_source import Dataset
 
 

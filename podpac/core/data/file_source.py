@@ -18,7 +18,7 @@ import logging
 import traitlets as tl
 import xarray as xr
 
-from lazy_import import lazy_module, lazy_class
+from lazy_import import lazy_module
 
 boto3 = lazy_module("boto3")
 s3fs = lazy_module("s3fs")

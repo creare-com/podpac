@@ -6,7 +6,6 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import logging
 import traitlets as tl
-import pyproj
 
 from podpac.core.utils import cached_property, resolve_bbox_order
 from podpac.core.data.datasource import DataSource

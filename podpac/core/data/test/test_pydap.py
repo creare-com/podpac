@@ -1,12 +1,9 @@
 import pydap
 import pytest
 import numpy as np
-import traitlets as tl
 import requests
 
 from podpac.core.coordinates import Coordinates, clinspace
-from podpac.core.units import UnitsDataArray
-from podpac.core import authentication
 from podpac.core.data.pydap_source import PyDAP
 from podpac import settings
 
@@ -35,7 +32,7 @@ class TestPyDAP(object):
     data_key = "key"
 
     def test_init(self):
-        node = PyDAP(source="mysource", data_key="key")
+        _ = PyDAP(source="mysource", data_key="key")
 
     def test_coordinates_not_implemented(self):
         node = PyDAP(source="mysource", data_key="key")
@@ -76,7 +73,7 @@ class TestPyDAP(object):
 
             # throw auth error
             with pytest.raises(ValueError):
-                s = node.session
+                _ = node.session
 
             node.set_credentials(username="user", password="pass")
             assert node.session
