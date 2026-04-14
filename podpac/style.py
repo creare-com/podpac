@@ -6,3 +6,5 @@ Style Public Module
 
 
 from podpac.core.style import Style
+
+__all__ = ["Style"]
