@@ -80,7 +80,6 @@ class ReprojectedSource(DataSource):
         if not isinstance(self.source, DataSource):
             return self.reprojected_coordinates
 
-        # sc = self.source.coordinates
         rc = self.reprojected_coordinates
         return Coordinates(
             [rc[dim] if dim in rc.dims else self.source.coordinates[dim] for dim in self.source.coordinates.dims],

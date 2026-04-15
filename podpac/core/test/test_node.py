@@ -1005,7 +1005,7 @@ class TestSerialization(object):
 
             @tl.default("a")
             def _default_a(self):
-                self.definition
+                self.definition()
                 return 10
 
         node = MyNode()

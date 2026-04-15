@@ -197,7 +197,6 @@ class Rasterio(S3Mixin, BaseFileSource):
             )
         # Find the overview that's closest to this reduction factor
         if (reduction_factor < 2) or (len(self.overviews) == 0):  # Then we shouldn't use an overview
-            # overview = 1
             overview_level = None
         else:
             diffs = reduction_factor - np.array(self.overviews)
@@ -206,7 +205,6 @@ class Rasterio(S3Mixin, BaseFileSource):
             else:
                 diffs[diffs < 0] = np.inf
             overview_level = np.argmin(diffs)
-            # overview = self.overviews[np.argmin(diffs)]
 
         # Now read the data
         if overview_level is None:

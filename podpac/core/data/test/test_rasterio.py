@@ -82,8 +82,8 @@ class TestRasterio(object):
         c3 = Coordinates([clinspace(31, 30, 16, "lat"), clinspace(-0.5, 1.25, 64, "lon")])
 
         node = Rasterio()
-        window_1, new_coords_1 = node._get_window_coords(c2, c1)  # tests when 1 coord completely contains the other
-        window_2, new_coords_2 = node._get_window_coords(
+        _, new_coords_1 = node._get_window_coords(c2, c1)  # tests when 1 coord completely contains the other
+        _, new_coords_2 = node._get_window_coords(
             c3, c1
         )  # tests when 1 coord does not completely contian the other
 

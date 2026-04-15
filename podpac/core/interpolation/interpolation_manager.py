@@ -316,7 +316,7 @@ class InterpolationManager(object):
             for idx, interpolator_class in enumerate(interpolators):
                 if isinstance(interpolator_class, string_types):
                     assert_custom(
-                        interpolator_class in INTERPOLATORS_DICT.keys(),
+                        interpolator_class in INTERPOLATORS_DICT,
                         TypeError,
                         'Interpolator "{}" is not in the dictionary of valid '.format(interpolator_class)
                         + "interpolators: {}".format(INTERPOLATORS_DICT),
