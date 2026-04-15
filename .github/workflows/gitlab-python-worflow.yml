@@ -21,20 +21,30 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: "3.7"
+          python-version: "3.12"
 
       - name: Install Dependencies
         run: |
           pip install --upgrade pip setuptools && pip install .[devall]
 
       - name: Run Black Format Checks
-        run: black --check --diff podpac > black-report.txt
+        run: black --check --diff -l 120 podpac > black-report.txt
 
       - name: Artifact Black Report
         uses: actions/upload-artifact@v4
         with:
           name: black-report
           path: black-report.txt
+          retention-days: 1
+
+      - name: Run flake8 Format Checks
+        run: flake8 --format=pylint --ignore=E,W,D,I,N806,N815,N818,Q000,Q001,Q002,S001,B008,B028 --tee --output-file=flake8-report.txt .
+
+      - name: Artifact flake8 Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: flake8-report
+          path: flake8-report.txt
           retention-days: 1
 
   unit-testing:

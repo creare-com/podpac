@@ -89,6 +89,9 @@ else:
 if sys.version_info[0:2] >= (3, 6):
     extras_require["dev"] += [
         "black",
+        "flake8",
+        "flake8-bugbear",
+        "flake8-builtins",
     ]
     extras_require["intake"] = ["intake>=0.5.1"]
 
