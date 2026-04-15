@@ -7,9 +7,4 @@ Authentication Public Module
 
 from podpac.core.authentication import RequestsSessionMixin, S3Mixin, NASAURSSessionMixin, set_credentials
 
-__all__ = [
-    "RequestsSessionMixin",
-    "S3Mixin",
-    "NASAURSSessionMixin",
-    "set_credentials"
-]
+__all__ = ["RequestsSessionMixin", "S3Mixin", "NASAURSSessionMixin", "set_credentials"]

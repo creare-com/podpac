@@ -21,6 +21,7 @@ NODE1 = podpac.data.Array(source=np.ones(COORDS1.shape), coordinates=COORDS1)
 NODE2 = podpac.algorithm.Arange()
 CACHE_MISS = "Cache miss. Requested data expired"
 
+
 class BaseCacheStoreTests(object):
     Store = None
     enabled_setting = None

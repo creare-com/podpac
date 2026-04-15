@@ -33,13 +33,13 @@ from podpac.core.algorithm.signal import Convolution
 from podpac.core.algorithm.reprojection import Reproject
 
 __all__ = [
-    "Algorithm", 
+    "Algorithm",
     "UnaryAlgorithm",
-    "Arithmetic", 
-    "Generic", 
+    "Arithmetic",
+    "Generic",
     "Mask",
-    "SinCoords", 
-    "Arange", 
+    "SinCoords",
+    "Arange",
     "CoordData",
     "Min",
     "Max",

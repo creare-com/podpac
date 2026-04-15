@@ -29,6 +29,7 @@ _CACHE_UNAVAIL = "Cache unavailable"
 _INSECURE_EVAL = "Insecure evaluation.*"
 _INVALID_DEF_FOR_NODE = "Invalid definition for node"
 
+
 class TestNode(object):
     def test_style(self):
         node = Node()

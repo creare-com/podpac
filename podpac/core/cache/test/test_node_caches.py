@@ -24,8 +24,7 @@ class TestHashCache:
             _ = hash_cache_node3.eval(coords)
             assert not hash_cache_node3._from_cache
         finally:
-            hash_cache_node3.rem_cache("*",coordinates="*")
-
+            hash_cache_node3.rem_cache("*", coordinates="*")
 
     def test_global_ram_cache(self):
         my_node = SinCoords(cache_output=True)
@@ -167,7 +166,9 @@ class TestZarrCache:
         npt.assert_array_equal(data[valid_indices], expected_valid_data)
 
         # Check if the out-of-bounds data is filled with NaNs
-        invalid_indices = np.nonzero(~np.isin(request_coords["lat"].coordinates, valid_request_coords["lat"].coordinates))
+        invalid_indices = np.nonzero(
+            ~np.isin(request_coords["lat"].coordinates, valid_request_coords["lat"].coordinates)
+        )
         assert np.isnan(data[invalid_indices]).all()
 
         node.rem_cache()  # Cleanup

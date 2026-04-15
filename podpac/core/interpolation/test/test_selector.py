@@ -58,7 +58,7 @@ class TestSelector(object):
                 key = "_".join(dim_seq + (r,))
                 if len(dim_seq) <= 1:
                     new_coords = Coordinates([getattr(cls, d + "_" + r) for d in dim_seq], list(dim_seq))
-                else: 
+                else:
                     new_coords = Coordinates([[getattr(cls, d + "_" + r) for d in dim_seq]], [list(dim_seq)])
                 cls.coords[key] = new_coords
 

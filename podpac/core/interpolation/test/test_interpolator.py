@@ -3,6 +3,7 @@ Test interpolation methods
 
 
 """
+
 # pylint: disable=C0111,W0212,R0903
 
 import numpy as np

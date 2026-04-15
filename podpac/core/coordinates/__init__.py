@@ -33,10 +33,10 @@ __all__ = [
     "StackedCoordinates",
     "AffineCoordinates",
     "Coordinates",
-    "merge_dims", 
+    "merge_dims",
     "concat",
     "union",
     "GroupCoordinates",
-    "crange", 
+    "crange",
     "clinspace",
 ]

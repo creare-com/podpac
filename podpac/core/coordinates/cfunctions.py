@@ -26,7 +26,7 @@ def crange(start, stop, step, name=None, anchor_boundary="start"):
     name : str, optional
         Dimension name.
     anchor_boundary : str, optional
-        Determines whether the `start` or `stop` will be anchored while the other value 
+        Determines whether the `start` or `stop` will be anchored while the other value
         may be adjusted to ensure consistency with the given `step` and `size`.
         Acceptable values are:
         - `"start"` (default): The `start` value will be anchored while the `stop` value *may* be modified to ensure that:
@@ -38,7 +38,7 @@ def crange(start, stop, step, name=None, anchor_boundary="start"):
             start = stop - step *  (size - 1)
             ```
         - `None`: Both `stop` and `start` value will be anchored.
-            The constructor will modify the `step` to be consistent with 
+            The constructor will modify the `step` to be consistent with
             the `start` and `stop` boundaries to ensure uniform deltas between coordinate.
     Notes
     ------
@@ -47,7 +47,7 @@ def crange(start, stop, step, name=None, anchor_boundary="start"):
 
     For floating point coordinates, the specified `step` my be changed internally to satisfy floating point consistency.
     That is, for consistency `step = (stop - start)  / (size - 1)`
-    
+
     Returns
     -------
     :class:`UniformCoordinates1d`

@@ -17,7 +17,7 @@ def setup_module(module):
     )
     global _rand
     # Set up the PRNG with a seed to stay deterministic
-    _rand = np.random.default_rng(0xC * ord('r') + 0xea + ord('r') * 0xe)
+    _rand = np.random.default_rng(0xC * ord("r") + 0xEA + ord("r") * 0xE)
 
 
 class MyDataSource(DataSource):
@@ -140,7 +140,9 @@ class TestYearSubstituteCoordinates(object):
         np.testing.assert_array_equal(o["time"], COORDS["time"].coordinates)
 
     def test_year_substitution_multiple_outputs(self):
-        multi = Array(source=_rand.random(size=(COORDS.shape + (2,))), coordinates=COORDS, outputs=["a", "b"]).interpolate()
+        multi = Array(
+            source=_rand.random(size=(COORDS.shape + (2,))), coordinates=COORDS, outputs=["a", "b"]
+        ).interpolate()
         node = YearSubstituteCoordinates(source=multi, year="2018")
         o = node.eval(COORDS)
         assert o.time.dt.year.data[0] == 2018

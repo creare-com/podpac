@@ -20,7 +20,6 @@ from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.data.file_source import BaseFileSource
 from podpac.core.authentication import S3Mixin
 
-
 _logger = logging.getLogger(__name__)
 
 

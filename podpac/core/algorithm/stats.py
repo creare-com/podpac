@@ -1167,13 +1167,13 @@ class DayOfYearWindow(Algorithm):
             # If either the start or end runs over the year, we need to do an OR on the bool index
             # ----->s....<=e------   .in -out
             # ..<=e----------->s..
-            if doy - win < 1: 
+            if doy - win < 1:
                 # Start of window is before the start of the year
                 window_is_split = True
             elif doy + win > self._DAYS_PER_YEAR:
                 # End of the window is after the end of the year
                 window_is_split = True
-            else: 
+            else:
                 window_is_split = False
 
             start = ((doy - 1) - win) % self._DAYS_PER_YEAR + 1

@@ -9,7 +9,6 @@ import numpy as np
 import traitlets as tl
 from scipy.spatial import cKDTree
 
-
 # Optional dependencies
 
 
@@ -401,7 +400,10 @@ class NearestPreview(NearestNeighbor):
 
     @staticmethod
     def _perform_selection(
-        src_coords: Coordinates, dst_coords: Coordinates, idx: Union[slice, Tuple[float, float]], bounds: Tuple[float, float]
+        src_coords: Coordinates,
+        dst_coords: Coordinates,
+        idx: Union[slice, Tuple[float, float]],
+        bounds: Tuple[float, float],
     ) -> Tuple[Coordinates, slice]:
         """Perform actual selection, after validation of coordinates."""
         if isinstance(dst_coords, UniformCoordinates1d):
@@ -444,7 +446,9 @@ class NearestPreview(NearestNeighbor):
         return coord, idx
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def select_coordinates(self, udims, source_coordinates: Coordinates, eval_coordinates: Coordinates, index_type: str="numpy"):
+    def select_coordinates(
+        self, udims, source_coordinates: Coordinates, eval_coordinates: Coordinates, index_type: str = "numpy"
+    ):
         """
         {interpolator_select}
         """

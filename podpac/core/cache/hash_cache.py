@@ -9,6 +9,7 @@ from podpac.core.cache.cache_interface import CacheNode
 
 _CACHE_UNAVAIL = "Cache unavailable, %s (key='%s')"
 
+
 class HashCache(CacheNode):
     """
     A node that caches the output of another node.

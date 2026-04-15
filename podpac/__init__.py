@@ -11,7 +11,6 @@ version_info : OrderedDict
     Dict with keys MAJOR, MINOR, HOTFIX depicting version
 """
 
-
 # Monkey patch os.makedirs for Python 2 compatibility
 import sys
 import os
@@ -68,10 +67,10 @@ __version__ = version.version()
 version_info = version.VERSION_INFO
 __all__ = [
     "settings",
-    "Coordinates", 
-    "crange", 
+    "Coordinates",
+    "crange",
     "clinspace",
-    "Node", 
+    "Node",
     "NodeException",
     "cached_property",
     "units",

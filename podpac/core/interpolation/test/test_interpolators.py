@@ -771,10 +771,9 @@ class TestInterpolateRasterioInterpolator(TestCase):
             coords_src = Coordinates([clinspace(10, 0, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
             coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
-            node = MockArrayDataSource(
-                data=source,
-                coordinates=coords_src
-            ).interpolate(interpolation={"method": "nearest", "interpolators": [RasterioInterpolator]})
+            node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(
+                interpolation={"method": "nearest", "interpolators": [RasterioInterpolator]}
+            )
             output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
@@ -876,13 +875,12 @@ class TestInterpolateScipyGrid(TestCase):
                 [clinspace(1, 11, 5), clinspace(1, 11, 5), [2, 3, 4], [1]], dims=["lat", "lon", "time", "alt"]
             )
 
-            node = MockArrayDataSource(
-                data=source,
-                coordinates=coords_src
-            ).interpolate(interpolation=[
-                {"method": "nearest", "interpolators": [ScipyGrid]},
-                {"method": "linear", "dims": ["time", "alt"]},
-            ],)
+            node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(
+                interpolation=[
+                    {"method": "nearest", "interpolators": [ScipyGrid]},
+                    {"method": "linear", "dims": ["time", "alt"]},
+                ],
+            )
             output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)

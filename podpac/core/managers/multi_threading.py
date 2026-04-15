@@ -1,7 +1,7 @@
 """
-Module for dealing with multi-threaded execution. 
+Module for dealing with multi-threaded execution.
 
-This is used to ensure that the total number of threads specified in the settings is not exceeded. 
+This is used to ensure that the total number of threads specified in the settings is not exceeded.
 
 """
 

@@ -14,6 +14,7 @@ from podpac.core.interpolation import InterpolationTrait
 
 _logger = logging.getLogger(__name__)
 
+
 # TODO: Move this to algorithm Nodes based on the Interpolation Refactor -- should be much more streamlined now.
 class ReprojectedSource(DataSource):
     """Create a DataSource with a different resolution from another Node. This can be used to bilinearly interpolated a
@@ -101,6 +102,6 @@ class ReprojectedSource(DataSource):
         coordinates.drop(drop_dims)
         return data
 
-    @tl.default('base_ref')
+    @tl.default("base_ref")
     def _default_base_ref(self):
         return "{}_reprojected".format(self.source.base_ref)

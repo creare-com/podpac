@@ -21,6 +21,7 @@ _LOCAL_CSV_PATH = "assets/points-single.csv"
 _FILE_PREFIX = "file:///%s"
 _INVALID_DATA_KEY = "Invalid data_key"
 
+
 class TestBaseFileSource(object):
     def test_source_required(self):
         node = BaseFileSource()
@@ -113,7 +114,9 @@ class TestLoadFile(object):
             node = MockLoadFile(source=_FILE_PREFIX % path, cache_dataset=True, dataset_expires="1,D").cache()
             node.cache_ctrl.clear()
             node.source.dataset
-            assert node.source._dataset_caching_node.has_property_cache("dataset")  # # don't know about the datasource cache
+            assert node.source._dataset_caching_node.has_property_cache(
+                "dataset"
+            )  # # don't know about the datasource cache
 
             # expired
             podpac.settings["DEFAULT_CACHE"] = ["ram"]

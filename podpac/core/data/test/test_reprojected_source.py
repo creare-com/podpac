@@ -10,7 +10,6 @@ from podpac.core.data.reprojection import ReprojectedSource
 
 
 class TestReprojectedSource(object):
-
     """Test Reprojected Source
     TODO: this needs to be reworked with real examples
     """

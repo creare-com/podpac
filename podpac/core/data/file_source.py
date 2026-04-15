@@ -5,7 +5,7 @@ Datasources from files
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import sys
-import os 
+import os
 
 if sys.version_info.major == 2:
     from urllib2 import urlopen

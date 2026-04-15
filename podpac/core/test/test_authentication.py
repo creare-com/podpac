@@ -11,6 +11,7 @@ _USERNAME_TEST_COM = "username@test.com"
 _PASSWORD_TEST_COM = "password@test.com"
 _TEST_COM = "test.com"
 
+
 class TestAuthentication(object):
     def test_set_credentials(self):
 

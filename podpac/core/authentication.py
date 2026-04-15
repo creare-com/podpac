@@ -2,7 +2,6 @@
 PODPAC Authentication
 """
 
-
 import getpass
 import logging
 

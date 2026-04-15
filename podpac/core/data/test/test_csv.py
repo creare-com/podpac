@@ -8,6 +8,7 @@ from podpac.core.data.csv_source import CSV
 _CRS = "+proj=merc +vunits=m"
 INVALID_DATA_KEY = "Invalid data_key"
 
+
 class TestCSV(object):
     """test csv data source"""
 
@@ -91,9 +92,7 @@ class TestCSV(object):
         assert node.data_key == ["data", "other"]
 
         # specify multiple
-        node = CSV(
-            source=self.source_multiple, data_key=["other", "data"], alt_key="altitude", crs=_CRS
-        )
+        node = CSV(source=self.source_multiple, data_key=["other", "data"], alt_key="altitude", crs=_CRS)
         assert node.data_key == ["other", "data"]
 
         # specify one
@@ -102,9 +101,7 @@ class TestCSV(object):
 
         # specify multiple: invalid item
         with pytest.raises(ValueError, match=INVALID_DATA_KEY):
-            CSV(
-                source=self.source_multiple, data_key=["data", "misc"], alt_key="altitude", crs=_CRS
-            )
+            CSV(source=self.source_multiple, data_key=["data", "misc"], alt_key="altitude", crs=_CRS)
 
         # specify one: invalid
         with pytest.raises(ValueError, match=INVALID_DATA_KEY):
@@ -164,9 +161,7 @@ class TestCSV(object):
 
     def test_get_data_multiple(self):
         # multiple data keys
-        node = CSV(
-            source=self.source_multiple, alt_key="altitude", data_key=["data", "other"], crs=_CRS
-        )
+        node = CSV(source=self.source_multiple, alt_key="altitude", data_key=["data", "other"], crs=_CRS)
         out = node.eval(node.coordinates)
         assert out.dims == ("lat_lon_time_alt", "output")
         np.testing.assert_array_equal(out["output"], ["data", "other"])

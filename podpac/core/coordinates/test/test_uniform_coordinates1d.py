@@ -292,13 +292,13 @@ class TestUniformCoordinatesCreation(object):
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == True
-        c = UniformCoordinates1d("2025-01-01T12", "2025-01-03T00", "1,D", anchor_boundary='start')
+        c = UniformCoordinates1d("2025-01-01T12", "2025-01-03T00", "1,D", anchor_boundary="start")
         assert c.start == np.datetime64("2025-01-01T12")
         assert c.stop == np.datetime64("2025-01-02T12")
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == True
-        c = UniformCoordinates1d("2025-01-01T12", "2025-01-03T00", "1,D", anchor_boundary='stop')
+        c = UniformCoordinates1d("2025-01-01T12", "2025-01-03T00", "1,D", anchor_boundary="stop")
         assert c.start == np.datetime64("2025-01-02T00")
         assert c.stop == np.datetime64("2025-01-03T00")
         assert c.dtype == np.datetime64

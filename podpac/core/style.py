@@ -54,7 +54,7 @@ class Style(tl.HasTraits):
     @tl.validate("colormap")
     def _validate_colormap(self, d):
         if isinstance(d["value"], six.string_types):
-            try: 
+            try:
                 matplotlib.colormaps[d["value"]]
             except AttributeError:
                 # Need for matplotlib prior to 3.5
@@ -103,15 +103,15 @@ class Style(tl.HasTraits):
     @property
     def cmap(self):
         if self.colormap:
-            try: 
+            try:
                 return matplotlib.colormaps[self.colormap]
-            except AttributeError: 
+            except AttributeError:
                 # Need for matplotlib prior to 3.5
                 return matplotlib.cm.get_cmap(self.colormap)
         elif self.enumeration_colors:
             return ListedColormap(self.full_enumeration_colors)
         else:
-            try: 
+            try:
                 return matplotlib.colormaps["viridis"]
             except AttributeError:
                 # Need for matplotlib prior to 3.5

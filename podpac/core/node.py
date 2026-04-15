@@ -34,7 +34,6 @@ from podpac.core.managers.multi_threading import thread_manager
 from podpac.core.cache import CacheCtrl, make_cache_ctrl, get_default_cache_ctrl, S3CacheStore
 from podpac.core.cache.cache_ctrl import _CACHE_STORES
 
-
 _logger = logging.getLogger(__name__)
 
 COMMON_NODE_DOC = {
@@ -1125,7 +1124,6 @@ class Node(tl.HasTraits):
             "schema": schema,
         }
 
-
     @classmethod
     def get_ui_spec(cls, help_as_html=False):
         """Get spec of node attributes for building a ui
@@ -1189,7 +1187,7 @@ class Node(tl.HasTraits):
                 continue
             if not attrt.metadata.get("attr", False):
                 continue
-            
+
             spec["attrs"][attr] = Node._get_schema_for_attr(cls, attr, function_defaults)
 
         try:
@@ -1326,6 +1324,7 @@ def _lookup_attr(nodes, name, value):
 
     return attr
 
+
 def _compute_style_class(d, node_class, name):
     """Get style class from the provided node definition. Helper for _process_kwargs"""
     if "style_class" in d:
@@ -1362,6 +1361,7 @@ def _compute_style_class(d, node_class, name):
                 except Exception:
                     style_class = style_class.klass
     return style_class
+
 
 def _process_kwargs(name, d, definition, nodes):
     """create a node and add it to nodes

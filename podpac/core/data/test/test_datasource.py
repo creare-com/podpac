@@ -1,6 +1,7 @@
 """
 Test podpac.core.data.datasource module
 """
+
 import pytest
 
 import numpy as np

@@ -71,7 +71,7 @@ extras_require = {
         "myst-parser>=1.0.0",
         "six>=1.0",
         "attrs>=17.4.0",
-        "pre_commit>=1"
+        "pre_commit>=1",
     ],
 }
 
@@ -104,6 +104,7 @@ for key, val in extras_require.items():
 extras_require["all"] = all_reqs
 extras_require["devall"] = all_reqs + extras_require["dev"]
 
+
 # install pre-commit hooks after setup in develop mode
 class PostDevelopCommand(develop):
     def run(self):
@@ -123,7 +124,7 @@ setup(
     author="Creare",
     url="https://podpac.org",
     license="APACHE 2.0",
-    python_requires='>=3.7',
+    python_requires=">=3.7",
     classifiers=[
         # How mature is this project? Common values are
         # 3 - Alpha
@@ -144,7 +145,7 @@ setup(
     extras_require=extras_require,
     cmdclass={"develop": PostDevelopCommand},
     long_description=long_description,
-    long_description_content_type="text/markdown"
+    long_description_content_type="text/markdown",
     # entry_points = {
     #     'console_scripts' : []
     # }

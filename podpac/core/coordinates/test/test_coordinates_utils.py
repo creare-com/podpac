@@ -24,6 +24,7 @@ _T7 = "2020-01-01"
 _T8 = "2020-01-02"
 _CANNOT_DIVIDE_TIMEDELTA = "Cannot divide timedelta .* evenly"
 
+
 def test_get_timedelta():
     td64 = np.timedelta64
     assert get_timedelta("2,ms") == td64(2, "ms")

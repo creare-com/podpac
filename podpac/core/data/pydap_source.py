@@ -20,7 +20,6 @@ from podpac.core import authentication
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 
-
 # Optional dependencies
 # pydap = lazy_module("pydap")
 # lazy_module("pydap.client")
@@ -31,8 +30,6 @@ from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 import pydap
 import pydap.model
 import pydap.client
-
-
 
 _logger = logging.getLogger(__name__)
 

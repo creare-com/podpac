@@ -34,7 +34,6 @@ import podpac
 from . import settings
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 
-
 OrderedDictTrait = tl.Dict
 
 
@@ -607,7 +606,7 @@ def probe_node(
             "value": value,
             "label": _get_label(value, n.style, add_enumeration_labels),
             "inputs": inputs,
-            "name": n.style.name if n.style.name else item
+            "name": n.style.name if n.style.name else item,
         }
         if compute_hash:
             out[item]["node_hash"] = n.hash
@@ -700,5 +699,6 @@ def align_xarray_dict(inputs):
         _, b = xr.align(inputs[keys[0]], inputs[k], join="override")
         inputs[k] = b
     return inputs
+
 
 __all__ = ["hash_alg"]

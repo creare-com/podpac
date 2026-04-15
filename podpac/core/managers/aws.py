@@ -2,6 +2,7 @@
 Lambda is `Node` manager, which executes the given `Node` on an AWS Lambda
 function.
 """
+
 import json
 from collections import OrderedDict
 import logging
@@ -43,6 +44,7 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 _LAMDA_AWS_COM = "lambda.amazonaws.com"
 _STS_ASSUME_ROLE = "sts:AssumeRole"
 _DASH_POLICY = "{}-policy"
+
 
 class LambdaException(Exception):
     """Exception during execution of a Lambda node"""
@@ -315,9 +317,7 @@ class Lambda(Node):
         # enable role to be run by lambda - this document is defined by AWS
         return {
             "Version": "2012-10-17",
-            "Statement": [
-                {"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}
-            ],
+            "Statement": [{"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}],
         }
 
     @tl.default("function_role_tags")
@@ -658,12 +658,12 @@ class Lambda(Node):
                 function_budget_amount=self.function_budget_amount,
                 function_budget_currency=self.function_budget_currency,
                 function_budget_email=self.function_budget_email,
-                function_budget_usage=self._budget["CalculatedSpend"]["ActualSpend"]["Amount"]
-                if self._budget
-                else None,
-                function_budget_usage_currency=self._budget["CalculatedSpend"]["ActualSpend"]["Unit"]
-                if self._budget
-                else None,
+                function_budget_usage=(
+                    self._budget["CalculatedSpend"]["ActualSpend"]["Amount"] if self._budget else None
+                ),
+                function_budget_usage_currency=(
+                    self._budget["CalculatedSpend"]["ActualSpend"]["Unit"] if self._budget else None
+                ),
             )
         else:
             budget_output = ""
@@ -2215,9 +2215,7 @@ def create_role(
     if role_assume_policy_document is None:
         role_assume_policy_document = {
             "Version": "2012-10-17",
-            "Statement": [
-                {"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}
-            ],
+            "Statement": [{"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}],
         }
 
     # add special podpac tags for billing id
@@ -2597,6 +2595,7 @@ def delete_api(session, api_name):
 # -----------------------------------------------------------------------------------------------------------------
 # Budget
 # -----------------------------------------------------------------------------------------------------------------
+
 
 # Budget
 def create_budget(
