@@ -24,11 +24,10 @@ jobs:
           python-version: "3.7"
 
       - name: Install Dependencies
-        run: |
-          pip install --upgrade pip setuptools && pip install .[devall]
+        run: pip install --upgrade pip setuptools && pip install .[devall]
 
       - name: Run Black Format Checks
-        run: black --check --diff -l 120 . > black-report.txt
+        run: black --version; black --check --diff -l 120 . > black-report.txt
 
       - name: Artifact Black Report
         uses: actions/upload-artifact@v4
@@ -38,7 +37,7 @@ jobs:
           retention-days: 1
 
       - name: Run flake8 Format Checks
-        run: flake8 --format=pylint --ignore=E,W,D,I,N806,N815,N818,Q000,Q001,Q002,S001,B008,B028 --tee --output-file=flake8-report.txt .
+        run: flake8 --version; flake8 --format=pylint --ignore=E,W,D,I,N806,N815,N818,Q000,Q001,Q002,S001,B008,B028 --tee --output-file=flake8-report.txt .
 
       - name: Artifact flake8 Report
         uses: actions/upload-artifact@v4
