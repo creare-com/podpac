@@ -170,7 +170,6 @@ class PodpacSettings(dict):
         self._loaded = True
 
     def __setitem__(self, key, value):
-
         # get old value if it exists
         try:
             old_val = deepcopy(self[key])
@@ -184,7 +183,6 @@ class PodpacSettings(dict):
             self.save()
 
     def __getitem__(self, key):
-
         # return none if the parameter does not exist
         try:
             return super(PodpacSettings, self).__getitem__(key)
@@ -222,7 +220,6 @@ class PodpacSettings(dict):
 
         # if input path is specifed, create the input path if it doesn't exist
         if path is not None:
-
             # make empty settings path
             if not os.path.exists(path):
                 raise ValueError("Input podpac settings path does not exist: {}".format(path))
@@ -237,12 +234,10 @@ class PodpacSettings(dict):
 
             # see if the path exists
             if p is not None and os.path.exists(p):
-
                 try:
                     with open(p, "r") as f:
                         json_settings = json.load(f)
                 except JSONDecodeError:
-
                     # if the root_filepath settings file is broken, raise
                     if p == root_filepath:
                         raise

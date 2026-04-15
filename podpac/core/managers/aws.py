@@ -981,7 +981,6 @@ Lambda Node {status}
         try:
             s3.head_object(Bucket=self.function_s3_bucket, Key=self.function_s3_dependencies_key)
         except botocore.exceptions.ClientError:
-
             # copy from user supplied dependencies
             if self.function_source_dependencies_zip is not None:
                 put_object(

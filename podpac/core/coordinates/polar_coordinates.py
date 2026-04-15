@@ -32,7 +32,6 @@ class PolarCoordinates(StackedCoordinates):
     dims = tl.Tuple(tl.Unicode(), tl.Unicode(), read_only=True)
 
     def __init__(self, center, radius, theta=None, theta_size=None, dims=None):
-
         # radius
         if not isinstance(radius, Coordinates1d):
             radius = ArrayCoordinates1d(radius)

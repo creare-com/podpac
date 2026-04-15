@@ -55,7 +55,6 @@ class TestInterpolation(object):
         assert isinstance(interp.config[("default",)]["interpolators"][0], Interpolator)
 
     def test_dict_definition(self):
-
         # should handle a default definition without any dimensions
         interp = InterpolationManager({"method": "nearest", "params": {"spatial_tolerance": 1}})
         assert isinstance(interp.config[("default",)], dict)
@@ -161,7 +160,6 @@ class TestInterpolation(object):
         assert interp.config[("lat", "lon")]["method"] == "bilinear"
 
     def test_init_interpolators(self):
-
         # should set method
         interp = InterpolationManager("nearest")
         assert interp.config[("default",)]["interpolators"][0].method == "nearest"
@@ -178,7 +176,6 @@ class TestInterpolation(object):
             interp.config[("default",)]["interpolators"][0].myarg
 
     def test_select_interpolator_queue(self):
-
         reqcoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"])
         srccoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"])
 
@@ -240,7 +237,6 @@ class TestInterpolation(object):
         assert isinstance(interpolator_queue[("lat", "lon")], LatLon)
 
     def test_select_coordinates(self):
-
         reqcoords = Coordinates(
             [[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"], crs="+proj=merc +vunits=m"
         )

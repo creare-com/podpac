@@ -652,7 +652,6 @@ class Coordinates(tl.HasTraits):
             return Coordinates(cs, validate_crs=False, **self.properties)
 
     def __setitem__(self, dim, c):
-
         # coerce
         if isinstance(c, BaseCoordinates):
             pass

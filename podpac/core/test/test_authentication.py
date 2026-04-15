@@ -14,7 +14,6 @@ _TEST_COM = "test.com"
 
 class TestAuthentication(object):
     def test_set_credentials(self):
-
         with settings:
             if _USERNAME_TEST_COM in settings:
                 del settings[_USERNAME_TEST_COM]

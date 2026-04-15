@@ -117,7 +117,6 @@ class TestZarrCache:
         assert not zarr_cache_node2._from_cache
 
     def test_ZarrCache_fill_and_retrieve(self, source):
-
         # Initialize ZarrCache node
         node = ZarrCache(source=source)
 
@@ -174,7 +173,6 @@ class TestZarrCache:
         node.rem_cache()  # Cleanup
 
     def test_ZarrCache_partial_caching(self, source):
-
         # Initialize ZarrCache node
         node = ZarrCache(source=source)
 
@@ -205,7 +203,6 @@ class TestZarrCache:
         node.rem_cache()  # Cleanup
 
     def test_ZarrCache_rem_cache(self, source):
-
         # Initialize ZarrCache node
         node = ZarrCache(source=source)
         coords = source.coordinates
@@ -231,7 +228,6 @@ class TestZarrCache:
         node.rem_cache()  # Cleanup
 
     def test_ZarrCache_get_coordinates(self, source):
-
         # Initialize ZarrCache node
         node = ZarrCache(source=source)
         coords = source.coordinates

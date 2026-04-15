@@ -71,7 +71,6 @@ class RasterioInterpolator(Interpolator):
             and eval_coordinates["lat"].is_uniform
             and eval_coordinates["lon"].is_uniform
         ):
-
             return udims
 
         # otherwise return no supported dims

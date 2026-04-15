@@ -53,7 +53,6 @@ class ScipyPoint(Interpolator):
             and self._dim_in(["lat", "lon"], source_coordinates, unstacked=True)
             and self._dim_in(["lat", "lon"], eval_coordinates, unstacked=True)
         ):
-
             return tuple(["lat", "lon"])
 
         # otherwise return no supported dims
@@ -160,7 +159,6 @@ class ScipyGrid(ScipyPoint):
             and self._dim_in(["lat", "lon"], source_coordinates)
             and self._dim_in(["lat", "lon"], eval_coordinates, unstacked=True)
         ):
-
             return ["lat", "lon"]
 
         # otherwise return no supported dims
@@ -186,7 +184,6 @@ class ScipyGrid(ScipyPoint):
     def _interpolate_irregular_grid(
         self, udims, source_coordinates, source_data, eval_coordinates, output_data, grid=True
     ):
-
         if len(source_data.dims) > 2:
             keep_dims = ["lat", "lon"]
             return self._loop_helper(

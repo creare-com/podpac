@@ -208,7 +208,6 @@ class Interpolator(tl.HasTraits):
     # cost_setup = tl.CFloat(-1)  # The rough cost FLOPS/DOF to set up the interpolator
 
     def __init__(self, **kwargs):
-
         # Call traitlets constructor
         super(Interpolator, self).__init__(**kwargs)
 
@@ -252,7 +251,6 @@ class Interpolator(tl.HasTraits):
         pass
 
     def _filter_udims_supported(self, udims):
-
         # find the intersection between dims_supported and udims, return tuple of intersection
         return tuple(set(self.dims_supported) & set(udims))
 

@@ -593,7 +593,6 @@ def test_higher_precision_time_bounds():
 
 
 def test_add_custom_dimension():
-
     # Make sure dimensions can't be duplicated
     with pytest.raises(ValueError):
         add_valid_dimension("lat")

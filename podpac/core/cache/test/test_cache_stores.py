@@ -456,7 +456,6 @@ class TestDiskCacheStore(FileCacheStoreTests):
 
     def test_cache_dir(self):
         with podpac.settings:
-
             # absolute path
             podpac.settings["DISK_CACHE_DIR"] = self.test_cache_dir
             expected = self.test_cache_dir

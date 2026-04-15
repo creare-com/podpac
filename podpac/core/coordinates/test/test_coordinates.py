@@ -602,7 +602,6 @@ class TestCoordinateCreation(object):
             Coordinates([lat, lon], crs="abcd")
 
     def test_crs_with_vertical_units(self):
-
         alt = ArrayCoordinates1d([0, 1, 2], name="alt")
 
         c = Coordinates([alt], crs=_MERCATOR_VUNITS_FT)

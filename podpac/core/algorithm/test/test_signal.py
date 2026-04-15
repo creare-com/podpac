@@ -71,7 +71,6 @@ class TestConvolution(object):
         node3d.eval(Coordinates([lat, lon, time]))
 
     def test_eval_multiple_outputs(self):
-
         lat = clinspace(45, 66, 30, name="lat")
         lon = clinspace(-80, 70, 40, name="lon")
         kernel = [[1, 2, 1]]

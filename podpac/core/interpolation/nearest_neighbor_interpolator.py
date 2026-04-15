@@ -224,7 +224,6 @@ class NearestNeighbor(Interpolator):
         return time1
 
     def _atime_to_float(self, time, time_source, time_request):
-
         dtype0 = time_source.coordinates[0].dtype
         dtype1 = time_request.coordinates[0].dtype
         dtype = dtype0 if dtype0 > dtype1 else dtype1
@@ -466,7 +465,6 @@ class NearestPreview(NearestNeighbor):
 
         # iterate over the source coordinate dims in case they are stacked
         for src_dim, idx in zip(source_coords, source_coords_index):
-
             # TODO: handle stacked coordinates
             if isinstance(source_coords[src_dim], StackedCoordinates):
                 raise InterpolatorException("NearestPreview select does not yet support stacked dimensions")

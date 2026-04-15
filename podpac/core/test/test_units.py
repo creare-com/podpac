@@ -498,7 +498,6 @@ class TestOpenDataArray(object):
         assert uda_2.attrs.get("crs") == uda_1.attrs.get("crs")
 
     def test_open_after_eval(self):
-
         # mock node
         data = np.random.rand(5, 5)
         lat = np.linspace(-10, 10, 5)
