@@ -197,8 +197,6 @@ class Interpolate(Node):
             Cannot evaluate these coordinates
         """
         self._set_interpolation()
-        if _selector is None:
-            _selector = self._interpolation.select_coordinates
 
         _logger.debug("Evaluating {} data source".format(self.__class__.__name__))
 
