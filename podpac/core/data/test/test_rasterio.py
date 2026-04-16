@@ -83,9 +83,7 @@ class TestRasterio(object):
 
         node = Rasterio()
         _, new_coords_1 = node._get_window_coords(c2, c1)  # tests when 1 coord completely contains the other
-        _, new_coords_2 = node._get_window_coords(
-            c3, c1
-        )  # tests when 1 coord does not completely contian the other
+        _, new_coords_2 = node._get_window_coords(c3, c1)  # tests when 1 coord does not completely contian the other
 
         expected_values = {0: {"lon": 46, "lat": 10}, 1: {"lon": 55, "lat": 16}}
         for i, data in enumerate([new_coords_1, new_coords_2]):
