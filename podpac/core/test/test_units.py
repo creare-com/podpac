@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import io
 import tempfile
+from typing import Tuple
 
 import pytest
 import numpy as np
@@ -83,7 +84,7 @@ class TestUnitDataArray(object):
             dims=["lat", "lon", "alt"],
             attrs={"units": ureg.meter},
         )
-        assert (a ** 2).attrs["units"] == ureg.meter ** 2
+        assert (a**2).attrs["units"] == ureg.meter**2
 
     def test_set_to_value_using_UnitsDataArray_as_mask_does_nothing_if_mask_has_dim_not_in_array(self):
         a = UnitsDataArray(
@@ -153,7 +154,7 @@ class TestUnitDataArray(object):
         for x in range(3):
             for y in range(2):
                 for z in range(2):
-                    c[x, y, z] in [0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19]
+                    _ = c[x, y, z] in [0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19]
 
     def test_get_item_with_units_data_array_as_key_throws_index_error(self):
         """
@@ -177,7 +178,7 @@ class TestUnitDataArray(object):
         lon_lat = lat_lon.part_transpose(["lon"])
         for lat in range(n_lats):
             for lon in range(n_lons):
-                lat_lon[lat, lon] == lon_lat[lon, lat]
+                _ = lat_lon[lat, lon] == lon_lat[lon, lat]
 
     def test_partial_transpose_specify_both_swaps_lat_lon(self):
         n_lats = 3
@@ -188,7 +189,7 @@ class TestUnitDataArray(object):
         lon_lat = lat_lon.part_transpose(["lon", "lat"])
         for lat in range(n_lats):
             for lon in range(n_lons):
-                lat_lon[lat, lon] == lon_lat[lon, lat]
+                _ = lat_lon[lat, lon] == lon_lat[lon, lat]
 
     def test_partial_transpose_specify_none_leaves_lat_lon_untouched(self):
         n_lats = 3
@@ -199,60 +200,52 @@ class TestUnitDataArray(object):
         lat_lon_2 = lat_lon.part_transpose([])
         for lat in range(n_lats):
             for lon in range(n_lons):
-                lat_lon[lat, lon] == lat_lon_2[lat, lon]
+                _ = lat_lon[lat, lon] == lat_lon_2[lat, lon]
 
     def test_no_units_coord(self):
         a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={})
         a2 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={})
-        a3 = a1 + a2
-        a3b = a2 + a1
-        a4 = a1 > a2
-        a5 = a1 < a2
-        a6 = a1 == a2
-        a7 = a1 * a2
-        a8 = a2 / a1
-        a9 = a1 // a2
-        a10 = a1 % a2
+        _ = a1 + a2
+        _ = a2 + a1
+        _ = a1 > a2
+        _ = a1 < a2
+        _ = a1 == a2
+        _ = a1 * a2
+        _ = a2 / a1
+        _ = a1 // a2
+        _ = a1 % a2
+
+    @staticmethod
+    def _assert_raises_dimensionality_error(
+        a1: UnitsDataArray, a2: UnitsDataArray
+    ) -> Tuple[UnitsDataArray, UnitsDataArray]:
+        with pytest.raises(DimensionalityError):
+            _ = a1 + a2
+        with pytest.raises(DimensionalityError):
+            _ = a2 + a1
+        with pytest.raises(DimensionalityError):
+            _ = a1 > a2
+        with pytest.raises(DimensionalityError):
+            _ = a1 < a2
+        with pytest.raises(DimensionalityError):
+            _ = a1 == a2
+        mult_result = a1 * a2
+        div_result = a1 / a2
+        with pytest.raises(DimensionalityError):
+            _ = a1 // a2
+        with pytest.raises(DimensionalityError):
+            _ = a1 % a2
+        return mult_result, div_result
 
     def test_first_units_coord(self):
         a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter})
         a2 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={})
-        with pytest.raises(DimensionalityError):
-            a3 = a1 + a2
-        with pytest.raises(DimensionalityError):
-            a3b = a2 + a1
-        with pytest.raises(DimensionalityError):
-            a4 = a1 > a2
-        with pytest.raises(DimensionalityError):
-            a5 = a1 < a2
-        with pytest.raises(DimensionalityError):
-            a6 = a1 == a2
-        a7 = a1 * a2
-        a8 = a2 / a1
-        with pytest.raises(DimensionalityError):
-            a9 = a1 // a2
-        with pytest.raises(DimensionalityError):
-            a10 = a1 % a2
+        TestUnitDataArray._assert_raises_dimensionality_error(a1, a2)
 
     def test_second_units_coord(self):
         a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={})
         a2 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.inch})
-        with pytest.raises(DimensionalityError):
-            a3 = a1 + a2
-        with pytest.raises(DimensionalityError):
-            a3b = a2 + a1
-        with pytest.raises(DimensionalityError):
-            a4 = a1 > a2
-        with pytest.raises(DimensionalityError):
-            a5 = a1 < a2
-        with pytest.raises(DimensionalityError):
-            a6 = a1 == a2
-        a7 = a1 * a2
-        a8 = a2 / a1
-        with pytest.raises(DimensionalityError):
-            a9 = a1 // a2
-        with pytest.raises(DimensionalityError):
-            a10 = a1 % a2
+        TestUnitDataArray._assert_raises_dimensionality_error(a1, a2)
 
     def test_units_allpass(self):
         a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter})
@@ -273,7 +266,7 @@ class TestUnitDataArray(object):
         assert a6[0, 0].data[()] == False
 
         a7 = a1 * a2
-        assert a7[0, 0].to(ureg.m ** 2).data[()] == (1 * ureg.meter * ureg.inch).to(ureg.meter ** 2).magnitude
+        assert a7[0, 0].to(ureg.m**2).data[()] == (1 * ureg.meter * ureg.inch).to(ureg.meter**2).magnitude
 
         a8 = a2 / a1
         assert a8[0, 0].to_base_units().data[()] == (1 * ureg.inch / ureg.meter).to_base_units().magnitude
@@ -287,28 +280,10 @@ class TestUnitDataArray(object):
     def test_units_somefail(self):
         a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter})
         a2 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.kelvin})
-        with pytest.raises(DimensionalityError):
-            a3 = a1 + a2
-        with pytest.raises(DimensionalityError):
-            a3b = a2 + a1
-        with pytest.raises(DimensionalityError):
-            a4 = a1 > a2
-        with pytest.raises(DimensionalityError):
-            a5 = a1 < a2
-        with pytest.raises(DimensionalityError):
-            a6 = a1 == a2
+        a7, a8 = TestUnitDataArray._assert_raises_dimensionality_error(a1, a2)
 
-        a7 = a1 * a2
         assert a7[0, 0].to(ureg.meter * ureg.kelvin).data[()] == (1 * ureg.meter * ureg.kelvin).magnitude
-
-        a8 = a1 / a2
         assert a8[0, 0].to(ureg.meter / ureg.kelvin).data[()] == (1 * ureg.meter / ureg.kelvin).magnitude
-
-        with pytest.raises(DimensionalityError):
-            a9 = a1 // a2
-
-        with pytest.raises(DimensionalityError):
-            a10 = a1 % a2
 
     def test_to_image(self):
         uda = UnitsDataArray(np.ones((10, 10)))
@@ -328,7 +303,7 @@ class TestUnitDataArray(object):
         np.mean(a1)
         np.min(a1)
         np.max(a1)
-        a1 ** 2
+        _ = a1**2
 
         # These don't have units!
         np.dot(a2.T, a1)
@@ -498,7 +473,6 @@ class TestOpenDataArray(object):
         assert uda_2.attrs.get("crs") == uda_1.attrs.get("crs")
 
     def test_open_after_eval(self):
-
         # mock node
         data = np.random.rand(5, 5)
         lat = np.linspace(-10, 10, 5)

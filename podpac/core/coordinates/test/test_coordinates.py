@@ -207,7 +207,7 @@ class TestCoordinateCreation(object):
         assert c.shape == (3, 2)
         assert c.ndim == 2
         assert c.size == 6
-        repr(c)
+        _ = repr(c)
 
         # stacked, nested dims version
         c = Coordinates([[lat, lon], dates], dims=[["lat", "lon"], "time"])
@@ -217,7 +217,7 @@ class TestCoordinateCreation(object):
         assert c.shape == (3, 2)
         assert c.ndim == 2
         assert c.size == 6
-        repr(c)
+        _ = repr(c)
 
     def test_mixed_shaped(self):
         lat = np.linspace(0, 1, 12).reshape((3, 4))
@@ -230,7 +230,7 @@ class TestCoordinateCreation(object):
         assert c.shape == (3, 4, 2, 3)
         assert c.ndim == 4
         assert c.size == 72
-        repr(c)
+        _ = repr(c)
 
     def test_mixed_affine(self):
         latlon = AffineCoordinates(geotransform=(10.0, 2.0, 0.0, 20.0, 0.0, -3.0), shape=(3, 4))
@@ -242,7 +242,7 @@ class TestCoordinateCreation(object):
         assert c.shape == (3, 4, 2, 3)
         assert c.ndim == 4
         assert c.size == 72
-        repr(c)
+        _ = repr(c)
 
     def test_invalid_dims(self):
         lat = [0, 1, 2]
@@ -291,7 +291,7 @@ class TestCoordinateCreation(object):
     def test_invalid_coords(self):
         lat = [0, 1, 2]
         lon = [10, 20, 30]
-        dates = ["2018-01-01", "2018-01-02"]
+        _ = ["2018-01-01", "2018-01-02"]
 
         with pytest.raises(TypeError, match="Invalid coords"):
             Coordinates({"lat": lat, "lon": lon})
@@ -563,7 +563,7 @@ class TestCoordinateCreation(object):
         # from xarray
         dims = c.xdims + ("output",)
         coords = {"output": ["a", "b"], **c.xcoords}
-        shape = c.shape + (2,)
+        _ = c.shape + (2,)
 
         x = xr.DataArray(np.empty(c.shape + (2,)), coords=coords, dims=dims, attrs={"crs": c.crs})
         c2 = Coordinates.from_xarray(x)
@@ -602,7 +602,6 @@ class TestCoordinateCreation(object):
             Coordinates([lat, lon], crs="abcd")
 
     def test_crs_with_vertical_units(self):
-
         alt = ArrayCoordinates1d([0, 1, 2], name="alt")
 
         c = Coordinates([alt], crs=_MERCATOR_VUNITS_FT)
@@ -636,7 +635,8 @@ class TestCoordinateCreation(object):
             assert c.alt_units in ["us-ft", "US survey foot"]  # pyproj < 3.0  # pyproj >= 3.0
 
     def test_create_from_uniform_coords(self):
-        Coordinates([clinspace("2020-01-01T09:36", "2020-01-02T15:35", 8)], [['time']])
+        Coordinates([clinspace("2020-01-01T09:36", "2020-01-02T15:35", 8)], [["time"]])
+
 
 class TestCoordinatesSerialization(object):
     def test_definition(self):
@@ -835,15 +835,15 @@ class TestCoordinatesDict(object):
     def test_setitem(self):
         coords = deepcopy(self.coords)
 
-        coords["time"] = [1, 2, 3]
-        coords["time"] = ArrayCoordinates1d([1, 2, 3])
-        coords["time"] = ArrayCoordinates1d([1, 2, 3], name="time")
-        coords["time"] = Coordinates([[1, 2, 3]], dims=["time"])
+        coords.__setitem__("time", [1, 2, 3])
+        coords.__setitem__("time", ArrayCoordinates1d([1, 2, 3]))
+        coords.__setitem__("time", ArrayCoordinates1d([1, 2, 3], name="time"))
+        coords.__setitem__("time", Coordinates([[1, 2, 3]], dims=["time"]))
 
         # coords['lat_lon'] = [np.linspace(0, 10, 5), np.linspace(0, 10, 5)]
-        coords["lat_lon"] = clinspace((0, 1), (10, 20), 5)
-        coords["lat_lon"] = (np.linspace(0, 10, 5), np.linspace(0, 10, 5))
-        coords["lat_lon"] = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
+        coords.__setitem__("lat_lon", clinspace((0, 1), (10, 20), 5))
+        coords.__setitem__("lat_lon", (np.linspace(0, 10, 5), np.linspace(0, 10, 5)))
+        coords.__setitem__("lat_lon", Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"]))
 
         # update a single stacked dimension
         coords["lat"] = np.linspace(5, 20, 5)
@@ -1682,7 +1682,9 @@ class TestCoordinatesSpecial(object):
         assert c1 != c5
 
         # hash
-        assert c1.hash == c1.hash
+        first_hash = c1.hash
+        second_hash = c1.hash
+        assert second_hash == first_hash
         assert c1.hash == deepcopy(c1).hash
 
         assert c1.hash != c3.hash

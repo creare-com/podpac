@@ -1,4 +1,3 @@
-import pytest
 import numpy as np
 
 import podpac
@@ -115,18 +114,18 @@ class TestCoordinates1d(object):
         lat_summary = lat.horizontal_resolution(lat, ell_tuple, coord_name, restype="summary")
         lon_summary = lon.horizontal_resolution(lat, ell_tuple, coord_name, restype="summary")
         lat_compare = (
-                4442569.935968436 * podpac.units("meter"),
-                13040.905617921147 * podpac.units("meter"),
-            )
+            4442569.935968436 * podpac.units("meter"),
+            13040.905617921147 * podpac.units("meter"),
+        )
         lon_compare = (
-                5558704.3695234 * podpac.units("meter"),
-                3399219.0171971265 * podpac.units("meter"),
-            )
+            5558704.3695234 * podpac.units("meter"),
+            3399219.0171971265 * podpac.units("meter"),
+        )
         for i in range(2):
-            assert lat_summary[i].units==lat_compare[i].units
-            assert_approx_equal(lat_summary[i].m,lat_compare[i].m)
-            assert lon_summary[i].units==lon_compare[i].units
-            assert_approx_equal(lon_summary[i].m,lon_compare[i].m)
+            assert lat_summary[i].units == lat_compare[i].units
+            assert_approx_equal(lat_summary[i].m, lat_compare[i].m)
+            assert lon_summary[i].units == lon_compare[i].units
+            assert_approx_equal(lon_summary[i].m, lon_compare[i].m)
 
         # Resolution: full
         lat_answer = [4455610.84158636, 4429529.03035052, 4429529.03035052, 4455610.84158636]

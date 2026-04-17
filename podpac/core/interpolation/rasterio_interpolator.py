@@ -3,7 +3,6 @@ Interpolator implementations
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
-from six import string_types
 
 import numpy as np
 import traitlets as tl
@@ -17,11 +16,8 @@ except ImportError:
     rasterio = None
 
 # podac imports
-from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
-from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
+from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator
 from podpac.core.utils import common_doc
-from podpac.core.coordinates.utils import get_timedelta
 
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)
@@ -75,7 +71,6 @@ class RasterioInterpolator(Interpolator):
             and eval_coordinates["lat"].is_uniform
             and eval_coordinates["lon"].is_uniform
         ):
-
             return udims
 
         # otherwise return no supported dims

@@ -10,7 +10,6 @@ import logging
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
 from podpac.core.coordinates import Coordinates
-from podpac.core.settings import settings
 
 # Set up logging
 _log = logging.getLogger(__name__)

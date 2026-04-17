@@ -153,7 +153,6 @@ class InterpolationManager(object):
     _interpolation_params = None
 
     def __init__(self, definition=INTERPOLATION_DEFAULT):
-
         self.definition = deepcopy(definition)
         self.config = OrderedDict()
         self._interpolation_params = {}
@@ -164,7 +163,6 @@ class InterpolationManager(object):
 
         # set each dim to interpolator definition
         if isinstance(definition, (dict, list)):
-
             # convert dict to list
             if isinstance(definition, dict):
                 definition = [definition]
@@ -208,7 +206,6 @@ class InterpolationManager(object):
         """
 
         for interp_definition in definition:
-
             # get interpolation method dict
             method = self._parse_interpolation_method(interp_definition)
 
@@ -273,7 +270,6 @@ class InterpolationManager(object):
             return {"method": definition, "interpolators": INTERPOLATION_METHODS_DICT[definition], "params": {}}
 
         elif isinstance(definition, dict):
-
             # confirm method in dict
             assert_custom(
                 "method" in definition,
@@ -320,7 +316,7 @@ class InterpolationManager(object):
             for idx, interpolator_class in enumerate(interpolators):
                 if isinstance(interpolator_class, string_types):
                     assert_custom(
-                        interpolator_class in INTERPOLATORS_DICT.keys(),
+                        interpolator_class in INTERPOLATORS_DICT,
                         TypeError,
                         'Interpolator "{}" is not in the dictionary of valid '.format(interpolator_class)
                         + "interpolators: {}".format(INTERPOLATORS_DICT),
@@ -423,7 +419,6 @@ class InterpolationManager(object):
 
         # go through all dims in config
         for key in iter(self.config):
-
             # if the key is set to (default,), it represents all the remaining dimensions that have not been handled
             # __init__ makes sure that (default,) will always be the last key in on
             if key == ("default",):
@@ -448,13 +443,11 @@ class InterpolationManager(object):
 
                 # if interpolator can handle all udims
                 if not set(udims) - set(can_handle):
-
                     # save union of dims that can be handled by this interpolator and already supported dims for next iteration
                     handled_dims = handled_dims | set(can_handle)
 
                     # set interpolator to work on that dimension in the interpolator_queue if dim has no interpolator
                     if udims not in interpolator_queue:
-
                         interpolator_queue[udims] = interpolator
 
         # throw error if the source_dims don't encompass all the supported dims

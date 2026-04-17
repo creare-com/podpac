@@ -25,7 +25,6 @@ except ImportError:
 
 import numpy as np
 import xarray as xr
-import traitlets as tl
 from pint import UnitRegistry
 
 ureg = UnitRegistry()
@@ -37,7 +36,7 @@ from podpac.core.utils import JSONEncoder
 from podpac.core.style import Style
 
 # Optional dependencies
-from lazy_import import lazy_module, lazy_class
+from lazy_import import lazy_module
 
 rasterio = lazy_module("rasterio")
 affine = lazy_module("affine")

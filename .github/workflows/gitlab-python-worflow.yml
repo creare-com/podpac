@@ -24,11 +24,10 @@ jobs:
           python-version: "3.7"
 
       - name: Install Dependencies
-        run: |
-          pip install --upgrade pip setuptools && pip install .[devall]
+        run: pip install --upgrade pip setuptools && pip install .[devall]
 
       - name: Run Black Format Checks
-        run: black --check --diff podpac > black-report.txt  || true # For now pass even if files need formatting
+        run: black --version; black --check --diff -l 120 . > black-report.txt
 
       - name: Artifact Black Report
         uses: actions/upload-artifact@v4

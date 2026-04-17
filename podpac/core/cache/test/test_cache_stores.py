@@ -21,6 +21,7 @@ NODE1 = podpac.data.Array(source=np.ones(COORDS1.shape), coordinates=COORDS1)
 NODE2 = podpac.algorithm.Arange()
 CACHE_MISS = "Cache miss. Requested data expired"
 
+
 class BaseCacheStoreTests(object):
     Store = None
     enabled_setting = None
@@ -34,12 +35,12 @@ class BaseCacheStoreTests(object):
             podpac.settings[key] = self.settings_orig[key]
 
     def test_init(self):
-        store = self.Store()
+        _ = self.Store()
 
     def test_disabled(self):  # this is the only test that passes for S3 because I don't have a bucket set up
         podpac.settings[self.enabled_setting] = False
         with pytest.raises(CacheException, match="Cache is disabled"):
-            store = self.Store()
+            _ = self.Store()
 
     def test_put_has_get(self):
         store = self.Store()
@@ -455,7 +456,6 @@ class TestDiskCacheStore(FileCacheStoreTests):
 
     def test_cache_dir(self):
         with podpac.settings:
-
             # absolute path
             podpac.settings["DISK_CACHE_DIR"] = self.test_cache_dir
             expected = self.test_cache_dir

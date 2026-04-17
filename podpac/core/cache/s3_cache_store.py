@@ -5,14 +5,12 @@ from lazy_import import lazy_module
 
 boto3 = lazy_module("boto3")
 
-import podpac
 from podpac.core.settings import settings
 from podpac.core.cache.utils import CacheException, CacheWildCard
 from podpac.core.cache.file_cache_store import FileCacheStore
 
 
 class S3CacheStore(FileCacheStore):  # pragma: no cover
-
     cache_mode = "s3"
     cache_modes = set(["s3", "all"])
     _limit_setting = "S3_CACHE_MAX_BYTES"

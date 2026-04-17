@@ -2,13 +2,13 @@
 Lambda is `Node` manager, which executes the given `Node` on an AWS Lambda
 function.
 """
+
 import json
 from collections import OrderedDict
 import logging
 import time
 import re
 from copy import deepcopy
-import base64
 from datetime import datetime
 
 from six import string_types
@@ -23,7 +23,6 @@ from podpac.core.utils import common_doc, JSONEncoder
 from podpac import version
 
 # Optional imports
-from lazy_import import lazy_module, lazy_class
 
 try:
     import boto3
@@ -45,6 +44,7 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 _LAMDA_AWS_COM = "lambda.amazonaws.com"
 _STS_ASSUME_ROLE = "sts:AssumeRole"
 _DASH_POLICY = "{}-policy"
+
 
 class LambdaException(Exception):
     """Exception during execution of a Lambda node"""
@@ -317,9 +317,7 @@ class Lambda(Node):
         # enable role to be run by lambda - this document is defined by AWS
         return {
             "Version": "2012-10-17",
-            "Statement": [
-                {"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}
-            ],
+            "Statement": [{"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}],
         }
 
     @tl.default("function_role_tags")
@@ -660,12 +658,12 @@ class Lambda(Node):
                 function_budget_amount=self.function_budget_amount,
                 function_budget_currency=self.function_budget_currency,
                 function_budget_email=self.function_budget_email,
-                function_budget_usage=self._budget["CalculatedSpend"]["ActualSpend"]["Amount"]
-                if self._budget
-                else None,
-                function_budget_usage_currency=self._budget["CalculatedSpend"]["ActualSpend"]["Unit"]
-                if self._budget
-                else None,
+                function_budget_usage=(
+                    self._budget["CalculatedSpend"]["ActualSpend"]["Amount"] if self._budget else None
+                ),
+                function_budget_usage_currency=(
+                    self._budget["CalculatedSpend"]["ActualSpend"]["Unit"] if self._budget else None
+                ),
             )
         else:
             budget_output = ""
@@ -983,7 +981,6 @@ Lambda Node {status}
         try:
             s3.head_object(Bucket=self.function_s3_bucket, Key=self.function_s3_dependencies_key)
         except botocore.exceptions.ClientError:
-
             # copy from user supplied dependencies
             if self.function_source_dependencies_zip is not None:
                 put_object(
@@ -1397,7 +1394,7 @@ Lambda Node {status}
         budget : dict
         """
         if budget is not None:
-            budget_filter_tags = {"_podpac_resource_hash": self.hash}
+            _ = {"_podpac_resource_hash": self.hash}
 
             self.set_trait("function_budget_amount", float(budget["BudgetLimit"]["Amount"]))
             self.set_trait("function_budget_name", budget["BudgetName"])
@@ -2217,9 +2214,7 @@ def create_role(
     if role_assume_policy_document is None:
         role_assume_policy_document = {
             "Version": "2012-10-17",
-            "Statement": [
-                {"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}
-            ],
+            "Statement": [{"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}],
         }
 
     # add special podpac tags for billing id
@@ -2600,6 +2595,7 @@ def delete_api(session, api_name):
 # Budget
 # -----------------------------------------------------------------------------------------------------------------
 
+
 # Budget
 def create_budget(
     session,
@@ -2768,7 +2764,7 @@ def delete_budget(session, budget_name):
 
     try:
         budgets.delete_budget(AccountId=session.get_account_id(), BudgetName=budget_name)
-    except budgets.exceptions.NotFoundException as e:
+    except budgets.exceptions.NotFoundException:
         pass
 
     _log.debug("Successfully removed budget with name '{}'".format(budget_name))

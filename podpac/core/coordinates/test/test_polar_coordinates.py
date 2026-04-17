@@ -1,11 +1,7 @@
-from datetime import datetime
 import json
 
 import pytest
-import traitlets as tl
 import numpy as np
-import pandas as pd
-import xarray as xr
 from numpy.testing import assert_equal, assert_allclose
 
 import podpac
@@ -28,7 +24,7 @@ class TestPolarCoordinatesCreation(object):
         assert c.xdims == ("r", "t")
         assert c.name == "lat_lon"
         assert c.shape == (4, 8)
-        repr(c)
+        _ = repr(c)
 
         # uniform theta
         c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
@@ -39,7 +35,7 @@ class TestPolarCoordinatesCreation(object):
         assert c.xdims == ("r", "t")
         assert c.name == "lat_lon"
         assert c.shape == (4, 8)
-        repr(c)
+        _ = repr(c)
 
     def test_invalid(self):
         with pytest.raises(TypeError, match="PolarCoordinates expected theta or theta_size, not both"):

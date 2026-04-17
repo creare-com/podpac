@@ -8,10 +8,7 @@ from podpac.core.cache.utils import CacheWildCard, CacheException
 from podpac.core.cache.ram_cache_store import RamCacheStore
 from podpac.core.cache.disk_cache_store import DiskCacheStore
 from podpac.core.cache.s3_cache_store import S3CacheStore
-import traitlets as tl
 import logging
-
-
 
 _CACHE_STORES = {"ram": RamCacheStore, "disk": DiskCacheStore, "s3": S3CacheStore}
 
@@ -27,6 +24,7 @@ _INVALID_MODE = "Invalid mode (must be one of %s, not '%s')"
 _INVALID_ITEM_ASTERISK = "Invalid item ('*' is reserved)"
 
 _logger = logging.getLogger(__name__)
+
 
 def get_default_cache_ctrl():
     """
@@ -101,7 +99,6 @@ def cache_cleanup():
 
 
 class CacheCtrl(object):
-
     """Objects of this class are used to manage multiple CacheStore objects of different types
     (e.g. RAM, local disk, s3) and serve as the interface to the caching module.
     """
@@ -129,9 +126,9 @@ class CacheCtrl(object):
 
     def _get_cache_stores_by_mode(self, mode="all"):
         return [c for c in self._cache_stores if mode in c.cache_modes]
-    
+
     @staticmethod
-    def _validate_args(node, item, coordinates,  mode):
+    def _validate_args(node, item, coordinates, mode):
         """Raise an exception if any of the provided arguments are invalid
 
         Parameters

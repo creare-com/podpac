@@ -10,11 +10,9 @@ import scipy.signal
 from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.coordinates import add_coord
-from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import UnaryAlgorithm
 from podpac.core.utils import common_doc, ArrayTrait
 from podpac.core.node import COMMON_NODE_DOC
-
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 COMMON_DOC[

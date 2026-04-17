@@ -9,8 +9,7 @@ import matplotlib
 import matplotlib.cm
 from matplotlib.colors import ListedColormap
 
-from podpac.core.units import ureg
-from podpac.core.utils import trait_is_defined, JSONEncoder, TupleTrait
+from podpac.core.utils import JSONEncoder
 
 DEFAULT_ENUMERATION_LEGEND = "unknown"
 DEFAULT_ENUMERATION_COLOR = (0.2, 0.2, 0.2)
@@ -55,7 +54,7 @@ class Style(tl.HasTraits):
     @tl.validate("colormap")
     def _validate_colormap(self, d):
         if isinstance(d["value"], six.string_types):
-            try: 
+            try:
                 matplotlib.colormaps[d["value"]]
             except AttributeError:
                 # Need for matplotlib prior to 3.5
@@ -104,15 +103,15 @@ class Style(tl.HasTraits):
     @property
     def cmap(self):
         if self.colormap:
-            try: 
+            try:
                 return matplotlib.colormaps[self.colormap]
-            except AttributeError: 
+            except AttributeError:
                 # Need for matplotlib prior to 3.5
                 return matplotlib.cm.get_cmap(self.colormap)
         elif self.enumeration_colors:
             return ListedColormap(self.full_enumeration_colors)
         else:
-            try: 
+            try:
                 return matplotlib.colormaps["viridis"]
             except AttributeError:
                 # Need for matplotlib prior to 3.5

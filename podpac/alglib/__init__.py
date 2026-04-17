@@ -6,3 +6,7 @@ and exposed its contents to podpac.datalib
 """
 
 from podpac.alglib import climatology
+
+__all__ = [
+    "climatology",
+]

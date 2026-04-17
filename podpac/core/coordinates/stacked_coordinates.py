@@ -1,6 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from typing import List
+from typing import List, Union
 
 import numpy as np
 import pandas as pd
@@ -452,7 +452,7 @@ class StackedCoordinates(BaseCoordinates):
         else:
             return self[index]
 
-    def _index_len(self, index: "Coordinates"):
+    def _index_len(self, index: Union[slice, "Coordinates"]) -> int:  # type: ignore
         if isinstance(index, slice):
             if index.stop is None:
                 stop = self.size
@@ -469,7 +469,7 @@ class StackedCoordinates(BaseCoordinates):
             return stop - start
         return len(index)
 
-    def _and_indices(self, indices: List["Coordinates"]):
+    def _and_indices(self, indices: List[Union[slice, "Coordinates"]]) -> slice:  # type: ignore
         """logical AND of the selection in each dimension"""
         if all(isinstance(index, slice) for index in indices):
             index = slice(max(index.start or 0 for index in indices), min(index.stop or self.size for index in indices))

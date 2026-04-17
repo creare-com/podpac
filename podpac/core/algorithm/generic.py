@@ -113,8 +113,6 @@ class Arithmetic(GenericInputs):
         f_locals = dict(zip(fields, res))
 
         try:
-            from numexpr import evaluate  # Needed for some systems to get around lazy_module issues
-
             result = ne.evaluate(eqn, f_locals)
         except (NotImplementedError, ImportError):
             result = eval(eqn, f_locals)

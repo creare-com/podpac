@@ -364,4 +364,4 @@ def test_cache_cleanup():
         # make a default cache
         podpac.settings["DEFAULT_CACHE"] = ["ram"]
 
-        cache_cleanup() # this fails. Not sure whats happening with the "_thread_local" object in ram_cache_store.py
+        cache_cleanup()  # this fails. Not sure whats happening with the "_thread_local" object in ram_cache_store.py

@@ -3,8 +3,6 @@ from collections import OrderedDict
 
 import numpy as np
 import rasterio
-import pytest
-from traitlets import TraitError
 
 from podpac.core.coordinates import Coordinates
 from podpac.core.units import UnitsDataArray
@@ -78,23 +76,17 @@ class TestRasterio(object):
 
     def test_get_window_coords(self):
         """test get_window_coords method"""
-        c1 = Coordinates([clinspace(31,30,16,"lat"),clinspace(-0.25,1.5,64,"lon")])
-        c2 = Coordinates([clinspace(30.75,30.25,16,"lat"),clinspace(-0.0,1.25,64,"lon")])
+        c1 = Coordinates([clinspace(31, 30, 16, "lat"), clinspace(-0.25, 1.5, 64, "lon")])
+        c2 = Coordinates([clinspace(30.75, 30.25, 16, "lat"), clinspace(-0.0, 1.25, 64, "lon")])
 
-        c3 = Coordinates([clinspace(31,30,16,"lat"),clinspace(-0.5,1.25,64,"lon")])
+        c3 = Coordinates([clinspace(31, 30, 16, "lat"), clinspace(-0.5, 1.25, 64, "lon")])
 
         node = Rasterio()
-        window_1,new_coords_1 = node._get_window_coords(c2,c1) # tests when 1 coord completely contains the other
-        window_2,new_coords_2 = node._get_window_coords(c3,c1) # tests when 1 coord does not completely contian the other
+        _, new_coords_1 = node._get_window_coords(c2, c1)  # tests when 1 coord completely contains the other
+        _, new_coords_2 = node._get_window_coords(c3, c1)  # tests when 1 coord does not completely contian the other
 
-        expected_values = {0:{'lon':46,
-                              'lat':10},
-                           1:{'lon':55,
-                              'lat':16}}
-        for i,data in enumerate([new_coords_1,new_coords_2]) :
-            for a in ['lon','lat'] :
-                assert(np.isnan(data[a].coordinates).sum()==0) # nan check
-                assert(len(data[a])==expected_values[i][a]) # guard against old issue of return being trimmed
-
-
-        
+        expected_values = {0: {"lon": 46, "lat": 10}, 1: {"lon": 55, "lat": 16}}
+        for i, data in enumerate([new_coords_1, new_coords_2]):
+            for a in ["lon", "lat"]:
+                assert np.isnan(data[a].coordinates).sum() == 0  # nan check
+                assert len(data[a]) == expected_values[i][a]  # guard against old issue of return being trimmed

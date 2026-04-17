@@ -9,7 +9,6 @@ import numpy as np
 import traitlets as tl
 from scipy.spatial import cKDTree
 
-
 # Optional dependencies
 
 
@@ -225,7 +224,6 @@ class NearestNeighbor(Interpolator):
         return time1
 
     def _atime_to_float(self, time, time_source, time_request):
-
         dtype0 = time_source.coordinates[0].dtype
         dtype1 = time_request.coordinates[0].dtype
         dtype = dtype0 if dtype0 > dtype1 else dtype1
@@ -401,7 +399,10 @@ class NearestPreview(NearestNeighbor):
 
     @staticmethod
     def _perform_selection(
-        src_coords: Coordinates, dst_coords: Coordinates, idx: Union[slice, Tuple[float, float]], bounds: Tuple[float, float]
+        src_coords: Coordinates,
+        dst_coords: Coordinates,
+        idx: Union[slice, Tuple[float, float]],
+        bounds: Tuple[float, float],
     ) -> Tuple[Coordinates, slice]:
         """Perform actual selection, after validation of coordinates."""
         if isinstance(dst_coords, UniformCoordinates1d):
@@ -444,7 +445,9 @@ class NearestPreview(NearestNeighbor):
         return coord, idx
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def select_coordinates(self, udims, source_coordinates: Coordinates, eval_coordinates: Coordinates, index_type: str="numpy"):
+    def select_coordinates(
+        self, udims, source_coordinates: Coordinates, eval_coordinates: Coordinates, index_type: str = "numpy"
+    ):
         """
         {interpolator_select}
         """
@@ -462,7 +465,6 @@ class NearestPreview(NearestNeighbor):
 
         # iterate over the source coordinate dims in case they are stacked
         for src_dim, idx in zip(source_coords, source_coords_index):
-
             # TODO: handle stacked coordinates
             if isinstance(source_coords[src_dim], StackedCoordinates):
                 raise InterpolatorException("NearestPreview select does not yet support stacked dimensions")

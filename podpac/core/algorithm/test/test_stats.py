@@ -13,7 +13,7 @@ from podpac.core.algorithm.stats import Reduce
 from podpac.core.algorithm.stats import Min, Max, Sum, Count, Mean, Variance, Skew, Kurtosis, StandardDeviation
 from podpac.core.algorithm.generic import Arithmetic
 from podpac.core.algorithm.stats import Median, Percentile
-from podpac.core.algorithm.stats import GroupReduce, DayOfYear, DayOfYearWindow
+from podpac.core.algorithm.stats import DayOfYearWindow
 
 
 def setup_module():

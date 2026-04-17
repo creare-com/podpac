@@ -1,12 +1,8 @@
 import traitlets as tl
-from copy import deepcopy
-import json
 
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
 from podpac.core.utils import cached_property
-from podpac.core.utils import hash_alg
-from podpac.core.utils import JSONEncoder
 
 
 class CacheNode(Node):

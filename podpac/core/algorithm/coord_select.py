@@ -10,8 +10,8 @@ import numpy as np
 from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d
-from podpac.core.coordinates import make_coord_value, make_coord_delta, add_coord
-from podpac.core.node import Node, COMMON_NODE_DOC
+from podpac.core.coordinates import make_coord_delta, add_coord
+from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.algorithm.algorithm import UnaryAlgorithm
 from podpac.core.utils import common_doc, NodeTrait
 

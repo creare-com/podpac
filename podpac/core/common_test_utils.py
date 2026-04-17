@@ -4,10 +4,7 @@ Utils Summary
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import os
 from collections import OrderedDict
-
-import numpy as np
 
 from podpac.core.coordinates import Coordinates, StackedCoordinates, ArrayCoordinates1d
 

@@ -7,11 +7,9 @@ import json
 import fnmatch
 import logging
 
-import podpac
 from podpac.core.settings import settings
 from podpac.core.cache.utils import CacheException, CacheWildCard
 from podpac.core.cache.file_cache_store import FileCacheStore
-
 
 logger = logging.getLogger(__name__)
 

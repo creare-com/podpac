@@ -1,8 +1,6 @@
-from datetime import datetime
 import json
 
 import pytest
-import traitlets as tl
 import numpy as np
 from numpy.testing import assert_equal
 
@@ -294,13 +292,13 @@ class TestUniformCoordinatesCreation(object):
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == True
-        c = UniformCoordinates1d("2025-01-01T12", "2025-01-03T00", "1,D", anchor_boundary='start')
+        c = UniformCoordinates1d("2025-01-01T12", "2025-01-03T00", "1,D", anchor_boundary="start")
         assert c.start == np.datetime64("2025-01-01T12")
         assert c.stop == np.datetime64("2025-01-02T12")
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == True
-        c = UniformCoordinates1d("2025-01-01T12", "2025-01-03T00", "1,D", anchor_boundary='stop')
+        c = UniformCoordinates1d("2025-01-01T12", "2025-01-03T00", "1,D", anchor_boundary="stop")
         assert c.start == np.datetime64("2025-01-02T00")
         assert c.stop == np.datetime64("2025-01-03T00")
         assert c.dtype == np.datetime64
@@ -375,7 +373,7 @@ class TestUniformCoordinatesCreation(object):
 
     def test_datetime_size_invalid(self):
         with pytest.raises(ValueError, match="Cannot divide timedelta"):
-            c = UniformCoordinates1d("2018-01-01", "2018-01-10", size=20)
+            _ = UniformCoordinates1d("2018-01-01", "2018-01-10", size=20)
 
     def test_numerical_size_floating_point_error(self):
         c = UniformCoordinates1d(50.619, 50.62795, size=30)
@@ -1345,7 +1343,7 @@ class TestUniformCoordinatesMethods(object):
         # Now check consistency without the `anchor_boundaries` flag
         u = c["lon"]
         u2 = podpac.coordinates.UniformCoordinates1d(u.start - 2 * u.step, u.stop + 2 * u.step + 1e-14, step=u.step)
-        c3 = podpac.Coordinates([u2], ["lon"])
+        _ = podpac.Coordinates([u2], ["lon"])
         n = podpac.Node().create_output_array(podpac.Coordinates([u2], ["lon"]))
         u2b = podpac.Coordinates.from_xarray(n)
         assert_equal(u2b["lon"].coordinates, u2.coordinates)

@@ -1,14 +1,11 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import numpy as np
 import xarray as xr
 import pandas as pd
-import traitlets as tl
 
 from podpac.core.utils import common_doc
 from podpac.core.compositor.compositor import COMMON_COMPOSITOR_DOC, BaseCompositor
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import Coordinates
 
 
 @common_doc(COMMON_COMPOSITOR_DOC)

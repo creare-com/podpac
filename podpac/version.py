@@ -61,7 +61,7 @@ def version():
             git = "/usr/bin/git"
             try:
                 subprocess.check_output([git, "--version"])
-            except Exception as e:
+            except Exception:
                 return version_full
 
         version_full = subprocess.check_output([git, "describe", "--always", "--tags"], cwd=CWD).strip().decode("ascii")

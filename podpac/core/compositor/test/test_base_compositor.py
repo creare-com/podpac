@@ -38,7 +38,7 @@ class MockComposite(BaseCompositor):
 class TestBaseCompositor(object):
     def test_init(self):
         node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
-        repr(node)
+        _ = repr(node)
 
     def test_source_coordinates(self):
         # none (default)

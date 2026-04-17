@@ -3,7 +3,6 @@ Interpolator implementations
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
-from six import string_types
 
 import traitlets as tl
 import numpy as np
@@ -13,11 +12,9 @@ import xarray as xr
 
 
 # podac imports
-from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
+from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 from podpac.core.utils import common_doc
-from podpac.core.coordinates.utils import get_timedelta
 
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)
@@ -141,6 +138,6 @@ class XarrayInterpolator(Interpolator):
         if nn_coords:
             source_data = source_data.sel(method="nearest", **nn_coords)
 
-        output_data = source_data.interp(method=self.method, **coords)
+        new_output_data = source_data.interp(method=self.method, **coords)
 
-        return output_data.transpose(*eval_coordinates.xdims)
+        return new_output_data.transpose(*eval_coordinates.xdims)

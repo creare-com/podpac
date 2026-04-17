@@ -1,11 +1,11 @@
 import traitlets as tl
 
-from lazy_import import lazy_module, lazy_class
+from lazy_import import lazy_module
 
 h5py = lazy_module("h5py")
 
 from podpac.core.utils import common_doc, cached_property
-from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
+from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin
 
 

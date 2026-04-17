@@ -6,3 +6,8 @@ Compositor Public Module
 
 from podpac.core.compositor.ordered_compositor import OrderedCompositor
 from podpac.core.compositor.tile_compositor import TileCompositor
+
+__all__ = [
+    "OrderedCompositor",
+    "TileCompositor",
+]

@@ -4,15 +4,13 @@ Base class for Algorithm Nodes
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from collections import OrderedDict
 import inspect
 
-import numpy as np
 import xarray as xr
 import traitlets as tl
 
 # Internal dependencies
-from podpac.core.coordinates import Coordinates, union
+from podpac.core.coordinates import Coordinates
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node, NodeException, COMMON_NODE_DOC
 from podpac.core.utils import common_doc, NodeTrait, align_xarray_dict

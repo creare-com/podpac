@@ -30,9 +30,9 @@ def _higher_precision_time_coords1d(coords0, coords1):
     dtype0 = coords0.coordinates[0].dtype
     dtype1 = coords1.coordinates[0].dtype
     # if both data types are not time data types, do nothing and return coordinates
-    if  not (
-            (np.issubdtype(dtype0, np.datetime64) and  np.issubdtype(dtype1, np.datetime64)) 
-        or  (np.issubdtype(dtype0, np.timedelta64) and  np.issubdtype(dtype1, np.timedelta64))
+    if not (
+        (np.issubdtype(dtype0, np.datetime64) and np.issubdtype(dtype1, np.datetime64))
+        or (np.issubdtype(dtype0, np.timedelta64) and np.issubdtype(dtype1, np.timedelta64))
     ):
         return coords0.coordinates, coords1.coordinates
     # change data types to match
@@ -75,7 +75,6 @@ class Selector(tl.HasTraits):
             self.method = METHOD.get(method)
         else:
             self.method = method
-
 
     def select(self, source_coords, request_coords, index_type="numpy"):
         """Sub-selects the source_coords based on the request_coords

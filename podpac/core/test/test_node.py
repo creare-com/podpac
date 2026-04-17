@@ -20,7 +20,7 @@ import podpac
 from podpac.core.utils import ArrayTrait, NodeTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.style import Style
-from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore, clear_cache
+from podpac.core.cache import RamCacheStore, DiskCacheStore
 from podpac.core.node import Node, NodeException, NodeDefinitionError
 
 _OUTPUTS = "outputs="
@@ -28,6 +28,7 @@ _OUTPUT = "output="
 _CACHE_UNAVAIL = "Cache unavailable"
 _INSECURE_EVAL = "Insecure evaluation.*"
 _INVALID_DEF_FOR_NODE = "Invalid definition for node"
+
 
 class TestNode(object):
     def test_style(self):
@@ -1004,7 +1005,7 @@ class TestSerialization(object):
 
             @tl.default("a")
             def _default_a(self):
-                self.definition
+                self.definition()
                 return 10
 
         node = MyNode()

@@ -230,7 +230,7 @@ class ParallelAsync(Parallel):
                     success = False
                     time.sleep(self.sleep_time)
             else:
-                _log.debug("Worker unavailable for {}".format(i, e))
+                _log.debug("Worker unavailable for {}".format(i))
                 time.sleep(self.sleep_time)
         _log.info("Submitting source {}".format(i))
         return (o, coordinates_index)
@@ -363,7 +363,7 @@ class ZarrOutputMixin(tl.HasTraits):
         # Intialize the output zarr arrays
         for dk in data_key:
             try:
-                arr = zf.create_dataset(
+                _ = zf.create_dataset(
                     dk,
                     shape=shape,
                     chunks=chunks,
@@ -390,7 +390,7 @@ class ZarrOutputMixin(tl.HasTraits):
                 exists = self.zarr_node.chunk_exists(
                     coordinates_index, data_key=dk, list_dir=self._list_dir, chunks=self._chunks
                 )
-            except ValueError as e:  # This was needed in cases where a poor internet connection caused read errors
+            except ValueError:  # This was needed in cases where a poor internet connection caused read errors
                 exists = False
             if exists:
                 _log.info("Skipping {} (already exists)".format(i))

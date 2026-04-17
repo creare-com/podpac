@@ -1,7 +1,5 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from datetime import datetime
-
 import pytest
 import numpy as np
 import pandas as pd
@@ -25,6 +23,7 @@ _T6 = "2020-01-02T00:00"
 _T7 = "2020-01-01"
 _T8 = "2020-01-02"
 _CANNOT_DIVIDE_TIMEDELTA = "Cannot divide timedelta .* evenly"
+
 
 def test_get_timedelta():
     td64 = np.timedelta64
@@ -594,7 +593,6 @@ def test_higher_precision_time_bounds():
 
 
 def test_add_custom_dimension():
-
     # Make sure dimensions can't be duplicated
     with pytest.raises(ValueError):
         add_valid_dimension("lat")

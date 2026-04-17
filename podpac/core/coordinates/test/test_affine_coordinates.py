@@ -1,16 +1,6 @@
-from datetime import datetime
-import json
-
 import pytest
-import traitlets as tl
 import numpy as np
-import pandas as pd
-import xarray as xr
-import rasterio
 
-import podpac
-from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
-from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.affine_coordinates import AffineCoordinates
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 
@@ -36,7 +26,7 @@ class TestAffineCoordinatesCreation(object):
         assert c.udims == ("lat", "lon")
         assert len(set(c.xdims)) == 2
         assert c.name == "lat_lon"
-        repr(c)
+        _ = repr(c)
 
     def test_rotated(self):
         c = AffineCoordinates(geotransform=GEOTRANSFORM_ROTATED, shape=(3, 4))
@@ -48,7 +38,7 @@ class TestAffineCoordinatesCreation(object):
         assert c.udims == ("lat", "lon")
         assert len(set(c.xdims)) == 2
         assert c.name == "lat_lon"
-        repr(c)
+        _ = repr(c)
 
     def test_invalid(self):
         with pytest.raises(ValueError, match="Invalid shape"):
