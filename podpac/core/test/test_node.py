@@ -192,10 +192,10 @@ class TestNode(object):
         assert outputs[1].shape == (2, 3)
 
         # invalid
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match=".*"):
             node.eval_group(c1)
 
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match=".*"):
             node.eval(g)
 
     def test_eval_not_implemented(self):

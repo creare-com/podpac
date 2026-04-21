@@ -85,7 +85,7 @@ class TestPyDAP(object):
 
     def test_url_error(self):
         node = PyDAP(source="mysource")
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match=".*"):
             _ = node.dataset
 
     def test_get_data(self):

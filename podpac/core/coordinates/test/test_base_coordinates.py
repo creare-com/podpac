@@ -71,7 +71,7 @@ class TestBaseCoordinates(object):
             pass
 
         try:
-            c == c
+            _ = c == c
         except NotImplementedError:
             pass
 
