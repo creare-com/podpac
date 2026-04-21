@@ -42,7 +42,8 @@
 	},
 	"postCreateCommand": "pip install --no-cache-dir --use-pep517 -e .[dev,algorithms,datatype]",
 	"mounts": [
-	   "source=${localEnv:HOME}/.local,target=/home/${localEnv:USER}/.local,type=bind"
+	   "source=${localEnv:HOME}/.local,target=/home/${localEnv:USER}/.local,type=bind",
+	   "source=${localEnv:HOME}/.claude,target=/home/${localEnv:USER}/.claude,type=bind"
 	]
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
