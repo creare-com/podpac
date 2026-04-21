@@ -1,6 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from typing import List, Union
+from typing import TYPE_CHECKING, List, Union
 
 import numpy as np
 import pandas as pd
@@ -15,6 +15,9 @@ from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.utils import make_coord_value
 from podpac.core.coordinates.utils import calculate_distance
+
+if TYPE_CHECKING:
+    from podpac.core.coordinates.coordinates import Coordinates
 
 
 class StackedCoordinates(BaseCoordinates):
