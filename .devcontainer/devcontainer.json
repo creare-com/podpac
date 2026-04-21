@@ -40,7 +40,7 @@
 			}
 		}
 	},
-	"postCreateCommand": "pip install --no-cache-dir --use-pep517 -e .[dev,algorithms,datatype]",
+	"postCreateCommand": "pip install --no-cache-dir --use-pep517 -e .[devall]",
 	//"mounts": [
 	//    "source=${localWorkspaceFolder}/../geowatch_data_ingestion/data,target=/data,type=bind"
 	//]
