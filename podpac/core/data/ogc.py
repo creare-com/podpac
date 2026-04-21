@@ -346,7 +346,7 @@ class WCS(DataSource):
 
         # request each chunk and composite the data
         output = self.create_output_array(coordinates)
-        for i, (chunk, slc) in enumerate(coordinates.iterchunks(shape, return_slices=True)):
+        for chunk, slc in coordinates.iterchunks(shape, return_slices=True):
             output[slc] = self._get_chunk(chunk)
 
         return output
