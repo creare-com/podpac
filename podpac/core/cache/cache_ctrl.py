@@ -103,7 +103,7 @@ class CacheCtrl(object):
     (e.g. RAM, local disk, s3) and serve as the interface to the caching module.
     """
 
-    def __init__(self, cache_stores=[]):
+    def __init__(self, cache_stores=None):
         """Initialize a CacheCtrl object with a list of CacheStore objects.
         Care should be taken to provide the cache_stores list in the order that
         they should be interogated. CacheStore objects with faster access times
@@ -115,7 +115,7 @@ class CacheCtrl(object):
             list of CacheStore objects to manage, in the order that they should be interrogated.
         """
 
-        self._cache_stores = cache_stores
+        self._cache_stores = cache_stores if cache_stores is not None else []
 
     def __repr__(self):
         return "CacheCtrl(cache_stores=%s)" % self.cache_stores

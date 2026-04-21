@@ -66,7 +66,7 @@ class TileCompositor(BaseCompositor):
             return result
         return res
 
-    def get_source_data(self, bounds={}):
+    def get_source_data(self, bounds=None):
         """
         Get composited source data, without interpolation.
 
@@ -87,6 +87,8 @@ class TileCompositor(BaseCompositor):
                 "Cannot get composited source data; all sources must have `get_source_data` implemented (such as nodes derived from a DataSource or TileCompositor node)."
             )
 
+        if bounds is None:
+            bounds = {}
         coords = None  # n/a
         source_data_arrays = (source.get_source_data(bounds) for source in self.sources)  # generator
         return self.composite(coords, source_data_arrays)

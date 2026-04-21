@@ -292,7 +292,7 @@ class DataSource(Node):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def get_source_data(self, bounds={}):
+    def get_source_data(self, bounds=None):
         """
         Get source data, without interpolation.
 
@@ -308,6 +308,8 @@ class DataSource(Node):
             Source data
         """
 
+        if bounds is None:
+            bounds = {}
         coords, I = self.coordinates.select(bounds, return_index=True)
         return self._get_data(coords, I)
 
