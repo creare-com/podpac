@@ -1073,7 +1073,7 @@ class Node(tl.HasTraits):
         type_ = attrt.__class__.__name__
 
         try:
-            schema = getattr(attrt, "_schema")
+            schema = attrt._schema
         except AttributeError:
             schema = None
 
@@ -1089,8 +1089,8 @@ class Node(tl.HasTraits):
         elif type_ == "Dict" and schema is None:
             try:
                 schema = {
-                    "key": getattr(attrt, "_key_trait").__class__.__name__,
-                    "value": getattr(attrt, "_value_trait").__class__.__name__,
+                    "key": attrt._key_trait.__class__.__name__,
+                    "value": attrt._value_trait.__class__.__name__,
                 }
             except Exception:
                 _logger.exception(f"Could not find schema for {attrt} of type {type_}")

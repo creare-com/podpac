@@ -379,7 +379,7 @@ class TestRamCacheStore(BaseCacheStoreTests):
         from podpac.core.cache.ram_cache_store import _thread_local
 
         if hasattr(_thread_local, "cache"):
-            delattr(_thread_local, "cache")
+            del _thread_local.cache
 
     def teardown_method(self):
         super(TestRamCacheStore, self).teardown_method()
@@ -387,7 +387,7 @@ class TestRamCacheStore(BaseCacheStoreTests):
         from podpac.core.cache.ram_cache_store import _thread_local
 
         if hasattr(_thread_local, "cache"):
-            delattr(_thread_local, "cache")
+            del _thread_local.cache
 
     @pytest.mark.skip(reason="not testable")
     def test_size(self):
