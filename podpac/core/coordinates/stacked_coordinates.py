@@ -140,7 +140,7 @@ class StackedCoordinates(BaseCoordinates):
                 raise ValueError("Duplicate dimension '%s' in dims" % dim)
 
         # set names, checking for duplicates
-        for i, (c, dim) in enumerate(zip(self._coords, dims)):
+        for c, dim in zip(self._coords, dims):
             if dim is None:
                 continue
             c._set_name(dim)
