@@ -41,9 +41,9 @@
 		}
 	},
 	"postCreateCommand": "pip install --no-cache-dir --use-pep517 -e .[dev,algorithms,datatype]",
-	//"mounts": [
-	//    "source=${localWorkspaceFolder}/../geowatch_data_ingestion/data,target=/data,type=bind"
-	//]
+	"mounts": [
+	   "source=${localEnv:HOME}/.local,target=/home/${localEnv:USER}/.local,type=bind"
+	]
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
@@ -54,5 +54,5 @@
 	// "customizations": {},
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "devcontainer"
-	"containerEnv": {}
+	// "containerEnv": {}
 }
