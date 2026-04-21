@@ -59,8 +59,7 @@ class Process(Node):
         _log.debug("Joining.")
         process.join()  # This is blocking!
         _log.debug("Closing.")
-        if (sys.version_info.major + sys.version_info.minor / 10.0) >= 3.7:
-            process.close()  # New in version Python 3.7
+        process.close()  # New in version Python 3.7
         if isinstance(o, str):
             raise Exception(o)
         if o is None:

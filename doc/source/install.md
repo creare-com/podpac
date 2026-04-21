@@ -40,7 +40,7 @@ $ python3 -m venv <DIR>
 $ source <DIR>/bin/activate
 
 # Create environment named `podpac` using pyenv
-$ pyenv virtualenv 3.8.6 podpac
+$ pyenv virtualenv 3.12 podpac
 $ pyenv activate podpac
 ```
 
