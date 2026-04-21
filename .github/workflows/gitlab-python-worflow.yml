@@ -94,7 +94,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install --upgrade pip setuptools && pip install .[devall]
+          pip install --upgrade pip setuptools && cd podpac && pip install .[devall]
 
       - name: Run doc tests
         run: |
