@@ -1,6 +1,5 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import sys
 import warnings
 
 import pytest
@@ -9,9 +8,6 @@ import numpy as np
 import podpac
 from podpac.core.algorithm.utility import Arange, SinCoords
 from podpac.core.algorithm.generic import GenericInputs, Arithmetic, Generic, Mask, Combine
-
-if sys.version_info.major == 2:
-    from podpac.core.algorithm.generic import PermissionError
 
 EQUATION = "2*abs(A) - B + {offset}"
 INSECURE_EVALUATION = "Insecure evaluation"
