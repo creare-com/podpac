@@ -139,7 +139,7 @@ class ArrayTrait(tl.TraitType):
         self.ndim = ndim
         self.shape = shape
         self.dtype = dtype
-        super(ArrayTrait, self).__init__(default_value=default_value, *args, **kwargs)
+        super(ArrayTrait, self).__init__(*args, default_value=default_value, **kwargs)
 
     def validate(self, obj, value):
         # coerce type
