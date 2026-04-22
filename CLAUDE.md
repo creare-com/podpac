@@ -28,7 +28,7 @@ coverage xml -o coverage.xml
 Formatting / lint (CI gates both):
 ```
 black --check --diff -l 120 .
-flake8 --format=pylint --ignore=E,W,D,I,N806,N815,N818,Q000,Q001,Q002,S001,B008,B028 .
+flake8 --format=pylint --ignore=E,W,D,I,N806,N815,N818,Q000,Q001,Q002,S001,A001,A002,A003,A005,B008,B028 .
 ```
 `pyproject.toml` pins black line length to 120. A pre-commit hook runs black on files under `podpac/` or `dist/`.
 
