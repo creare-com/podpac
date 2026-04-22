@@ -41,6 +41,8 @@
 		}
 	},
 	"postCreateCommand": "pip install --no-cache-dir --use-pep517 -e .[devall]",
+	// Ensure mount dirs exist before mount - dev container will fail to open if absent
+	"initializeCommand": "mkdir -p ${localEnv:HOME}/.local; mkdir -p ${localEnv:HOME}/.claude",
 	"mounts": [
 	   "source=${localEnv:HOME}/.local,target=/home/${localEnv:USER}/.local,type=bind",
 	   "source=${localEnv:HOME}/.claude,target=/home/${localEnv:USER}/.claude,type=bind"
