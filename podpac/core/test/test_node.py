@@ -193,6 +193,7 @@ class TestNode(object):
 
         # invalid
         with pytest.raises(Exception, match=".*"):
+            typo.typo()
             node.eval_group(c1)
 
         with pytest.raises(Exception, match=".*"):
