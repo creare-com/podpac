@@ -476,16 +476,16 @@ for tp in ("mul", "matmul", "truediv", "div"):
     meth = "__{:s}__".format(tp)
 
     def make_func(meth, tp):
-        def func(self, other):
-            x = getattr(super(UnitsDataArray, self), meth)(other)
-            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+        def func(self, other):  # noqa: B023 -- meth/tp bound via make_func params
+            x = getattr(super(UnitsDataArray, self), meth)(other)  # noqa: B023
+            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)  # noqa: B023
             units = x2.attrs.get("units")
             x2.attrs = self.attrs
             if units is not None:
                 x2.attrs["units"] = units
             return x2
 
-        return func
+        return func  # noqa: B023
 
     func = make_func(meth, tp)
     func.__name__ = meth
@@ -496,14 +496,14 @@ for tp in ("add", "sub", "mod", "floordiv"):  # , "divmod", ):
     meth = "__{:s}__".format(tp)
 
     def make_func(meth, tp):
-        def func(self, other):
+        def func(self, other):  # noqa: B023 -- meth/tp bound via make_func params
             multiplier = self._get_unit_multiplier(other)
-            x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+            x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)  # noqa: B023
+            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)  # noqa: B023
             x2.attrs = self.attrs
             return x2
 
-        return func
+        return func  # noqa: B023
 
     func = make_func(meth, tp)
     func.__name__ = meth
@@ -514,11 +514,11 @@ for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
     meth = "__{:s}__".format(tp)
 
     def make_func(meth):
-        def func(self, other):
+        def func(self, other):  # noqa: B023 -- meth bound via make_func param
             multiplier = self._get_unit_multiplier(other)
-            return getattr(super(UnitsDataArray, self), meth)(other * multiplier)
+            return getattr(super(UnitsDataArray, self), meth)(other * multiplier)  # noqa: B023
 
-        return func
+        return func  # noqa: B023
 
     func = make_func(meth)
     func.__name__ = meth
@@ -528,11 +528,11 @@ for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
 for tp in ("mean", "min", "max", "sum", "cumsum"):
 
     def make_func(tp):
-        def func(self, *args, **kwargs):
-            x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
+        def func(self, *args, **kwargs):  # noqa: B023 -- tp bound via make_func param
+            x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)  # noqa: B023
             return self._copy_units(x)
 
-        return func
+        return func  # noqa: B023
 
     func = make_func(tp)
     func.__name__ = tp
