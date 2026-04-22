@@ -85,7 +85,7 @@ class TestPyDAP(object):
 
     def test_url_error(self):
         node = PyDAP(source="mysource")
-        with pytest.raises(Exception, match=".*"):
+        with pytest.raises(TypeError, match="Invalid URL scheme"):
             _ = node.dataset
 
     def test_get_data(self):
