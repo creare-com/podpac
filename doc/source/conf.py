@@ -67,7 +67,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "PODPAC"
-copyright = "2017-{}, Creare".format(datetime.datetime.now().year)
+project_copyright = "2017-{}, Creare".format(datetime.datetime.now().year)
 author = "Creare"
 
 # The version info for the project you're documenting, acts as replacement for
