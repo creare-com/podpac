@@ -341,7 +341,7 @@ class UnitsDataArray(xr.DataArray):
 
         return self.transpose(*shared_dims + self_only_dims)
 
-    def set(self, value, mask):
+    def set_where(self, value, mask):
         """This function sets the values of the dataarray equal to 'value' where ever mask is True.
         This operation happens in-place.
 
@@ -387,7 +387,7 @@ class UnitsDataArray(xr.DataArray):
             self = self.transpose(*orig_dims)
 
     @classmethod
-    def open(cls, *args, **kwargs):
+    def open_dataarray(cls, *args, **kwargs):
         """
         Open an :class:`podpac.UnitsDataArray` from a file or file-like object containing a single data variable.
 

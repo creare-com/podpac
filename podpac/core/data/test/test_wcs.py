@@ -144,8 +144,8 @@ class TestWCSIntegration(object):
     source = "https://maps.isric.org/mapserv?map=/map/sand.map"
 
     def setup_class(cls):
-        cls.node1 = WCS(source=cls.source, layer="sand_0-5cm_mean", format="geotiff_byte", max_size=16384)
-        cls.node2 = WCS(source=cls.source, layer="sand_0-5cm_mean", format="geotiff_byte", max_size=16384).interpolate()
+        cls.node1 = WCS(source=cls.source, layer="sand_0-5cm_mean", output_format="geotiff_byte", max_size=16384)
+        cls.node2 = WCS(source=cls.source, layer="sand_0-5cm_mean", output_format="geotiff_byte", max_size=16384).interpolate()
 
     def test_coordinates(self):
         self.node1.coordinates
@@ -171,7 +171,7 @@ class TestWCSIntegration(object):
         self.node2.eval(c)
 
     def test_eval_chunked(self):
-        node = WCS(source=self.source, layer="sand_0-5cm_mean", format="geotiff_byte", max_size=4000)
+        node = WCS(source=self.source, layer="sand_0-5cm_mean", output_format="geotiff_byte", max_size=4000)
         _ = node.eval(COORDS)
 
     def test_eval_other_crs(self):

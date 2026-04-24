@@ -270,9 +270,9 @@ class Mask(Algorithm):
 
         # Mask the values and return
         if self.masked_val is None:
-            source.set(np.nan, mask)
+            source.set_where(np.nan, mask)
         else:
-            source.set(self.masked_val, mask)
+            source.set_where(self.masked_val, mask)
 
         return source
 

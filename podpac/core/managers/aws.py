@@ -1472,7 +1472,7 @@ Lambda Node {status}
         # After waiting, load the pickle file like this:
         payload = response["Payload"].read()
         try:
-            self._output = UnitsDataArray.open(payload)
+            self._output = UnitsDataArray.open_dataarray(payload)
         except ValueError:
             # Not actually a data-array, returning a string instead
             return payload.decode("utf-8")
@@ -1538,7 +1538,7 @@ Lambda Node {status}
         _log.debug("Received response from lambda function")
         response = s3.get_object(Key=filename, Bucket=self.function_s3_bucket)
         body = response["Body"].read()
-        self._output = UnitsDataArray.open(body)
+        self._output = UnitsDataArray.open_dataarray(body)
         return self._output
 
     def _eval_api(self, coordinates, output=None):

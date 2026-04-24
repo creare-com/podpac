@@ -101,7 +101,7 @@ class TestUnitDataArray(object):
         mask = b > -10
         value = np.nan
 
-        a.set(value, mask)
+        a.set_where(value, mask)
         # dims of a remain unchanged
         assert not np.any(np.isnan(a.data))
 
@@ -117,12 +117,12 @@ class TestUnitDataArray(object):
         mask = b.transpose(*("z", "y"))
         value = np.nan
 
-        a.set(value, mask)
+        a.set_where(value, mask)
         # dims of a remain unchanged
         assert np.all(np.array(a.dims) == np.array(("x", "y", "z")))
         # shape of a remains unchanged
         assert np.all(np.array(a.values.shape) == np.array((3, 4, 2)))
-        # a.set was broadcast across the 'x' dimension
+        # a.set_where was broadcast across the 'x' dimension
         for x in range(3):
             for y in range(4):
                 for z in range(2):
@@ -452,7 +452,7 @@ class TestOpenDataArray(object):
         coords = Coordinates([[0, 1, 2], [0, 1, 2, 3]], dims=["lat", "lon"])
         uda_1 = UnitsDataArray.create(coords, data=np.random.rand(3, 4))
         ncdf = uda_1.to_netcdf()
-        uda_2 = UnitsDataArray.open(ncdf)
+        uda_2 = UnitsDataArray.open_dataarray(ncdf)
 
         assert isinstance(uda_2, UnitsDataArray)
         assert np.all(uda_2.data == uda_1.data)
@@ -461,7 +461,7 @@ class TestOpenDataArray(object):
         coords = Coordinates([[0, 1, 2], [0, 1, 2, 3]], dims=["lat", "lon"], crs="EPSG:4193")
         uda_1 = UnitsDataArray.create(coords, data=np.random.rand(3, 4), attrs={"some_attr": 5})
         ncdf = uda_1.to_netcdf()
-        uda_2 = UnitsDataArray.open(ncdf)
+        uda_2 = UnitsDataArray.open_dataarray(ncdf)
 
         assert isinstance(uda_2, UnitsDataArray)
         assert np.all(uda_2.data == uda_1.data)
@@ -482,7 +482,7 @@ class TestOpenDataArray(object):
         uda = node.eval(node.coordinates)
 
         ncdf = uda.to_netcdf()
-        uda_2 = UnitsDataArray.open(ncdf)
+        uda_2 = UnitsDataArray.open_dataarray(ncdf)
 
         assert isinstance(uda_2, UnitsDataArray)
         assert np.all(uda_2.data == uda.data)

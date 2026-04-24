@@ -133,7 +133,7 @@ class WCS(DataSource):
         layer name (required)
     version : str
         WCS version, passed through to all requests (default '1.0.0')
-    format : str
+    output_format : str
         Data format, passed through to the GetCoverage requests (default 'geotiff')
     crs : str
         coordinate reference system, passed through to the GetCoverage requests (default 'EPSG:4326')
@@ -163,7 +163,7 @@ class WCS(DataSource):
     username = tl.Unicode(allow_none=True)
     password = tl.Unicode(allow_none=True)
 
-    format = tl.CaselessStrEnum(["geotiff", "geotiff_byte"], default_value="geotiff")
+    output_format = tl.CaselessStrEnum(["geotiff", "geotiff_byte"], default_value="geotiff")
     crs = tl.Unicode(default_value="EPSG:4326")
     max_size = tl.Long(default_value=None, allow_none=True)
     wcs_kwargs = tl.Dict(help="Additional query parameters sent to the WCS server")
@@ -398,7 +398,7 @@ class WCS(DataSource):
             width=width,
             height=height,
             crs=self.crs,
-            format=self.format,
+            format=self.output_format,
             version=self.version,
             **kwargs
         )
