@@ -145,7 +145,9 @@ class TestWCSIntegration(object):
 
     def setup_class(cls):
         cls.node1 = WCS(source=cls.source, layer="sand_0-5cm_mean", output_format="geotiff_byte", max_size=16384)
-        cls.node2 = WCS(source=cls.source, layer="sand_0-5cm_mean", output_format="geotiff_byte", max_size=16384).interpolate()
+        cls.node2 = WCS(
+            source=cls.source, layer="sand_0-5cm_mean", output_format="geotiff_byte", max_size=16384
+        ).interpolate()
 
     def test_coordinates(self):
         self.node1.coordinates

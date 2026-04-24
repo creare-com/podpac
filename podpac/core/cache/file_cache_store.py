@@ -270,7 +270,12 @@ class FileCacheStore(CacheStore):
 
     def _get_filename(self, node, key, coordinates):
         prefix = self._sanitize("%s-%s" % (node.base_ref, key))
-        filename = "%s_%s_%s_%s" % (prefix, node.hash_id, _hash_string(key), coordinates.hash_id if coordinates else "None")
+        filename = "%s_%s_%s_%s" % (
+            prefix,
+            node.hash_id,
+            _hash_string(key),
+            coordinates.hash_id if coordinates else "None",
+        )
         return filename
 
     def _get_filename_pattern(self, node, key, coordinates):
