@@ -644,7 +644,7 @@ def to_image(
     i = cmap(c, bytes=True)
     i[np.isnan(c), 3] = 0
     im_data = BytesIO()
-    imsave(im_data, i, format=format)
+    imsave(im_data, i, format=fmt)
     im_data.seek(0)
     if return_base64:
         return base64.b64encode(im_data.getvalue())
