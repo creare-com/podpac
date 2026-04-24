@@ -29,7 +29,7 @@ from podpac.core.algorithm.coord_select import (
     YearSubstituteCoordinates,
     TransformTimeUnits,
 )
-from podpac.core.algorithm.signal import Convolution
+from podpac.core.algorithm.convolution import Convolution
 from podpac.core.algorithm.reprojection import Reproject
 
 __all__ = [

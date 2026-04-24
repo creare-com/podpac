@@ -1,5 +1,5 @@
 """
-Signal Summary
+Convolution Summary
 """
 
 from typing import List, Tuple

@@ -9,7 +9,7 @@ import podpac
 from podpac import Coordinates, clinspace, crange
 from podpac.algorithm import Arange
 from podpac.data import Array
-from podpac.core.algorithm.signal import Convolution
+from podpac.core.algorithm.convolution import Convolution
 
 # Set up the PRNG with a seed to stay deterministic
 _rand = np.random.default_rng(0xC * ord("r") + 0xEA + ord("r") * 0xE)
