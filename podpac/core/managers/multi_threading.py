@@ -32,7 +32,7 @@ class FakeLock(object):
     def __enter__(self):
         self.acquire()
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.release()
 
 

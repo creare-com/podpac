@@ -146,13 +146,13 @@ class UnitsDataArray(xr.DataArray):
         self._pp_deserialize()
         return r
 
-    def to_format(self, format, *args, **kwargs):
+    def to_format(self, fmt, *args, **kwargs):
         """
         Helper function for converting Node outputs to alternative formats.
 
         Parameters
         -----------
-        format: str
+        fmt: str
             Format to which output should be converted. This is uses the to_* functions provided by xarray
         *args: *list
             Extra arguments for a particular output function
@@ -174,20 +174,20 @@ class UnitsDataArray(xr.DataArray):
             * tiff (GEOtiff)
         """
         self._pp_serialize()
-        if format in ["netcdf", "nc", "hdf5", "hdf"]:
+        if fmt in ["netcdf", "nc", "hdf5", "hdf"]:
             r = self.to_netcdf(*args, **kwargs)
-        elif format in ["json", "dict"]:
+        elif fmt in ["json", "dict"]:
             r = self.to_dict()
-            if format == "json":
+            if fmt == "json":
                 r = json.dumps(r, cls=JSONEncoder)
-        elif format in ["png", "jpg", "jpeg"]:
-            r = self.to_image(format, *args, **kwargs)
-        elif format.upper() in ["TIFF", "TIF", "GEOTIFF"]:
+        elif fmt in ["png", "jpg", "jpeg"]:
+            r = self.to_image(fmt, *args, **kwargs)
+        elif fmt.upper() in ["TIFF", "TIF", "GEOTIFF"]:
             r = self.to_geotiff(*args, **kwargs)
 
-        elif format in ["pickle", "pkl"]:
+        elif fmt in ["pickle", "pkl"]:
             r = cPickle.dumps(self)
-        elif format == "zarr_part":
+        elif fmt == "zarr_part":
             from podpac.core.data.zarr_source import Zarr
             import zarr
 
@@ -211,18 +211,18 @@ class UnitsDataArray(xr.DataArray):
             r = zn.source
         else:
             try:
-                getattr(self, "to_" + format)(*args, **kwargs)
+                getattr(self, "to_" + fmt)(*args, **kwargs)
             except Exception:
-                raise NotImplementedError("Format {} is not implemented.".format(format))
+                raise NotImplementedError("Format {} is not implemented.".format(fmt))
         self._pp_deserialize()
         return r
 
-    def to_image(self, format="png", vmin=None, vmax=None, return_base64=False):
+    def to_image(self, fmt="png", vmin=None, vmax=None, return_base64=False):
         """Return a base64-encoded image of the data.
 
         Parameters
         ----------
-        format : str, optional
+        fmt : str, optional
             Default is 'png'. Type of image.
         vmin : number, optional
             Minimum value of colormap
@@ -237,7 +237,7 @@ class UnitsDataArray(xr.DataArray):
         BytesIO/str
             Binary or Base64 encoded image.
         """
-        return to_image(self, format, vmin, vmax, return_base64)
+        return to_image(self, fmt, vmin, vmax, return_base64)
 
     def to_geotiff(self, fp=None, geotransform=None, crs=None, **kwargs):
         """
@@ -581,7 +581,7 @@ def _validate_vmin_vmax(data, vmin: float, vmax: float, style: Style) -> Tuple[f
 
 
 def to_image(
-    data: np.array, format: str = "png", vmin: float = None, vmax: float = None, return_base64: bool = False
+    data: np.array, fmt: str = "png", vmin: float = None, vmax: float = None, return_base64: bool = False
 ) -> Union[bytes, BytesIO]:
     """Return a base64-encoded image of data
 
@@ -589,7 +589,7 @@ def to_image(
     ----------
     data : array-like
         data to output, usually a UnitsDataArray
-    format : str, optional
+    fmt : str, optional
         Default is 'png'. Type of image.
     vmin : number, optional
         Minimum value of colormap
@@ -613,8 +613,8 @@ def to_image(
         warnings.simplefilter("ignore")
         matplotlib.use("agg")
 
-    if format != "png":
-        raise ValueError("Invalid image format '%s', must be 'png'" % format)
+    if fmt != "png":
+        raise ValueError("Invalid image format '%s', must be 'png'" % fmt)
 
     style = None
     if isinstance(data, xr.DataArray):

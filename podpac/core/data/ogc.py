@@ -39,7 +39,6 @@ class MockWCSClient(tl.HasTraits):
         identifier=None,
         bbox=None,
         time=None,
-        format=None,
         crs=None,
         width=None,
         height=None,
@@ -64,11 +63,15 @@ class MockWCSClient(tl.HasTraits):
         from urllib.parse import urlencode
         from owslib.util import openURL
 
+        # `format` is consumed via kwargs to avoid shadowing the Python builtin in the signature,
+        # while still matching the owslib.wcs.WebCoverageService.getCoverage keyword API.
+        fmt = kwargs.pop("format", None)
+
         if logger.isEnabledFor(logging.DEBUG):
-            msg = "WCS 1.0.0 DEBUG: Parameters passed to GetCoverage: identifier={}, bbox={}, time={}, format={}, crs={}, width={}, height={}, resx={}, resy={}, resz={}, parameter={}, method={}, other_arguments={}"  # noqa
+            msg = "WCS 1.0.0 DEBUG: Parameters passed to GetCoverage: identifier={}, bbox={}, time={}, format={}, crs={}, width={}, height={}, resx={}, resy={}, resz={}, parameter={}, method={}, other_arguments={}"
             logger.debug(
                 msg.format(
-                    identifier, bbox, time, format, crs, width, height, resx, resy, resz, parameter, method, str(kwargs)
+                    identifier, bbox, time, fmt, crs, width, height, resx, resy, resz, parameter, method, str(kwargs)
                 )
             )
 
@@ -89,7 +92,7 @@ class MockWCSClient(tl.HasTraits):
             request["time"] = ",".join(time)
         if crs:
             request["crs"] = crs
-        request["format"] = format
+        request["format"] = fmt
         if width:
             request["width"] = width
         if height:
