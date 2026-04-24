@@ -108,7 +108,7 @@ Evaluate pipelines at arbitrary PODPAC coordinates.
 coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1, 2, 3]], dims=['lat', 'lon'])
 
 # run analysis pipeline at coordinates
-output = alg_node.eval(coords)
+output = alg_node.evaluate(coords)
 ```
 
 ## Interpolation and Regridding
@@ -125,7 +125,7 @@ coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1, 2, 3]], dims=['lat', 'lon'], c
 node = podpac.data.Rasterio(source="elevation.tif", interpolation="bilinear")
 
 # evaluate node at coordinates with specified interpolation
-output = node.eval(coords)
+output = node.evaluate(coords)
 ```
 
 
@@ -150,5 +150,5 @@ aws_node.build()
 
 # run analysis on the cloud, results returned to `output`
 coordinates = podpac.Coordinates([clinspace(-90, 90, 180), clinspace(90,-90, 180), '2018-01-01'], ['lat', 'lon', 'time'])
-output = aws_node.eval(coordinates)
+output = aws_node.evaluate(coordinates)
 ```

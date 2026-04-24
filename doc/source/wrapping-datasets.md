@@ -9,7 +9,7 @@ Wrapping a new dataset is challenging because you have to understand all of the 
 2. When returning data from a data source node:
    1. The ORDER of the evaluation coordinates MUST be preserved (see `UnitsDataArray.part_transpose`)
    1. Any multi-channel data must be returned using the `output` dimension which is ALWAYS the LAST dimension
-3. Nodes should be **lightweight** to instantiate and users should expect *fail on eval*. Easy checks should be performed on initialization, but anything expensive should be delayed. 
+3. Nodes should be **lightweight** to instantiate and users should expect *fail on evaluate*. Easy checks should be performed on initialization, but anything expensive should be delayed. 
 
 ## Guide
 In theory, to wrap a new `DataSource`:
@@ -22,7 +22,7 @@ In theory, to wrap a new `DataSource`:
     
 In practice, the real trick is implementing a compositor to put multiple tiles together to look like a single `DataSource`. We tend to use the `podpac.compositor.OrderedCompositor` node for this task, but it does not handle interpolation between tiles. Instead, see the `podpac.core.compositor.tile_compositor` module. 
 
-When using compositors, it is prefered the that `sources` attribute is populated at instantiation, but on-the-fly (i.e. at eval) population of sources is also acceptible and sometimes necessary for certain datasources. 
+When using compositors, it is prefered the that `sources` attribute is populated at instantiation, but on-the-fly (i.e. at evaluate) population of sources is also acceptible and sometimes necessary for certain datasources. 
 
 For examples, check the `podpac.datalib` module. 
 

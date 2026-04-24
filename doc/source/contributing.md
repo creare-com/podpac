@@ -95,7 +95,7 @@ All references to podpac classes (`:class:`), methods (`:meth:`), and attributes
 ```python
 def method(coordinates, output=None):
     """Class Method.  
-    See method :meth:`podpac.data.DataSource.eval`.
+    See method :meth:`podpac.data.DataSource.evaluate`.
     See attribute :attr:`podpac.core.data.interpolate.INTERPOLATION_METHODS`.
 
     Parameters

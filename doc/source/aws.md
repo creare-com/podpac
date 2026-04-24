@@ -11,9 +11,9 @@ After these steps, nearly any PODPAC processing pipeline can be evaluated using 
 ```python
 import podpac
 ...
-output = node.eval(coords)  # Local evaluation of node
+output = node.evaluate(coords)  # Local evaluation of node
 cloud_node = podpac.managers.Lambda(source=node)
-cloud_output = cloud_node.eval(coords)
+cloud_output = cloud_node.evaluate(coords)
 ```
 
 This functionality is documented in the following notebooks:

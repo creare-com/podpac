@@ -106,7 +106,7 @@ Evaluate the Node at arbitrary coordinates:
     In [11]: other_coords = podpac.Coordinates([42.2, 5.7], dims=['lat', 'lon'])
 
     # Retrieve the datapoint from the array
-    In [12]: output = node.eval(other_coords) 
+    In [12]: output = node.evaluate(other_coords) 
     In [13]: output
     <xarray.UnitsDataArray (lat: 1, lon: 1)>
     array([[0.734135]])
@@ -137,7 +137,7 @@ configured.
     coords = podpac.Coordinates(['2018-01-01 12:00:00', 0, 0], dims=['time', 'lat', 'lon'])
 
     # Retrieve the datapoint from NSIDC's OpenDAP server
-    output = node.eval(coords) 
+    output = node.evaluate(coords) 
 
 
 Notebooks

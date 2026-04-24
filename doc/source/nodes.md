@@ -11,7 +11,7 @@ In particular, the base `Node` class implements:
 - Saving and loading `Node` outputs
 - Creating `Node` output data structures using the `create_output_array` method.
 - Common interfaces required and used by all subsequent nodes:
-    * `Node.eval(coordinates, output)`
+    * `Node.evaluate(coordinates, output)`
     * `Node.find_coordinates()`
 
 ## DataSource
@@ -80,7 +80,7 @@ When a DataSource node is created, the interpolation manager selects a list of a
 The `BaseCompositor` implements:
 
 - The `find_coordinates` method
-- The `eval` method
+- The `evaluate` method
 - The `iteroutputs` method used to iterate over all possible input data sources
 - The `select_sources(coordinates`) method to sub-select input data sources BEFORE evaluating them, as an optimization
 - The interface for the `composite(coordinates, data_arrays, result)` method. Child classes implement this method which determines the logic for combining data sources.
@@ -104,7 +104,7 @@ Beyond that there is the:
 The `BaseAlgorithm`, `Algorithm` (for multiple input nodes) and `UnaryAlgorithm` (for single input nodes) `Nodes` implement the basic functionality:
 
 - The `find_coordinates` method
-- The `Algorithm.eval` method for multiple input `Nodes`
+- The `Algorithm.evaluate` method for multiple input `Nodes`
 - The `inputs` property that finds any PODPAC `Node` as part of the class definition
 - The interfaces for the `algorith(inputs)` method which is used to implement the actual algorithm
 

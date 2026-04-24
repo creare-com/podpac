@@ -24,7 +24,7 @@ Consider a `DataSource` with `lat`, `lon`, `time` coordinates that we will insta
 `interpolation='nearest'`
 <<<<<<< HEAD
 * **Descripition**: All dimensions are interpolated using nearest neighbor interpolation. This is the default, but available options can be found here: `podpac.core.interpolation.interpolation.INTERPOLATION_METHODS`. In particular, for no interpolation, use `interpolation="none"`. *NOTE* the `none` interpolator ONLY considers the bounds of any evaluated coordinates. This means the data is returned at FULL resolution (no striding or sub-selection).
-* **Details**: PODPAC will automatically select appropriate interpolators based on the source coordinates and eval coordinates. Default interpolator orders can be found in `podpac.core.interpolation.interpolation.INTERPOLATION_METHODS_DICT`
+* **Details**: PODPAC will automatically select appropriate interpolators based on the source coordinates and evaluation coordinates. Default interpolator orders can be found in `podpac.core.interpolation.interpolation.INTERPOLATION_METHODS_DICT`
 
 ### ...as a dictionary
 
