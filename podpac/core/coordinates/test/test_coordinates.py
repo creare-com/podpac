@@ -1682,15 +1682,15 @@ class TestCoordinatesSpecial(object):
         assert c1 != c5
 
         # hash
-        first_hash = c1.hash
-        second_hash = c1.hash
+        first_hash = c1.hash_id
+        second_hash = c1.hash_id
         assert second_hash == first_hash
-        assert c1.hash == deepcopy(c1).hash
+        assert c1.hash_id == deepcopy(c1).hash_id
 
-        assert c1.hash != c3.hash
-        assert c1.hash != c2.hash
-        assert c1.hash != c4.hash
-        assert c1.hash != c5.hash
+        assert c1.hash_id != c3.hash_id
+        assert c1.hash_id != c2.hash_id
+        assert c1.hash_id != c4.hash_id
+        assert c1.hash_id != c5.hash_id
 
     def test_eq_ne_hash_crs(self):
         lat = [0, 1, 2]
@@ -1707,8 +1707,8 @@ class TestCoordinatesSpecial(object):
         assert not c2 != deepcopy(c2)
 
         # hash
-        assert c1.hash != c2.hash
-        assert c2.hash == deepcopy(c2).hash
+        assert c1.hash_id != c2.hash_id
+        assert c2.hash_id == deepcopy(c2).hash_id
 
 
 class TestCoordinatesFunctions(object):

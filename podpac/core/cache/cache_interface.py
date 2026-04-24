@@ -22,17 +22,17 @@ class CacheNode(Node):
 
     Properties
     -------
-    hash()
+    hash_id()
         The node hash used as a unique idenfier for caching. If "cache_uid" is supplied,
-        that will be used. Otherwise the parent class, `Node.hash` property is used.
+        that will be used. Otherwise the parent class, `Node.hash_id` property is used.
     """
 
     source = NodeTrait(allow_none=True).tag(attr=True, required=True)
     cache_uid = tl.Unicode(allow_none=True, default="").tag(attr=True)
 
     @cached_property
-    def hash(self):
+    def hash_id(self):
         """hash for this node, used in caching and to determine equality."""
         if self.cache_uid:
             return self.cache_uid
-        return super().hash
+        return super().hash_id

@@ -888,7 +888,7 @@ class Coordinates(tl.HasTraits):
         return json.dumps(self.definition, separators=(",", ":"), cls=podpac.core.utils.JSONEncoder)
 
     @cached_property
-    def hash(self):
+    def hash_id(self):
         """:str: Coordinates hash value."""
         # We can't use self.json for the hash because the CRS is not standardized.
         # As such, we json.dumps the full definition.

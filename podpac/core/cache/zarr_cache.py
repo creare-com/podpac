@@ -21,7 +21,7 @@ class ZarrCache(CacheNode):
     ----------
 
     zarr_path_data : str
-        The path to the Zarr archive for storing data. Default is f"{self.base_path}/zarr_cache_{self.hash}"
+        The path to the Zarr archive for storing data. Default is f"{self.base_path}/zarr_cache_{self.hash_id}"
     base_path : str
         Base path for caching to disk. Default is `podpac.settings.cache_path`
     group_data : zarr.hierarchy.Group
@@ -77,7 +77,7 @@ class ZarrCache(CacheNode):
     # Because of the way Zarr Nodes work, If I have one zarr node for both groups (making them into arrays for the same group), every time I eval the zarr node, it evals both datasets/arrays. I don't necessarily want this, given that first I need to eval the Boolean array without evalling the data array, get the data from the server, then only eval the data array.
     @tl.default("zarr_path")
     def _default_zarr_path(self):
-        return f"{self.base_path}/zarr_cache_{self.hash}"
+        return f"{self.base_path}/zarr_cache_{self.hash_id}"
 
     @tl.default("_zarr_path_data")
     def _default_zarr_path_data(self):
@@ -95,9 +95,9 @@ class ZarrCache(CacheNode):
                     self._zarr_path_data, mode="a"
                 )  # no need to close, see https://zarr.readthedocs.io/en/stable/tutorial.html#persistent-arrays
             if self.cache_type == "ram":
-                if self.hash not in self._global_zarr_ram_cache:
-                    self._global_zarr_ram_cache[self.hash] = zarr.group()
-                group = self._global_zarr_ram_cache[self.hash]  # assumes ram not persistent
+                if self.hash_id not in self._global_zarr_ram_cache:
+                    self._global_zarr_ram_cache[self.hash_id] = zarr.group()
+                group = self._global_zarr_ram_cache[self.hash_id]  # assumes ram not persistent
             if "data" not in group:
                 shape = self.source.coordinates.shape
                 group.create_dataset(
@@ -120,9 +120,9 @@ class ZarrCache(CacheNode):
                     self._zarr_path_bool, mode="a"
                 )  # no need to close, see https://zarr.readthedocs.io/en/stable/tutorial.html#persistent-arrays
             if self.cache_type == "ram":
-                if self.hash not in self._global_zarr_bool_ram_cache:
-                    self._global_zarr_bool_ram_cache[self.hash] = zarr.group()
-                group = self._global_zarr_bool_ram_cache[self.hash]  # assumes ram not persistent
+                if self.hash_id not in self._global_zarr_bool_ram_cache:
+                    self._global_zarr_bool_ram_cache[self.hash_id] = zarr.group()
+                group = self._global_zarr_bool_ram_cache[self.hash_id]  # assumes ram not persistent
             if "contains" not in group:
                 shape = self.source.coordinates.shape
                 group.create_dataset("contains", shape=shape, dtype="bool", fill_value=False)
@@ -211,10 +211,10 @@ class ZarrCache(CacheNode):
             self.group_data["data"][:] = np.nan
             self.group_bool["contains"][:] = False
 
-            if self.hash in self._global_zarr_bool_ram_cache:
-                del self._global_zarr_bool_ram_cache[self.hash]
-            if self.hash in self._global_zarr_ram_cache:
-                del self._global_zarr_ram_cache[self.hash]
+            if self.hash_id in self._global_zarr_bool_ram_cache:
+                del self._global_zarr_bool_ram_cache[self.hash_id]
+            if self.hash_id in self._global_zarr_ram_cache:
+                del self._global_zarr_ram_cache[self.hash_id]
 
     def get_source_data(self, request_coords):
         """

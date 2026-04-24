@@ -108,7 +108,7 @@ class Lambda(Node):
     function_memory : int, optional
         Memory allocated for each Lambda function. Defaults to 2048 MB.
     function_restrict_pipelines : list, optional
-        List of Node hashes (see :class:`podpac.Node.hash`).
+        List of Node hashes (see :class:`podpac.Node.hash_id`).
         Restricts lambda function evaluation to specific Node definitions.
     function_role_assume_policy_document : dict, optional.
         Assume policy document for role created. Defaults to allowing role to assume Lambda function.
@@ -752,7 +752,7 @@ Lambda Node {status}
             self.function_env_variables["PODPAC_RESTRICT_PIPELINES"] = json.dumps(self.function_restrict_pipelines)
 
         # add special tag - value is hash, for lack of better value at this point
-        self.function_tags["_podpac_resource_hash"] = self.hash
+        self.function_tags["_podpac_resource_hash"] = self.hash_id
 
         # if function already exists, this will return existing function
         function = create_function(
@@ -872,7 +872,7 @@ Lambda Node {status}
         """Create IAM role to execute podpac lambda function"""
 
         # add special tag - value is hash
-        self.function_role_tags["_podpac_resource_hash"] = self.hash
+        self.function_role_tags["_podpac_resource_hash"] = self.hash_id
 
         role = create_role(
             self.session,
@@ -961,7 +961,7 @@ Lambda Node {status}
             raise ValueError("Function role must be created before creating a bucket")
 
         # add special tags - value is hash
-        self.function_s3_tags["_podpac_resource_hash"] = self.hash
+        self.function_s3_tags["_podpac_resource_hash"] = self.hash_id
 
         # create bucket
         bucket = create_bucket(
@@ -1093,7 +1093,7 @@ Lambda Node {status}
             raise ValueError("Lambda function must be created before creating an API bucket")
 
         # add special tag - value is hash
-        self.function_api_tags["_podpac_resource_hash"] = self.hash
+        self.function_api_tags["_podpac_resource_hash"] = self.hash_id
 
         # create api and resource
         api = create_api(
@@ -1213,7 +1213,7 @@ Lambda Node {status}
             self.function_budget_email,
             budget_name=self.function_budget_name,
             budget_currency=self.function_budget_currency,
-            budget_filter_tags={"_podpac_resource_hash": self.hash},
+            budget_filter_tags={"_podpac_resource_hash": self.hash_id},
         )
 
         self._set_budget(budget)
@@ -1394,7 +1394,7 @@ Lambda Node {status}
         budget : dict
         """
         if budget is not None:
-            _ = {"_podpac_resource_hash": self.hash}
+            _ = {"_podpac_resource_hash": self.hash_id}
 
             self.set_trait("function_budget_amount", float(budget["BudgetLimit"]["Amount"]))
             self.set_trait("function_budget_name", budget["BudgetName"])
@@ -1500,8 +1500,8 @@ Lambda Node {status}
         filename = "{folder}{output}_{source}_{coordinates}.{suffix}".format(
             folder=input_folder,
             output=self.source_output_name,
-            source=self.source.hash,
-            coordinates=coordinates.hash,
+            source=self.source.hash_id,
+            coordinates=coordinates.hash_id,
             suffix="json",
         )
 
@@ -1526,8 +1526,8 @@ Lambda Node {status}
         filename = "{folder}{output}_{source}_{coordinates}.{suffix}".format(
             folder=output_folder,
             output=self.source_output_name,
-            source=self.source.hash,
-            coordinates=coordinates.hash,
+            source=self.source.hash_id,
+            coordinates=coordinates.hash_id,
             suffix=self.source_output_format,
         )
 

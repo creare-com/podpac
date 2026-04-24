@@ -466,7 +466,7 @@ class Node(tl.HasTraits):
             Note, "disk" caching uses the path specified by the user in `podpac.settings.cache_path`.
         uid : str, optional
             A unique identifier for this node. This is used to extract data from the cache. By default uses
-            self.hash of the output `CacheNode` from this function.
+            self.hash_id of the output `CacheNode` from this function.
         **kwargs : dict
             Any remaining key-word arguments are passed on to the constructor of the `CacheNode`.
 
@@ -690,7 +690,7 @@ class Node(tl.HasTraits):
         return json.dumps(self.definition, indent=4, cls=JSONEncoder)
 
     @cached_property
-    def hash(self):
+    def hash_id(self):
         """hash for this node, used in caching and to determine equality."""
 
         # deepcopy so that the cached definition property is not modified by the deletes below
@@ -730,12 +730,12 @@ class Node(tl.HasTraits):
     def __eq__(self, other):
         if not isinstance(other, Node):
             return False
-        return self.hash == other.hash
+        return self.hash_id == other.hash_id
 
     def __ne__(self, other):
         if not isinstance(other, Node):
             return True
-        return self.hash != other.hash
+        return self.hash_id != other.hash_id
 
     # -----------------------------------------------------------------------------------------------------------------
     # Caching Interface

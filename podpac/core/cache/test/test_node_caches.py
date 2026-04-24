@@ -15,7 +15,7 @@ class TestHashCache:
         hash_cache_node = my_node.cache("hash", "ram", uid=uid)
         hash_cache_node2 = my_node.cache("hash", "ram", uid=uid)
         hash_cache_node3 = my_node.cache("hash", "disk", uid=uid)
-        assert hash_cache_node.hash == uid
+        assert hash_cache_node.hash_id == uid
         _ = hash_cache_node.eval(coords)
         assert not hash_cache_node._from_cache
         _ = hash_cache_node2.eval(coords)
@@ -84,9 +84,9 @@ class TestZarrCache:
         zarr_cache_node2 = my_node.cache("zarr", "ram", uid=uid)
         zarr_cache_node3 = my_node.cache("zarr", "disk", uid=uid)
 
-        assert zarr_cache_node.hash == uid
-        assert zarr_cache_node2.hash == uid
-        assert zarr_cache_node3.hash == uid
+        assert zarr_cache_node.hash_id == uid
+        assert zarr_cache_node2.hash_id == uid
+        assert zarr_cache_node3.hash_id == uid
 
         _ = zarr_cache_node.eval(coords)
         assert not zarr_cache_node._from_cache

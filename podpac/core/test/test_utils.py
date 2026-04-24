@@ -491,7 +491,7 @@ class TestNodeProber(object):
                     "label": "o",
                     "inputs": [],
                     "name": "one_style",
-                    "node_hash": self.one.hash,
+                    "node_hash": self.one.hash_id,
                 }
             }
         )
@@ -510,7 +510,7 @@ class TestNodeProber(object):
                     "label": "o",
                     "inputs": [],
                     "name": "one_style",
-                    "node_hash": self.one.hash,
+                    "node_hash": self.one.hash_id,
                 },
                 "Arithmetic": {
                     "active": True,
@@ -518,7 +518,7 @@ class TestNodeProber(object):
                     "label": "",
                     "inputs": ["Array"],
                     "name": "Arithmetic",
-                    "node_hash": a.hash,
+                    "node_hash": a.hash_id,
                 },
                 "Arithmetic_1": {
                     "active": True,
@@ -526,7 +526,7 @@ class TestNodeProber(object):
                     "label": "m",
                     "inputs": ["Arithmetic"],
                     "name": "six_style",
-                    "node_hash": b.hash,
+                    "node_hash": b.hash_id,
                 },
             }
             out = probe_node(b, lat=1, lon=1)
@@ -543,7 +543,7 @@ class TestNodeProber(object):
                     "label": "o",
                     "inputs": [],
                     "name": "one_style",
-                    "node_hash": self.one.hash,
+                    "node_hash": self.one.hash_id,
                 },
                 "Array_1": {
                     "active": True,
@@ -551,7 +551,7 @@ class TestNodeProber(object):
                     "label": "t",
                     "inputs": [],
                     "name": "two_style",
-                    "node_hash": self.two.hash,
+                    "node_hash": self.two.hash_id,
                 },
                 "Arithmetic": {
                     "active": True,
@@ -559,7 +559,7 @@ class TestNodeProber(object):
                     "label": "",
                     "inputs": ["Array", "Array_1"],
                     "name": "Arithmetic",
-                    "node_hash": a.hash,
+                    "node_hash": a.hash_id,
                 },
             }
             out = probe_node(a, lat=1, lon=1)
@@ -574,7 +574,7 @@ class TestNodeProber(object):
                 "label": "o",
                 "inputs": [],
                 "name": "one_style",
-                "node_hash": self.one.hash,
+                "node_hash": self.one.hash_id,
             },
             "Arange": {
                 "active": False,
@@ -582,7 +582,7 @@ class TestNodeProber(object):
                 "label": "",
                 "inputs": [],
                 "name": "Arange",
-                "node_hash": self.arange.hash,
+                "node_hash": self.arange.hash_id,
             },
             "OrderedCompositor": {
                 "active": True,
@@ -590,7 +590,7 @@ class TestNodeProber(object):
                 "label": "",
                 "inputs": ["Array", "Arange"],
                 "name": "OrderedCompositor",
-                "node_hash": a.hash,
+                "node_hash": a.hash_id,
             },
         }
         out = probe_node(a, lat=1, lon=1)
@@ -604,7 +604,7 @@ class TestNodeProber(object):
                 "label": "",
                 "inputs": [],
                 "name": "Array",
-                "node_hash": self.nan.hash,
+                "node_hash": self.nan.hash_id,
             },
             "Array_1": {
                 "active": True,
@@ -612,7 +612,7 @@ class TestNodeProber(object):
                 "label": "t",
                 "inputs": [],
                 "name": "two_style",
-                "node_hash": self.two.hash,
+                "node_hash": self.two.hash_id,
             },
             "OrderedCompositor": {
                 "active": True,
@@ -620,7 +620,7 @@ class TestNodeProber(object):
                 "label": "",
                 "inputs": ["Array", "Array_1"],
                 "name": "OrderedCompositor",
-                "node_hash": a.hash,
+                "node_hash": a.hash_id,
             },
         }
         out = probe_node(a, lat=1, lon=1)
@@ -637,7 +637,7 @@ class TestNodeProber(object):
                 "label": "",
                 "inputs": [],
                 "name": "Array",
-                "node_hash": self.nan.hash,
+                "node_hash": self.nan.hash_id,
             },
             "Array_1": {
                 "active": True,
@@ -645,7 +645,7 @@ class TestNodeProber(object):
                 "label": "o",
                 "inputs": [],
                 "name": "one_style",
-                "node_hash": self.one.hash,
+                "node_hash": self.one.hash_id,
             },
             "AnotherOne": {
                 "active": False,
@@ -653,7 +653,7 @@ class TestNodeProber(object):
                 "label": "",
                 "inputs": [],
                 "name": "AnotherOne",
-                "node_hash": self.another_one.hash,
+                "node_hash": self.another_one.hash_id,
             },
             "OrderedCompositor": {
                 "active": True,
@@ -661,7 +661,7 @@ class TestNodeProber(object):
                 "label": "",
                 "inputs": ["Array", "Array_1", "AnotherOne"],
                 "name": "OrderedCompositor",
-                "node_hash": a.hash,
+                "node_hash": a.hash_id,
             },
         }
         out = probe_node(a, lat=1, lon=1)
@@ -680,7 +680,7 @@ class TestNodeProber(object):
                 "value": "1.0",
                 "label": "c",
                 "active": True,
-                "node_id": a.hash,
+                "node_id": a.hash_id,
                 "params": {},
                 "inputs": {
                     "inputs": [
@@ -690,7 +690,7 @@ class TestNodeProber(object):
                                 "value": "1.0",
                                 "label": "o",
                                 "active": True,
-                                "node_id": self.one.hash,
+                                "node_id": self.one.hash_id,
                                 "params": {},
                                 "inputs": {},
                             }
@@ -701,7 +701,7 @@ class TestNodeProber(object):
                                 "value": "0.0",
                                 "label": "",
                                 "active": False,
-                                "node_id": self.arange.hash,
+                                "node_id": self.arange.hash_id,
                                 "params": {},
                                 "inputs": {},
                             }
@@ -731,7 +731,7 @@ class TestNodeProber(object):
                 "value": "1.0",
                 "label": "sand",
                 "active": True,
-                "node_id": a.hash,
+                "node_id": a.hash_id,
                 "params": {},
                 "inputs": {
                     "inputs": [
@@ -741,7 +741,7 @@ class TestNodeProber(object):
                                 "value": "nan",
                                 "label": "unknown",
                                 "active": False,
-                                "node_id": nan.hash,
+                                "node_id": nan.hash_id,
                                 "params": {},
                                 "inputs": {},
                             }
@@ -752,7 +752,7 @@ class TestNodeProber(object):
                                 "value": "1.0",
                                 "label": "sand",
                                 "active": True,
-                                "node_id": one.hash,
+                                "node_id": one.hash_id,
                                 "params": {},
                                 "inputs": {},
                             }
@@ -763,7 +763,7 @@ class TestNodeProber(object):
                                 "value": "0.0",
                                 "label": "dirt",
                                 "active": False,
-                                "node_id": zero.hash,
+                                "node_id": zero.hash_id,
                                 "params": {},
                                 "inputs": {},
                             }

@@ -609,7 +609,7 @@ def probe_node(
             "name": n.style.name if n.style.name else item,
         }
         if compute_hash:
-            out[item]["node_hash"] = n.hash
+            out[item]["node_hash"] = n.hash_id
         raw_values[item] = value
         # Fix sources for Compositors
         if isinstance(n, podpac.compositor.OrderedCompositor):

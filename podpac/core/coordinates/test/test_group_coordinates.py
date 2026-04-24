@@ -182,9 +182,9 @@ class TestGroupCoordinates(object):
         g3 = GroupCoordinates([c1, c3])
         g4 = GroupCoordinates([c1, c4])
 
-        first_hash = g1.hash
-        second_hash = g1.hash
+        first_hash = g1.hash_id
+        second_hash = g1.hash_id
         assert second_hash == first_hash
-        assert g1.hash == g2.hash
-        assert g1.hash == g3.hash
-        assert g1.hash != g4.hash
+        assert g1.hash_id == g2.hash_id
+        assert g1.hash_id == g3.hash_id
+        assert g1.hash_id != g4.hash_id

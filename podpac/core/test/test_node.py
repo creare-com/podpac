@@ -842,14 +842,14 @@ class TestSerialization(object):
         n3 = N(my_attr=2)
         m1 = M(my_attr=1)
 
-        assert n1.hash == n2.hash
-        assert n1.hash != n3.hash
-        assert n1.hash != m1.hash
+        assert n1.hash_id == n2.hash_id
+        assert n1.hash_id != n3.hash_id
+        assert n1.hash_id != m1.hash_id
 
     def test_hash_preserves_definition(self):
         n = Node()
         d_before = deepcopy(n.definition)
-        _ = n.hash
+        _ = n.hash_id
         d_after = deepcopy(n.definition)
 
         assert d_before == d_after
@@ -865,7 +865,7 @@ class TestSerialization(object):
         assert n1.json != n2.json
 
         # but hash does not
-        assert n1.hash == n2.hash
+        assert n1.hash_id == n2.hash_id
 
     def test_hash_omit_version(self):
         version = podpac.__version__
@@ -874,13 +874,13 @@ class TestSerialization(object):
             # actual version
             n1 = Node()
             s1 = n1.json
-            h1 = n1.hash
+            h1 = n1.hash_id
 
             # spoof different version
             podpac.__version__ = "other"
             n2 = Node()
             s2 = n2.json
-            h2 = n2.hash
+            h2 = n2.hash_id
 
             # JSON should be different, but hash should be the same
             assert s1 != s2
@@ -1319,7 +1319,7 @@ class TestUserDefinition(object):
         not_ordered_pipe_2 = Node.from_json(not_ordered_json_2)
         ordered_pipe = Node.from_json(ordered_json)
         assert not_ordered_pipe.definition == ordered_pipe.definition == not_ordered_pipe_2.definition
-        assert not_ordered_pipe.hash == ordered_pipe.hash
+        assert not_ordered_pipe.hash_id == ordered_pipe.hash_id
 
         # Check that incomplete json will throw ValueError:
         incomplete_json = """
@@ -1413,7 +1413,7 @@ class TestUserDefinition(object):
         included_pipe = Node.from_json(included_json)
         ordered_pipe = Node.from_json(ordered_json)
         assert included_pipe.definition == ordered_pipe.definition
-        assert included_pipe.hash == ordered_pipe.hash
+        assert included_pipe.hash_id == ordered_pipe.hash_id
 
         wrong_name_json = """
         {
