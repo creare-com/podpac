@@ -585,7 +585,7 @@ def probe_node(
 
     c = [(v, d) for v, d in zip([lat, lon, time, alt], ["lat", "lon", "time", "alt"]) if v is not None]
     coords = podpac.Coordinates([[v[0]] for v in c], [[d[1]] for d in c], crs=crs)
-    node.eval(coords)
+    node.evaluate(coords)
     definition = node.definition
     out = OrderedDict()
     raw_values = {}  # Need this to keep track of actual value for evaluating active nodes in compositors
@@ -594,7 +594,7 @@ def probe_node(
             continue
         d = _partial_definition(item, definition)
         n = podpac.Node.from_definition(d)
-        o = n.eval(coords)
+        o = n.evaluate(coords)
         if o.size == 1:
             value = float(o.data.flatten()[0])  # making robust to all shapes of size=1
         else:

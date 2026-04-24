@@ -19,8 +19,8 @@ class TestParallel(object):
         node = CoordData(coord_name="time")
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
         node_p = Parallel(source=node, number_of_workers=2, chunks={"time": 2})
-        o = node.eval(coords)
-        o_p = node_p.eval(coords)
+        o = node.evaluate(coords)
+        o_p = node_p.evaluate(coords)
 
         np.testing.assert_array_equal(o, o_p)
 
@@ -28,10 +28,10 @@ class TestParallel(object):
         node = CoordData(coord_name="time")
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
         node_p = Parallel(source=node, number_of_workers=2, chunks={"time": 2})
-        o = node.eval(coords)
+        o = node.evaluate(coords)
         o_p = o.copy()
         o_p[:] = np.nan
-        node_p.eval(coords, output=o_p)
+        node_p.evaluate(coords, output=o_p)
 
         np.testing.assert_array_equal(o, o_p)
 
@@ -39,10 +39,10 @@ class TestParallel(object):
         node = Process(source=CoordData(coord_name="time"))
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
         node_p = Parallel(source=node, number_of_workers=2, chunks={"time": 2})
-        o = node.eval(coords)
+        o = node.evaluate(coords)
         o_p = o.copy()
         o_p[:] = np.nan
-        node_p.eval(coords, output=o_p)
+        node_p.evaluate(coords, output=o_p)
         time.sleep(0.1)
 
         np.testing.assert_array_equal(o, o_p)
@@ -53,7 +53,7 @@ class TestParallelAsync(object):
         node = Process(source=CoordData(coord_name="time"))  # , block=False)
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
         node_p = ParallelAsync(source=node, number_of_workers=2, chunks={"time": 2}, fill_output=False)
-        node_p.eval(coords)
+        node_p.evaluate(coords)
         time.sleep(0.1)
         # Just try to make it run...
 
@@ -68,7 +68,7 @@ class TestParallelOutputZarr(object):
         node_p = ParallelOutputZarr(
             source=node, number_of_workers=2, chunks={"time": 2}, fill_output=False, zarr_file=tmpdir
         )
-        o_zarr = node_p.eval(coords)
+        o_zarr = node_p.evaluate(coords)
         time.sleep(0.1)
         # print(o_zarr.info)
         np.testing.assert_array_equal([1, 2, 3, 4, 5], o_zarr["data"][:])
@@ -84,7 +84,7 @@ class TestParallelOutputZarr(object):
         node_p = ParallelAsyncOutputZarr(
             source=node, number_of_workers=5, chunks={"time": 2}, fill_output=False, zarr_file=tmpdir
         )
-        o_zarr = node_p.eval(coords)
+        o_zarr = node_p.evaluate(coords)
         # print(o_zarr.info)
         time.sleep(0.01)
         np.testing.assert_array_equal([1, 2, 3, 4, 5], o_zarr["data"][:])
@@ -100,7 +100,7 @@ class TestParallelOutputZarr(object):
         node_p = ParallelAsyncOutputZarr(
             source=node, number_of_workers=5, chunks={"time": 2}, fill_output=False, zarr_file=tmpdir, start_i=1
         )
-        o_zarr = node_p.eval(coords)
+        o_zarr = node_p.evaluate(coords)
         # print(o_zarr.info)
         time.sleep(0.01)
         np.testing.assert_array_equal([np.nan, np.nan, 3, 4, 5], o_zarr["data"][:])
@@ -108,7 +108,7 @@ class TestParallelOutputZarr(object):
         node_p = ParallelAsyncOutputZarr(
             source=node, number_of_workers=5, chunks={"time": 2}, fill_output=False, zarr_file=tmpdir, start_i=0
         )
-        o_zarr = node_p.eval(coords)
+        o_zarr = node_p.evaluate(coords)
         np.testing.assert_array_equal([1, 2, 3, 4, 5], o_zarr["data"][:])
 
         shutil.rmtree(tmpdir)

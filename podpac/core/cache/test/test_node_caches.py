@@ -16,12 +16,12 @@ class TestHashCache:
         hash_cache_node2 = my_node.cache("hash", "ram", uid=uid)
         hash_cache_node3 = my_node.cache("hash", "disk", uid=uid)
         assert hash_cache_node.hash_id == uid
-        _ = hash_cache_node.eval(coords)
+        _ = hash_cache_node.evaluate(coords)
         assert not hash_cache_node._from_cache
-        _ = hash_cache_node2.eval(coords)
+        _ = hash_cache_node2.evaluate(coords)
         assert hash_cache_node2._from_cache
         try:
-            _ = hash_cache_node3.eval(coords)
+            _ = hash_cache_node3.evaluate(coords)
             assert not hash_cache_node3._from_cache
         finally:
             hash_cache_node3.rem_cache("*", coordinates="*")
@@ -32,11 +32,11 @@ class TestHashCache:
 
         hash_cache_node = my_node.cache("hash", "ram")
         hash_cache_node2 = my_node.cache("hash", "ram")
-        hash_cache_node.eval(coords)
+        hash_cache_node.evaluate(coords)
         assert not hash_cache_node._from_cache
-        hash_cache_node.eval(coords)
+        hash_cache_node.evaluate(coords)
         assert hash_cache_node._from_cache
-        hash_cache_node2.eval(coords)
+        hash_cache_node2.evaluate(coords)
         assert hash_cache_node2._from_cache
 
     def test_relevant_dimensions_cache(self):
@@ -50,17 +50,17 @@ class TestHashCache:
         )
         hash_node = my_node.cache("hash", "ram")
         hash_node.rem_cache("*")
-        hash_node.eval(coords_time)
+        hash_node.evaluate(coords_time)
 
         assert hash_node._from_cache == False
 
         hash_node2 = my_node.cache("hash", "ram")
-        hash_node2.eval(coords_time.drop("time"))
+        hash_node2.evaluate(coords_time.drop("time"))
 
         assert hash_node2._from_cache == True
 
         hash_node3 = my_node.cache("hash", "ram")
-        hash_node3.eval(coords_time)
+        hash_node3.evaluate(coords_time)
 
         assert hash_node3._from_cache == True
 
@@ -88,13 +88,13 @@ class TestZarrCache:
         assert zarr_cache_node2.hash_id == uid
         assert zarr_cache_node3.hash_id == uid
 
-        _ = zarr_cache_node.eval(coords)
+        _ = zarr_cache_node.evaluate(coords)
         assert not zarr_cache_node._from_cache
-        _ = zarr_cache_node2.eval(coords)
+        _ = zarr_cache_node2.evaluate(coords)
         assert zarr_cache_node2._from_cache
-        _ = zarr_cache_node3.eval(coords)
+        _ = zarr_cache_node3.evaluate(coords)
         assert not zarr_cache_node3._from_cache
-        _ = zarr_cache_node3.eval(coords)
+        _ = zarr_cache_node3.evaluate(coords)
         assert zarr_cache_node3._from_cache
         zarr_cache_node3.rem_cache()  # Clean up!
 
@@ -105,15 +105,15 @@ class TestZarrCache:
         zarr_cache_node = my_node.cache("zarr", "ram")
         zarr_cache_node2 = my_node.cache("zarr", "ram")
 
-        _ = zarr_cache_node.eval(coords)
+        _ = zarr_cache_node.evaluate(coords)
         assert not zarr_cache_node._from_cache
-        _ = zarr_cache_node.eval(coords)
+        _ = zarr_cache_node.evaluate(coords)
         assert zarr_cache_node._from_cache
-        _ = zarr_cache_node2.eval(coords)
+        _ = zarr_cache_node2.evaluate(coords)
         assert zarr_cache_node2._from_cache
 
         zarr_cache_node.rem_cache()
-        _ = zarr_cache_node2.eval(coords)
+        _ = zarr_cache_node2.evaluate(coords)
         assert not zarr_cache_node2._from_cache
 
     def test_ZarrCache_fill_and_retrieve(self, source):
@@ -123,7 +123,7 @@ class TestZarrCache:
         coords = source.coordinates
 
         # Eval the node, this will also fill the Zarr cache with source data
-        data_filled = node.eval(coords)
+        data_filled = node.evaluate(coords)
 
         # Create a new node instance with same configuration
         node_retrieved = ZarrCache(
@@ -131,7 +131,7 @@ class TestZarrCache:
         )
 
         # Retrieve data from the new node, which should come from the Zarr cache
-        data_retrieved = node_retrieved.eval(coords)
+        data_retrieved = node_retrieved.evaluate(coords)
 
         # Check the data retrieved from the Zarr cache is identical to the filled data
         np.testing.assert_allclose(data_filled, data_retrieved)
@@ -152,14 +152,14 @@ class TestZarrCache:
         )
 
         # Evaluate node with the requested coordinates
-        data = node.eval(request_coords)
+        data = node.evaluate(request_coords)
 
         # Get indices where the request coordinates intersect with the source coordinates
         valid_request_coords = request_coords.intersect(source.coordinates)
         valid_indices = np.nonzero(np.isin(request_coords["lat"].coordinates, valid_request_coords["lat"].coordinates))
 
         # Evaluate source at the valid coordinates
-        expected_valid_data = source.eval(valid_request_coords)
+        expected_valid_data = source.evaluate(valid_request_coords)
 
         # Check if the valid data matches the expected data
         npt.assert_array_equal(data[valid_indices], expected_valid_data)
@@ -183,7 +183,7 @@ class TestZarrCache:
         )
 
         # Eval the node with the subselection of coordinates, this will also fill the cache
-        node.eval(request_coords_sub)
+        node.evaluate(request_coords_sub)
 
         # Now create a request that includes the previous coordinates plus new ones
         lat_extended = np.linspace(0, 7, 8)  # extends to 7, includes previously cached coords
@@ -208,7 +208,7 @@ class TestZarrCache:
         coords = source.coordinates
 
         # Eval the node, this will also fill the Zarr cache with source data
-        node.eval(coords)
+        node.evaluate(coords)
 
         # Rem the cache
         node.rem_cache()
@@ -222,7 +222,7 @@ class TestZarrCache:
         np.testing.assert_array_equal(node_retrieved._z_bool.dataset["contains"][:], False)
 
         # An eval attempt should not be able to retrieve from the cache
-        node_retrieved.eval(coords)
+        node_retrieved.evaluate(coords)
         assert not node_retrieved._from_cache
 
         node.rem_cache()  # Cleanup
@@ -243,11 +243,11 @@ class TestZarrCache:
         coords = source.coordinates
 
         # Eval the node, this will also fill the Zarr cache with source data
-        data_filled = node.eval(coords)
+        data_filled = node.evaluate(coords)
         assert not node._from_cache
 
         # Retrieve data from the node again, which should come from the Zarr cache
-        data_retrieved = node.eval(coords)
+        data_retrieved = node.evaluate(coords)
 
         # Check the data retrieved from the Zarr cache is identical to the filled data
         np.testing.assert_allclose(data_filled, data_retrieved)

@@ -230,7 +230,7 @@ class ZarrCache(CacheNode):
         data : np.ndarray
             The data retrieved from the source at the specified coordinates.
         """
-        data = self.source.eval(request_coords).data
+        data = self.source.evaluate(request_coords).data
         return data
 
     def fill_zarr(self, data, request_coords):
@@ -287,7 +287,7 @@ class ZarrCache(CacheNode):
             [false_coords.get(dim) for dim in self.source.coordinates.dims], dims=self.source.coordinates.dims
         )
 
-    def eval(self, request_coords):
+    def evaluate(self, request_coords):
         """
         Evaluate the data at the requested coordinates, fetching missing data from the source node and filling the Zarr cache as necessary.
         If requested coordinates are out of the source node's bounds, return an array filled with NaNs.

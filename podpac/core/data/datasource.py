@@ -313,9 +313,9 @@ class DataSource(Node):
         coords, I = self.coordinates.select(bounds, return_index=True)
         return self._get_data(coords, I)
 
-    def eval(self, coordinates, **kwargs):
+    def evaluate(self, coordinates, **kwargs):
         """
-        Wraps the super Node.eval method in order to cache with the correct coordinates.
+        Wraps the super Node.evaluate method in order to cache with the correct coordinates.
 
         The output is independent of the crs or any extra dimensions, so this transforms and removes extra dimensions
         before caching in the super eval method.
@@ -349,9 +349,9 @@ class DataSource(Node):
         if coordinates.crs.lower() != self._crs.lower():
             coordinates = coordinates.transform(self._crs)
 
-        # note: super().eval (not self._eval)
+        # note: super().evaluate (not self._evaluate)
         # This call already sub-selects an 'output' if specified
-        output = super().eval(coordinates, **kwargs)
+        output = super().evaluate(coordinates, **kwargs)
 
         # transform back to requested coordinates, if necessary
         if coordinates.crs.lower() != requested_coordinates.crs.lower():
@@ -378,7 +378,7 @@ class DataSource(Node):
         return output
 
     @common_doc(COMMON_DATA_DOC)
-    def _eval(self, coordinates, output=None, _selector=None):
+    def _evaluate(self, coordinates, output=None, _selector=None):
         """Evaluates this node using the supplied coordinates.
 
         The coordinates are mapped to the requested coordinates, interpolated if necessary, and set to

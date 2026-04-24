@@ -28,7 +28,7 @@ def setup_module():
     a[0, 3, 0] = np.nan
     a[0, 0, 3] = np.nan
     source = Array(source=a, coordinates=coords).interpolate()
-    data = source.eval(coords)
+    data = source.evaluate(coords)
 
     ab = np.stack([a, 2 * a], -1)
     multisource = Array(source=ab, coordinates=coords, outputs=["a", "b"])
@@ -45,7 +45,7 @@ class TestReduce(object):
         with podpac.settings:
             podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = "auto"
-            node.eval(coords)
+            node.evaluate(coords)
 
     def test_chunked_fallback(self):
         with podpac.settings:
@@ -59,12 +59,12 @@ class TestReduce(object):
 
             # use reduce function
             podpac.settings["CHUNK_SIZE"] = None
-            output = node.eval(coords)
+            output = node.evaluate(coords)
 
             # fall back on reduce function with warning
             with pytest.warns(UserWarning):
                 podpac.settings["CHUNK_SIZE"] = 500
-                output_chunked = node.eval(coords)
+                output_chunked = node.evaluate(coords)
 
             # should be the same
             xr.testing.assert_allclose(output, output_chunked)
@@ -79,12 +79,12 @@ class BaseTests(object):
             podpac.settings["CHUNK_SIZE"] = None
 
             node = self.NodeClass(source=source)
-            output = node.eval(coords)
+            output = node.evaluate(coords)
             # xr.testing.assert_allclose(output, self.expected_full)
             np.testing.assert_allclose(output.data, self.expected_full.data)
 
             node = self.NodeClass(source=source, dims=coords.dims)
-            output = node.eval(coords)
+            output = node.evaluate(coords)
             # xr.testing.assert_allclose(output, self.expected_full)
             np.testing.assert_allclose(output.data, self.expected_full.data)
 
@@ -93,7 +93,7 @@ class BaseTests(object):
             node = self.NodeClass(source=source, dims=coords.dims)
             podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = 500
-            output = node.eval(coords)
+            output = node.evaluate(coords)
             # xr.testing.assert_allclose(output, self.expected_full)
             np.testing.assert_allclose(output.data, self.expected_full.data)
 
@@ -102,7 +102,7 @@ class BaseTests(object):
             podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = None
             node = self.NodeClass(source=source, dims=["lat", "lon"])
-            output = node.eval(coords)
+            output = node.evaluate(coords)
             # xr.testing.assert_allclose(output, self.expected_latlon)
             np.testing.assert_allclose(output.data, self.expected_latlon.data)
 
@@ -111,7 +111,7 @@ class BaseTests(object):
             podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = 500
             node = self.NodeClass(source=source, dims=["lat", "lon"])
-            output = node.eval(coords)
+            output = node.evaluate(coords)
             # xr.testing.assert_allclose(output, self.expected_latlon)
             np.testing.assert_allclose(output.data, self.expected_latlon.data)
 
@@ -120,7 +120,7 @@ class BaseTests(object):
             podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = None
             node = self.NodeClass(source=source, dims="time")
-            output = node.eval(coords)
+            output = node.evaluate(coords)
             # xr.testing.assert_allclose(output, self.expected_time)
             np.testing.assert_allclose(output.data, self.expected_time.data)
 
@@ -129,7 +129,7 @@ class BaseTests(object):
             podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = 500
             node = self.NodeClass(source=source, dims="time")
-            output = node.eval(coords)
+            output = node.evaluate(coords)
             # xr.testing.assert_allclose(output, self.expected_time)
             np.testing.assert_allclose(output.data, self.expected_time.data)
 
@@ -138,7 +138,7 @@ class BaseTests(object):
             podpac.settings["ENABLE_CACHE"] = False
             podpac.settings["CHUNK_SIZE"] = None
             node = self.NodeClass(source=multisource, dims=["lat", "lon"])
-            output = node.eval(coords)
+            output = node.evaluate(coords)
             assert output.dims == ("time", "output")
             np.testing.assert_array_equal(output["output"], ["a", "b"])
             np.testing.assert_allclose(output.sel(output="a"), self.expected_latlon)
@@ -198,7 +198,7 @@ class TestMean(BaseTests):
         for n in [20, 21, 1000, 1001]:
             podpac.settings["CHUNK_SIZE"] = n
             node = self.NodeClass(source=source, dims=coords.dims)
-            output = node.eval(coords)
+            output = node.evaluate(coords)
             # xr.testing.assert_allclose(output, self.expected_full)
             np.testing.assert_allclose(output.data, self.expected_full.data)
 
@@ -303,7 +303,7 @@ class TestDayOfYearWindow(object):
 
         node = Arange()
         nodedoywindow = F(source=node, window=1, cache_output=False, force_eval=True)
-        o = nodedoywindow.eval(coords)
+        o = nodedoywindow.evaluate(coords)
 
         np.testing.assert_array_equal(o, [2, 2, 1, 1, 2, 2])
 
@@ -317,7 +317,7 @@ class TestDayOfYearWindow(object):
 
         node = Arange()
         nodedoywindow = F(source=node, window=2, cache_output=False, force_eval=True)
-        o = nodedoywindow.eval(coords)
+        o = nodedoywindow.evaluate(coords)
 
         np.testing.assert_array_equal(o, [6, 5, 3, 3, 5, 6])
 
@@ -331,12 +331,12 @@ class TestDayOfYearWindow(object):
 
         node = Arange()
         nodedoywindow = FM(source=node, window=2, cache_output=False, force_eval=True)
-        o = nodedoywindow.eval(coords)
+        o = nodedoywindow.evaluate(coords)
 
         nodedoywindow_s = FM(
             source=node, window=2, cache_output=False, force_eval=True, scale_float=[0, coords.size], rescale=True
         )
-        o_s = nodedoywindow_s.eval(coords)
+        o_s = nodedoywindow_s.evaluate(coords)
 
         np.testing.assert_array_almost_equal(o, o_s)
 
@@ -364,6 +364,6 @@ class TestDayOfYearWindow(object):
                 scale_min=node_min,
                 rescale=False,
             )
-            o_s = nodedoywindow_s.eval(coords)
+            o_s = nodedoywindow_s.evaluate(coords)
 
             np.testing.assert_array_almost_equal([0.5] * o_s.size, o_s)

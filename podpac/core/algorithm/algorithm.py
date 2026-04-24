@@ -84,7 +84,7 @@ class Algorithm(BaseAlgorithm):
         raise NotImplementedError
 
     @common_doc(COMMON_DOC)
-    def _eval(self, coordinates, output=None, _selector=None):
+    def _evaluate(self, coordinates, output=None, _selector=None):
         """Evalutes this nodes using the supplied coordinates.
 
         Parameters
@@ -115,7 +115,7 @@ class Algorithm(BaseAlgorithm):
         if settings["MULTITHREADING"] and n_threads > 1:
             # Create a function for each thread to execute asynchronously
             def f(node):
-                return node.eval(coordinates, _selector=_selector)
+                return node.evaluate(coordinates, _selector=_selector)
 
             # Create pool of size n_threads, note, this may be created from a sub-thread (i.e. not the main thread)
             pool = thread_manager.get_thread_pool(processes=n_threads)
@@ -136,7 +136,7 @@ class Algorithm(BaseAlgorithm):
         else:
             # Evaluate nodes in serial
             for key, node in self.inputs.items():
-                inputs[key] = node.eval(coordinates, output=output, _selector=_selector)
+                inputs[key] = node.evaluate(coordinates, output=output, _selector=_selector)
             self._multi_threaded = False
 
         if self.xarray_floating_point_correction:

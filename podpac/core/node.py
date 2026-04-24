@@ -257,7 +257,7 @@ class Node(tl.HasTraits):
         return "<%s(%s) attrs: %s>" % (self.__class__.__name__, self._repr_info, ", ".join(self.attrs))
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, **kwargs):
+    def evaluate(self, coordinates, **kwargs):
         """
         Evaluate the node at the given coordinates.
 
@@ -285,7 +285,7 @@ class Node(tl.HasTraits):
             self._requested_coordinates = coordinates
 
         # Caching is now done explicitly with a Caching node
-        data = self._eval(coordinates, **kwargs)
+        data = self._evaluate(coordinates, **kwargs)
 
         # extract single output, if necessary
         # subclasses should extract single outputs themselves if possible, but this provides a backup
@@ -313,7 +313,7 @@ class Node(tl.HasTraits):
 
         return data
 
-    def _eval(self, coordinates, output=None, _selector=None):
+    def _evaluate(self, coordinates, output=None, _selector=None):
         raise NotImplementedError
 
     def eval_group(self, group):
@@ -331,7 +331,7 @@ class Node(tl.HasTraits):
             evaluation output, list of UnitsDataArray objects
         """
 
-        return [self.eval(coords) for coords in group]
+        return [self.evaluate(coords) for coords in group]
 
     def find_coordinates(self):
         """

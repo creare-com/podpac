@@ -175,10 +175,10 @@ class TestBaseCompositor(object):
     def test_eval(self):
         node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
         with pytest.raises(NotImplementedError):
-            node.eval(COORDS)
+            node.evaluate(COORDS)
 
         node = MockComposite(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
-        output = node.eval(COORDS)
+        output = node.evaluate(COORDS)
         np.testing.assert_array_equal(output, LAT)
 
     def test_eval_extra_dims(self):
@@ -188,33 +188,33 @@ class TestBaseCompositor(object):
 
         # no dims provided, evaluation fails with extra requested dims
         node = MockComposite(sources=[a, b])
-        np.testing.assert_array_equal(node.eval(coords), a.source)
+        np.testing.assert_array_equal(node.evaluate(coords), a.source)
         with pytest.raises(podpac.NodeException, match="Cannot evaluate compositor with requested dims"):
-            node.eval(COORDS)
+            node.evaluate(COORDS)
 
         # dims provided, evaluation should succeed with extra requested dims
         node = MockComposite(sources=[a, b], dims=["lat", "lon"])
-        np.testing.assert_array_equal(node.eval(coords), a.source)
-        np.testing.assert_array_equal(node.eval(COORDS), a.source)
+        np.testing.assert_array_equal(node.evaluate(coords), a.source)
+        np.testing.assert_array_equal(node.evaluate(COORDS), a.source)
 
         # drop stacked dimensions if none of its dimensions are needed
         c = podpac.Coordinates(
             [COORDS["lat"], COORDS["lon"], [COORDS["time"], [10, 20]]], dims=["lat", "lon", "time_alt"]
         )
-        np.testing.assert_array_equal(node.eval(c), a.source)
+        np.testing.assert_array_equal(node.evaluate(c), a.source)
 
         # TODO
         # but don't drop stacked dimensions if any of its dimensions are needed
         # c = podpac.Coordinates([[COORDS['lat'], COORDS['lon'], np.arange(COORDS['lat'].size)]], dims=['lat_lon_alt'])
-        # np.testing.assert_array_equal(node.eval(c), np.ones(COORDS['lat'].size))
+        # np.testing.assert_array_equal(node.evaluate(c), np.ones(COORDS['lat'].size))
 
         # dims can also be specified by the node
         class MockComposite2(MockComposite):
             dims = ["lat", "lon"]
 
         node = MockComposite2(sources=[a, b])
-        np.testing.assert_array_equal(node.eval(coords), a.source)
-        np.testing.assert_array_equal(node.eval(COORDS), a.source)
+        np.testing.assert_array_equal(node.evaluate(coords), a.source)
+        np.testing.assert_array_equal(node.evaluate(COORDS), a.source)
 
     def test_find_coordinates(self):
         node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])

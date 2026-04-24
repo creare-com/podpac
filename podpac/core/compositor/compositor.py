@@ -206,7 +206,7 @@ class BaseCompositor(Node):
             # evaluate nodes in parallel using thread pool
             self._multi_threaded = True
             pool = thread_manager.get_thread_pool(processes=n_threads)
-            outputs = pool.map(lambda src: src.eval(coordinates, _selector=_selector), sources)
+            outputs = pool.map(lambda src: src.evaluate(coordinates, _selector=_selector), sources)
             pool.close()
             thread_manager.release_n_threads(n_threads)
             for output in outputs:
@@ -216,12 +216,12 @@ class BaseCompositor(Node):
             # evaluate nodes serially
             self._multi_threaded = False
             for src in sources:
-                yield src.eval(coordinates, _selector=_selector)
+                yield src.evaluate(coordinates, _selector=_selector)
 
     @common_doc(COMMON_COMPOSITOR_DOC)
-    def eval(self, coordinates, **kwargs):
+    def evaluate(self, coordinates, **kwargs):
         """
-        Wraps the super Node.eval method in order to cache with the correct coordinates.
+        Wraps the super Node.evaluate method in order to cache with the correct coordinates.
 
         The output is independent of any extra dimensions, so this removes extra dimensions before caching in the
         super eval method.
@@ -239,8 +239,8 @@ class BaseCompositor(Node):
             ]
             super_coordinates = super_coordinates.drop(extra)
 
-        # note: super().eval (not self._eval)
-        output = super().eval(super_coordinates, **kwargs)
+        # note: super().evaluate (not self._evaluate)
+        output = super().evaluate(super_coordinates, **kwargs)
 
         if settings["DEBUG"]:
             self._requested_coordinates = coordinates
@@ -248,7 +248,7 @@ class BaseCompositor(Node):
         return output
 
     @common_doc(COMMON_COMPOSITOR_DOC)
-    def _eval(self, coordinates, output=None, _selector=None):
+    def _evaluate(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters

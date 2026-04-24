@@ -45,7 +45,7 @@ class Array(DataSource):
                                      podpac.clinspace(1, 32, 32, 'lat'),
                                      podpac.clinspace(1, 34, 34, 'lon')])
     >>> node = podpac.data.Array(source=data, coordinates=coords, outputs=['R', 'G', 'B'])
-    >>> output = node.eval(coords)
+    >>> output = node.evaluate(coords)
     """
 
     source = ArrayTrait().tag(attr=True, required=True)

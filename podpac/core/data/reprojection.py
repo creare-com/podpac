@@ -90,7 +90,7 @@ class ReprojectedSource(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}"""
 
-        data = self.eval_source.eval(coordinates)
+        data = self.eval_source.evaluate(coordinates)
 
         # The following is needed in case the source is an algorithm
         # or compositor node that doesn't have all the dimensions of

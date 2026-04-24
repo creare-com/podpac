@@ -49,7 +49,7 @@ class TestWCS(object):
         c = COORDS
 
         node = MockWCS(source="mock", layer="mock")
-        output = node.eval(c)
+        output = node.evaluate(c)
         assert output.shape == (100, 100)
         assert output.data.sum() == 1256581.0
 
@@ -57,7 +57,7 @@ class TestWCS(object):
         c = COORDS
 
         node = MockWCS(source="mock", layer="mock", max_size=1000)
-        output = node.eval(c)
+        output = node.evaluate(c)
         assert output.shape == (100, 100)
         assert output.data.sum() == 150.0
 
@@ -65,7 +65,7 @@ class TestWCS(object):
         c = COORDS[50, 50]
 
         node = MockWCS(source="mock", layer="mock", max_size=1000)
-        output = node.eval(c)
+        output = node.evaluate(c)
         assert output.shape == (1, 1)
         assert output.data.sum() == 0.0
 
@@ -73,7 +73,7 @@ class TestWCS(object):
         c = COORDS[[0, 10, 99], [0, 99]]
 
         node = MockWCS(source="mock", layer="mock")
-        output = node.eval(c)
+        output = node.evaluate(c)
         assert output.shape == (100, 100)
         assert output.data.sum() == 1256581.0
 
@@ -81,7 +81,7 @@ class TestWCS(object):
         c = COORDS[[0, 10, 99], [0, 99]]
 
         node = MockWCS(source="mock", layer="mock").interpolate()
-        output = node.eval(c)
+        output = node.evaluate(c)
         assert output.shape == (3, 2)
         assert output.data.sum() == 0
 
@@ -89,16 +89,16 @@ class TestWCS(object):
         c = podpac.Coordinates([[COORDS["lat"], COORDS["lon"]]], dims=["lat_lon"])
 
         node = MockWCS(source="mock", layer="mock")
-        output = node.eval(c)
+        output = node.evaluate(c)
         assert output.shape == (100,)
-        # MPU Note: changed from 14350.0 to 12640.0 based on np.diag(node.eval(COORDS)).sum()
+        # MPU Note: changed from 14350.0 to 12640.0 based on np.diag(node.evaluate(COORDS)).sum()
         assert output.data.sum() == 12640.0
 
     def test_eval_extra_unstacked_dim(self):
         c = podpac.Coordinates(["2020-01-01", COORDS["lat"], COORDS["lon"]], dims=["time", "lat", "lon"])
 
         node = MockWCS()
-        output = node.eval(c)
+        output = node.evaluate(c)
         assert output.shape == (100, 100)
         assert output.data.sum() == 1256581.0
 
@@ -110,7 +110,7 @@ class TestWCS(object):
         )
 
         node = MockWCS(source="mock", layer="mock", max_size=1000)
-        output = node.eval(c)
+        output = node.evaluate(c)
         assert output.shape == (1,)
         assert output.data.sum() == 0.0
 
@@ -119,12 +119,12 @@ class TestWCS(object):
 
         node = MockWCS()
         with pytest.raises(ValueError, match="Cannot evaluate these coordinates"):
-            _ = node.eval(c)
+            _ = node.evaluate(c)
 
     def test_eval_transpose(self):
         c = COORDS.transpose("lon", "lat")
         node = MockWCS(source="mock", layer="mock")
-        output = node.eval(c)
+        output = node.evaluate(c)
         assert output.dims == ("lon", "lat")
         assert output.shape == (100, 100)
         assert output.data.sum() == 1256581.0
@@ -133,7 +133,7 @@ class TestWCS(object):
         c = COORDS.transform("EPSG:3395")
 
         node = MockWCS()
-        output = node.eval(c)
+        output = node.evaluate(c)
         assert output.shape == (100, 100)
         assert output.data.sum() == 1256581.0
 
@@ -152,32 +152,32 @@ class TestWCSIntegration(object):
 
     def test_eval_grid(self):
         c = COORDS
-        self.node1.eval(c)
-        self.node2.eval(c)
+        self.node1.evaluate(c)
+        self.node2.evaluate(c)
 
     def test_eval_point(self):
         c = COORDS[50, 50]
-        self.node1.eval(c)
-        self.node2.eval(c)
+        self.node1.evaluate(c)
+        self.node2.evaluate(c)
 
     def test_eval_nonuniform(self):
         c = podpac.Coordinates([[-131.3, -131.4, -131.6], [23.0, 23.1, 23.3]], dims=["lon", "lat"])
-        self.node1.eval(c)
-        self.node2.eval(c)
+        self.node1.evaluate(c)
+        self.node2.evaluate(c)
 
     def test_eval_uniform_stacked(self):
         c = podpac.Coordinates([[COORDS["lat"][::4], COORDS["lon"][::4]]], dims=["lat_lon"])
-        self.node1.eval(c)
-        self.node2.eval(c)
+        self.node1.evaluate(c)
+        self.node2.evaluate(c)
 
     def test_eval_chunked(self):
         node = WCS(source=self.source, layer="sand_0-5cm_mean", output_format="geotiff_byte", max_size=4000)
-        _ = node.eval(COORDS)
+        _ = node.evaluate(COORDS)
 
     def test_eval_other_crs(self):
         c = COORDS.transform("EPSG:3395")
-        self.node1.eval(c)
-        self.node2.eval(c)
+        self.node1.evaluate(c)
+        self.node2.evaluate(c)
 
     def test_get_layers(self):
         # most basic

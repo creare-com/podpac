@@ -147,10 +147,10 @@ class Reduce(UnaryAlgorithm):
         """
         chunk_shape = self._get_chunk_shape(coordinates)
         for chunk in coordinates.iterchunks(chunk_shape):
-            yield self.source.eval(chunk, _selector=_selector)
+            yield self.source.evaluate(chunk, _selector=_selector)
 
     @common_doc(COMMON_DOC)
-    def _eval(self, coordinates, output=None, _selector=None):
+    def _evaluate(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -183,10 +183,10 @@ class Reduce(UnaryAlgorithm):
                 result = self.reduce_chunked(self.iteroutputs(coordinates, _selector), output)
             except NotImplementedError:
                 warnings.warn("No reduce_chunked method defined, using one-step reduce")
-                source_output = self.source.eval(coordinates, _selector=_selector)
+                source_output = self.source.evaluate(coordinates, _selector=_selector)
                 result = self.reduce(source_output)
         else:
-            source_output = self.source.eval(coordinates, _selector=_selector)
+            source_output = self.source.evaluate(coordinates, _selector=_selector)
             result = self.reduce(source_output)
 
         if output.shape == ():
@@ -288,7 +288,7 @@ class ReduceOrthogonal(Reduce):
 
         chunk_shape = self._get_chunk_shape(coordinates)
         for chunk, slices in coordinates.iterchunks(chunk_shape, return_slices=True):
-            yield self.source.eval(chunk, _selector=selector), slices
+            yield self.source.evaluate(chunk, _selector=selector), slices
 
     def reduce_chunked(self, xs, output):
         """
@@ -780,7 +780,7 @@ class Median(ReduceOrthogonal):
     ---------
     coords.dims == ['lat', 'lon', 'time']
     median = Median(source=node, dims=['lat', 'lon'])
-    o = median.eval(coords)
+    o = median.evaluate(coords)
     o.dims == ['time']
     """
 
@@ -866,7 +866,7 @@ class GroupReduce(UnaryAlgorithm):
         return self.source
 
     @common_doc(COMMON_DOC)
-    def _eval(self, coordinates, output=None, _selector=None):
+    def _evaluate(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -888,7 +888,7 @@ class GroupReduce(UnaryAlgorithm):
             If source it not time-depended (required by this node).
         """
 
-        source_output = self.source.eval(coordinates)
+        source_output = self.source.evaluate(coordinates)
 
         # group
         grouped = source_output.groupby("time.%s" % self.groupby)
@@ -962,7 +962,7 @@ class ResampleReduce(UnaryAlgorithm):
         return self.source
 
     @common_doc(COMMON_DOC)
-    def _eval(self, coordinates, output=None, _selector=None):
+    def _evaluate(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -984,7 +984,7 @@ class ResampleReduce(UnaryAlgorithm):
             If source it not time-dependent (required by this node).
         """
 
-        source_output = self.source.eval(coordinates, _selector=_selector)
+        source_output = self.source.evaluate(coordinates, _selector=_selector)
 
         # group
         grouped = source_output.resample(time=self.resample)

@@ -39,13 +39,13 @@ class TestOrderedCompositor(object):
             expected = np.array(
                 [[1.0, 1.0, 1.0, 0.0, np.nan], [1.0, 1.0, 1.0, 0.0, np.nan], [np.nan, np.nan, 0.0, 0.0, np.nan]]
             )
-            np.testing.assert_allclose(node.eval(coords), expected, equal_nan=True)
+            np.testing.assert_allclose(node.evaluate(coords), expected, equal_nan=True)
 
             node = OrderedCompositor(sources=[b, a])
             expected = np.array(
                 [[1.0, 1.0, 0.0, 0.0, np.nan], [1.0, 1.0, 0.0, 0.0, np.nan], [np.nan, np.nan, 0.0, 0.0, np.nan]]
             )
-            np.testing.assert_allclose(node.eval(coords), expected, equal_nan=True)
+            np.testing.assert_allclose(node.evaluate(coords), expected, equal_nan=True)
 
     def test_composite_multithreaded(self):
         with podpac.settings:
@@ -68,13 +68,13 @@ class TestOrderedCompositor(object):
             expected = np.array(
                 [[1.0, 1.0, 1.0, 0.0, np.nan], [1.0, 1.0, 1.0, 0.0, np.nan], [np.nan, np.nan, 0.0, 0.0, np.nan]]
             )
-            np.testing.assert_allclose(node.eval(coords), expected, equal_nan=True)
+            np.testing.assert_allclose(node.evaluate(coords), expected, equal_nan=True)
 
             node = OrderedCompositor(sources=[b, a])
             expected = np.array(
                 [[1.0, 1.0, 0.0, 0.0, np.nan], [1.0, 1.0, 0.0, 0.0, np.nan], [np.nan, np.nan, 0.0, 0.0, np.nan]]
             )
-            np.testing.assert_allclose(node.eval(coords), expected, equal_nan=True)
+            np.testing.assert_allclose(node.evaluate(coords), expected, equal_nan=True)
 
     def test_composite_short_circuit(self):
         with podpac.settings:
@@ -85,7 +85,7 @@ class TestOrderedCompositor(object):
             a = Array(source=np.ones(coords.shape), coordinates=coords, interpolation="bilinear")
             b = Array(source=np.zeros(coords.shape), coordinates=coords, interpolation="bilinear")
             node = OrderedCompositor(sources=[a, b])
-            output = node.eval(coords)
+            output = node.evaluate(coords)
             np.testing.assert_array_equal(output, a.source)
             assert node._eval_sources[0]._output is not None
             assert node._eval_sources[1]._output is None
@@ -102,8 +102,8 @@ class TestOrderedCompositor(object):
             b = Array(source=np.zeros(coords.shape), coordinates=coords, interpolation="bilinear")
             node = OrderedCompositor(sources=[a, b], multithreading=True)
             node2 = OrderedCompositor(sources=[a, b], multithreading=False)
-            output = node.eval(coords)
-            output2 = node2.eval(coords)
+            output = node.evaluate(coords)
+            output2 = node2.evaluate(coords)
             np.testing.assert_array_equal(output, a.source)
             np.testing.assert_array_equal(output2, a.source)
             assert node._multi_threaded == True
@@ -116,20 +116,20 @@ class TestOrderedCompositor(object):
         b = Array(source=np.zeros(coords.shape), coordinates=coords, interpolation="bilinear")
         node = OrderedCompositor(sources=[a, b])
         result = node.create_output_array(coords, data=np.random.random(coords.shape))
-        output = node.eval(coords, output=result)
+        output = node.evaluate(coords, output=result)
         np.testing.assert_array_equal(output, a.source)
         np.testing.assert_array_equal(result, a.source)
 
     def test_composite_multiple_outputs(self):
         node = OrderedCompositor(sources=[MULTI_0_XY, MULTI_1_XY], auto_outputs=True)
-        output = node.eval(COORDS)
+        output = node.evaluate(COORDS)
         assert output.dims == ("lat", "lon", "time", "output")
         np.testing.assert_array_equal(output["output"], ["x", "y"])
         np.testing.assert_array_equal(output.sel(output="x"), np.full(COORDS.shape, 0))
         np.testing.assert_array_equal(output.sel(output="y"), np.full(COORDS.shape, 0))
 
         node = OrderedCompositor(sources=[MULTI_1_XY, MULTI_0_XY], auto_outputs=True)
-        output = node.eval(COORDS)
+        output = node.evaluate(COORDS)
         assert output.dims == ("lat", "lon", "time", "output")
         np.testing.assert_array_equal(output["output"], ["x", "y"])
         np.testing.assert_array_equal(output.sel(output="x"), np.full(COORDS.shape, 1))
@@ -137,7 +137,7 @@ class TestOrderedCompositor(object):
 
     def test_composite_combine_multiple_outputs(self):
         node = OrderedCompositor(sources=[MULTI_0_XY, MULTI_1_XY, MULTI_2_X, MULTI_3_Z], auto_outputs=True)
-        output = node.eval(COORDS)
+        output = node.evaluate(COORDS)
         assert output.dims == ("lat", "lon", "time", "output")
         np.testing.assert_array_equal(output["output"], ["x", "y", "z"])
         np.testing.assert_array_equal(output.sel(output="x"), np.full(COORDS.shape, 0))
@@ -145,7 +145,7 @@ class TestOrderedCompositor(object):
         np.testing.assert_array_equal(output.sel(output="z"), np.full(COORDS.shape, 3))
 
         node = OrderedCompositor(sources=[MULTI_3_Z, MULTI_2_X, MULTI_0_XY, MULTI_1_XY], auto_outputs=True)
-        output = node.eval(COORDS)
+        output = node.evaluate(COORDS)
         assert output.dims == ("lat", "lon", "time", "output")
         np.testing.assert_array_equal(output["output"], ["z", "x", "y"])
         np.testing.assert_array_equal(output.sel(output="x"), np.full(COORDS.shape, 2))
@@ -153,7 +153,7 @@ class TestOrderedCompositor(object):
         np.testing.assert_array_equal(output.sel(output="z"), np.full(COORDS.shape, 3))
 
         node = OrderedCompositor(sources=[MULTI_2_X, MULTI_4_YX], auto_outputs=True)
-        output = node.eval(COORDS)
+        output = node.evaluate(COORDS)
         assert output.dims == ("lat", "lon", "time", "output")
         np.testing.assert_array_equal(output["output"], ["x", "y"])
         np.testing.assert_array_equal(output.sel(output="x"), np.full(COORDS.shape, 2))
@@ -168,7 +168,7 @@ class TestOrderedCompositor(object):
         coords = podpac.Coordinates([podpac.clinspace(-3, 4, 32), podpac.clinspace(-2, 5, 32)], dims=["lat", "lon"])
 
         node = OrderedCompositor(sources=[a, b])
-        o = node.eval(coords)
+        o = node.evaluate(coords)
         # Check that both data sources are being used in the interpolation
         assert np.any(o.data >= 2)
         assert np.any(o.data <= 1)
@@ -184,11 +184,11 @@ class TestOrderedCompositor(object):
 
             # dims not provided, eval fails with extra dims
             node = OrderedCompositor(sources=[a])
-            np.testing.assert_array_equal(node.eval(coords), a.source)
+            np.testing.assert_array_equal(node.evaluate(coords), a.source)
             with pytest.raises(podpac.NodeException, match="Cannot evaluate compositor with requested dims"):
-                node.eval(extra)
+                node.evaluate(extra)
 
             # dims provided, remove extra dims
             node = OrderedCompositor(sources=[a], dims=["lat", "lon"])
-            np.testing.assert_array_equal(node.eval(coords), a.source)
-            np.testing.assert_array_equal(node.eval(extra), a.source)
+            np.testing.assert_array_equal(node.evaluate(coords), a.source)
+            np.testing.assert_array_equal(node.evaluate(extra), a.source)

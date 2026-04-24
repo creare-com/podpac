@@ -479,7 +479,7 @@ class TestOpenDataArray(object):
         lon = np.linspace(-10, 10, 5)
         native_coords = Coordinates([lat, lon], ["lat", "lon"])
         node = Array(source=data, coordinates=native_coords)
-        uda = node.eval(node.coordinates)
+        uda = node.evaluate(node.coordinates)
 
         ncdf = uda.to_netcdf()
         uda_2 = UnitsDataArray.open_dataarray(ncdf)
@@ -535,7 +535,7 @@ class TestToGeoTiff(object):
     def test_to_geotiff_roundtrip_1band(self):
         # lat/lon order, usual
         node = self.make_square_array()
-        out = node.eval(node.coordinates)
+        out = node.evaluate(node.coordinates)
         with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)
             fp.write(b"a")  # for some reason needed to get good comparison
@@ -544,12 +544,12 @@ class TestToGeoTiff(object):
             rnode = Rasterio(source=fp.name, outputs=node.outputs, crs="EPSG:4326")
             assert rnode.coordinates == node.coordinates
 
-            rout = rnode.eval(rnode.coordinates)
+            rout = rnode.evaluate(rnode.coordinates)
             np.testing.assert_almost_equal(rout.data, out.data)
 
         # lon/lat order, unusual
         node = self.make_square_array(order=-1)
-        out = node.eval(node.coordinates)
+        out = node.evaluate(node.coordinates)
         with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)
             fp.write(b"a")  # for some reason needed to get good comparison
@@ -558,13 +558,13 @@ class TestToGeoTiff(object):
             rnode = Rasterio(source=fp.name, outputs=node.outputs, crs="EPSG:4326")
             assert rnode.coordinates == node.coordinates
 
-            rout = rnode.eval(rnode.coordinates)
+            rout = rnode.evaluate(rnode.coordinates)
             np.testing.assert_almost_equal(rout.data, out.data)
 
     def test_to_geotiff_roundtrip_2band(self):
         # lat/lon order, usual
         node = self.make_square_array(bands=2)
-        out = node.eval(node.coordinates)
+        out = node.evaluate(node.coordinates)
         with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)
             fp.write(b"a")  # for some reason needed to get good comparison
@@ -573,12 +573,12 @@ class TestToGeoTiff(object):
             rnode = Rasterio(source=fp.name, outputs=node.outputs, crs="EPSG:4326")
             assert rnode.coordinates == node.coordinates
 
-            rout = rnode.eval(rnode.coordinates)
+            rout = rnode.evaluate(rnode.coordinates)
             np.testing.assert_almost_equal(rout.data, out.data)
 
         # lon/lat order, unsual
         node = self.make_square_array(order=-1, bands=2)
-        out = node.eval(node.coordinates)
+        out = node.evaluate(node.coordinates)
         with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)
             fp.write(b"a")  # for some reason needed to get good comparison
@@ -587,32 +587,32 @@ class TestToGeoTiff(object):
             rnode = Rasterio(source=fp.name, outputs=node.outputs, crs="EPSG:4326")
             assert rnode.coordinates == node.coordinates
 
-            rout = rnode.eval(rnode.coordinates)
+            rout = rnode.evaluate(rnode.coordinates)
             np.testing.assert_almost_equal(rout.data, out.data)
 
             # Check single output
             fp.seek(0)
             rnode = Rasterio(source=fp.name, outputs=node.outputs, output=node.outputs[1], crs="EPSG:4326")
-            rout = rnode.eval(rnode.coordinates)
+            rout = rnode.evaluate(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 1], rout.data)
 
             # Check single band 1
             fp.seek(0)
             rnode = Rasterio(source=fp.name, band=1, crs="EPSG:4326")
-            rout = rnode.eval(rnode.coordinates)
+            rout = rnode.evaluate(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 0], rout.data)
 
             # Check single band 2
             fp.seek(0)
             rnode = Rasterio(source=fp.name, band=2, crs="EPSG:4326")
-            rout = rnode.eval(rnode.coordinates)
+            rout = rnode.evaluate(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 1], rout.data)
 
     def test_to_geotiff_roundtrip_rotcoords(self):
         # lat/lon order, usual
         node = self.make_rot_array()
 
-        out = node.eval(node.coordinates)
+        out = node.evaluate(node.coordinates)
 
         with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)
@@ -624,12 +624,12 @@ class TestToGeoTiff(object):
             )
             assert node.coordinates == rnode.coordinates
 
-            rout = rnode.eval(rnode.coordinates)
+            rout = rnode.evaluate(rnode.coordinates)
             np.testing.assert_almost_equal(out.data, rout.data)
 
         # # lon/lat order, unsual
         # node = self.make_square_array(order=-1)
-        # out = node.eval(node.coordinates)
+        # out = node.evaluate(node.coordinates)
         # with tempfile.NamedTemporaryFile("wb") as fp:
         #     out.to_geotiff(fp)
         #     fp.write(b"a")  # for some reason needed to get good comparison
@@ -638,5 +638,5 @@ class TestToGeoTiff(object):
         #     rnode = Rasterio(source=fp.name, outputs=node.outputs)
         #     assert node.coordinates == rnode.coordinates
 
-        #     rout = rnode.eval(rnode.coordinates)
+        #     rout = rnode.evaluate(rnode.coordinates)
         #     np.testing.assert_almost_equal(out.data, rout.data)

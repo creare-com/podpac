@@ -46,22 +46,22 @@ class TestInterpolation(object):
         # This JUST tests the interface, tests for the actual value of the interpolation is left
         # to the test_interpolation_manager.py file
 
-        o = self.interp.eval(self.coords)
+        o = self.interp.evaluate(self.coords)
 
         assert o.shape == (17, 29)
 
     def test_interpolation_definition(self):
         self.interp.rem_property_cache("*")
         node = Node.from_json(self.interp.json)
-        o1 = node.eval(self.coords)
-        o2 = self.interp.eval(self.coords)
+        o1 = node.evaluate(self.coords)
+        o2 = self.interp.evaluate(self.coords)
         np.testing.assert_array_equal(o1.data, o2.data)
         assert node.json == self.interp.json
 
     def test_compositor_chain(self):
         dc = TileCompositor(sources=[self.s2, self.s1])
         node = Interpolate(source=dc, interpolation="nearest")
-        o = node.eval(self.coords2)
+        o = node.evaluate(self.coords2)
 
         np.testing.assert_array_equal(o.data, np.concatenate([self.s1.source, self.s2.source], axis=0))
 
@@ -83,7 +83,7 @@ class TestInterpolationBehavior(object):
                 coordinates=Coordinates([raw_coords], [dim], crs=_CRS),
             )
             node = Interpolate(source=arrb, interpolation="linear")
-            o = node.eval(ec)
+            o = node.evaluate(ec)
 
             np.testing.assert_array_equal(o.data, raw_e_coords, err_msg="dim {} failed to interpolate".format(dim))
 
@@ -94,7 +94,7 @@ class TestInterpolationBehavior(object):
 
         arrb = Array(source=data, coordinates=Coordinates([raw_coords], ["time"]))
         node = Interpolate(source=arrb, interpolation="linear")
-        o = node.eval(ec)
+        o = node.evaluate(ec)
 
         np.testing.assert_array_equal(
             o.data, raw_e_coords, err_msg="dim time failed to interpolate with datetime64 coords"
@@ -110,14 +110,14 @@ class TestInterpolationBehavior(object):
         ).interpolate()
 
         # unstacked or and stacked requests without time
-        o1 = node.eval(Coordinates([[0.5, 1.5], [10.5, 11.5]], dims=["lat", "lon"]))
-        o2 = node.eval(Coordinates([[[0.5, 1.5], [10.5, 11.5]]], dims=["lat_lon"]))
+        o1 = node.evaluate(Coordinates([[0.5, 1.5], [10.5, 11.5]], dims=["lat", "lon"]))
+        o2 = node.evaluate(Coordinates([[[0.5, 1.5], [10.5, 11.5]]], dims=["lat_lon"]))
 
         assert_array_equal(o1.data, [[0, 2], [2, 1]])
         assert_array_equal(o2.data, [0, 1])
 
         # request without lat or lon
-        o3 = node.eval(Coordinates(["2018-01-01"], dims=["time"]))
+        o3 = node.evaluate(Coordinates(["2018-01-01"], dims=["time"]))
         assert o3.data[0] == 0
 
     def test_stacked_coordinates_with_extra_dimension_and_non_default_crs(self):
@@ -130,7 +130,7 @@ class TestInterpolationBehavior(object):
             coordinates=Coordinates([[[0, 2, 1], [10, 12, 11]]], dims=["lat_lon"]),
         ).interpolate(interpolation="none")
 
-        o1 = node.eval(
+        o1 = node.evaluate(
             coordinates=Coordinates(
                 [[[0, 2, 1], [10, 12, 11], ["2018-01-01", "2018-01-02", "2018-01-03"]]],
                 dims=["lat_lon_time"],
@@ -147,7 +147,7 @@ class TestInterpolationBehavior(object):
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            node.eval(Coordinates([[0.5, 1.5]], ["time"]))
+            node.evaluate(Coordinates([[0.5, 1.5]], ["time"]))
         assert "interpolation parameter 'fake_param' was ignored" in caplog.text
         assert "interpolation parameter 'spatial_tolerance' was ignored" not in caplog.text
 
@@ -159,13 +159,13 @@ class TestInterpolationBehavior(object):
             coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),
         ).interpolate(interpolation=[{"method": "bilinear", "dims": ["lat"], "interpolators": [ScipyGrid]}])
         with pytest.raises(InterpolationException, match="can't be handled"):
-            o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
+            o = node.evaluate(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
 
         node = podpac.data.Array(
             source=[0, 1, 2],
             coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),
         ).interpolate(interpolation=[{"method": "bilinear", "dims": ["lat"]}])
-        o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
+        o = node.evaluate(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
         assert_array_equal(o.data, np.linspace(0, 2, 9))
 
     def test_selection_crs(self):
@@ -175,7 +175,7 @@ class TestInterpolationBehavior(object):
         )
         node = podpac.interpolators.Interpolate(source=base, interpolation="linear")
         tocrds = podpac.Coordinates([podpac.crange(1, 9, 1, "time")], crs="EPSG:4326")
-        o = node.eval(tocrds)
+        o = node.evaluate(tocrds)
         assert o.crs == tocrds.crs
         assert_array_equal(o.data, np.linspace(0, 2, 9))
 
@@ -185,14 +185,14 @@ class TestInterpolationBehavior(object):
             source=_rand.random(size=(3, 3)), coordinates=tocrds.transform("EPSG:32618")
         )
         node = podpac.interpolators.Interpolate(source=base, interpolation="nearest")
-        o = node.eval(tocrds)
+        o = node.evaluate(tocrds)
         assert np.all((o.lat.data - tocrds["lat"].coordinates) == 0)
 
         # now check the Mixin
         node2 = podpac.core.data.array_source.Array(
             source=_rand.random(size=(3, 3)), coordinates=tocrds.transform("EPSG:32618")
         ).interpolate()
-        o = node2.eval(tocrds)
+        o = node2.evaluate(tocrds)
         assert np.all((o.lat.data - tocrds["lat"].coordinates) == 0)
 
         # now check the reverse operation
@@ -205,5 +205,5 @@ class TestInterpolationBehavior(object):
             [podpac.clinspace(39.2, 38.8, 9), podpac.clinspace(-77.3, -77.0, 9)], dims=["lat", "lon"], crs="EPSG:4326"
         )
         node3 = podpac.core.data.array_source.Array(source=_rand.random(size=(9, 9)), coordinates=srccrds).interpolate()
-        o = node3.eval(tocrds)
+        o = node3.evaluate(tocrds)
         assert np.all((o.lat.data - tocrds["lat"].coordinates) == 0)

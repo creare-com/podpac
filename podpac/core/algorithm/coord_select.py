@@ -46,7 +46,7 @@ class ModifyCoordinates(UnaryAlgorithm):
         return self.source
 
     @common_doc(COMMON_DOC)
-    def _eval(self, coordinates, output=None, _selector=None):
+    def _evaluate(self, coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -79,7 +79,7 @@ class ModifyCoordinates(UnaryAlgorithm):
                 raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
 
         outputs = {}
-        outputs["source"] = self.source.eval(self._modified_coordinates, output=output, _selector=_selector)
+        outputs["source"] = self.source.evaluate(self._modified_coordinates, output=output, _selector=_selector)
 
         if self.substitute_eval_coords:
             dims = outputs["source"].dims

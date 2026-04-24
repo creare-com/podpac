@@ -14,7 +14,7 @@ class TestTileCompositor(object):
 
         node = TileCompositor(sources=[a, b, c])
 
-        output = node.eval(podpac.Coordinates([[3.5, 4.5, 5.5]], dims=["lat"]))
+        output = node.evaluate(podpac.Coordinates([[3.5, 4.5, 5.5]], dims=["lat"]))
         np.testing.assert_array_equal(output["lat"], [3, 4, 5, 6])
         np.testing.assert_array_equal(output, [103, 104, 200, 201])
 
@@ -25,7 +25,7 @@ class TestTileCompositor(object):
 
         node = TileCompositor(sources=[a, b, c]).interpolate(interpolation="bilinear")
 
-        output = node.eval(podpac.Coordinates([[3.5, 4.5, 5.5]], dims=["lat"]))
+        output = node.evaluate(podpac.Coordinates([[3.5, 4.5, 5.5]], dims=["lat"]))
         np.testing.assert_array_equal(output["lat"], [3.5, 4.5, 5.5])
         np.testing.assert_array_equal(output, [103.5, 152.0, 200.5])
 
@@ -41,7 +41,7 @@ class TestTileCompositor(object):
 
         node = TileCompositor(sources=[a, b])
 
-        output = node.eval(podpac.Coordinates([[[3, 4, 5, 6], [3, 4, 5, 6]]], dims=["lat_lon"]))
+        output = node.evaluate(podpac.Coordinates([[[3, 4, 5, 6], [3, 4, 5, 6]]], dims=["lat_lon"]))
 
         # this is checking that the 'lat' and 'lon' multiindex names are still there
         np.testing.assert_array_equal(output["lat"], [3, 4, 5, 6])

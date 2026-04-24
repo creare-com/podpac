@@ -34,16 +34,16 @@ class TestZarr(object):
         coords = Coordinates([0, 10], dims=["lat", "lon"])
 
         a = Zarr(source=self.path, data_key="a")
-        assert a.eval(coords)[0, 0] == 0.0
+        assert a.evaluate(coords)[0, 0] == 0.0
 
         b = Zarr(source=self.path, data_key="b")
-        assert b.eval(coords)[0, 0] == 1.0
+        assert b.evaluate(coords)[0, 0] == 1.0
 
     def test_eval_multiple(self):
         coords = Coordinates([0, 10], dims=["lat", "lon"])
 
         z = Zarr(source=self.path, data_key=["a", "b"])
-        out = z.eval(coords)
+        out = z.evaluate(coords)
         assert out.dims == ("lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["a", "b"])
         assert out.sel(output="a")[0, 0] == 0.0
@@ -51,14 +51,14 @@ class TestZarr(object):
 
         # single output key
         z = Zarr(source=self.path, data_key=["a"])
-        out = z.eval(coords)
+        out = z.evaluate(coords)
         assert out.dims == ("lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["a"])
         assert out.sel(output="a")[0, 0] == 0.0
 
         # alternate output names
         z = Zarr(source=self.path, data_key=["a", "b"], outputs=["A", "B"])
-        out = z.eval(coords)
+        out = z.evaluate(coords)
         assert out.dims == ("lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["A", "B"])
         assert out.sel(output="A")[0, 0] == 0.0
@@ -66,7 +66,7 @@ class TestZarr(object):
 
         # default
         z = Zarr(source=self.path)
-        out = z.eval(coords)
+        out = z.evaluate(coords)
         assert out.dims == ("lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["a", "b"])
         assert out.sel(output="a")[0, 0] == 0.0

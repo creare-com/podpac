@@ -19,22 +19,22 @@ class TestOGR(object):
     def test_eval_uniform(self):
         node = OGR(source=self.source, driver=self.driver, layer=self.layer, attribute=self.attribute)
         coords = podpac.Coordinates([podpac.clinspace(43, 44, 10), podpac.clinspace(-73, -72, 10)], dims=["lat", "lon"])
-        _ = node.eval(coords)
+        _ = node.evaluate(coords)
 
     def test_eval_point(self):
         node = OGR(source=self.source, driver=self.driver, layer=self.layer, attribute=self.attribute)
         coords = podpac.Coordinates([43.7, -72.3], dims=["lat", "lon"])
-        _ = node.eval(coords)
+        _ = node.evaluate(coords)
 
     def test_eval_stacked(self):
         node = OGR(source=self.source, driver=self.driver, layer=self.layer, attribute=self.attribute)
         coords = podpac.Coordinates([[[43, 43.5, 43.7], [-72.0, -72.5, -72.7]]], dims=["lat_lon"])
-        _ = node.eval(coords)
+        _ = node.evaluate(coords)
 
     def test_eval_nonuniform(self):
         node = OGR(source=self.source, driver=self.driver, layer=self.layer, attribute=self.attribute)
         coords = podpac.Coordinates([[43, 43.5, 43.7], [-72.0, -72.5, -72.7]], dims=["lat", "lon"])
-        output = node.eval(coords)
+        output = node.evaluate(coords)
 
         # coordinates are resampled to be uniform
         np.testing.assert_array_equal(output["lat"], [43, 43.35, 43.7])
@@ -45,13 +45,13 @@ class TestOGR(object):
         coords = podpac.Coordinates(
             [podpac.clinspace(43, 44, 10), podpac.clinspace(-73, -72, 10), "2018-01-01"], dims=["lat", "lon", "time"]
         )
-        _ = node.eval(coords)
+        _ = node.evaluate(coords)
 
     def test_eval_missing_dims(self):
         node = OGR(source=self.source, driver=self.driver, layer=self.layer, attribute=self.attribute)
         coords = podpac.Coordinates(["2018-01-01"], dims=["time"])
         with pytest.raises(RuntimeError, match="OGR source requires lat and lon dims"):
-            _ = node.eval(coords)
+            _ = node.evaluate(coords)
 
 
 @pytest.mark.skip(reason="No test file available yet")
@@ -64,22 +64,22 @@ class TestOGR2(object):
     def test_eval_uniform(self):
         node = OGR(source=self.source, driver=self.driver, layer=self.layer, attribute=self.attribute).interpolate()
         coords = podpac.Coordinates([podpac.clinspace(43, 44, 10), podpac.clinspace(-73, -72, 10)], dims=["lat", "lon"])
-        _ = node.eval(coords)
+        _ = node.evaluate(coords)
 
     def test_eval_point(self):
         node = OGR(source=self.source, driver=self.driver, layer=self.layer, attribute=self.attribute).interpolate()
         coords = podpac.Coordinates([43.7, -72.3], dims=["lat", "lon"])
-        _ = node.eval(coords)
+        _ = node.evaluate(coords)
 
     def test_eval_stacked(self):
         node = OGR(source=self.source, driver=self.driver, layer=self.layer, attribute=self.attribute).interpolate()
         coords = podpac.Coordinates([[[43, 43.5, 43.7], [-72.0, -72.5, -72.7]]], dims=["lat_lon"])
-        _ = node.eval(coords)
+        _ = node.evaluate(coords)
 
     def test_eval_nonuniform(self):
         node = OGR(source=self.source, driver=self.driver, layer=self.layer, attribute=self.attribute).interpolate()
         coords = podpac.Coordinates([[43, 43.5, 43.7], [-72.0, -72.5, -72.7]], dims=["lat", "lon"])
-        output = node.eval(coords)
+        output = node.evaluate(coords)
 
         # coordinates are interpolated back to the requested coordinates
         np.testing.assert_array_equal(output["lat"], coords["lat"].coordinates)

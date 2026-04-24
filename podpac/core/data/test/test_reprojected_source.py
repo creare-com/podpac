@@ -44,7 +44,7 @@ class TestReprojectedSource(object):
         source = Array(source=self.data, coordinates=self.coordinates)
         with pytest.warns(DeprecationWarning):
             node = ReprojectedSource(source=source, reprojected_coordinates=source.coordinates)
-        _ = node.eval(node.coordinates)
+        _ = node.evaluate(node.coordinates)
 
     def test_source_interpolation(self):
         """test get data from reprojected source"""
@@ -93,7 +93,7 @@ class TestReprojectedSource(object):
     def test_interpolation_warning(self):
         with pytest.warns(DeprecationWarning):
             node = ReprojectedSource(source=Arange(), reprojected_coordinates=self.coordinates)
-        _ = node.eval(node.coordinates)
+        _ = node.evaluate(node.coordinates)
 
     def test_base_ref(self):
         """test base ref"""

@@ -11,10 +11,10 @@ class TestProcess(object):
     def test_mp_results_the_same(self):
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
         node = Arange()
-        o_sp = node.eval(coords)
+        o_sp = node.evaluate(coords)
 
         node_mp = Process(source=node)
-        o_mp = node_mp.eval(coords)
+        o_mp = node_mp.evaluate(coords)
 
         np.testing.assert_array_equal(o_sp.data, o_mp.data)
 
@@ -26,12 +26,12 @@ class TestProcess(object):
     def test_mp_results_the_same_set_output(self):
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
         node = Arange()
-        o_sp = node.eval(coords)
+        o_sp = node.evaluate(coords)
         output = o_sp.copy()
         output[:] = np.nan
 
         node_mp = Process(source=node)
-        _ = node_mp.eval(coords, output=output)
+        _ = node_mp.evaluate(coords, output=output)
 
         np.testing.assert_array_equal(o_sp, output)
 
@@ -41,7 +41,7 @@ class TestProcess(object):
         q = Queue()
         _f(node.json, coords.json, q, {})
         o = q.get()
-        np.testing.assert_array_equal(o, node.eval(coords))
+        np.testing.assert_array_equal(o, node.evaluate(coords))
 
     def test_f_fmt(self):
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
@@ -49,4 +49,4 @@ class TestProcess(object):
         q = Queue()
         _f(node.json, coords.json, q, {"format": "dict", "format_kwargs": {}})
         o = q.get()
-        np.testing.assert_array_equal(o["data"], node.eval(coords).to_dict()["data"])
+        np.testing.assert_array_equal(o["data"], node.evaluate(coords).to_dict()["data"])

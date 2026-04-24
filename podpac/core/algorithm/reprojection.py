@@ -89,9 +89,9 @@ class Reproject(Interpolate):
             # at the projected source coordinates because we have to set
             # self._requested_coordinates for the datasource to avoid floating point
             # lat/lon disagreement issues
-            return Node.from_definition(self.source.definition).eval(coords, output=output, _selector=selector)
+            return Node.from_definition(self.source.definition).evaluate(coords, output=output, _selector=selector)
         else:
-            return self.source.eval(coords, output=output, _selector=selector)
+            return self.source.evaluate(coords, output=output, _selector=selector)
 
     @tl.default("base_ref")
     def _default_base_ref(self):

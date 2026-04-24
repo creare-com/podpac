@@ -236,10 +236,10 @@ class WCS(DataSource):
 
         return Coordinates(coords, crs=crs)
 
-    def _eval(self, coordinates, output=None, _selector=None):
+    def _evaluate(self, coordinates, output=None, _selector=None):
         """Evaluates this node using the supplied coordinates.
 
-        This method intercepts the DataSource._eval method in order to use the requested coordinates directly when
+        This method intercepts the DataSource._evaluate method in order to use the requested coordinates directly when
         they are a uniform grid.
 
         Parameters
@@ -295,7 +295,7 @@ class WCS(DataSource):
             def selector(rsc, coordinates, index_type=None):
                 return coordinates, None
 
-            return super()._eval(coordinates, output=output, _selector=selector)
+            return super()._evaluate(coordinates, output=output, _selector=selector)
 
         # for uniform stacked, unstack to use the requested coordinates (the WCS server will interpolate)
         if (
@@ -310,7 +310,7 @@ class WCS(DataSource):
                 unstacked = unstacked.drop("alt", ignore_missing=True)  # if lat_lon_alt
                 return unstacked, None
 
-            udata = super()._eval(coordinates, output=None, _selector=selector)
+            udata = super()._evaluate(coordinates, output=None, _selector=selector)
             data = udata.data.diagonal()  # get just the stacked data
             if output is None:
                 output = self.create_output_array(coordinates, data=data)
@@ -319,7 +319,7 @@ class WCS(DataSource):
             return output
 
         # otherwise, pass-through (podpac will select and interpolate)
-        return super()._eval(coordinates, output=output, _selector=_selector)
+        return super()._evaluate(coordinates, output=output, _selector=_selector)
 
     def _get_data(self, coordinates, coordinates_index):
         """{get_data}"""

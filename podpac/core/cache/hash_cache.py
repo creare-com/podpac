@@ -73,7 +73,7 @@ class HashCache(CacheNode):
         # Pass through find_coordinates from the source
         return self.source.find_coordinates()
 
-    def eval(self, coordinates, **kwargs):
+    def evaluate(self, coordinates, **kwargs):
         """
         Evaluate the node at the given coordinates. Check the cache for the output and use it if it exists.
         Otherwise, evaluate the source node and cache the output.
@@ -141,7 +141,7 @@ class HashCache(CacheNode):
                 return data.transpose(*(coordinates).dims)
 
         # Evaluate the node
-        data = self.source.eval(coordinates, **kwargs)
+        data = self.source.evaluate(coordinates, **kwargs)
         self._from_cache = False
         self.source._from_cache = self._from_cache
 
@@ -156,7 +156,7 @@ class HashCache(CacheNode):
 
         return data
 
-    def _eval(self, coordinates, output=None, _selector=None):
+    def _evaluate(self, coordinates, output=None, _selector=None):
         pass  # Nothing to do here
 
     # -----------------------------------------------------------------------------------------------------------------

@@ -35,13 +35,13 @@ class TestH5PY(object):
 
     def test_data(self):
         node = H5PY(source=self.source, data_key=_DATA_INIT, lat_key=_COORDS_LAT, lon_key=_COORDS_LON)
-        o = node.eval(node.coordinates)
+        o = node.evaluate(node.coordinates)
         np.testing.assert_array_equal(o.data.ravel(), np.arange(12))
         node.close_dataset()
 
         # default
         node = H5PY(source=self.source, lat_key=_COORDS_LAT, lon_key=_COORDS_LON)
-        o = node.eval(node.coordinates)
+        o = node.evaluate(node.coordinates)
         np.testing.assert_array_equal(o.data.ravel(), np.arange(12))
         node.close_dataset()
 
@@ -53,7 +53,7 @@ class TestH5PY(object):
             lat_key=_COORDS_LAT,
             lon_key=_COORDS_LON,
         )
-        o = node.eval(node.coordinates)
+        o = node.evaluate(node.coordinates)
         assert o.dims == ("lat", "lon", "output")
         np.testing.assert_array_equal(o["output"], ["a", "b"])
         np.testing.assert_array_equal(o.sel(output="a").data.ravel(), np.arange(12))

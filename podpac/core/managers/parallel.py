@@ -80,7 +80,7 @@ class Parallel(Node):
     errors = tl.List()
     start_i = tl.Int(0)
 
-    def eval(self, coordinates, **kwargs):
+    def evaluate(self, coordinates, **kwargs):
         output = kwargs.get("output")
         # Make a thread pool to manage queue
         pool = ThreadPool(processes=self.number_of_workers)
@@ -157,12 +157,12 @@ class Parallel(Node):
             source = Node.from_definition(source.definition)
 
         _log.info("Submitting source {}".format(i))
-        return (source.eval(coordinates, output=out), coordinates_index)
+        return (source.evaluate(coordinates, output=out), coordinates_index)
 
 
 class ParallelAsync(Parallel):
     """
-    This class launches the parallel node evaluations in threads up to n_workers, and expects the node.eval to return
+    This class launches the parallel node evaluations in threads up to n_workers, and expects the node.evaluate to return
     quickly for parallel execution. This Node was written with aws.Lambda(eval_timeout=1.25<small>) Nodes in mind.
 
     Users can implement the `check_worker_available` method or specify the `no_worker_exception` attribute, which is an
@@ -216,7 +216,7 @@ class ParallelAsync(Parallel):
         while not success:
             if self.check_worker_available():
                 try:
-                    o = source.eval(coordinates, output=out)
+                    o = source.evaluate(coordinates, output=out)
                     success = True
                 except self.async_exception:
                     # This exception is fine and constitutes a success
@@ -287,7 +287,7 @@ class ZarrOutputMixin(tl.HasTraits):
     aws_client_kwargs = tl.Dict()
     aws_config_kwargs = tl.Dict()
 
-    def eval(self, coordinates, **kwargs):
+    def evaluate(self, coordinates, **kwargs):
         output = kwargs.get("output")
         if self.zarr_shape is None:
             self._shape = coordinates.shape
@@ -323,7 +323,7 @@ class ZarrOutputMixin(tl.HasTraits):
                 dk = dk[0]
             self._list_dir = self.zarr_node.list_dir(dk)
 
-        output = super(ZarrOutputMixin, self).eval(coordinates, output=output)
+        output = super(ZarrOutputMixin, self).evaluate(coordinates, output=output)
 
         # fill in the coordinates, this is guaranteed to be correct even if the user messed up.
         if output is not None:

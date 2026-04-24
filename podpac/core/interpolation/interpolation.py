@@ -165,7 +165,7 @@ class Interpolate(Node):
         else:
             self._interpolation = InterpolationManager(self.interpolation)
 
-    def _eval(self, coordinates, output=None, _selector=None):
+    def _evaluate(self, coordinates, output=None, _selector=None):
         """Evaluates this node using the supplied coordinates.
 
         The coordinates are mapped to the requested coordinates, interpolated if necessary, and set to
@@ -253,7 +253,7 @@ class Interpolate(Node):
         if isinstance(self._source_xr, UnitsDataArray):
             return self._source_xr
         else:
-            return self.source.eval(coordinates, output=output, _selector=selector)
+            return self.source.evaluate(coordinates, output=output, _selector=selector)
 
     def find_coordinates(self):
         """

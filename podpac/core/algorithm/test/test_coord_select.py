@@ -32,86 +32,86 @@ class MyDataSource(DataSource):
 
     def get_data(self, coordinates, slc):
         node = Arange()
-        return node.eval(coordinates)
+        return node.evaluate(coordinates)
 
 
 # TODO add assertions to tests
 class TestExpandCoordinates(object):
     def test_no_expansion(self):
         node = ExpandCoordinates(source=Arange())
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
     def test_time_expansion(self):
         node = ExpandCoordinates(source=Arange(), time=("-5,D", "0,D", "1,D"))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
     def test_spatial_expansion(self):
         node = ExpandCoordinates(source=Arange(), lat=(-1, 1, 0.1))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
     def test_time_expansion_implicit_coordinates(self):
         M_15_Y = "-15,Y"
         node = ExpandCoordinates(source=MyDataSource(), time=("-15,D", "0,D"))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
         node = ExpandCoordinates(source=MyDataSource(), time=(M_15_Y, "0,D", "1,Y"))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
         node = ExpandCoordinates(source=MyDataSource(), time=("-5,M", "0,D", "1,M"))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
         # Behaviour a little strange on these?
         node = ExpandCoordinates(source=MyDataSource(), time=(M_15_Y, "0,D", "4,Y"))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
         node = ExpandCoordinates(source=MyDataSource(), time=(M_15_Y, "0,D", "13,M"))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
         node = ExpandCoordinates(source=MyDataSource(), time=("-144,M", "0,D", "13,M"))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
     def test_spatial_expansion_ultiple_outputs(self):
         multi = Array(source=_rand.random(size=(COORDS.shape + (2,))), coordinates=COORDS, outputs=["a", "b"])
         node = ExpandCoordinates(source=multi, lat=(-1, 1, 0.1))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
 
 class TestSelectCoordinates(object):
     def test_no_expansion(self):
         node = SelectCoordinates(source=Arange())
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
     def test_time_selection(self):
         node = SelectCoordinates(source=Arange(), time=("2017-08-01", "2017-09-30", "1,D"))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
     def test_spatial_selection(self):
         node = SelectCoordinates(source=Arange(), lat=(46, 56, 1))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
     def test_time_selection_implicit_coordinates(self):
         node = SelectCoordinates(source=MyDataSource(), time=("2011-01-01", "2011-02-01"))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
         node = SelectCoordinates(source=MyDataSource(), time=("2011-01-01", "2017-01-01", "1,Y"))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
     def test_spatial_selection_multiple_outputs(self):
         multi = Array(source=_rand.random(size=(COORDS.shape + (2,))), coordinates=COORDS, outputs=["a", "b"])
         node = SelectCoordinates(source=multi, lat=(46, 56, 1))
-        node.eval(COORDS)
+        node.evaluate(COORDS)
 
 
 class TestYearSubstituteCoordinates(object):
     def test_year_substitution(self):
         node = YearSubstituteCoordinates(source=Arange(), year="2018")
-        o = node.eval(COORDS)
+        o = node.evaluate(COORDS)
         assert o.time.dt.year.data[0] == 2018
         assert not np.array_equal(o["time"], COORDS["time"].coordinates)
 
     def test_year_substitution_orig_coords(self):
         node = YearSubstituteCoordinates(source=Arange(), year="2018", substitute_eval_coords=True)
-        o = node.eval(COORDS)
+        o = node.evaluate(COORDS)
         assert o.time.dt.year.data[0] == xr.DataArray(COORDS["time"].coordinates).dt.year.data[0]
         np.testing.assert_array_equal(o["time"], COORDS["time"].coordinates)
 
@@ -123,7 +123,7 @@ class TestYearSubstituteCoordinates(object):
             ),
         ).interpolate()
         node = YearSubstituteCoordinates(source=source, year="2018")
-        o = node.eval(COORDS)
+        o = node.evaluate(COORDS)
         assert o.time.dt.year.data[0] == 2018
         assert o["time"].data != xr.DataArray(COORDS["time"].coordinates).data
 
@@ -135,7 +135,7 @@ class TestYearSubstituteCoordinates(object):
             ),
         ).interpolate()
         node = YearSubstituteCoordinates(source=source, year="2018", substitute_eval_coords=True)
-        o = node.eval(COORDS)
+        o = node.evaluate(COORDS)
         assert o.time.dt.year.data[0] == 2017
         np.testing.assert_array_equal(o["time"], COORDS["time"].coordinates)
 
@@ -144,6 +144,6 @@ class TestYearSubstituteCoordinates(object):
             source=_rand.random(size=(COORDS.shape + (2,))), coordinates=COORDS, outputs=["a", "b"]
         ).interpolate()
         node = YearSubstituteCoordinates(source=multi, year="2018")
-        o = node.eval(COORDS)
+        o = node.evaluate(COORDS)
         assert o.time.dt.year.data[0] == 2018
         assert not np.array_equal(o["time"], COORDS["time"].coordinates)

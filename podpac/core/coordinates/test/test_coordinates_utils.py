@@ -612,7 +612,7 @@ def test_add_custom_dimension():
     # Unstacked Coords, One Dimension
     c1 = podpac.Coordinates([[1, 2, 3]], ["mydim"])
     n1 = podpac.data.Array(source=[1, 2, 3], coordinates=c1)
-    data1 = n1.eval(c1)
+    data1 = n1.evaluate(c1)
     assert np.array_equal(data1.data, np.array([1, 2, 3]))
     assert "mydim" in data1.dims
 
@@ -620,7 +620,7 @@ def test_add_custom_dimension():
     c1 = podpac.Coordinates([[1, 2, 3]], ["mydim"])
     c1_interp = podpac.Coordinates([[1.9, 2, 3]], ["mydim"])
     n1 = podpac.data.Array(source=[1, 2, 3], coordinates=c1).interpolate(interpolation="nearest")
-    data1 = n1.eval(c1_interp)
+    data1 = n1.evaluate(c1_interp)
     assert np.array_equal(data1.data, np.array([2, 2, 3]))
     assert "mydim" in data1.dims
 
@@ -628,14 +628,14 @@ def test_add_custom_dimension():
     c1 = podpac.Coordinates([[1, 2, 3]], ["mydim"])
     c1_interp = podpac.Coordinates([[1.9, 2, 3]], ["mydim"])
     n1 = podpac.data.Array(source=[1, 2, 3], coordinates=c1).interpolate(interpolation="bilinear")
-    data1 = n1.eval(c1_interp)
+    data1 = n1.evaluate(c1_interp)
     assert np.array_equal(data1.data, np.array([1.9, 2, 3]))
     assert "mydim" in data1.dims
 
     # Unstacked Coords, Multiple Dimensions
     c2 = podpac.Coordinates([[1, 2], [1, 2, 3]], ["mydim", "lat"])
     n2 = podpac.data.Array(source=[[1, 2, 3], [4, 5, 6]], coordinates=c2)
-    data2 = n2.eval(c2)
+    data2 = n2.evaluate(c2)
     assert np.array_equal(data2.data, np.array([[1, 2, 3], [4, 5, 6]]))
     assert ("mydim" in data2.dims) and ("lat" in data2.dims)
 
@@ -644,7 +644,7 @@ def test_add_custom_dimension():
     assert "mydim" in c3.udims
     assert "lat" in c3.udims
     n3 = podpac.data.Array(source=[1, 2, 3], coordinates=c3)
-    data3 = n3.eval(c3)
+    data3 = n3.evaluate(c3)
     assert np.array_equal(data3.data, np.array([1, 2, 3]))
     assert "mydim_lat" in data3.dims
 
@@ -654,7 +654,7 @@ def test_add_custom_dimension():
     assert "lat" in c3.udims
     c3_interp = podpac.Coordinates([[[1.9, 2, 3], [4.9, 5, 6]]], dims=["mydim_lat"])
     n3 = podpac.data.Array(source=[1, 2, 3], coordinates=c3).interpolate(interpolation="nearest")
-    data3 = n3.eval(c3_interp)
+    data3 = n3.evaluate(c3_interp)
     assert np.array_equal(data3.data, np.array([2, 2, 3]))
     assert "mydim_lat" in data3.dims
 

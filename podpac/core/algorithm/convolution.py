@@ -139,7 +139,7 @@ class Convolution(UnaryAlgorithm):
         return exp_coords, exp_slice
 
     @common_doc(COMMON_DOC)
-    def _eval(self, coordinates: Coordinates, output=None, _selector=None):
+    def _evaluate(self, coordinates: Coordinates, output=None, _selector=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -176,7 +176,7 @@ class Convolution(UnaryAlgorithm):
             self._expanded_coordinates = expanded_coordinates
 
         # evaluate source using expanded coordinates, convolve, and then slice out original coordinates
-        source = self.source.eval(expanded_coordinates, _selector=_selector)
+        source = self.source.evaluate(expanded_coordinates, _selector=_selector)
 
         kernel_dims_u = kernel_dims
         kernel_dims = self.kernel_dims

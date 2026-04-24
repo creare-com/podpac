@@ -91,5 +91,5 @@ class TestPyDAP(object):
     def test_get_data(self):
         """test get_data function of pydap"""
         node = MockPyDAP()
-        output = node.eval(node.coordinates)
+        output = node.evaluate(node.coordinates)
         np.testing.assert_array_equal(output.values, node.data)

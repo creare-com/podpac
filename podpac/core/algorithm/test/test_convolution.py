@@ -66,9 +66,9 @@ class TestConvolution(object):
         node2d = Convolution(source=Arange(), kernel=kernel2d, kernel_dims=["lat", "lon"])
         node3d = Convolution(source=Arange(), kernel=kernel3d, kernel_dims=["lon", "lat", "time"])
 
-        node1d.eval(Coordinates([time]))
-        node2d.eval(Coordinates([lat, lon]))
-        node3d.eval(Coordinates([lat, lon, time]))
+        node1d.evaluate(Coordinates([time]))
+        node2d.evaluate(Coordinates([lat, lon]))
+        node3d.evaluate(Coordinates([lat, lon, time]))
 
     def test_eval_multiple_outputs(self):
         lat = clinspace(45, 66, 30, name="lat")
@@ -79,7 +79,7 @@ class TestConvolution(object):
             source=_rand.random(size=(coords.shape + (2,))), coordinates=coords, outputs=["a", "b"]
         ).interpolate()
         node = Convolution(source=multi, kernel=kernel, kernel_dims=["lat", "lon"]).interpolate()
-        node.eval(Coordinates([lat, lon]))
+        node.evaluate(Coordinates([lat, lon]))
 
         kernel = [[[1, 2]]]
         coords = Coordinates([lat, lon])
@@ -90,8 +90,8 @@ class TestConvolution(object):
             source=multi, kernel=kernel, kernel_dims=["lat", "lon", "output"], force_eval=True
         ).interpolate()
         node2 = Convolution(source=multi, kernel=kernel[0], kernel_dims=["lat", "lon"], force_eval=True).interpolate()
-        o1 = node1.eval(Coordinates([lat, lon]))
-        o2 = node2.eval(Coordinates([lat, lon]))
+        o1 = node1.evaluate(Coordinates([lat, lon]))
+        o2 = node2.evaluate(Coordinates([lat, lon]))
 
         assert np.any(o2.data != o1.data)
 
@@ -105,7 +105,7 @@ class TestConvolution(object):
         source = Array(source=data, coordinates=coords).interpolate()
         node = Convolution(source=source, kernel=[[1, 2, 1]], kernel_dims=["lat", "lon"]).interpolate()
 
-        node.eval(coords[8:12, 7:13])
+        node.evaluate(coords[8:12, 7:13])
 
     def test_eval_with_output_argument(self):
         lat = clinspace(45, 66, 30, name="lat")
@@ -115,7 +115,7 @@ class TestConvolution(object):
         node = Convolution(source=Arange(), kernel=[[1, 2, 1]], kernel_dims=["lat", "lon"])
 
         a = node.create_output_array(coords)
-        o = node.eval(coords, output=a)
+        o = node.evaluate(coords, output=a)
         assert_array_equal(a, o)
 
     def test_debuggable_source(self):
@@ -128,7 +128,7 @@ class TestConvolution(object):
             # normal version
             a = Arange()
             node = Convolution(source=a, kernel=[[1, 2, 1]], kernel_dims=["lat", "lon"])
-            node.eval(coords)
+            node.evaluate(coords)
 
             assert node.source is a
 
@@ -137,7 +137,7 @@ class TestConvolution(object):
 
             a = Arange()
             node = Convolution(source=a, kernel=[[1, 2, 1]], kernel_dims=["lat", "lon"])
-            node.eval(coords)
+            node.evaluate(coords)
 
             assert node.source is not a
             assert node._requested_coordinates == coords
@@ -151,7 +151,7 @@ class TestConvolution(object):
         coords = Coordinates([lat, lon])
 
         node = Convolution(source=Arange(), kernel=[[[1, 2, 1]]], kernel_dims=["time", "lat", "lon"])
-        node.eval(coords)
+        node.evaluate(coords)
 
     def test_extra_coord_dims(self):
         lat = clinspace(-0.25, 1.25, 7, name="lat")
@@ -165,7 +165,7 @@ class TestConvolution(object):
         node = Convolution(
             source=source, kernel=[[-1, 2, -1]], kernel_dims=["lat", "lon"], force_eval=True
         ).interpolate()
-        o = node.eval(coords)
+        o = node.evaluate(coords)
         assert np.all([d in ["lat", "lon"] for d in o.dims])
 
     def test_coords_order(self):
@@ -182,8 +182,8 @@ class TestConvolution(object):
         node = Convolution(
             source=source, kernel=[[-1, 2, -1]], kernel_dims=["lat", "lon"], force_eval=True
         ).interpolate()
-        o1 = node.eval(coords1)
-        o2 = node.eval(coords2)
+        o1 = node.evaluate(coords1)
+        o2 = node.evaluate(coords2)
         assert np.all(o2.data == o1.data.T)
 
     def test_missing_source_dims(self):
@@ -200,7 +200,7 @@ class TestConvolution(object):
         node = Convolution(
             source=source, kernel=[[[-1], [2], [-1]]], kernel_dims=["lat", "lon", "time"], force_eval=True
         ).interpolate()
-        o = node.eval(coords[:, 1:-1, :])
+        o = node.evaluate(coords[:, 1:-1, :])
         expected = source.source.source[:, 1:-1] * 2 - source.source.source[:, 2:] - source.source.source[:, :-2]
         assert np.abs(o.data - expected).max() < 1e-14
 
@@ -208,7 +208,7 @@ class TestConvolution(object):
         node = Convolution(
             source=source, kernel_type="mean,3", kernel_dims=["lat", "lon", "time"], force_eval=True
         ).interpolate()
-        o = node.eval(coords2[:, 1:-1])
+        o = node.evaluate(coords2[:, 1:-1])
         expected = (
             source.source.source[[1, 2, 4], 1:-1]
             + source.source.source[[0, 1, 2], 1:-1]
@@ -223,7 +223,7 @@ class TestConvolution(object):
         assert np.abs(o.data - expected).max() < 1e-14
 
         # Check to make sure array coordinates for a single coordinate is ok...
-        node.eval(coords2[0, 1:-1])
+        node.evaluate(coords2[0, 1:-1])
 
     def test_partial_source_convolution(self):
         lat = clinspace(-0.25, 1.25, 7, name="lat")
@@ -235,7 +235,7 @@ class TestConvolution(object):
         node = Convolution(
             source=source, kernel=[[-1, 2, -1]], kernel_dims=["lat", "lon"], force_eval=True
         ).interpolate()
-        o = node.eval(coords[:, 1:-1, :])
+        o = node.evaluate(coords[:, 1:-1, :])
         expected = source.source.source[:, 1:-1] * 2 - source.source.source[:, 2:] - source.source.source[:, :-2]
 
         assert np.abs(o.data - expected).max() < 1e-14

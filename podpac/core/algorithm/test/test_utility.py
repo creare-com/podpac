@@ -11,7 +11,7 @@ class TestArange(object):
     def test_Arange(self):
         coords = podpac.Coordinates([[0, 1, 2], [0, 1, 2, 3, 4]], dims=["lat", "lon"])
         node = Arange()
-        output = node.eval(coords)
+        output = node.evaluate(coords)
         assert output.shape == coords.shape
 
 
@@ -20,16 +20,16 @@ class TestCoordData(object):
         coords = podpac.Coordinates([[0, 1, 2], [0, 1, 2, 3, 4]], dims=["lat", "lon"])
 
         node = CoordData(coord_name="lat")
-        np.testing.assert_array_equal(node.eval(coords), coords["lat"].coordinates)
+        np.testing.assert_array_equal(node.evaluate(coords), coords["lat"].coordinates)
 
         node = CoordData(coord_name="lon")
-        np.testing.assert_array_equal(node.eval(coords), coords["lon"].coordinates)
+        np.testing.assert_array_equal(node.evaluate(coords), coords["lon"].coordinates)
 
     def test_invalid_dimension(self):
         coords = podpac.Coordinates([[0, 1, 2], [0, 1, 2, 3, 4]], dims=["lat", "lon"])
         node = CoordData(coord_name="time")
         with pytest.raises(ValueError):
-            node.eval(coords)
+            node.evaluate(coords)
 
 
 class TestSinCoords(object):
@@ -38,5 +38,5 @@ class TestSinCoords(object):
             [podpac.crange(-90, 90, 1.0), podpac.crange("2018-01-01", "2018-01-30", "1,D")], dims=["lat", "time"]
         )
         node = SinCoords()
-        output = node.eval(coords)
+        output = node.evaluate(coords)
         assert output.shape == coords.shape

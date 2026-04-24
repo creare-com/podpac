@@ -86,7 +86,7 @@ class OGR(Node):
         )
 
     @common_doc(COMMON_NODE_DOC)
-    def _eval(self, coordinates, output=None, _selector=None):
+    def _evaluate(self, coordinates, output=None, _selector=None):
         if "lat" not in coordinates.udims or "lon" not in coordinates.udims:
             raise RuntimeError("OGR source requires lat and lon dims")
 

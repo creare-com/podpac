@@ -44,7 +44,7 @@ class TestRasterio(object):
         """test default get_data method"""
 
         node = Rasterio(source=self.source)
-        output = node.eval(node.coordinates)
+        output = node.evaluate(node.coordinates)
         assert isinstance(output, UnitsDataArray)
 
     def test_band_count(self):

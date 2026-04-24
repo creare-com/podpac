@@ -28,7 +28,7 @@ class TestArray(object):
         """defined get_data function"""
 
         node = Array(source=self.data, coordinates=self.coordinates).interpolate()
-        output = node.eval(self.coordinates)
+        output = node.evaluate(self.coordinates)
 
         assert isinstance(output, UnitsDataArray)
         assert output.values[0, 0] == self.data[0, 0]
@@ -37,7 +37,7 @@ class TestArray(object):
     def test_get_data_multiple(self):
         data = np.random.rand(11, 11, 2)
         node = Array(source=data, coordinates=self.coordinates, outputs=["a", "b"]).interpolate()
-        output = node.eval(self.coordinates)
+        output = node.evaluate(self.coordinates)
         assert isinstance(output, UnitsDataArray)
         assert output.dims == ("lat", "lon", "output")
         np.testing.assert_array_equal(output["output"], ["a", "b"])
@@ -45,7 +45,7 @@ class TestArray(object):
         np.testing.assert_array_equal(output.sel(output="b"), data[:, :, 1])
 
         node = Array(source=data, coordinates=self.coordinates, outputs=["a", "b"], output="b")
-        output = node.eval(self.coordinates)
+        output = node.evaluate(self.coordinates)
         assert isinstance(output, UnitsDataArray)
         assert output.dims == ("lat", "lon")
         np.testing.assert_array_equal(output, data[:, :, 1])

@@ -19,7 +19,7 @@ def _f(definition, coords, q, outputkw):
     try:
         n = Node.from_json(definition)
         c = Coordinates.from_json(coords)
-        o = n.eval(c)
+        o = n.evaluate(c)
         o._pp_serialize()
         _log.debug("o.shape: {}, output_format: {}".format(o.shape, outputkw))
         if outputkw:
@@ -44,7 +44,7 @@ class Process(Node):
     def outputs(self):
         return self.source.outputs
 
-    def eval(self, coordinates, **kwargs):
+    def evaluate(self, coordinates, **kwargs):
         output = kwargs.get("output")
         definition = self.source.json
         coords = coordinates.json

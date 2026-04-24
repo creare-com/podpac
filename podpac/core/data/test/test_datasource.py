@@ -252,7 +252,7 @@ class TestDataSource(object):
         """evaluate node at coordinates"""
 
         node = MockDataSource()
-        output = node.eval(node.coordinates)
+        output = node.evaluate(node.coordinates)
 
         assert isinstance(output, UnitsDataArray)
         assert output.shape == (11, 11)
@@ -270,7 +270,7 @@ class TestDataSource(object):
     def test_evaluate_at_coordinates_with_output(self):
         node = MockDataSource()
         output = node.create_output_array(node.coordinates)
-        node.eval(node.coordinates, output=output)
+        node.evaluate(node.coordinates, output=output)
 
         assert output.shape == (11, 11)
         assert output[0, 0] == 10
@@ -280,7 +280,7 @@ class TestDataSource(object):
 
         node = MockDataSource()
         coords = Coordinates([clinspace(-55, -45, 20), clinspace(-55, -45, 20)], dims=["lat", "lon"])
-        output = node.eval(coords)
+        output = node.evaluate(coords)
 
         assert np.all(np.isnan(output))
 
@@ -289,7 +289,7 @@ class TestDataSource(object):
         node = MockDataSource()
         coords = Coordinates([clinspace(30, 40, 10), clinspace(30, 40, 10)], dims=["lat", "lon"])
         output = UnitsDataArray.create(coords, data=1)
-        node.eval(coords, output=output)
+        node.evaluate(coords, output=output)
         np.testing.assert_equal(output.data, np.full(output.shape, np.nan))
 
     def test_evaluate_extra_dims(self):
@@ -302,7 +302,7 @@ class TestDataSource(object):
 
         node = MyDataSource()
         coords = Coordinates([1, 11, "2018-01-01"], dims=["lat", "lon", "time"])
-        output = node.eval(coords)
+        output = node.evaluate(coords)
         assert output.dims == ("lat", "lon")  # time dropped
 
         # drop extra stacked dimension if none of its dimensions are needed
@@ -314,12 +314,12 @@ class TestDataSource(object):
 
         node = MyDataSource()
         coords = Coordinates([[1, 11], "2018-01-01"], dims=["lat_lon", "time"])
-        output = node.eval(coords)
+        output = node.evaluate(coords)
         assert output.dims == ("time",)  # lat_lon dropped
 
         # TODO
         # but don't drop extra stacked dimension if any of its dimensions are needed
-        # output = node.eval(Coordinates([[1, 11, '2018-01-01']], dims=['lat_lon_time']))
+        # output = node.evaluate(Coordinates([[1, 11, '2018-01-01']], dims=['lat_lon_time']))
         # assert output.dims == ('lat_lon_time') # lat and lon not dropped
 
     def test_evaluate_missing_dims(self):
@@ -328,23 +328,23 @@ class TestDataSource(object):
 
         CANNOT_EVALUATE = "Cannot evaluate these coordinates.*"
         with pytest.raises(ValueError, match=CANNOT_EVALUATE):
-            node.eval(Coordinates([1], dims=["lat"]))
+            node.evaluate(Coordinates([1], dims=["lat"]))
         with pytest.raises(ValueError, match=CANNOT_EVALUATE):
-            node.eval(Coordinates([11], dims=["lon"]))
+            node.evaluate(Coordinates([11], dims=["lon"]))
         with pytest.raises(ValueError, match=CANNOT_EVALUATE):
-            node.eval(Coordinates(["2018-01-01"], dims=["time"]))
+            node.evaluate(Coordinates(["2018-01-01"], dims=["time"]))
 
         # missing any part of stacked dimension
         node = MockDataSourceStacked()
 
         with pytest.raises(ValueError, match=CANNOT_EVALUATE):
-            node.eval(Coordinates([1], dims=["time"]))
+            node.evaluate(Coordinates([1], dims=["time"]))
 
     def test_evaluate_crs_transform(self):
         node = MockDataSource()
 
         coords = node.coordinates.transform("EPSG:2193")
-        out = node.eval(coords)
+        out = node.evaluate(coords)
 
         # test data
         np.testing.assert_array_equal(out.data, node.data)
@@ -357,7 +357,7 @@ class TestDataSource(object):
             return new_rsc, new_rsci
 
         node = MockDataSource()
-        output = node.eval(node.coordinates, _selector=selector)
+        output = node.evaluate(node.coordinates, _selector=selector)
         assert output.shape == (6, 6)
         np.testing.assert_array_equal(output["lat"].data, node.coordinates["lat"][::2].coordinates)
         np.testing.assert_array_equal(output["lon"].data, node.coordinates["lon"][::2].coordinates)
@@ -367,20 +367,20 @@ class TestDataSource(object):
 
         # none
         node = MockDataSource()
-        output = node.eval(node.coordinates)
+        output = node.evaluate(node.coordinates)
         assert np.sum(np.isnan(output)) == 1
         assert np.isnan(output[1, 1])
 
         # one value
         node = MockDataSource(nan_vals=[10])
-        output = node.eval(node.coordinates)
+        output = node.evaluate(node.coordinates)
         assert np.sum(np.isnan(output)) == 2
         assert np.isnan(output[0, 0])
         assert np.isnan(output[1, 1])
 
         # multiple values
         node = MockDataSource(nan_vals=[10, 5])
-        output = node.eval(node.coordinates)
+        output = node.evaluate(node.coordinates)
         assert np.sum(np.isnan(output)) == 3
         assert np.isnan(output[0, 0])
         assert np.isnan(output[1, 1])
@@ -392,7 +392,7 @@ class TestDataSource(object):
                 return self.data[coordinates_index]
 
         node = MockDataSourceReturnsArray()
-        output = node.eval(node.coordinates)
+        output = node.evaluate(node.coordinates)
 
         assert isinstance(output, UnitsDataArray)
         assert node.coordinates["lat"].coordinates[4] == output.coords["lat"].values[4]
@@ -403,7 +403,7 @@ class TestDataSource(object):
                 return xr.DataArray(self.data[coordinates_index])
 
         node = MockDataSourceReturnsDataArray()
-        output = node.eval(node.coordinates)
+        output = node.evaluate(node.coordinates)
 
         assert isinstance(output, UnitsDataArray)
         assert node.coordinates["lat"].coordinates[4] == output.coords["lat"].values[4]
@@ -415,7 +415,7 @@ class TestDataSource(object):
 
         node = MockDataSourceReturnsInvalid()
         with pytest.raises(TypeError, match="Unknown data type"):
-            node.eval(node.coordinates)
+            node.evaluate(node.coordinates)
 
     def test_evaluate_debug_attributes(self):
         with podpac.settings:
@@ -430,7 +430,7 @@ class TestDataSource(object):
             assert node._requested_source_boundary is None
             assert node._requested_source_data is None
 
-            node.eval(node.coordinates)
+            node.evaluate(node.coordinates)
 
             assert node._evaluated_coordinates is not None
             assert node._requested_coordinates is not None
@@ -453,7 +453,7 @@ class TestDataSource(object):
             assert node._requested_source_data is None
 
             coords = Coordinates([clinspace(-55, -45, 20), clinspace(-55, -45, 20)], dims=["lat", "lon"])
-            node.eval(coords)
+            node.evaluate(coords)
 
             assert node._evaluated_coordinates is not None
             assert node._requested_coordinates is not None
@@ -537,14 +537,14 @@ class TestDataSource(object):
             coords2 = podpac.Coordinates([range(3), range(4), "2019-09-10"], ["lat", "lon", "time"])
 
             # retrieve from cache on the second evaluation
-            node.eval(coords1)
+            node.evaluate(coords1)
             assert not node._from_cache
 
-            node.eval(coords1)
+            node.evaluate(coords1)
             assert node._from_cache
 
             # also retrieve from cache with different time coordinates
-            node.eval(coords2)
+            node.evaluate(coords2)
             assert node._from_cache
 
     def test_eval_get_cache_transform_crs(self):
@@ -558,14 +558,14 @@ class TestDataSource(object):
             ).cache(cache_type=["ram"])
 
             # retrieve from cache on the second evaluation
-            node.eval(node.source.coordinates)
+            node.evaluate(node.source.coordinates)
             assert not node._from_cache
 
-            node.eval(node.source.coordinates)
+            node.evaluate(node.source.coordinates)
             assert node._from_cache
 
             # also retrieve from cache with different crs
-            node.eval(node.source.coordinates.transform("EPSG:4326"))
+            node.evaluate(node.source.coordinates.transform("EPSG:4326"))
             assert node._from_cache
 
     def test_get_source_data(self):
@@ -630,14 +630,14 @@ class TestDataSourceWithMultipleOutputs(object):
 
         node = MockMultipleDataSource(output="a")
         coords = Coordinates([clinspace(-55, -45, 20), clinspace(-55, -45, 20)], dims=["lat", "lon"])
-        output = node.eval(coords)
+        output = node.evaluate(coords)
 
         assert np.all(np.isnan(output))
 
     def test_evaluate_extract_output(self):
         # don't extract when no output field is requested
         node = MockMultipleDataSource()
-        o = node.eval(node.coordinates)
+        o = node.evaluate(node.coordinates)
         assert o.shape == (4, 2, 3)
         np.testing.assert_array_equal(o.dims, ["lat", "lon", "output"])
         np.testing.assert_array_equal(o["output"], ["a", "b", "c"])
@@ -646,13 +646,13 @@ class TestDataSourceWithMultipleOutputs(object):
         # do extract when an output field is requested
         node = MockMultipleDataSource(output="b")
 
-        o = node.eval(node.coordinates)  # get_data case
+        o = node.evaluate(node.coordinates)  # get_data case
         assert o.shape == (4, 2)
         np.testing.assert_array_equal(o.dims, ["lat", "lon"])
         np.testing.assert_array_equal(o, 1)
 
         # no intersection case
-        o = node.eval(Coordinates([[100, 200], [1000, 2000, 3000]], dims=["lat", "lon"]))
+        o = node.evaluate(Coordinates([[100, 200], [1000, 2000, 3000]], dims=["lat", "lon"]))
         assert o.shape == (0, 0)
         np.testing.assert_array_equal(o.dims, ["lat", "lon"])
         np.testing.assert_array_equal(o, np.nan)
@@ -665,7 +665,7 @@ class TestDataSourceWithMultipleOutputs(object):
                 return out.sel(output=self.output)
 
         node = ExtractedMultipleDataSource(output="b")
-        o = node.eval(node.coordinates)
+        o = node.evaluate(node.coordinates)
         assert o.shape == (4, 2)
         np.testing.assert_array_equal(o.dims, ["lat", "lon"])
         np.testing.assert_array_equal(o, 1)
