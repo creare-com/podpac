@@ -78,6 +78,7 @@ extras_require = {
         "flake8",
         "flake8-bugbear",
         "flake8-builtins",
+        "flake8-blind-except",
     ],
 }
 
