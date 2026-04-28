@@ -1471,7 +1471,7 @@ class TestEvalExtended:
         with podpac.settings:
             podpac.settings["DEBUG"] = True
             node = MyNode()
-            out = node.eval(coords)
+            node.eval(coords)
             assert node._requested_coordinates is coords
             assert node._output is not None
 
@@ -1558,9 +1558,7 @@ class TestNodeConvenienceMethods:
             node.cache(node_type="zarr")
 
     def test_cache_zarr_with_coordinates(self):
-        node = podpac.data.Array(
-            source=[1, 2, 3], coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"])
-        )
+        node = podpac.data.Array(source=[1, 2, 3], coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
         result = node.cache(node_type="zarr", cache_type="ram")
         assert isinstance(result, podpac.caches.ZarrCache)
 
