@@ -11,7 +11,7 @@ from podpac import settings
 class MockPyDAP(PyDAP):
     """mock pydap data source"""
 
-    source = "http://demo.opendap.org"
+    source = "https://demo.opendap.org"
     data_key = "key"
     data = np.random.rand(11, 11)
 
@@ -28,7 +28,7 @@ class MockPyDAP(PyDAP):
 class TestPyDAP(object):
     """test pydap datasource"""
 
-    source = "http://demo.opendap.org"
+    source = "https://demo.opendap.org"
     data_key = "key"
 
     def test_init(self):

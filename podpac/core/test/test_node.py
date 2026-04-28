@@ -929,7 +929,7 @@ class TestSerialization(object):
 
     def test_from_url(self):
         url = (
-            r"http://testwms/?map=map&&service={service}&request=GetMap&{layername}={layer}&styles=&format=image%2Fpng"
+            r"https://testwms/?map=map&&service={service}&request=GetMap&{layername}={layer}&styles=&format=image%2Fpng"
             r"&transparent=true&version=1.1.1&transparency=true&width=256&height=256&srs=EPSG%3A4326"
             r"&bbox=40,-71,41,70&time=2018-05-19&PARAMS={params}"
         )
@@ -1679,7 +1679,7 @@ class TestSerializationExtended:
 class TestFromUrlExtended:
     def test_from_url_no_params(self):
         url = (
-            "http://test/?SERVICE=WMS&REQUEST=GetMap&LAYERS=algorithm.Arange"
+            "https://test/?SERVICE=WMS&REQUEST=GetMap&LAYERS=algorithm.Arange"
             "&WIDTH=256&HEIGHT=256&BBOX=40,-71,41,70&SRS=EPSG:4326"
         )
         node = Node.from_url(url)

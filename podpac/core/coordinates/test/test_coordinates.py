@@ -384,7 +384,7 @@ class TestCoordinateCreation(object):
         crds2 = crds.transform("EPSG:3857")
 
         url = (
-            r"http://testwms/?map=map&&service=WMS&request=GetMap&layers=layer&styles=&format=image%2Fpng"
+            r"https://testwms/?map=map&&service=WMS&request=GetMap&layers=layer&styles=&format=image%2Fpng"
             r"&transparent=true&version={version}&transparency=true&width=128&height=256&srs=EPSG%3A{epsg}"
             r"&bbox={},{},{},{}&time={}"
         )
@@ -457,7 +457,7 @@ class TestCoordinateCreation(object):
         crds2 = crds.transform("EPSG:3857")
 
         url = (
-            r"http://testwms/?map=map&&service=WCS&request=GetMap&layers=layer&styles=&format=image%2Fpng"
+            r"https://testwms/?map=map&&service=WCS&request=GetMap&layers=layer&styles=&format=image%2Fpng"
             r"&transparent=true&version={version}&transparency=true&width=128&height=256&srs=EPSG%3A{epsg}"
             r"&bbox={},{},{},{}&time={}"
         )
