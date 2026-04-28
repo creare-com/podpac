@@ -27,11 +27,11 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: "3.7"
+          python-version: "3.12"
 
       - name: Install Dependencies
         run: |
-          pip install --upgrade pip setuptools && pip install podpac[devall]
+          pip install --upgrade pip setuptools && pip install .[devall]
 
       - name: Run Doctest
         run: |
@@ -73,11 +73,11 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: "3.7"
+          python-version: "3.12"
 
       - name: Install Dependencies
         run: |
-          pip install --upgrade pip setuptools && pip install podpac[devall]
+          pip install --upgrade pip setuptools && pip install .[devall]
 
       - name: Run Document Deployment
         env:
