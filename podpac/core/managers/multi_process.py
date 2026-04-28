@@ -17,8 +17,8 @@ _log = logging.getLogger(__name__)
 
 def _f(definition, coords, q, outputkw):
     try:
-        n = Node.from_json(definition)
-        c = Coordinates.from_json(coords)
+        n: Node = Node.from_json(definition)
+        c: Coordinates = Coordinates.from_json(coords)
         o = n.eval(c)
         o._pp_serialize()
         _log.debug("o.shape: {}, output_format: {}".format(o.shape, outputkw))
@@ -26,7 +26,8 @@ def _f(definition, coords, q, outputkw):
             _log.debug("Saving output results to output format {}".format(outputkw))
             o = o.to_format(outputkw["format"], **outputkw.get("format_kwargs"))
         q.put(o)
-    except Exception as e:
+    # Note: this will permit KeyboardError, SystemExit, and other un-anticipated errors to end the thread.
+    except (ValueError, TypeError, RuntimeError, AttributeError, ImportError, KeyError) as e:
         q.put(str(e))
 
 
