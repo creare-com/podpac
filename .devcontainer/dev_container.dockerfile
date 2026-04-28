@@ -1,8 +1,6 @@
-FROM python:3.8 
-# FROM python:3.12
+FROM python:3.12
 
 USER root
-RUN pip3 install pytest pytest-cov
 
 # Set up user to match the host OS (https://stackoverflow.com/a/78621662/415551)
 # Ubuntu uses addgroup and adduser, RHEL uses groupadd and useradd

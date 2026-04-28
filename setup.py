@@ -45,7 +45,7 @@ extras_require = {
         "zarr>=2.3,<3",
         "owslib",
         "h5netcdf",
-        # "intake>=0.5"  Not supported in Python 3.5
+        "intake>=0.5.1",
     ],
     "aws": ["awscli>=1.16", "boto3>=1.9.200", "s3fs>=0.4"],
     "algorithms": ["numexpr>=2.6"],
@@ -58,10 +58,6 @@ extras_require = {
         "nodejs",
         #'cartopy'
     ],
-    "stac": [
-        "sat-search>=0.2",
-        "sat-stac>=0.3",
-    ],
     "node_ui": ["numpydoc"],
     "dev": [
         "pylint>=1.8.2",
@@ -72,28 +68,18 @@ extras_require = {
         "six>=1.0",
         "attrs>=17.4.0",
         "pre_commit>=1",
-    ],
-}
-
-if sys.version_info.major == 2:
-    extras_require["dev"] += ["pytest>=3.3.2"]
-else:
-    extras_require["dev"] += [
         "sphinx>=2.3",
         "sphinx-rtd-theme>=0.4",
         "sphinx-autobuild>=0.7",
         "pytest>=5.0",
+        "pytest-cov",
         "numpydoc",
-    ]
-
-if sys.version_info[0:2] >= (3, 6):
-    extras_require["dev"] += [
         "black",
         "flake8",
         "flake8-bugbear",
         "flake8-builtins",
-    ]
-    extras_require["intake"] = ["intake>=0.5.1"]
+    ],
+}
 
 # set long description to readme
 with open("README.MD") as f:
@@ -127,7 +113,7 @@ setup(
     author="Creare",
     url="https://podpac.org",
     license="APACHE 2.0",
-    python_requires=">=3.7",
+    python_requires=">=3.12",
     classifiers=[
         # How mature is this project? Common values are
         # 3 - Alpha

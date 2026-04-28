@@ -1937,7 +1937,7 @@ def create_function(
     awslambda = session.client("lambda")
 
     lambda_config = {
-        "Runtime": "python3.7",
+        "Runtime": "python3.12",
         "FunctionName": function_name,
         "Publish": True,
         "Role": function_role_arn,
