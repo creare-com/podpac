@@ -12,7 +12,7 @@ import numpy as np
 from multiprocessing.pool import ThreadPool
 
 from podpac.core.managers.multi_threading import Lock
-from podpac.core.node import Node
+from podpac.core.node import Node, NodeException
 from podpac.core.utils import NodeTrait
 from podpac.core.data.zarr_source import Zarr
 from podpac.core.coordinates import Coordinates, merge_dims
@@ -124,7 +124,18 @@ class Parallel(Node):
             # Try to get the results / wait for the results
             try:
                 o, slc = res.get()
-            except Exception as e:
+            except (
+                NodeException,
+                ValueError,
+                KeyError,
+                IndexError,
+                TypeError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                ImportError,
+                ArithmeticError,
+            ) as e:
                 o = None
                 slc = None
                 self.errors.append((i, res, e))

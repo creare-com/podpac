@@ -253,7 +253,7 @@ class StackedCoordinates(BaseCoordinates):
     def __contains__(self, item):
         try:
             item = np.array([make_coord_value(value) for value in item])
-        except Exception:
+        except (TypeError, ValueError):
             return False
 
         if len(item) != len(self._coords):

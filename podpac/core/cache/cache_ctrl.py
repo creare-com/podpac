@@ -70,7 +70,7 @@ def make_cache_ctrl(names):
         try:
             cache_store = _CACHE_STORES[name]()
             cache_stores.append(cache_store)
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError, CacheException) as e:
             _logger.warning("Cannot create cache_store of type {} -- error={}".format(name, e))
 
     return CacheCtrl(cache_stores)

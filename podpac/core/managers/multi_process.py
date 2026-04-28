@@ -62,7 +62,7 @@ class Process(Node):
         if (sys.version_info.major + sys.version_info.minor / 10.0) >= 3.7:
             process.close()  # New in version Python 3.7
         if isinstance(o, str):
-            raise Exception(o)
+            raise RuntimeError(o)
         if o is None:
             return
         o._pp_deserialize()

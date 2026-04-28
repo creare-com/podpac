@@ -91,7 +91,7 @@ class Coordinates1d(BaseCoordinates):
     def __contains__(self, item):
         try:
             item = make_coord_value(item)
-        except Exception:
+        except (TypeError, ValueError):
             return False
 
         if type(item) != self.dtype:

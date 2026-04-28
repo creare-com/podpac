@@ -499,7 +499,7 @@ class Coordinates(tl.HasTraits):
                 crs = pyproj.CRS(coords["crs"])
                 if crs.axis_info[0].direction != "north":
                     r = -1
-            except Exception:
+            except pyproj.exceptions.CRSError:
                 pass
         else:
             r = 1

@@ -534,7 +534,7 @@ class Lambda(Node):
         def _raise(msg):
             _log.debug(msg)
             if raise_exceptions:
-                raise Exception(msg)
+                raise RuntimeError(msg)
             else:
                 return False
 
@@ -2518,7 +2518,7 @@ def get_api(session, api_name, api_endpoint=None):
     try:
         response = apigateway.get_stages(restApiId=api["id"])
         api["stage"] = response["item"][0]["stageName"] if len(response["item"]) else None
-    except Exception:  # TODO: make this more specific?
+    except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError, KeyError, IndexError):
         pass
 
     # get resources

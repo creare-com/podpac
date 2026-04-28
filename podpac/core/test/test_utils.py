@@ -835,8 +835,10 @@ class TestGetParam:
 
 class TestGetFromUrl:
     def test_raise_requests_error(self):
+        from requests.exceptions import ConnectionError as RequestsConnectionError
+
         mock_requests = MagicMock()
-        mock_requests.get.side_effect = Exception("Test Connection Error")
+        mock_requests.get.side_effect = RequestsConnectionError("Test Connection Error")
 
         with patch("podpac.core.utils.requests", mock_requests):
             ret = _get_from_url("TEST/URL", None)

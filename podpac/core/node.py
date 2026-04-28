@@ -1092,7 +1092,7 @@ class Node(tl.HasTraits):
                     "key": attrt._key_trait.__class__.__name__,
                     "value": attrt._value_trait.__class__.__name__,
                 }
-            except Exception:
+            except AttributeError:
                 _logger.exception(f"Could not find schema for {attrt} of type {type_}")
                 schema = None
 
@@ -1107,7 +1107,7 @@ class Node(tl.HasTraits):
         try:
             if np.isnan(default_val):
                 default_val = "nan"
-        except Exception:
+        except (TypeError, ValueError):
             pass
 
         if default_val == tl.Undefined:
@@ -1165,14 +1165,14 @@ class Node(tl.HasTraits):
             try:
                 try:
                     def_val = atr(cls())
-                except Exception:
+                except (TypeError, AttributeError, tl.TraitError):
                     def_val = atr(cls)
                 if isinstance(def_val, NodeTrait):
                     def_val = def_val.name
                     print("Changing Nodetrait to string")
                 # if "NodeTrait" not in str(atr(cls)):
                 function_defaults[atr.trait_name] = def_val
-            except Exception:
+            except (TypeError, AttributeError, ValueError, KeyError, tl.TraitError, NodeException):
                 _logger.warning(
                     "For node {}: Failed to generate default from function for trait {}".format(
                         cls.__name__, atr.trait_name
@@ -1193,7 +1193,7 @@ class Node(tl.HasTraits):
         try:
             # This returns the
             style_json = json.loads(cls().style.json)  # load the style from the cls
-        except Exception:
+        except (TypeError, ValueError, AttributeError, tl.TraitError, NodeException):
             style_json = {}
 
         spec["style"] = style_json  # this does not work, because node not created yet?
@@ -1355,10 +1355,10 @@ def _compute_style_class(d, node_class, name):
                 continue
             try:
                 style_class = atr(node_class)
-            except Exception:
+            except (TypeError, AttributeError, tl.TraitError):
                 try:
                     style_class = atr(node_class())
-                except Exception:
+                except (TypeError, AttributeError, tl.TraitError):
                     style_class = style_class.klass
     return style_class
 
@@ -1422,7 +1422,7 @@ def _process_kwargs(name, d, definition, nodes):
         style_class = _compute_style_class(d, node_class, name)
         try:
             kwargs["style"] = style_class.from_definition(d["style"])
-        except Exception:
+        except (TypeError, ValueError, KeyError, AttributeError, tl.TraitError):
             kwargs["style"] = Style.from_definition(d["style"])
 
     for k in d:

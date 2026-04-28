@@ -161,7 +161,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
             key = self.data_key[0]
         try:
             return self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
-        except Exception:
+        except (KeyError, AttributeError):
             lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
             return [lookup[key] for key in self.dataset if key in lookup]
 

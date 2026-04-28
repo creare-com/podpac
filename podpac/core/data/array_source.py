@@ -57,7 +57,7 @@ class Array(DataSource):
     def _validate_source(self, d):
         try:
             d["value"].astype(float)
-        except Exception:
+        except (TypeError, ValueError):
             raise ValueError("Array 'source' data must be numerical")
         return d["value"]
 

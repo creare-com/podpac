@@ -212,7 +212,7 @@ class UnitsDataArray(xr.DataArray):
         else:
             try:
                 getattr(self, "to_" + format)(*args, **kwargs)
-            except Exception:
+            except AttributeError:
                 raise NotImplementedError("Format {} is not implemented.".format(format))
         self._pp_deserialize()
         return r

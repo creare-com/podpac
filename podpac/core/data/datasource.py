@@ -365,7 +365,7 @@ class DataSource(Node):
             except KeyError:
                 # 'output' does not exist in the data, so outputs should be empty
                 outputs = []
-            except Exception:
+            except (AttributeError, TypeError, ValueError):
                 outputs = self.outputs
             coords = Coordinates.from_xarray(output, crs=output.attrs.get("crs", None))
             # the coords.transform in the next line can cause floating point discrepancies between

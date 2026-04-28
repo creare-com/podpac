@@ -76,7 +76,7 @@ class H5PY(FileKeysMixin, BaseFileSource):
             else:
                 key = self.data_key[0]
             return self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
-        except Exception:
+        except (KeyError, AttributeError):
             lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
 
             # make sure array_dim key is in self.keys

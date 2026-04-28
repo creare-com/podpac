@@ -574,7 +574,7 @@ class TestS3CacheStore(FileCacheStoreTests):
         try:
             store = S3CacheStore()
             store._rmtree(self.test_cache_dir)
-        except Exception:
+        except (OSError, CacheException):
             pass
 
         super(TestS3CacheStore, self).teardown_method()
