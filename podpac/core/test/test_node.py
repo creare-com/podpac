@@ -1451,6 +1451,395 @@ class TestUserDefinition(object):
             Node.from_json(wrong_name_json)
 
 
+class TestPropertyCacheCtrlDefault:
+    def test_property_cache_ctrl_with_type(self):
+        node = Node(property_cache_type="ram")
+        assert node.property_cache_ctrl is not None
+
+    def test_property_cache_ctrl_with_list_type(self):
+        node = Node(property_cache_type=["ram"])
+        assert node.property_cache_ctrl is not None
+
+
+class TestEvalExtended:
+    def test_eval_debug_stores_coordinates_and_output(self):
+        class MyNode(Node):
+            def _eval(self, coordinates, output=None, _selector=None):
+                return self.create_output_array(coordinates)
+
+        coords = podpac.Coordinates([[0, 1, 2]], dims=["lat"])
+        with podpac.settings:
+            podpac.settings["DEBUG"] = True
+            node = MyNode()
+            out = node.eval(coords)
+            assert node._requested_coordinates is coords
+            assert node._output is not None
+
+    def test_eval_adds_units_to_output(self):
+        class MyNode(Node):
+            def _eval(self, coordinates, output=None, _selector=None):
+                return self.create_output_array(coordinates)
+
+        coords = podpac.Coordinates([[0, 1, 2]], dims=["lat"])
+        node = MyNode(units="meters")
+        out = node.eval(coords)
+        assert "units" in out.attrs
+
+    def test_eval_adds_crs_when_missing_from_data(self):
+        from podpac.core.units import UnitsDataArray
+
+        class MyNode(Node):
+            def _eval(self, coordinates, output=None, _selector=None):
+                arr = self.create_output_array(coordinates)
+                new_attrs = {k: v for k, v in arr.attrs.items() if k != "crs"}
+                return UnitsDataArray(arr.data, coords=arr.coords, dims=arr.dims, attrs=new_attrs)
+
+        coords = podpac.Coordinates([[0, 1, 2]], dims=["lat"])
+        node = MyNode()
+        out = node.eval(coords)
+        assert "crs" in out.attrs
+        assert out.attrs["crs"] == coords.crs
+
+
+class TestCreateOutputArrayExtended:
+    def test_create_output_array_with_existing_attrs(self):
+        c = podpac.Coordinates([[0, 1, 2]], dims=["lat"])
+        node = Node()
+        custom_style = Style(name="custom")
+        attrs = {"layer_style": custom_style, "crs": "EPSG:4326"}
+        out = node.create_output_array(c, attrs=attrs)
+        assert out.attrs["layer_style"] is custom_style
+        assert out.attrs["crs"] == "EPSG:4326"
+
+    def test_create_output_array_empty_outputs_treated_as_none(self):
+        c = podpac.Coordinates([[0, 1, 2]], dims=["lat"])
+        node = Node()
+        out = node.create_output_array(c, outputs=[])
+        assert "output" not in out.dims
+
+    def test_create_output_array_explicit_outputs(self):
+        c = podpac.Coordinates([[0, 1, 2]], dims=["lat"])
+        node = Node()
+        out = node.create_output_array(c, outputs=["a", "b"])
+        assert "output" in out.dims
+
+    def test_create_output_array_with_units_attr(self):
+        c = podpac.Coordinates([[0, 1, 2]], dims=["lat"])
+        node = Node(units="meters")
+        out = node.create_output_array(c)
+        assert "units" in out.attrs
+
+
+class TestNodeConvenienceMethods:
+    def test_probe(self):
+        node = podpac.algorithm.Arange()
+        result = node.probe(lat=0, lon=0)
+        assert isinstance(result, dict)
+
+    def test_interpolate(self):
+        node = podpac.algorithm.Arange()
+        result = node.interpolate()
+        assert isinstance(result, podpac.interpolators.Interpolate)
+        assert result.source is node
+
+    def test_interpolate_custom_method(self):
+        node = podpac.algorithm.Arange()
+        result = node.interpolate(interpolation="bilinear")
+        assert result.interpolation == "bilinear"
+
+    def test_cache_with_uid(self):
+        node = Node()
+        cache_node = node.cache(uid="test_uid", cache_type="ram")
+        assert cache_node.cache_uid == "test_uid"
+
+    def test_cache_zarr_raises_without_coordinates(self):
+        node = Node()
+        with pytest.raises(ValueError, match="Cannot use ZarrCache without coordinates"):
+            node.cache(node_type="zarr")
+
+    def test_cache_zarr_with_coordinates(self):
+        node = podpac.data.Array(
+            source=[1, 2, 3], coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"])
+        )
+        result = node.cache(node_type="zarr", cache_type="ram")
+        assert isinstance(result, podpac.caches.ZarrCache)
+
+    def test_cache_invalid_node_type(self):
+        node = Node()
+        with pytest.raises(ValueError, match="Invalid cache type"):
+            node.cache(node_type="invalid_type")
+
+    def test_cache_with_cache_ctrl_list(self):
+        node = Node()
+        cache_node = node.cache(cache_type="ram", cache_ctrl=["ram"])
+        assert cache_node is not None
+
+
+class TestPropertyCacheMethods:
+    def test_get_property_cache_not_found(self):
+        node = Node(property_cache_type="ram")
+        with pytest.raises(NodeException, match="cached data not found"):
+            node.get_property_cache("missing_key")
+
+    def test_get_put_property_cache(self):
+        node = Node(property_cache_type="ram")
+        node.put_property_cache("my_data", "key1")
+        assert node.get_property_cache("key1") == "my_data"
+
+    def test_has_property_cache_none_ctrl(self):
+        node = Node()
+        node.property_cache_ctrl = None
+        assert not node.has_property_cache("key")
+
+    def test_has_property_cache(self):
+        node = Node(property_cache_type="ram")
+        assert not node.has_property_cache("key")
+        node.put_property_cache("data", "key")
+        assert node.has_property_cache("key")
+
+    def test_put_property_cache_none_ctrl(self):
+        node = Node()
+        node.property_cache_ctrl = None
+        node.put_property_cache("data", "key")  # should return without error
+
+    def test_put_property_cache_no_overwrite_raises(self):
+        node = Node(property_cache_type="ram")
+        node.put_property_cache("data1", "key")
+        with pytest.raises(NodeException, match="Cached data already exists"):
+            node.put_property_cache("data2", "key", overwrite=False)
+
+    def test_rem_property_cache_none_ctrl(self):
+        node = Node()
+        node.property_cache_ctrl = None
+        node.rem_property_cache("key")  # should return without error
+
+    def test_rem_property_cache(self):
+        node = Node(property_cache_type="ram")
+        node.put_property_cache("data", "key")
+        assert node.has_property_cache("key")
+        node.rem_property_cache("key")
+        assert not node.has_property_cache("key")
+
+
+class TestSerializationExtended:
+    def test_base_definition_custom_style_subclass(self):
+        class CustomStyle(Style):
+            pass
+
+        node = Node(style=CustomStyle())
+        d = node._base_definition
+        assert "style_class" in d
+
+    def test_hash_omit_style_class(self):
+        class CustomStyle(Style):
+            pass
+
+        n1 = Node(style=CustomStyle())
+        n2 = Node()
+        assert n1.hash == n2.hash
+
+    def test_from_definition_with_invalid_style_class_module(self):
+        s = """
+        {
+            "a": {
+                "node": "algorithm.Arange",
+                "style": {"name": "test"},
+                "style_class": "nonexistent_module_xyz.Style"
+            }
+        }
+        """
+        with pytest.raises(ValueError, match="Invalid definition for style module"):
+            Node.from_json(s)
+
+    def test_from_definition_with_invalid_style_class_name(self):
+        s = """
+        {
+            "a": {
+                "node": "algorithm.Arange",
+                "style": {"name": "test"},
+                "style_class": "podpac.core.style.NonExistentStyleClass"
+            }
+        }
+        """
+        with pytest.raises(ValueError, match="style class.*not found in style module"):
+            Node.from_json(s)
+
+    def test_from_definition_with_valid_style_class(self):
+        s = """
+        {
+            "a": {
+                "node": "algorithm.Arange",
+                "style": {"name": "test"},
+                "style_class": "podpac.core.style.Style"
+            }
+        }
+        """
+        node = Node.from_json(s)
+        assert node.style.name == "test"
+
+
+class TestFromUrlExtended:
+    def test_from_url_no_params(self):
+        url = (
+            "http://test/?SERVICE=WMS&REQUEST=GetMap&LAYERS=algorithm.Arange"
+            "&WIDTH=256&HEIGHT=256&BBOX=40,-71,41,70&SRS=EPSG:4326"
+        )
+        node = Node.from_url(url)
+        assert isinstance(node, podpac.algorithm.Arange)
+
+    def test_from_url_with_dict_url_and_dict_params(self):
+        url = {"SERVICE": "WMS", "LAYERS": "algorithm.Arange", "PARAMS": {}}
+        node = Node.from_url(url)
+        assert isinstance(node, podpac.algorithm.Arange)
+
+
+class TestGetUISpec:
+    def test_get_ui_spec_basic(self):
+        spec = Node.get_ui_spec()
+        assert "help" in spec
+        assert "module" in spec
+        assert "attrs" in spec
+        assert "style" in spec
+
+    def test_get_ui_spec_no_docstring(self):
+        class MyUndocumentedNode(Node):
+            pass
+
+        MyUndocumentedNode.__doc__ = None
+        spec = MyUndocumentedNode.get_ui_spec()
+        assert spec["help"] == "No help text to display."
+
+    def test_get_ui_spec_union_trait(self):
+        class MyNode(Node):
+            """Test node"""
+
+            my_union = tl.Union([tl.Int(), tl.Unicode()], default_value=0).tag(attr=True)
+
+        spec = MyNode.get_ui_spec()
+        assert "my_union" in spec["attrs"]
+        assert isinstance(spec["attrs"]["my_union"]["type"], list)
+
+    def test_get_ui_spec_instance_node_trait(self):
+        class MyNode(Node):
+            """Test node"""
+
+            my_input = tl.Instance(Node, allow_none=True).tag(attr=True)
+
+        spec = MyNode.get_ui_spec()
+        assert spec["attrs"]["my_input"]["type"] == "NodeTrait"
+
+    def test_get_ui_spec_instance_non_node_trait(self):
+        from podpac.core.coordinates import Coordinates
+
+        class MyNode(Node):
+            """Test node"""
+
+            my_coords = tl.Instance(Coordinates, allow_none=True).tag(attr=True)
+
+        spec = MyNode.get_ui_spec()
+        assert spec["attrs"]["my_coords"]["type"] == "Coordinates"
+
+    def test_get_ui_spec_dict_trait(self):
+        class MyNode(Node):
+            """Test node"""
+
+            my_dict = tl.Dict().tag(attr=True)
+
+        spec = MyNode.get_ui_spec()
+        assert spec["attrs"]["my_dict"]["type"] == "Dict"
+
+    def test_get_ui_spec_nan_default(self):
+        class MyNode(Node):
+            """Test node"""
+
+            my_float = tl.Float(np.nan).tag(attr=True)
+
+        spec = MyNode.get_ui_spec()
+        assert spec["attrs"]["my_float"]["default"] == "nan"
+
+    def test_get_ui_spec_with_function_default(self):
+        class MyNode(Node):
+            """Test node"""
+
+            my_val = tl.Unicode().tag(attr=True)
+
+            @tl.default("my_val")
+            def _default_my_val(self):
+                return "computed_default"
+
+        spec = MyNode.get_ui_spec()
+        assert spec["attrs"]["my_val"]["default"] == "computed_default"
+
+    def test_get_ui_spec_arange(self):
+        spec = podpac.algorithm.Arange.get_ui_spec()
+        assert isinstance(spec, dict)
+        assert "help" in spec
+
+
+class TestLookupFunctions:
+    def test_lookup_attr_list_value(self):
+        from podpac.core.node import _lookup_attr
+
+        nodes = OrderedDict()
+        nodes["a"] = podpac.algorithm.CoordData(coord_name="lat")
+        result = _lookup_attr(nodes, "b", ["a.coord_name"])
+        assert result == ["lat"]
+
+    def test_lookup_attr_dict_value(self):
+        from podpac.core.node import _lookup_attr
+
+        nodes = OrderedDict()
+        nodes["a"] = podpac.algorithm.CoordData(coord_name="lat")
+        result = _lookup_attr(nodes, "b", {"key": "a.coord_name"})
+        assert result == {"key": "lat"}
+
+    def test_lookup_attr_debug_deepcopy(self):
+        from podpac.core.node import _lookup_attr
+
+        nodes = OrderedDict()
+        node_a = podpac.algorithm.Arange()
+        nodes["a"] = node_a
+
+        with podpac.settings:
+            podpac.settings["DEBUG"] = True
+            result = _lookup_attr(nodes, "b", "a")
+            assert result == node_a
+            assert result is not node_a
+
+    def test_lookup_input_debug_deepcopy(self):
+        from podpac.core.node import _lookup_input
+
+        arange = podpac.algorithm.Arange()
+        nodes = OrderedDict()
+        nodes["Arange"] = arange
+
+        with podpac.settings:
+            podpac.settings["DEBUG"] = True
+            result = _lookup_input(nodes, "test", "Arange", {})
+            assert result == arange
+            assert result is not arange
+
+    def test_debuggable_inputs(self):
+        s = """
+        {
+            "Arange": {"node": "algorithm.Arange"},
+            "Min": {
+                "node": "algorithm.Min",
+                "inputs": {"source": "Arange"}
+            }
+        }
+        """
+        with podpac.settings:
+            podpac.settings["DEBUG"] = False
+            node = Node.from_json(s)
+            assert node.source is node.source
+
+            podpac.settings["DEBUG"] = True
+            node = Node.from_json(s)
+            # In debug mode, inputs should be deepcopied
+            assert node is not None
+
+
 @pytest.mark.integration
 def tests_node_integration():
     # This is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)
