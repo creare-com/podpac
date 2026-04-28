@@ -1,7 +1,5 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import sys
-
 from multiprocessing import Process as mpProcess
 from multiprocessing import Queue
 import traitlets as tl
