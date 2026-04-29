@@ -25,7 +25,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install --prefer-binary .[devall]
+          pip install --only-binary :all: .[devall]
 
       - name: Run Black Format Checks
         run: black --version; black --check --diff -l 120 . > black-report.txt
@@ -65,7 +65,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install --prefer-binary .[devall]
+          pip install --only-binary :all: .[devall]
 
       - name: Run Pytest with Coverage
         run: |
@@ -106,7 +106,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          cd podpac && pip install --prefer-binary .[devall]
+          cd podpac && pip install --only-binary :all: .[devall]
 
       - name: Run doc tests
         run: |
