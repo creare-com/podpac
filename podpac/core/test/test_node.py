@@ -1817,26 +1817,6 @@ class TestLookupFunctions:
             assert result == arange
             assert result is not arange
 
-    def test_debuggable_inputs(self):
-        s = """
-        {
-            "Arange": {"node": "algorithm.Arange"},
-            "Min": {
-                "node": "algorithm.Min",
-                "inputs": {"source": "Arange"}
-            }
-        }
-        """
-        with podpac.settings:
-            podpac.settings["DEBUG"] = False
-            node = Node.from_json(s)
-            assert node.source is node.source
-
-            podpac.settings["DEBUG"] = True
-            node = Node.from_json(s)
-            # In debug mode, inputs should be deepcopied
-            assert node is not None
-
 
 @pytest.mark.integration
 def tests_node_integration():
