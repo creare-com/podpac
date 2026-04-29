@@ -379,7 +379,7 @@ class TestRamCacheStore(BaseCacheStoreTests):
         from podpac.core.cache.ram_cache_store import _thread_local
 
         if hasattr(_thread_local, "cache"):
-            delattr(_thread_local, "cache")
+            del _thread_local.cache
 
     def teardown_method(self):
         super(TestRamCacheStore, self).teardown_method()
@@ -387,7 +387,7 @@ class TestRamCacheStore(BaseCacheStoreTests):
         from podpac.core.cache.ram_cache_store import _thread_local
 
         if hasattr(_thread_local, "cache"):
-            delattr(_thread_local, "cache")
+            del _thread_local.cache
 
     @pytest.mark.skip(reason="not testable")
     def test_size(self):
@@ -574,7 +574,7 @@ class TestS3CacheStore(FileCacheStoreTests):
         try:
             store = S3CacheStore()
             store._rmtree(self.test_cache_dir)
-        except Exception:
+        except (OSError, CacheException):
             pass
 
         super(TestS3CacheStore, self).teardown_method()

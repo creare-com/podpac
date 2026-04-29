@@ -747,10 +747,7 @@ class InterpolationTrait(tl.Union):
     default_value = INTERPOLATION_DEFAULT
 
     # .tag(attr=True, required=True, default = "linear")
-    def __init__(
-        self,
-        trait_types=[tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(InterpolationManager)],
-        *args,
-        **kwargs
-    ):
-        super(InterpolationTrait, self).__init__(trait_types=trait_types, *args, **kwargs)
+    def __init__(self, trait_types=None, *args, **kwargs):
+        if trait_types is None:
+            trait_types = [tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(InterpolationManager)]
+        super(InterpolationTrait, self).__init__(*args, trait_types=trait_types, **kwargs)

@@ -78,6 +78,7 @@ extras_require = {
         "flake8",
         "flake8-bugbear",
         "flake8-builtins",
+        "flake8-blind-except",
     ],
 }
 
@@ -87,7 +88,7 @@ with open("README.MD") as f:
 
 all_reqs = []
 for key, val in extras_require.items():
-    if "key" == "dev":
+    if key == "dev":
         continue
     all_reqs += val
 extras_require["all"] = all_reqs

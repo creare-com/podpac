@@ -109,7 +109,7 @@ class ZarrCache(CacheNode):
                 )  # adjust dtype as necessary
                 self._create_coordinate_zarr_dataset(group)
             return group
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, KeyError, tl.TraitError) as e:
             raise ValueError(f"Failed to open zarr data group. Original error: {e}")
 
     @tl.default("group_bool")
@@ -128,7 +128,7 @@ class ZarrCache(CacheNode):
                 group.create_dataset("contains", shape=shape, dtype="bool", fill_value=False)
                 self._create_coordinate_zarr_dataset(group)
             return group
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, KeyError, tl.TraitError) as e:
             raise ValueError(f"Failed to open zarr boolean group. Original error: {e}")
 
     @tl.default("_z_node")
@@ -137,13 +137,13 @@ class ZarrCache(CacheNode):
             try:
                 self.group_data  # ensure group exists
                 return Zarr(source=self._zarr_path_data, coordinates=self.source.coordinates, file_mode="r+")
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError, KeyError, tl.TraitError) as e:
                 raise ValueError(f"Failed to create Zarr node. Original error: {e}")
         elif self.cache_type == "ram":
             try:
                 self.group_data  # ensure group exists
                 return ZarrMemory(dataset=self.group_data, coordinates=self.source.coordinates)
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError, KeyError, tl.TraitError) as e:
                 raise ValueError(f"Failed to create Zarr node. Original error: {e}")
 
     @tl.default("_z_bool")
@@ -152,13 +152,13 @@ class ZarrCache(CacheNode):
             try:
                 self.group_bool  # ensure group exists
                 return Zarr(source=self._zarr_path_bool, coordinates=self.source.coordinates, file_mode="r+")
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError, KeyError, tl.TraitError) as e:
                 raise ValueError(f"Failed to create Zarr node. Original error: {e}")
         elif self.cache_type == "ram":
             try:
                 self.group_bool  # ensure group exists
                 return ZarrMemory(dataset=self.group_bool, coordinates=self.source.coordinates)
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError, KeyError, tl.TraitError) as e:
                 raise ValueError(f"Failed to create Zarr node. Original error: {e}")
 
     def _create_coordinate_zarr_dataset(self, group):

@@ -1,6 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from typing import List, Union
+from typing import TYPE_CHECKING, List, Union
 
 import numpy as np
 import pandas as pd
@@ -15,6 +15,9 @@ from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.utils import make_coord_value
 from podpac.core.coordinates.utils import calculate_distance
+
+if TYPE_CHECKING:
+    from podpac.core.coordinates.coordinates import Coordinates
 
 
 class StackedCoordinates(BaseCoordinates):
@@ -137,7 +140,7 @@ class StackedCoordinates(BaseCoordinates):
                 raise ValueError("Duplicate dimension '%s' in dims" % dim)
 
         # set names, checking for duplicates
-        for i, (c, dim) in enumerate(zip(self._coords, dims)):
+        for c, dim in zip(self._coords, dims):
             if dim is None:
                 continue
             c._set_name(dim)
@@ -250,7 +253,7 @@ class StackedCoordinates(BaseCoordinates):
     def __contains__(self, item):
         try:
             item = np.array([make_coord_value(value) for value in item])
-        except Exception:
+        except (TypeError, ValueError):
             return False
 
         if len(item) != len(self._coords):

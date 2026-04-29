@@ -17,3 +17,4 @@ ENV TMPDIR=/tmp
 WORKDIR /home/${HOST_USER}
 
 USER ${HOST_USER}
+ENV PATH "/home/${HOST_USER}/.local/bin:$PATH"

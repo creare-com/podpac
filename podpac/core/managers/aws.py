@@ -534,7 +534,7 @@ class Lambda(Node):
         def _raise(msg):
             _log.debug(msg)
             if raise_exceptions:
-                raise Exception(msg)
+                raise RuntimeError(msg)
             else:
                 return False
 
@@ -2518,7 +2518,7 @@ def get_api(session, api_name, api_endpoint=None):
     try:
         response = apigateway.get_stages(restApiId=api["id"])
         api["stage"] = response["item"][0]["stageName"] if len(response["item"]) else None
-    except Exception:  # TODO: make this more specific?
+    except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError, KeyError, IndexError):
         pass
 
     # get resources
@@ -2604,7 +2604,7 @@ def create_budget(
     budget_name="podpac-resource-budget",
     budget_currency="USD",
     budget_threshold=80.0,
-    budget_filter_tags={"_podpac_resource": "true"},
+    budget_filter_tags=None,
 ):
     """
     EXPERIMENTAL FEATURE
@@ -2638,6 +2638,9 @@ def create_budget(
         Returns Boto3 budget description
         Equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.describe_budget
     """
+
+    if budget_filter_tags is None:
+        budget_filter_tags = {"_podpac_resource": "true"}
 
     # see if budget already exists
     budget = get_budget(session, budget_name)

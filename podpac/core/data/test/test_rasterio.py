@@ -27,7 +27,7 @@ class TestRasterio(object):
         node = Rasterio(source=self.source, band=self.band)
         try:
             raster_reader = rasterio._io.RasterReader  # Rasterio < v1.0
-        except Exception:
+        except AttributeError:
             raster_reader = rasterio.io.DatasetReader  # Rasterio >= v1.0
         assert isinstance(node.dataset, raster_reader)
 

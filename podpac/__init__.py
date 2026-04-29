@@ -21,7 +21,7 @@ _osmakedirs = os.makedirs
 def makedirs(name, mode=511, exist_ok=False):
     try:
         _osmakedirs(name, mode)
-    except Exception as e:
+    except OSError as e:
         if exist_ok:
             pass
         else:

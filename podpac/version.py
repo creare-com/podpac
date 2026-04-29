@@ -57,17 +57,17 @@ def version():
         git = "git"
         try:
             subprocess.check_output([git, "--version"])
-        except Exception:
+        except (OSError, subprocess.CalledProcessError):
             git = "/usr/bin/git"
             try:
                 subprocess.check_output([git, "--version"])
-            except Exception:
+            except (OSError, subprocess.CalledProcessError):
                 return version_full
 
         version_full = subprocess.check_output([git, "describe", "--always", "--tags"], cwd=CWD).strip().decode("ascii")
         version_full = version_full.replace("-", "+", 1).replace("-", ".")  # Make this consistent with PEP440
 
-    except Exception as e:
+    except (OSError, subprocess.CalledProcessError, UnicodeDecodeError) as e:
         print("Could not determine PODPAC version from git repo.\n" + str(e))
 
     return version_full

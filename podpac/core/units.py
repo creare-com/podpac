@@ -212,7 +212,7 @@ class UnitsDataArray(xr.DataArray):
         else:
             try:
                 getattr(self, "to_" + format)(*args, **kwargs)
-            except Exception:
+            except AttributeError:
                 raise NotImplementedError("Format {} is not implemented.".format(format))
         self._pp_deserialize()
         return r
@@ -472,69 +472,69 @@ class UnitsDataArray(xr.DataArray):
         return cls(data, coords=coords, dims=dims, **kwargs)
 
 
+def _make_mul_func(meth, tp):
+    def func(self, other):
+        x = getattr(super(UnitsDataArray, self), meth)(other)
+        x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+        units = x2.attrs.get("units")
+        x2.attrs = self.attrs
+        if units is not None:
+            x2.attrs["units"] = units
+        return x2
+
+    return func
+
+
 for tp in ("mul", "matmul", "truediv", "div"):
     meth = "__{:s}__".format(tp)
-
-    def make_func(meth, tp):
-        def func(self, other):
-            x = getattr(super(UnitsDataArray, self), meth)(other)
-            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
-            units = x2.attrs.get("units")
-            x2.attrs = self.attrs
-            if units is not None:
-                x2.attrs["units"] = units
-            return x2
-
-        return func
-
-    func = make_func(meth, tp)
+    func = _make_mul_func(meth, tp)
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)
+
+
+def _make_add_func(meth, tp):
+    def func(self, other):
+        multiplier = self._get_unit_multiplier(other)
+        x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
+        x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+        x2.attrs = self.attrs
+        return x2
+
+    return func
 
 
 for tp in ("add", "sub", "mod", "floordiv"):  # , "divmod", ):
     meth = "__{:s}__".format(tp)
-
-    def make_func(meth, tp):
-        def func(self, other):
-            multiplier = self._get_unit_multiplier(other)
-            x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
-            x2.attrs = self.attrs
-            return x2
-
-        return func
-
-    func = make_func(meth, tp)
+    func = _make_add_func(meth, tp)
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)
+
+
+def _make_cmp_func(meth):
+    def func(self, other):
+        multiplier = self._get_unit_multiplier(other)
+        return getattr(super(UnitsDataArray, self), meth)(other * multiplier)
+
+    return func
 
 
 for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
     meth = "__{:s}__".format(tp)
-
-    def make_func(meth):
-        def func(self, other):
-            multiplier = self._get_unit_multiplier(other)
-            return getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-
-        return func
-
-    func = make_func(meth)
+    func = _make_cmp_func(meth)
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)
 
 
+def _make_stat_func(tp):
+    def func(self, *args, **kwargs):
+        x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
+        return self._copy_units(x)
+
+    return func
+
+
 for tp in ("mean", "min", "max", "sum", "cumsum"):
-
-    def make_func(tp):
-        def func(self, *args, **kwargs):
-            x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
-            return self._copy_units(x)
-
-        return func
-
-    func = make_func(tp)
+    func = _make_stat_func(tp)
     func.__name__ = tp
     setattr(UnitsDataArray, tp, func)
 

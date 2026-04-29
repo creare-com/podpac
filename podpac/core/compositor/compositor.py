@@ -144,7 +144,7 @@ class BaseCompositor(Node):
                     _, I = _selector(self.source_coordinates, coordinates, index_type="numpy")
                 else:
                     _, I = self.source_coordinates.intersect(coordinates, outer=True, return_index=True)
-            except Exception:
+            except (ValueError, IndexError):
                 # Likely non-monotonic coordinates
                 _, I = self.source_coordinates.intersect(coordinates, outer=False, return_index=True)
             i = I[0]

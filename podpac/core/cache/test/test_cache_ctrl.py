@@ -28,7 +28,7 @@ class TestCacheCtrl(object):
         from podpac.core.cache.ram_cache_store import _thread_local
 
         if hasattr(_thread_local, "cache"):
-            delattr(_thread_local, "cache")
+            del _thread_local.cache
 
         # use an fresh temporary disk cache
         self.test_cache_dir = tempfile.mkdtemp(prefix="podpac-test-")
@@ -39,7 +39,7 @@ class TestCacheCtrl(object):
         from podpac.core.cache.ram_cache_store import _thread_local
 
         if hasattr(_thread_local, "cache"):
-            delattr(_thread_local, "cache")
+            del _thread_local.cache
 
         # delete the disk cache
         shutil.rmtree(self.test_cache_dir, ignore_errors=True)

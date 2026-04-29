@@ -139,7 +139,7 @@ class ArrayTrait(tl.TraitType):
         self.ndim = ndim
         self.shape = shape
         self.dtype = dtype
-        super(ArrayTrait, self).__init__(default_value=default_value, *args, **kwargs)
+        super(ArrayTrait, self).__init__(*args, default_value=default_value, **kwargs)
 
     def validate(self, obj, value):
         # coerce type
@@ -164,7 +164,7 @@ class ArrayTrait(tl.TraitType):
         if self.dtype is not None:
             try:
                 value = value.astype(self.dtype)
-            except Exception:
+            except (TypeError, ValueError):
                 raise tl.TraitError(
                     "The '%s' trait of an %s instance must have dtype %s, but a value with dtype %s was specified"
                     % (self.name, obj.__class__.__name__, self.dtype, value.dtype)
@@ -263,7 +263,7 @@ class JSONEncoder(json.JSONEncoder):
 def is_json_serializable(obj, cls=json.JSONEncoder):
     try:
         json.dumps(obj, cls=cls)
-    except Exception:
+    except (TypeError, ValueError):
         return False
     else:
         return True
@@ -307,6 +307,10 @@ def _get_from_url(url, session=None):
         Text response from request.
         See https://2.python-requests.org/en/master/api/#requests.Response.text
     """
+    # Import locally so the real exception class is bound here even when
+    # tests patch `podpac.core.utils.requests` with a MagicMock.
+    from requests.exceptions import RequestException
+
     try:
         if session is None:
             r = requests.get(url)
@@ -319,7 +323,7 @@ def _get_from_url(url, session=None):
                     url, r.status_code, r.text
                 )
             )
-    except Exception as e:
+    except (RequestException, OSError, RuntimeError) as e:
         _log.warning("Cannot authenticate to {}. Check credentials. Error was as follows:".format(url) + str(e))
         r = None
 

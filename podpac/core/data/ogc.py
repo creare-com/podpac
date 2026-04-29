@@ -181,7 +181,7 @@ class WCS(DataSource):
     def client(self):
         try:
             return owslib_wcs.WebCoverageService(self.source, version=self.version, auth=self.auth)
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError, TypeError, AttributeError) as e:
             if self.allow_mock_client:
                 logger.warning(
                     "The OWSLIB Client could not be used. Server endpoint likely does not implement GetCapabilities"
@@ -346,7 +346,7 @@ class WCS(DataSource):
 
         # request each chunk and composite the data
         output = self.create_output_array(coordinates)
-        for i, (chunk, slc) in enumerate(coordinates.iterchunks(shape, return_slices=True)):
+        for chunk, slc in coordinates.iterchunks(shape, return_slices=True):
             output[slc] = self._get_chunk(chunk)
 
         return output
