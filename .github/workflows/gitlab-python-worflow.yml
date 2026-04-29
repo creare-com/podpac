@@ -24,8 +24,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install Dependencies
-        run: |
-          pip install --only-binary :all: .[devall]
+        run: pip install --upgrade pip setuptools && pip install .[devall]
 
       - name: Run Black Format Checks
         run: black --version; black --check --diff -l 120 . > black-report.txt
@@ -65,7 +64,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install --only-binary :all: .[devall]
+          pip install --upgrade pip setuptools && pip install .[devall]
 
       - name: Run Pytest with Coverage
         run: |
@@ -106,7 +105,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          cd podpac && pip install --only-binary :all: .[devall]
+          pip install --upgrade pip setuptools && cd podpac && pip install .[devall]
 
       - name: Run doc tests
         run: |
