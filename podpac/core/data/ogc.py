@@ -39,7 +39,7 @@ class MockWCSClient(tl.HasTraits):
         identifier=None,
         bbox=None,
         time=None,
-        format=None,
+        format=None,  # noqa: A002
         crs=None,
         width=None,
         height=None,

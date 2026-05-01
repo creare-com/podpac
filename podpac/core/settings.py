@@ -384,7 +384,7 @@ class PodpacSettings(dict):
         # save original settings
         self._original = {k: v for k, v in self.items()}
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type, value, traceback):  # noqa: A002
         # restore original settings
         for k, v in self._original.items():
             self[k] = v
