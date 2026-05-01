@@ -341,7 +341,7 @@ class UnitsDataArray(xr.DataArray):
 
         return self.transpose(*shared_dims + self_only_dims)
 
-    def set(self, value, mask):
+    def set(self, value, mask):  # noqa: A003
         """This function sets the values of the dataarray equal to 'value' where ever mask is True.
         This operation happens in-place.
 
