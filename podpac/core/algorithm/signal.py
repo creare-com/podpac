@@ -1,3 +1,4 @@
+# noqa: A005
 """
 Signal Summary
 """
