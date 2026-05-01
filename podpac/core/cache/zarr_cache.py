@@ -287,7 +287,7 @@ class ZarrCache(CacheNode):
             [false_coords.get(dim) for dim in self.source.coordinates.dims], dims=self.source.coordinates.dims
         )
 
-    def eval(self, request_coords):  # noqa: A003
+    def eval(self, coordinates, **_):  # noqa: A003
         """
         Evaluate the data at the requested coordinates, fetching missing data from the source node and filling the Zarr cache as necessary.
         If requested coordinates are out of the source node's bounds, return an array filled with NaNs.
@@ -305,11 +305,11 @@ class ZarrCache(CacheNode):
         self._from_cache = False
 
         # Create a NaN-filled array with the shape of the request coordinates
-        data_shape = [request_coords[d].size for d in request_coords.dims]
+        data_shape = [coordinates[d].size for d in coordinates.dims]
         data = np.full(data_shape, np.nan, dtype="float64")
 
         # Find valid request coordinates that are within the source's bounds
-        valid_request_coords = request_coords.intersect(self.source.coordinates)
+        valid_request_coords = coordinates.intersect(self.source.coordinates)
 
         if valid_request_coords.size > 0:
             subselect_coords = self.subselect_has(valid_request_coords)
