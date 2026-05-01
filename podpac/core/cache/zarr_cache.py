@@ -287,7 +287,7 @@ class ZarrCache(CacheNode):
             [false_coords.get(dim) for dim in self.source.coordinates.dims], dims=self.source.coordinates.dims
         )
 
-    def eval(self, request_coords):
+    def eval(self, request_coords):  # noqa: A003
         """
         Evaluate the data at the requested coordinates, fetching missing data from the source node and filling the Zarr cache as necessary.
         If requested coordinates are out of the source node's bounds, return an array filled with NaNs.

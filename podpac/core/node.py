@@ -690,7 +690,7 @@ class Node(tl.HasTraits):
         return json.dumps(self.definition, indent=4, cls=JSONEncoder)
 
     @cached_property
-    def hash(self):
+    def hash(self):  # noqa: A003
         """hash for this node, used in caching and to determine equality."""
 
         # deepcopy so that the cached definition property is not modified by the deletes below

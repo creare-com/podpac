@@ -298,7 +298,7 @@ class ZarrOutputMixin(tl.HasTraits):
     aws_client_kwargs = tl.Dict()
     aws_config_kwargs = tl.Dict()
 
-    def eval(self, coordinates, **kwargs):
+    def eval(self, coordinates, **kwargs):  # noqa: A003
         output = kwargs.get("output")
         if self.zarr_shape is None:
             self._shape = coordinates.shape

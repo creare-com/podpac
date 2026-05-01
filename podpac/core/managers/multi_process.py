@@ -43,7 +43,7 @@ class Process(Node):
     def outputs(self):
         return self.source.outputs
 
-    def eval(self, coordinates, **kwargs):
+    def eval(self, coordinates, **kwargs):  # noqa: A003
         output = kwargs.get("output")
         definition = self.source.json
         coords = coordinates.json

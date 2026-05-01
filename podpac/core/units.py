@@ -387,7 +387,7 @@ class UnitsDataArray(xr.DataArray):
             self = self.transpose(*orig_dims)
 
     @classmethod
-    def open(cls, *args, **kwargs):
+    def open(cls, *args, **kwargs):  # noqa: A003
         """
         Open an :class:`podpac.UnitsDataArray` from a file or file-like object containing a single data variable.
 
