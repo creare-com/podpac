@@ -136,7 +136,7 @@ def make_timedelta_string(delta):
     return "%d,%s" % (mag, unit)
 
 
-def make_coord_value(val):
+def make_coord_value(val, dtype=None):
     """
     Make a podpac coordinate value by casting to the correct type.
 
@@ -185,6 +185,9 @@ def make_coord_value(val):
         pass
     elif isinstance(val, numbers.Number):
         val = float(val)
+        if dtype is not None and dtype == np.timedelta64:
+            val = int(val)
+            val = np.timedelta64(val)            
     else:
         raise TypeError("Invalid coordinate value, unsupported type '%s'" % type(val))
 
