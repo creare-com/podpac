@@ -31,7 +31,7 @@ class CacheNode(Node):
     cache_uid = tl.Unicode(allow_none=True, default="").tag(attr=True)
 
     @cached_property
-    def hash(self):
+    def hash(self):  # noqa: A003
         """hash for this node, used in caching and to determine equality."""
         if self.cache_uid:
             return self.cache_uid

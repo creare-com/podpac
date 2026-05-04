@@ -23,11 +23,11 @@ class TestConvolution(object):
 
         node = Convolution(source=Arange(), kernel_type=MEAN_5, kernel_dims=["lat", "lon"])
         assert node.kernel.shape == (5, 5)
-        assert np.all(node.kernel == 0.04)
+        assert np.all(np.isclose(node.kernel, 0.04))
 
         node = Convolution(source=Arange(), kernel_type=MEAN_5, kernel_dims=["lat", "lon", "time"])
         assert node.kernel.shape == (5, 5, 5)
-        assert np.all(node.kernel == 0.008)
+        assert np.all(np.isclose(node.kernel, 0.008))
 
         node = Convolution(source=Arange(), kernel_type="gaussian, 3, 1", kernel_dims=["lat", "lon"])
         assert node.kernel.shape == (3, 3)

@@ -39,7 +39,7 @@ class MockWCSClient(tl.HasTraits):
         identifier=None,
         bbox=None,
         time=None,
-        format=None,
+        format=None,  # noqa: A002
         crs=None,
         width=None,
         height=None,
@@ -160,7 +160,7 @@ class WCS(DataSource):
     username = tl.Unicode(allow_none=True)
     password = tl.Unicode(allow_none=True)
 
-    format = tl.CaselessStrEnum(["geotiff", "geotiff_byte"], default_value="geotiff")
+    format = tl.CaselessStrEnum(["geotiff", "geotiff_byte"], default_value="geotiff")  # noqa: A003
     crs = tl.Unicode(default_value="EPSG:4326")
     max_size = tl.Long(default_value=None, allow_none=True)
     wcs_kwargs = tl.Dict(help="Additional query parameters sent to the WCS server")

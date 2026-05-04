@@ -146,7 +146,7 @@ class UnitsDataArray(xr.DataArray):
         self._pp_deserialize()
         return r
 
-    def to_format(self, format, *args, **kwargs):
+    def to_format(self, format, *args, **kwargs):  # noqa: A002
         """
         Helper function for converting Node outputs to alternative formats.
 
@@ -217,7 +217,7 @@ class UnitsDataArray(xr.DataArray):
         self._pp_deserialize()
         return r
 
-    def to_image(self, format="png", vmin=None, vmax=None, return_base64=False):
+    def to_image(self, format="png", vmin=None, vmax=None, return_base64=False):  # noqa: A002
         """Return a base64-encoded image of the data.
 
         Parameters
@@ -341,7 +341,7 @@ class UnitsDataArray(xr.DataArray):
 
         return self.transpose(*shared_dims + self_only_dims)
 
-    def set(self, value, mask):
+    def set(self, value, mask):  # noqa: A003
         """This function sets the values of the dataarray equal to 'value' where ever mask is True.
         This operation happens in-place.
 
@@ -387,7 +387,7 @@ class UnitsDataArray(xr.DataArray):
             self = self.transpose(*orig_dims)
 
     @classmethod
-    def open(cls, *args, **kwargs):
+    def open(cls, *args, **kwargs):  # noqa: A003
         """
         Open an :class:`podpac.UnitsDataArray` from a file or file-like object containing a single data variable.
 
@@ -581,7 +581,11 @@ def _validate_vmin_vmax(data, vmin: float, vmax: float, style: Style) -> Tuple[f
 
 
 def to_image(
-    data: np.array, format: str = "png", vmin: float = None, vmax: float = None, return_base64: bool = False
+    data: np.array,
+    format: str = "png",  # noqa: A002
+    vmin: float = None,
+    vmax: float = None,
+    return_base64: bool = False,
 ) -> Union[bytes, BytesIO]:
     """Return a base64-encoded image of data
 

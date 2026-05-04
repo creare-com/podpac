@@ -313,7 +313,7 @@ class DataSource(Node):
         coords, I = self.coordinates.select(bounds, return_index=True)
         return self._get_data(coords, I)
 
-    def eval(self, coordinates, **kwargs):
+    def eval(self, coordinates, **kwargs):  # noqa: A003
         """
         Wraps the super Node.eval method in order to cache with the correct coordinates.
 

@@ -175,7 +175,7 @@ class TestNode(object):
 
     def test_eval_group(self):
         class MyNode(Node):
-            def eval(self, coordinates, output=None, selector=None):
+            def eval(self, coordinates, output=None, selector=None):  # noqa: A003
                 return self.create_output_array(coordinates)
 
         c1 = podpac.Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])

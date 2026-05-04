@@ -219,7 +219,7 @@ class BaseCompositor(Node):
                 yield src.eval(coordinates, _selector=_selector)
 
     @common_doc(COMMON_COMPOSITOR_DOC)
-    def eval(self, coordinates, **kwargs):
+    def eval(self, coordinates, **kwargs):  # noqa: A003
         """
         Wraps the super Node.eval method in order to cache with the correct coordinates.
 

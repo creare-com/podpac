@@ -80,7 +80,7 @@ class Parallel(Node):
     errors = tl.List()
     start_i = tl.Int(0)
 
-    def eval(self, coordinates, **kwargs):
+    def eval(self, coordinates, **kwargs):  # noqa: A003
         output = kwargs.get("output")
         # Make a thread pool to manage queue
         pool = ThreadPool(processes=self.number_of_workers)
@@ -298,7 +298,7 @@ class ZarrOutputMixin(tl.HasTraits):
     aws_client_kwargs = tl.Dict()
     aws_config_kwargs = tl.Dict()
 
-    def eval(self, coordinates, **kwargs):
+    def eval(self, coordinates, **kwargs):  # noqa: A003
         output = kwargs.get("output")
         if self.zarr_shape is None:
             self._shape = coordinates.shape

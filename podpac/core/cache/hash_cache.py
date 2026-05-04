@@ -73,7 +73,7 @@ class HashCache(CacheNode):
         # Pass through find_coordinates from the source
         return self.source.find_coordinates()
 
-    def eval(self, coordinates, **kwargs):
+    def eval(self, coordinates, **kwargs):  # noqa: A003
         """
         Evaluate the node at the given coordinates. Check the cache for the output and use it if it exists.
         Otherwise, evaluate the source node and cache the output.
