@@ -62,10 +62,7 @@ class ArrayCoordinates1d(Coordinates1d):
         self.not_a_trait = coordinates
 
         # precalculate once
-        if self.coordinates.size == 0:
-            pass
-
-        elif self.coordinates.size == 1:
+        if self.coordinates.size == 1:
             self._is_monotonic = True
 
         elif self.coordinates.ndim > 1:
@@ -73,7 +70,7 @@ class ArrayCoordinates1d(Coordinates1d):
             self._is_descending = None
             self._is_uniform = None
 
-        else:
+        elif self.coordinates.size != 0:
             deltas = self.deltas
             if np.any(deltas <= 0):
                 self._is_monotonic = False

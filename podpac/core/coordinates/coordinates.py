@@ -653,14 +653,13 @@ class Coordinates(tl.HasTraits):
 
     def __setitem__(self, dim, c):
         # coerce
-        if isinstance(c, BaseCoordinates):
-            pass
-        elif isinstance(c, Coordinates):
-            c = c[dim]
-        elif "_" in dim:
-            c = StackedCoordinates(c)
-        else:
-            c = ArrayCoordinates1d(c)
+        if not isinstance(c, BaseCoordinates):
+            if isinstance(c, Coordinates):
+                c = c[dim]
+            elif "_" in dim:
+                c = StackedCoordinates(c)
+            else:
+                c = ArrayCoordinates1d(c)
 
         c._set_name(dim)
 
@@ -937,7 +936,6 @@ class Coordinates(tl.HasTraits):
                 "{} do not.".format(self)
             )
         if self.udims.index("lon") < self.udims.index("lat"):
-            # transform = (transform[3], transform[5], transform[4], transform[0], transform[2], transform[1])
             transform = transform[3:] + transform[:3]
 
         return transform
