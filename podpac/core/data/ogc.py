@@ -35,7 +35,7 @@ class MockWCSClient(tl.HasTraits):
     auth = tl.Any()
 
     def getCoverage(
-        self,
+        self,  # NOSONAR(S107) - This is to match a method signature from external library owslib.wcs
         identifier=None,
         bbox=None,
         time=None,
@@ -80,7 +80,6 @@ class MockWCSClient(tl.HasTraits):
         request = {"version": self.version, "request": "GetCoverage", "service": "WCS"}
         assert len(identifier) > 0
         request["Coverage"] = identifier
-        # request['identifier'] = ','.join(identifier)
         if bbox:
             request["BBox"] = ",".join([makeString(x) for x in bbox])
         else:
