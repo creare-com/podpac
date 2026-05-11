@@ -131,10 +131,9 @@ class Rasterio(S3Mixin, BaseFileSource):
         validate_crs = True
         if self.crs is not None:
             crs = self.crs
-        elif isinstance(self.dataset.crs, rasterio.crs.CRS) and "init" in self.dataset.crs:
-            crs = self.dataset.crs["init"].upper()
-            validate_crs = False
-        elif isinstance(self.dataset.crs, dict) and "init" in self.dataset.crs:
+        elif (
+            isinstance(self.dataset.crs, rasterio.crs.CRS) or isinstance(self.dataset.crs, dict)
+        ) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
             validate_crs = False
         else:

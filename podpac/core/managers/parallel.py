@@ -96,7 +96,6 @@ class Parallel(Node):
                 shape.append(coordinates[d].size)
 
         results = []
-        #         inputs = []
         i = 0
         for coords, slc in coordinates.iterchunks(shape, True):
             #             inputs.append(coords)

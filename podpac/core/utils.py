@@ -666,11 +666,6 @@ def get_ui_node_spec(module=None, category="default", help_as_html=False):
     disabled_categories = ["Algorithm", "DataSource", "DroughtMonitorCategory", "DroughtCategory", "IntakeCatalog"]
     for obj in dir(module):
         if obj in disabled_categories:
-            ob = getattr(module, obj)
-            # print(ob)
-            # print(ob.get_ui_spec())
-            # would be fairly annoying to have to check all of the attrs for abstract
-            # still need a better solution
             continue
         ob = getattr(module, obj)
         if not inspect.isclass(ob):

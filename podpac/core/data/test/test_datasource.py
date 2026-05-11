@@ -260,11 +260,11 @@ class TestDataSource(object):
         assert output.lat.shape == (11,)
         assert output.lon.shape == (11,)
 
-        # assert coordinates
+        # check coordinates
         assert isinstance(output.coords, DataArrayCoordinates)
         assert output.coords.dims == ("lat", "lon")
 
-        # assert attributes
+        # check attributes
         assert isinstance(output.attrs["layer_style"], Style)
 
     def test_evaluate_at_coordinates_with_output(self):

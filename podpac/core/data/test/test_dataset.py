@@ -35,7 +35,6 @@ class TestDataset(object):
         # specify dimension keys
         node = Dataset(source=self.source, time_key="day")
         nc = node.coordinates
-        # assert nc.dims == ("time", "lat", "lon")  # Xarray is free to change this order -- we don't care
         np.testing.assert_array_equal(nc["lat"].coordinates, self.lat)
         np.testing.assert_array_equal(nc["lon"].coordinates, self.lon)
         np.testing.assert_array_equal(nc["time"].coordinates, self.time)

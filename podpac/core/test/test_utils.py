@@ -144,7 +144,7 @@ class TestArrayTrait(object):
 
     def test_args(self):
         # shape and ndim must match
-        t = ArrayTrait(ndim=2, shape=(2, 2))
+        ArrayTrait(ndim=2, shape=(2, 2))
 
         with pytest.raises(ValueError):
             ArrayTrait(ndim=1, shape=(2, 2))

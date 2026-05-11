@@ -28,7 +28,7 @@ class TestStyle(object):
         assert style.cmap.colors == ("c", "k")
 
         with pytest.raises(TypeError, match="Style can have a colormap or enumeration_colors"):
-            style = Style(colormap="cividis", enumeration_colors=({0: "c", 1: "k"}))
+            Style(colormap="cividis", enumeration_colors=({0: "c", 1: "k"}))
 
     def test_enumeration(self):
         # matplotlib enumeration tuples
@@ -51,10 +51,10 @@ class TestStyle(object):
 
         # invalid
         with pytest.raises(ValueError, match="Style enumeration_legend keys must match enumeration_colors keys"):
-            style = Style(enumeration_colors={1: "r", 3: "o"}, enumeration_legend={1: "apples"})
+            Style(enumeration_colors={1: "r", 3: "o"}, enumeration_legend={1: "apples"})
 
         with pytest.raises(TypeError, match="Style enumeration_legend requires enumeration_colors"):
-            style = Style(enumeration_legend={-1: "apples", 3: "oranges"})
+            Style(enumeration_legend={-1: "apples", 3: "oranges"})
 
     def test_serialization(self):
         # default

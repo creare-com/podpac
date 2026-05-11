@@ -1055,10 +1055,6 @@ Lambda Node {status}
             _log.error("Failed to find PODPAC dependencies in bucket")
             return False
 
-        # TODO: make sure trigger exists
-        if "S3" in self.function_triggers:
-            pass
-
         return True
 
     def delete_bucket(self, delete_objects=False):
@@ -1461,7 +1457,6 @@ Lambda Node {status}
 
         if "FunctionError" in response:
             _log.error("Unhandled error from lambda function")
-            # logs = base64.b64decode(response["LogResult"]).decode("UTF-8").split('\n')
             payload = json.loads(response["Payload"].read().decode("UTF-8"))
             raise LambdaException(
                 "Error in lambda function evaluation:\n\nError Type: {}\nError Message: {}\nStack Trace: {}".format(

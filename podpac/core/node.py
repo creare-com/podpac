@@ -1211,17 +1211,6 @@ class Node(tl.HasTraits):
 
         Will need to ask @MPU how to define a node specific style.
         """
-        # spec["style"] = {
-        #     "name": "?",
-        #     "units": "m",
-        #     "clim": [-1.0, 1.0],
-        #     "colormap": "jet",
-        #     "enumeration_legend": "?",
-        #     "enumeration_colors": "?",
-        #     "default_enumeration_legend": "unknown",
-        #     "default_enumeration_color": (0.2, 0.2, 0.2),
-        # }
-
         spec.update(getattr(cls, "_ui_spec", {}))
         return spec
 

@@ -107,7 +107,6 @@ class PostDevelopCommand(develop):
 
 
 setup(
-    # ext_modules=None,
     name="podpac",
     version=__version__,
     description="Pipeline for Observational Data Processing, Analysis, and Collaboration",
@@ -136,7 +135,4 @@ setup(
     cmdclass={"develop": PostDevelopCommand},
     long_description=long_description,
     long_description_content_type="text/markdown",
-    # entry_points = {
-    #     'console_scripts' : []
-    # }
 )

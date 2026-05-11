@@ -25,7 +25,6 @@ class TestSelector(object):
     nn_request_coarse_from_fine = [1, 3, 6]
     lin_request_fine_from_coarse = [0, 1, 2]
     lin_request_coarse_from_fine = [0, 1, 3, 4, 6, 7]
-    # nn_request_fine_from_random_fine = [1, 1, 4, 6, 5, 0, 7, 2]
     nn_request_fine_from_random_fine = [0, 1, 2, 4, 5, 6, 7]
     nn_request_coarse_from_random_fine = [1, 5, 7]
     nn_request_fine_from_random_coarse = [0, 1, 2]
