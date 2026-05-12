@@ -202,12 +202,6 @@ class DimsTrait(tl.List):
     def __init__(self, *args, **kwargs):
         super().__init__(tl.Enum(VALID_DIMENSION_NAMES), *args, minlen=1, maxlen=4, **kwargs)
 
-    # def validate(self, obj, value):
-    #     super().validate(obj, value)
-    #     if podpac.core.settings.settings["DEBUG"]:
-    #         value = deepcopy(value)
-    #     return value
-
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
