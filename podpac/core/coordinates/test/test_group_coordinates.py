@@ -20,7 +20,7 @@ class TestGroupCoordinates(object):
         _ = GroupCoordinates([c1, c2])
 
         # same dims, stacked
-        c2 = Coordinates([[[0, 1], [0, 1]]], dims=["lat_lon"])
+        c1 = Coordinates([[[0, 1], [0, 1]]], dims=["lat_lon"])
         c2 = Coordinates([[[10, 11], [10, 11]]], dims=["lat_lon"])
         _ = GroupCoordinates([c1, c2])
 
