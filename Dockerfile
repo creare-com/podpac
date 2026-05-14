@@ -1,6 +1,4 @@
-# Use the continuumio/anaconda3 image as a base
-# https://hub.docker.com/r/continuumio/anaconda3
-FROM continuumio/anaconda3:2024.10-1
+FROM python:3.12
 
 # Creare maintained
 LABEL org.opencontainers.image.authors="podpac@creare.com"
@@ -12,10 +10,8 @@ RUN apt-get update --yes --quiet && apt-get install --yes --quiet --no-install-r
     unzip \
     tar \
     wget && \
-    apt-get clean && \
-    # Create a podpac anaconda environment and activate
-    conda init bash && . ~/.bashrc \
-    && conda create --yes --name podpac python=3 anaconda \
-    && conda activate podpac && \
-    # Install PODPAC with all dependencies
-    pip install podpac[all]
+    apt-get clean
+COPY . /opt/podpac
+WORKDIR /opt/podpac
+# Install PODPAC with all dependencies
+RUN pip install --prefer-binary .[devall]
