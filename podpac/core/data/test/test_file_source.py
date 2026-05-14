@@ -72,12 +72,6 @@ class TestLoadFile(object):
         node = MockLoadFile(source=path)
         _ = node.dataset
 
-    @pytest.mark.aws
-    @pytest.mark.skip("Unreachable source")
-    def test_ftp(self):
-        node = MockLoadFile(source="ftp://speedtest.tele2.net/1KB.zip")
-        _ = node.dataset
-
     @pytest.mark.aws  # TODO
     @pytest.mark.skip("Unreachable source")
     def test_http(self):
