@@ -1,10 +1,7 @@
-import os
 import sys
 import time
 from threading import Thread
 import logging
-
-import pytest
 
 from podpac import settings
 from podpac.core.managers.multi_threading import FakeLock, thread_manager

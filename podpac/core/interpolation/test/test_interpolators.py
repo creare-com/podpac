@@ -234,7 +234,6 @@ class TestNearest(TestCase):
             podpac.settings["DEFAULT_CRS"] = podpac.core.settings.DEFAULT_SETTINGS["DEFAULT_CRS"]
 
             for interpolation in ["nearest", "nearest_preview"]:
-
                 # unstacked 1D
                 source = _rand.random(size=(5,))
                 coords_src = Coordinates([np.linspace(0, 10, 5)], dims=["lat"])
@@ -367,7 +366,6 @@ class TestNearest(TestCase):
         assert output.values[0] == source[0] and np.isnan(output.values[1]) and output.values[2] == source[1]
 
     def test_time_tolerance(self):
-
         # unstacked 1D
         source = _rand.random(size=(5, 5))
         coords_src = Coordinates(
@@ -774,10 +772,9 @@ class TestInterpolateRasterioInterpolator(TestCase):
             coords_src = Coordinates([clinspace(10, 0, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
             coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
-            node = MockArrayDataSource(
-                data=source,
-                coordinates=coords_src
-            ).interpolate(interpolation={"method": "nearest", "interpolators": [RasterioInterpolator]})
+            node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(
+                interpolation={"method": "nearest", "interpolators": [RasterioInterpolator]}
+            )
             output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
@@ -789,7 +786,6 @@ class TestInterpolateScipyGrid(TestCase):
     """test interpolation functions"""
 
     def test_interpolate_scipy_grid(self):
-
         source = np.arange(0, 25)
         source.resize((5, 5))
 
@@ -879,13 +875,12 @@ class TestInterpolateScipyGrid(TestCase):
                 [clinspace(1, 11, 5), clinspace(1, 11, 5), [2, 3, 4], [1]], dims=["lat", "lon", "time", "alt"]
             )
 
-            node = MockArrayDataSource(
-                data=source,
-                coordinates=coords_src
-            ).interpolate(interpolation=[
-                {"method": "nearest", "interpolators": [ScipyGrid]},
-                {"method": "linear", "dims": ["time", "alt"]},
-            ],)
+            node = MockArrayDataSource(data=source, coordinates=coords_src).interpolate(
+                interpolation=[
+                    {"method": "nearest", "interpolators": [ScipyGrid]},
+                    {"method": "linear", "dims": ["time", "alt"]},
+                ],
+            )
             output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
@@ -933,7 +928,6 @@ class TestInterpolateScipyGrid(TestCase):
 
 
 class TestInterpolateScipyPoint(TestCase):
-
     def test_interpolate_scipy_point(self):
         """interpolate point data to nearest neighbor with various coords_dst"""
 
@@ -964,7 +958,6 @@ class TestXarrayInterpolator(TestCase):
     """test interpolation functions"""
 
     def test_nearest_interpolation(self):
-
         interpolation = {
             "method": "nearest",
             "interpolators": [XarrayInterpolator],
@@ -1034,7 +1027,6 @@ class TestXarrayInterpolator(TestCase):
         np.testing.assert_array_equal(output.data, source[[0, 2, 4], [0, 2, 4]])
 
     def test_interpolate_xarray_grid(self):
-
         source = np.arange(0, 25)
         source.resize((5, 5))
 

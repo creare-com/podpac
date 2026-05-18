@@ -4,7 +4,6 @@ import json
 import io
 import warnings
 import re
-import hashlib
 import time
 
 try:
@@ -16,7 +15,6 @@ import numpy as np
 import xarray as xr
 
 import podpac
-from podpac.core.settings import settings
 from podpac.core.utils import is_json_serializable
 from podpac.core.cache.utils import CacheException, CacheWildCard, expiration_timestamp
 from podpac.core.cache.cache_store import CacheStore

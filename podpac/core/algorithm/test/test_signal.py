@@ -4,7 +4,6 @@ import pytest
 
 import numpy as np
 from numpy.testing import assert_equal, assert_array_equal
-import traitlets as tl
 
 import podpac
 from podpac import Coordinates, clinspace, crange
@@ -13,7 +12,8 @@ from podpac.data import Array
 from podpac.core.algorithm.signal import Convolution
 
 # Set up the PRNG with a seed to stay deterministic
-_rand = np.random.default_rng(0xC * ord('r') + 0xea + ord('r') * 0xe)
+_rand = np.random.default_rng(0xC * ord("r") + 0xEA + ord("r") * 0xE)
+
 
 class TestConvolution(object):
     def test_init_kernel(self):
@@ -23,11 +23,11 @@ class TestConvolution(object):
 
         node = Convolution(source=Arange(), kernel_type=MEAN_5, kernel_dims=["lat", "lon"])
         assert node.kernel.shape == (5, 5)
-        assert np.all(node.kernel == 0.04)
+        assert np.all(np.isclose(node.kernel, 0.04))
 
         node = Convolution(source=Arange(), kernel_type=MEAN_5, kernel_dims=["lat", "lon", "time"])
         assert node.kernel.shape == (5, 5, 5)
-        assert np.all(node.kernel == 0.008)
+        assert np.all(np.isclose(node.kernel, 0.008))
 
         node = Convolution(source=Arange(), kernel_type="gaussian, 3, 1", kernel_dims=["lat", "lon"])
         assert node.kernel.shape == (3, 3)
@@ -71,7 +71,6 @@ class TestConvolution(object):
         node3d.eval(Coordinates([lat, lon, time]))
 
     def test_eval_multiple_outputs(self):
-
         lat = clinspace(45, 66, 30, name="lat")
         lon = clinspace(-80, 70, 40, name="lon")
         kernel = [[1, 2, 1]]

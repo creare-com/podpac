@@ -1,7 +1,5 @@
 import itertools
 from typing import Dict, List, Tuple
-import pytest
-import traitlets as tl
 import numpy as np
 
 from podpac.core.node import Node
@@ -60,7 +58,7 @@ class TestSelector(object):
                 key = "_".join(dim_seq + (r,))
                 if len(dim_seq) <= 1:
                     new_coords = Coordinates([getattr(cls, d + "_" + r) for d in dim_seq], list(dim_seq))
-                else: 
+                else:
                     new_coords = Coordinates([[getattr(cls, d + "_" + r) for d in dim_seq]], [list(dim_seq)])
                 cls.coords[key] = new_coords
 
@@ -304,9 +302,9 @@ class TestSelector(object):
 
     def test_point2uniform_non_square_xarray_type(self):
         u_fine = Coordinates([self.lat_fine, self.lon_fine[:-1]], ["lat", "lon"])
-        u_coarse = Coordinates([self.lat_coarse[:-1], self.lon_coarse], ["lat", "lon"])
+        _ = Coordinates([self.lat_coarse[:-1], self.lon_coarse], ["lat", "lon"])
 
-        p_fine = Coordinates([[self.lat_fine, self.lon_fine]], [["lat", "lon"]])
+        _ = Coordinates([[self.lat_fine, self.lon_fine]], [["lat", "lon"]])
         p_coarse = Coordinates([[self.lat_coarse, self.lon_coarse]], [["lat", "lon"]])
 
         selector = Selector("nearest")

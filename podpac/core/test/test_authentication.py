@@ -16,7 +16,6 @@ _log = logging.getLogger(__name__)
 
 class TestAuthentication(object):
     def test_set_credentials(self):
-
         with settings:
             if _USERNAME_TEST_COM in settings:
                 del settings[_USERNAME_TEST_COM]
@@ -81,10 +80,10 @@ class TestRequestsSessionMixin(object):
         node = SomeNode(hostname="propertyerrors.com")
 
         with pytest.raises(ValueError, match="set_credentials"):
-            u = node.username
+            _ = node.username
 
         with pytest.raises(ValueError, match="set_credentials"):
-            p = node.password
+            _ = node.password
 
     def test_set_credentials(self):
         with settings:

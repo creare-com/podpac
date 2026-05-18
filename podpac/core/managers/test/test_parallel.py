@@ -1,15 +1,10 @@
 import os
 import shutil
-import sys
 import time
 import numpy as np
-from threading import Thread
 import tempfile
 import logging
 
-import pytest
-
-from podpac import settings
 from podpac.core.coordinates import Coordinates
 from podpac.core.algorithm.utility import CoordData
 from podpac.core.managers.parallel import Parallel, ParallelOutputZarr, ParallelAsync, ParallelAsyncOutputZarr

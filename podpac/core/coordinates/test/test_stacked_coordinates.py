@@ -1,10 +1,7 @@
-from datetime import datetime
 import json
 
 import pytest
-import traitlets as tl
 import numpy as np
-import pandas as pd
 import xarray as xr
 from numpy.testing import assert_equal
 
@@ -26,7 +23,7 @@ class TestStackedCoordinatesCreation(object):
         assert c.dims == ("lat", "lon", "time")
         assert c.udims == ("lat", "lon", "time")
         assert c.name == "lat_lon_time"
-        repr(c)
+        _ = repr(c)
 
         # un-named
         lat = ArrayCoordinates1d([0, 1, 2])
@@ -43,7 +40,7 @@ class TestStackedCoordinatesCreation(object):
         assert c.udims == ("lat", None, None)
         assert c.name == "lat_?_?"
 
-        repr(c)
+        _ = repr(c)
 
     def test_init_explicit_shaped(self):
         lat = ArrayCoordinates1d([[0, 1, 2], [10, 11, 12]], name="lat")
@@ -52,7 +49,7 @@ class TestStackedCoordinatesCreation(object):
         assert c.dims == ("lat", "lon")
         assert c.udims == ("lat", "lon")
         assert c.name == "lat_lon"
-        repr(c)
+        _ = repr(c)
 
     def test_coercion_with_dims(self):
         lat = [0, 1, 2]
@@ -783,12 +780,15 @@ class TestStackedCoordinatesMethods(object):
         sc_3 = StackedCoordinates([lat[::-1], lon], name="lat_lon")  # same coordinates, paired differently
         sc_t = sc.transpose("lon", "lat")
         sc_time = StackedCoordinates([lat, lon, time], name="lat_lon_time")
+        sc_single_value = StackedCoordinates([lat[0], lon[0]], name="lat_lon")
 
         assert sc.issubset(sc)
         assert sc[:2].issubset(sc)
         assert not sc.issubset(sc[:2])
         assert not sc_2.issubset(sc)
         assert not sc_3.issubset(sc)
+        assert sc_single_value.issubset(sc_single_value)
+        assert sc_single_value.issubset(sc)
 
         assert sc_t.issubset(sc)
 

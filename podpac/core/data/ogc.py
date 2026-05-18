@@ -5,21 +5,17 @@ OGC-compliant datasources over HTTP
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import logging
-from operator import mul
-from functools import reduce
-
 import traitlets as tl
-import pyproj
 
-from podpac.core.utils import common_doc, cached_property, resolve_bbox_order
+from podpac.core.utils import cached_property, resolve_bbox_order
 from podpac.core.data.datasource import DataSource
-from podpac.core.interpolation.interpolation import  InterpolationTrait
+from podpac.core.interpolation.interpolation import InterpolationTrait
 from podpac.core.node import NodeException
 from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d, Coordinates1d, StackedCoordinates
 
 # Optional dependencies
-from lazy_import import lazy_module, lazy_class
+from lazy_import import lazy_module
 
 bs4 = lazy_module("bs4")
 lxml = lazy_module("lxml")  # used by bs4 so want to check if it's available
@@ -43,7 +39,7 @@ class MockWCSClient(tl.HasTraits):
         identifier=None,
         bbox=None,
         time=None,
-        format=None,
+        format=None,  # noqa: A002
         crs=None,
         width=None,
         height=None,
@@ -164,7 +160,7 @@ class WCS(DataSource):
     username = tl.Unicode(allow_none=True)
     password = tl.Unicode(allow_none=True)
 
-    format = tl.CaselessStrEnum(["geotiff", "geotiff_byte"], default_value="geotiff")
+    format = tl.CaselessStrEnum(["geotiff", "geotiff_byte"], default_value="geotiff")  # noqa: A003
     crs = tl.Unicode(default_value="EPSG:4326")
     max_size = tl.Long(default_value=None, allow_none=True)
     wcs_kwargs = tl.Dict(help="Additional query parameters sent to the WCS server")
@@ -185,7 +181,7 @@ class WCS(DataSource):
     def client(self):
         try:
             return owslib_wcs.WebCoverageService(self.source, version=self.version, auth=self.auth)
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError, TypeError, AttributeError) as e:
             if self.allow_mock_client:
                 logger.warning(
                     "The OWSLIB Client could not be used. Server endpoint likely does not implement GetCapabilities"
@@ -350,7 +346,7 @@ class WCS(DataSource):
 
         # request each chunk and composite the data
         output = self.create_output_array(coordinates)
-        for i, (chunk, slc) in enumerate(coordinates.iterchunks(shape, return_slices=True)):
+        for chunk, slc in coordinates.iterchunks(shape, return_slices=True):
             output[slc] = self._get_chunk(chunk)
 
         return output
@@ -386,10 +382,10 @@ class WCS(DataSource):
             % (self.source, self.layer, (w, n, e, s), (width, height), kwargs.get("time"))
         )
 
-        crs = pyproj.CRS(coordinates.crs)
         bbox = (min(w, e), min(s, n), max(e, w), max(n, s))
         # Based on the spec I need the following line, but
         # all my tests on other servers suggests I don't need this...
+        # crs = pyproj.CRS(coordinates.crs)
         # if crs.axis_info[0].direction == "north":
         #     bbox = (min(s, n), min(w, e), max(n, s), max(e, w))
 
@@ -444,4 +440,3 @@ class WCS(DataSource):
             source = cls.source
         client = owslib_wcs.WebCoverageService(source)
         return list(client.contents)
-

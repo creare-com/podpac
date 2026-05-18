@@ -11,7 +11,6 @@ version_info : OrderedDict
     Dict with keys MAJOR, MINOR, HOTFIX depicting version
 """
 
-
 # Monkey patch os.makedirs for Python 2 compatibility
 import sys
 import os
@@ -22,7 +21,7 @@ _osmakedirs = os.makedirs
 def makedirs(name, mode=511, exist_ok=False):
     try:
         _osmakedirs(name, mode)
-    except Exception as e:
+    except OSError as e:
         if exist_ok:
             pass
         else:
@@ -66,3 +65,26 @@ from podpac import version
 
 __version__ = version.version()
 version_info = version.VERSION_INFO
+__all__ = [
+    "settings",
+    "Coordinates",
+    "crange",
+    "clinspace",
+    "Node",
+    "NodeException",
+    "cached_property",
+    "units",
+    "UnitsDataArray",
+    "algorithm",
+    "authentication",
+    "data",
+    "interpolators",
+    "coordinates",
+    "compositor",
+    "managers",
+    "utils",
+    "style",
+    "caches",
+    "core",
+    "version",
+]

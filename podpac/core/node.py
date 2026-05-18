@@ -31,9 +31,8 @@ from podpac.core.utils import hash_alg
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.managers.multi_threading import thread_manager
-from podpac.core.cache import CacheCtrl, make_cache_ctrl, get_default_cache_ctrl
+from podpac.core.cache import CacheCtrl, make_cache_ctrl, get_default_cache_ctrl, S3CacheStore
 from podpac.core.cache.cache_ctrl import _CACHE_STORES
-
 
 _logger = logging.getLogger(__name__)
 
@@ -258,7 +257,7 @@ class Node(tl.HasTraits):
         return "<%s(%s) attrs: %s>" % (self.__class__.__name__, self._repr_info, ", ".join(self.attrs))
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, **kwargs):
+    def eval(self, coordinates, **kwargs):  # noqa: A003
         """
         Evaluate the node at the given coordinates.
 
@@ -691,7 +690,7 @@ class Node(tl.HasTraits):
         return json.dumps(self.definition, indent=4, cls=JSONEncoder)
 
     @cached_property
-    def hash(self):
+    def hash(self):  # noqa: A003
         """hash for this node, used in caching and to determine equality."""
 
         # deepcopy so that the cached definition property is not modified by the deletes below
@@ -1074,7 +1073,7 @@ class Node(tl.HasTraits):
         type_ = attrt.__class__.__name__
 
         try:
-            schema = getattr(attrt, "_schema")
+            schema = attrt._schema
         except AttributeError:
             schema = None
 
@@ -1090,10 +1089,10 @@ class Node(tl.HasTraits):
         elif type_ == "Dict" and schema is None:
             try:
                 schema = {
-                    "key": getattr(attrt, "_key_trait").__class__.__name__,
-                    "value": getattr(attrt, "_value_trait").__class__.__name__,
+                    "key": attrt._key_trait.__class__.__name__,
+                    "value": attrt._value_trait.__class__.__name__,
                 }
-            except Exception:
+            except AttributeError:
                 _logger.exception(f"Could not find schema for {attrt} of type {type_}")
                 schema = None
 
@@ -1108,7 +1107,7 @@ class Node(tl.HasTraits):
         try:
             if np.isnan(default_val):
                 default_val = "nan"
-        except Exception:
+        except (TypeError, ValueError):
             pass
 
         if default_val == tl.Undefined:
@@ -1124,7 +1123,6 @@ class Node(tl.HasTraits):
             "hidden": hidden,
             "schema": schema,
         }
-
 
     @classmethod
     def get_ui_spec(cls, help_as_html=False):
@@ -1167,14 +1165,14 @@ class Node(tl.HasTraits):
             try:
                 try:
                     def_val = atr(cls())
-                except Exception:
+                except (TypeError, AttributeError, tl.TraitError):
                     def_val = atr(cls)
                 if isinstance(def_val, NodeTrait):
                     def_val = def_val.name
                     _logger.info("Changing Nodetrait to string")
                 # if "NodeTrait" not in str(atr(cls)):
                 function_defaults[atr.trait_name] = def_val
-            except Exception:
+            except (TypeError, AttributeError, ValueError, KeyError, tl.TraitError, NodeException):
                 _logger.warning(
                     "For node {}: Failed to generate default from function for trait {}".format(
                         cls.__name__, atr.trait_name
@@ -1189,13 +1187,13 @@ class Node(tl.HasTraits):
                 continue
             if not attrt.metadata.get("attr", False):
                 continue
-            
+
             spec["attrs"][attr] = Node._get_schema_for_attr(cls, attr, function_defaults)
 
         try:
             # This returns the
             style_json = json.loads(cls().style.json)  # load the style from the cls
-        except Exception:
+        except (TypeError, ValueError, AttributeError, tl.TraitError, NodeException):
             style_json = {}
 
         spec["style"] = style_json  # this does not work, because node not created yet?
@@ -1326,6 +1324,7 @@ def _lookup_attr(nodes, name, value):
 
     return attr
 
+
 def _compute_style_class(d, node_class, name):
     """Get style class from the provided node definition. Helper for _process_kwargs"""
     if "style_class" in d:
@@ -1356,12 +1355,13 @@ def _compute_style_class(d, node_class, name):
                 continue
             try:
                 style_class = atr(node_class)
-            except Exception:
+            except (TypeError, AttributeError, tl.TraitError):
                 try:
                     style_class = atr(node_class())
-                except Exception:
+                except (TypeError, AttributeError, tl.TraitError):
                     style_class = style_class.klass
     return style_class
+
 
 def _process_kwargs(name, d, definition, nodes):
     """create a node and add it to nodes
@@ -1422,7 +1422,7 @@ def _process_kwargs(name, d, definition, nodes):
         style_class = _compute_style_class(d, node_class, name)
         try:
             kwargs["style"] = style_class.from_definition(d["style"])
-        except Exception:
+        except (TypeError, ValueError, KeyError, AttributeError, tl.TraitError):
             kwargs["style"] = Style.from_definition(d["style"])
 
     for k in d:

@@ -1,7 +1,5 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 
-import copy
 from collections import OrderedDict
 
 import numpy as np
@@ -9,10 +7,14 @@ import traitlets as tl
 
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.coordinates1d import Coordinates1d
-from podpac.core.coordinates.utils import (add_coord, divide_delta,
-                                           lower_precision_time_bounds,
-                                           make_coord_delta, make_coord_value,
-                                           timedelta_divisible)
+from podpac.core.coordinates.utils import (
+    add_coord,
+    divide_delta,
+    lower_precision_time_bounds,
+    make_coord_delta,
+    make_coord_value,
+    timedelta_divisible,
+)
 from podpac.core.utils import cached_property
 
 
@@ -75,7 +77,7 @@ class UniformCoordinates1d(Coordinates1d):
         name : str, optional
             Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
         anchor_boundary : str, optional
-            Determines whether the `start` or `stop` will be anchored while the other value 
+            Determines whether the `start` or `stop` will be anchored while the other value
             may be adjusted to ensure consistency with the given `step` and `size`.
             Acceptable values are:
             - `"start"` (default): The `start` value will be anchored while the `stop` value *may* be modified to ensure that:
@@ -87,7 +89,7 @@ class UniformCoordinates1d(Coordinates1d):
                 start = stop - step *  (size - 1)
                 ```
             - `None`: Both `stop` and `start` value will be anchored.
-                The constructor will modify the `step` to be consistent with 
+                The constructor will modify the `step` to be consistent with
                 the `start` and `stop` boundaries to ensure uniform deltas between coordinate.
         Notes
         ------
@@ -143,7 +145,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         if anchor_boundary == "stop":  # Need to make sure that 'start' is consistent with self.coordinates[-1]
             self.set_trait("start", add_coord(self.stop, -(self.size - 1) * self.step))
-        elif anchor_boundary == "start": # Need to make sure that 'stop' is consistent with self.coordinates[0]
+        elif anchor_boundary == "start":  # Need to make sure that 'stop' is consistent with self.coordinates[0]
             self.set_trait("stop", add_coord(self.start, (self.size - 1) * self.step))
 
         # Make sure step is floating-point error consistent in all cases
@@ -291,7 +293,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         try:
             item = make_coord_value(item)
-        except Exception:
+        except (TypeError, ValueError):
             return False
 
         if type(item) != self.dtype:

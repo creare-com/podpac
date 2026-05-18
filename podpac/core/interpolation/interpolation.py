@@ -3,20 +3,14 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import traitlets as tl
 from copy import deepcopy
 from collections import OrderedDict
-from six import string_types
 import logging
-
-import traitlets as tl
-import numpy as np
 
 from podpac.core.settings import settings
 from podpac.core.node import Node
-from podpac.core.utils import NodeTrait, common_doc, cached_property
+from podpac.core.utils import NodeTrait
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import merge_dims, Coordinates
+from podpac.core.coordinates import Coordinates
 from podpac.core.interpolation.interpolation_manager import InterpolationManager, InterpolationTrait
-from podpac.core.cache.cache_ctrl import CacheCtrl
-from podpac.core.data.datasource import DataSource
 
 _logger = logging.getLogger(__name__)
 
@@ -122,12 +116,12 @@ class Interpolate(Node):
 
     @property
     def outputs(self):
-        """ Pass through outputs from source """
+        """Pass through outputs from source"""
         return self.source.outputs
 
     @property
     def coordinates(self):
-        """ Pass through coordinates from source """
+        """Pass through coordinates from source"""
         return self.source.coordinates
 
     @property
@@ -203,7 +197,6 @@ class Interpolate(Node):
             Cannot evaluate these coordinates
         """
         self._set_interpolation()
-        _selector = self._interpolation.select_coordinates
 
         _logger.debug("Evaluating {} data source".format(self.__class__.__name__))
 
@@ -247,7 +240,7 @@ class Interpolate(Node):
         # if requested crs is differented than coordinates,
         # fabricate a new output with the original coordinates and new values
         if self._evaluated_coordinates.crs != coordinates.crs:
-            output = self.create_output_array(self._evaluated_coordinates.drop(extra_dims), data=output[:].values)
+            output = self.create_output_array(self._evaluated_coordinates.udrop(extra_dims), data=output[:].values)
 
         # save output to private for debugging
         if settings["DEBUG"]:

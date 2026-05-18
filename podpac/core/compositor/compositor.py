@@ -2,10 +2,7 @@
 Compositor Summary
 """
 
-
 from __future__ import division, unicode_literals, print_function, absolute_import
-
-import copy
 
 import numpy as np
 import traitlets as tl
@@ -15,7 +12,7 @@ from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.coordinates.utils import Dimension
 from podpac.core.utils import common_doc, NodeTrait
-from podpac.core.node import COMMON_NODE_DOC, Node
+from podpac.core.node import Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.managers.multi_threading import thread_manager
 
@@ -147,7 +144,7 @@ class BaseCompositor(Node):
                     _, I = _selector(self.source_coordinates, coordinates, index_type="numpy")
                 else:
                     _, I = self.source_coordinates.intersect(coordinates, outer=True, return_index=True)
-            except Exception:
+            except (ValueError, IndexError):
                 # Likely non-monotonic coordinates
                 _, I = self.source_coordinates.intersect(coordinates, outer=False, return_index=True)
             i = I[0]
@@ -222,7 +219,7 @@ class BaseCompositor(Node):
                 yield src.eval(coordinates, _selector=_selector)
 
     @common_doc(COMMON_COMPOSITOR_DOC)
-    def eval(self, coordinates, **kwargs):
+    def eval(self, coordinates, **kwargs):  # noqa: A003
         """
         Wraps the super Node.eval method in order to cache with the correct coordinates.
 

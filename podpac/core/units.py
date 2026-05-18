@@ -25,7 +25,6 @@ except ImportError:
 
 import numpy as np
 import xarray as xr
-import traitlets as tl
 from pint import UnitRegistry
 
 ureg = UnitRegistry()
@@ -37,7 +36,7 @@ from podpac.core.utils import JSONEncoder
 from podpac.core.style import Style
 
 # Optional dependencies
-from lazy_import import lazy_module, lazy_class
+from lazy_import import lazy_module
 
 rasterio = lazy_module("rasterio")
 affine = lazy_module("affine")
@@ -147,7 +146,7 @@ class UnitsDataArray(xr.DataArray):
         self._pp_deserialize()
         return r
 
-    def to_format(self, format, *args, **kwargs):
+    def to_format(self, format, *args, **kwargs):  # noqa: A002
         """
         Helper function for converting Node outputs to alternative formats.
 
@@ -213,12 +212,12 @@ class UnitsDataArray(xr.DataArray):
         else:
             try:
                 getattr(self, "to_" + format)(*args, **kwargs)
-            except Exception:
+            except AttributeError:
                 raise NotImplementedError("Format {} is not implemented.".format(format))
         self._pp_deserialize()
         return r
 
-    def to_image(self, format="png", vmin=None, vmax=None, return_base64=False):
+    def to_image(self, format="png", vmin=None, vmax=None, return_base64=False):  # noqa: A002
         """Return a base64-encoded image of the data.
 
         Parameters
@@ -342,7 +341,7 @@ class UnitsDataArray(xr.DataArray):
 
         return self.transpose(*shared_dims + self_only_dims)
 
-    def set(self, value, mask):
+    def set(self, value, mask):  # noqa: A003
         """This function sets the values of the dataarray equal to 'value' where ever mask is True.
         This operation happens in-place.
 
@@ -388,7 +387,7 @@ class UnitsDataArray(xr.DataArray):
             self = self.transpose(*orig_dims)
 
     @classmethod
-    def open(cls, *args, **kwargs):
+    def open(cls, *args, **kwargs):  # noqa: A003
         """
         Open an :class:`podpac.UnitsDataArray` from a file or file-like object containing a single data variable.
 
@@ -473,69 +472,69 @@ class UnitsDataArray(xr.DataArray):
         return cls(data, coords=coords, dims=dims, **kwargs)
 
 
+def _make_mul_func(meth, tp):
+    def func(self, other):
+        x = getattr(super(UnitsDataArray, self), meth)(other)
+        x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+        units = x2.attrs.get("units")
+        x2.attrs = self.attrs
+        if units is not None:
+            x2.attrs["units"] = units
+        return x2
+
+    return func
+
+
 for tp in ("mul", "matmul", "truediv", "div"):
     meth = "__{:s}__".format(tp)
-
-    def make_func(meth, tp):
-        def func(self, other):
-            x = getattr(super(UnitsDataArray, self), meth)(other)
-            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
-            units = x2.attrs.get("units")
-            x2.attrs = self.attrs
-            if units is not None:
-                x2.attrs["units"] = units
-            return x2
-
-        return func
-
-    func = make_func(meth, tp)
+    func = _make_mul_func(meth, tp)
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)
+
+
+def _make_add_func(meth, tp):
+    def func(self, other):
+        multiplier = self._get_unit_multiplier(other)
+        x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
+        x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+        x2.attrs = self.attrs
+        return x2
+
+    return func
 
 
 for tp in ("add", "sub", "mod", "floordiv"):  # , "divmod", ):
     meth = "__{:s}__".format(tp)
-
-    def make_func(meth, tp):
-        def func(self, other):
-            multiplier = self._get_unit_multiplier(other)
-            x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-            x2 = self._apply_binary_op_to_units(getattr(operator, tp), other, x)
-            x2.attrs = self.attrs
-            return x2
-
-        return func
-
-    func = make_func(meth, tp)
+    func = _make_add_func(meth, tp)
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)
+
+
+def _make_cmp_func(meth):
+    def func(self, other):
+        multiplier = self._get_unit_multiplier(other)
+        return getattr(super(UnitsDataArray, self), meth)(other * multiplier)
+
+    return func
 
 
 for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
     meth = "__{:s}__".format(tp)
-
-    def make_func(meth):
-        def func(self, other):
-            multiplier = self._get_unit_multiplier(other)
-            return getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-
-        return func
-
-    func = make_func(meth)
+    func = _make_cmp_func(meth)
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)
 
 
+def _make_stat_func(tp):
+    def func(self, *args, **kwargs):
+        x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
+        return self._copy_units(x)
+
+    return func
+
+
 for tp in ("mean", "min", "max", "sum", "cumsum"):
-
-    def make_func(tp):
-        def func(self, *args, **kwargs):
-            x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
-            return self._copy_units(x)
-
-        return func
-
-    func = make_func(tp)
+    func = _make_stat_func(tp)
     func.__name__ = tp
     setattr(UnitsDataArray, tp, func)
 
@@ -582,7 +581,11 @@ def _validate_vmin_vmax(data, vmin: float, vmax: float, style: Style) -> Tuple[f
 
 
 def to_image(
-    data: np.array, format: str = "png", vmin: float = None, vmax: float = None, return_base64: bool = False
+    data: np.array,
+    format: str = "png",  # noqa: A002
+    vmin: float = None,
+    vmax: float = None,
+    return_base64: bool = False,
 ) -> Union[bytes, BytesIO]:
     """Return a base64-encoded image of data
 

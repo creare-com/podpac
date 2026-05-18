@@ -2,18 +2,14 @@
 One-Dimensional Coordinates
 """
 
-
 from __future__ import division, unicode_literals, print_function, absolute_import
-
-import copy
 
 import numpy as np
 import traitlets as tl
 
 import podpac
-from podpac.core.utils import ArrayTrait, TupleTrait
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
-from podpac.core.coordinates.utils import add_coord, divide_delta, lower_precision_time_bounds
+from podpac.core.coordinates.utils import add_coord, lower_precision_time_bounds
 from podpac.core.coordinates.utils import Dimension
 from podpac.core.coordinates.utils import calculate_distance
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
@@ -95,7 +91,7 @@ class Coordinates1d(BaseCoordinates):
     def __contains__(self, item):
         try:
             item = make_coord_value(item)
-        except Exception:
+        except (TypeError, ValueError):
             return False
 
         if type(item) != self.dtype:

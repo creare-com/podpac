@@ -2,13 +2,13 @@
 Lambda is `Node` manager, which executes the given `Node` on an AWS Lambda
 function.
 """
+
 import json
 from collections import OrderedDict
 import logging
 import time
 import re
 from copy import deepcopy
-import base64
 from datetime import datetime
 
 from six import string_types
@@ -23,7 +23,6 @@ from podpac.core.utils import common_doc, JSONEncoder
 from podpac import version
 
 # Optional imports
-from lazy_import import lazy_module, lazy_class
 
 try:
     import boto3
@@ -45,6 +44,7 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 _LAMDA_AWS_COM = "lambda.amazonaws.com"
 _STS_ASSUME_ROLE = "sts:AssumeRole"
 _DASH_POLICY = "{}-policy"
+
 
 class LambdaException(Exception):
     """Exception during execution of a Lambda node"""
@@ -317,9 +317,7 @@ class Lambda(Node):
         # enable role to be run by lambda - this document is defined by AWS
         return {
             "Version": "2012-10-17",
-            "Statement": [
-                {"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}
-            ],
+            "Statement": [{"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}],
         }
 
     @tl.default("function_role_tags")
@@ -448,7 +446,7 @@ class Lambda(Node):
         return d
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None, selector=None):
+    def eval(self, coordinates, output=None, selector=None):  # noqa: A003
         """
         Evaluate the source node on the AWS Lambda Function at the given coordinates
         """
@@ -536,7 +534,7 @@ class Lambda(Node):
         def _raise(msg):
             _log.debug(msg)
             if raise_exceptions:
-                raise Exception(msg)
+                raise RuntimeError(msg)
             else:
                 return False
 
@@ -660,12 +658,12 @@ class Lambda(Node):
                 function_budget_amount=self.function_budget_amount,
                 function_budget_currency=self.function_budget_currency,
                 function_budget_email=self.function_budget_email,
-                function_budget_usage=self._budget["CalculatedSpend"]["ActualSpend"]["Amount"]
-                if self._budget
-                else None,
-                function_budget_usage_currency=self._budget["CalculatedSpend"]["ActualSpend"]["Unit"]
-                if self._budget
-                else None,
+                function_budget_usage=(
+                    self._budget["CalculatedSpend"]["ActualSpend"]["Amount"] if self._budget else None
+                ),
+                function_budget_usage_currency=(
+                    self._budget["CalculatedSpend"]["ActualSpend"]["Unit"] if self._budget else None
+                ),
             )
         else:
             budget_output = ""
@@ -983,7 +981,6 @@ Lambda Node {status}
         try:
             s3.head_object(Bucket=self.function_s3_bucket, Key=self.function_s3_dependencies_key)
         except botocore.exceptions.ClientError:
-
             # copy from user supplied dependencies
             if self.function_source_dependencies_zip is not None:
                 put_object(
@@ -1397,7 +1394,7 @@ Lambda Node {status}
         budget : dict
         """
         if budget is not None:
-            budget_filter_tags = {"_podpac_resource_hash": self.hash}
+            _ = {"_podpac_resource_hash": self.hash}
 
             self.set_trait("function_budget_amount", float(budget["BudgetLimit"]["Amount"]))
             self.set_trait("function_budget_name", budget["BudgetName"])
@@ -1940,7 +1937,7 @@ def create_function(
     awslambda = session.client("lambda")
 
     lambda_config = {
-        "Runtime": "python3.7",
+        "Runtime": "python3.12",
         "FunctionName": function_name,
         "Publish": True,
         "Role": function_role_arn,
@@ -2217,9 +2214,7 @@ def create_role(
     if role_assume_policy_document is None:
         role_assume_policy_document = {
             "Version": "2012-10-17",
-            "Statement": [
-                {"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}
-            ],
+            "Statement": [{"Effect": "Allow", "Principal": {"Service": _LAMDA_AWS_COM}, "Action": _STS_ASSUME_ROLE}],
         }
 
     # add special podpac tags for billing id
@@ -2523,7 +2518,7 @@ def get_api(session, api_name, api_endpoint=None):
     try:
         response = apigateway.get_stages(restApiId=api["id"])
         api["stage"] = response["item"][0]["stageName"] if len(response["item"]) else None
-    except Exception:  # TODO: make this more specific?
+    except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError, KeyError, IndexError):
         pass
 
     # get resources
@@ -2600,6 +2595,7 @@ def delete_api(session, api_name):
 # Budget
 # -----------------------------------------------------------------------------------------------------------------
 
+
 # Budget
 def create_budget(
     session,
@@ -2608,7 +2604,7 @@ def create_budget(
     budget_name="podpac-resource-budget",
     budget_currency="USD",
     budget_threshold=80.0,
-    budget_filter_tags={"_podpac_resource": "true"},
+    budget_filter_tags=None,
 ):
     """
     EXPERIMENTAL FEATURE
@@ -2642,6 +2638,9 @@ def create_budget(
         Returns Boto3 budget description
         Equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.describe_budget
     """
+
+    if budget_filter_tags is None:
+        budget_filter_tags = {"_podpac_resource": "true"}
 
     # see if budget already exists
     budget = get_budget(session, budget_name)
@@ -2768,7 +2767,7 @@ def delete_budget(session, budget_name):
 
     try:
         budgets.delete_budget(AccountId=session.get_account_id(), BudgetName=budget_name)
-    except budgets.exceptions.NotFoundException as e:
+    except budgets.exceptions.NotFoundException:
         pass
 
     _log.debug("Successfully removed budget with name '{}'".format(budget_name))

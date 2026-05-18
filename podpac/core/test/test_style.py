@@ -1,7 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from collections import OrderedDict
-from matplotlib import pyplot
 import pytest
 
 from podpac.core.style import Style
@@ -9,13 +8,13 @@ from podpac.core.style import Style
 
 class TestStyle(object):
     def test_init(self):
-        s = Style()
+        _ = Style()
 
     def test_init_from_node(self):
         from podpac.core.node import Node
 
         node = Node()
-        s = Style(node)
+        _ = Style(node)
 
     def test_cmap(self):
         style = Style()
@@ -105,9 +104,9 @@ class TestStyle(object):
         assert style1 is not style3
         assert style2 is not style3
 
-        assert style1 == style1
-        assert style2 == style2
-        assert style3 == style3
+        assert style1.__eq__(style1)
+        assert style2.__eq__(style2)
+        assert style3.__eq__(style3)
 
         assert style1 == style2
         assert style1 != style3

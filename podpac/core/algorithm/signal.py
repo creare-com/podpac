@@ -1,3 +1,4 @@
+# noqa: A005
 """
 Signal Summary
 """
@@ -10,24 +11,18 @@ import scipy.signal
 from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.coordinates import add_coord
-from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import UnaryAlgorithm
 from podpac.core.utils import common_doc, ArrayTrait
 from podpac.core.node import COMMON_NODE_DOC
 
-
 COMMON_DOC = COMMON_NODE_DOC.copy()
-COMMON_DOC[
-    "full_kernel"
-] = """Kernel that contains all the dimensions of the input source, in the correct order.
+COMMON_DOC["full_kernel"] = """Kernel that contains all the dimensions of the input source, in the correct order.
 
         Returns
         -------
         np.ndarray
             The dimensionally full convolution kernel"""
-COMMON_DOC[
-    "validate_kernel"
-] = """Checks to make sure the kernel is valid.
+COMMON_DOC["validate_kernel"] = """Checks to make sure the kernel is valid.
 
         Parameters
         ----------

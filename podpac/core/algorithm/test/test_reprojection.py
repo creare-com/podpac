@@ -1,10 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import pytest
-
 import numpy as np
-from numpy.testing import assert_equal, assert_array_equal, assert_almost_equal
-import traitlets as tl
+from numpy.testing import assert_array_equal, assert_almost_equal
 
 import podpac
 from podpac import Coordinates, clinspace

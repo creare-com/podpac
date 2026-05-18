@@ -1,11 +1,11 @@
 import traitlets as tl
 
-from lazy_import import lazy_module, lazy_class
+from lazy_import import lazy_module
 
 h5py = lazy_module("h5py")
 
 from podpac.core.utils import common_doc, cached_property
-from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
+from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin
 
 
@@ -76,7 +76,7 @@ class H5PY(FileKeysMixin, BaseFileSource):
             else:
                 key = self.data_key[0]
             return self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
-        except Exception:
+        except (KeyError, AttributeError):
             lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
 
             # make sure array_dim key is in self.keys

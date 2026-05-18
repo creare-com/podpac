@@ -1,7 +1,6 @@
 from podpac.core.node import NodeDefinitionError, NodeException
 
 import traitlets as tl
-from podpac.core.coordinates import Coordinates
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl
 from podpac.core.managers.multi_threading import thread_manager
 from podpac import settings
@@ -9,6 +8,7 @@ from podpac.core.cache.cache_ctrl import _CACHE_STORES
 from podpac.core.cache.cache_interface import CacheNode
 
 _CACHE_UNAVAIL = "Cache unavailable, %s (key='%s')"
+
 
 class HashCache(CacheNode):
     """
@@ -73,7 +73,7 @@ class HashCache(CacheNode):
         # Pass through find_coordinates from the source
         return self.source.find_coordinates()
 
-    def eval(self, coordinates, **kwargs):
+    def eval(self, coordinates, **kwargs):  # noqa: A003
         """
         Evaluate the node at the given coordinates. Check the cache for the output and use it if it exists.
         Otherwise, evaluate the source node and cache the output.

@@ -20,7 +20,6 @@ from podpac.core import authentication
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 
-
 # Optional dependencies
 # pydap = lazy_module("pydap")
 # lazy_module("pydap.client")
@@ -31,8 +30,6 @@ from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 import pydap
 import pydap.model
 import pydap.client
-
-
 
 _logger = logging.getLogger(__name__)
 
@@ -74,7 +71,7 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
     def _hostname(self):
         try:
             return requests.utils.urlparse(self.source).netloc
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             return self.source
 
     @common_doc(COMMON_DATA_DOC)

@@ -10,7 +10,6 @@ Utilities functions for handling podpac coordinates.
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import datetime
-import re
 import calendar
 import numbers
 import warnings
@@ -18,7 +17,6 @@ import warnings
 import numpy as np
 import traitlets as tl
 from six import string_types
-import pyproj
 
 from lazy_import import lazy_function
 

@@ -1,0 +1,62 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
+{
+	"name": "Unit test image",
+	"remoteUser": "${localEnv:USER}",
+	"build": {
+		// Sets the build context to one level up instead of the .devcontainer folder.
+		"context": "..",
+		"dockerfile": "dev_container.dockerfile",
+		"args": {
+			"HOST_USER": "${localEnv:USER}",
+			"HOST_UID": "${localEnv:HOST_UID:1000}",
+			"HOST_GID": "${localEnv:HOST_GID:1000}"
+		}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"donjayamanne.git-extension-pack",
+				"eamodio.gitlens",
+				"mhutchie.git-graph",
+				"ms-azuretools.vscode-docker",
+				"ms-python.python",
+				"ms-python.debugpy",
+				"ms-python.black-formatter",
+				"ms-python.flake8",
+				"ms-python.vscode-pylance",
+				"njpwerner.autodocstring",
+				"redhat.vscode-yaml",
+				"SonarSource.sonarlint-vscode"
+			],
+			"settings": {
+				"flake8.args": [
+					"--max-line-length=120"
+				],
+				"python.defaultInterpreterPath": "/usr/local/bin/python",
+				"python.testing.pytestArgs": [],
+				"python.testing.unittestEnabled": false,
+				"python.testing.pytestEnabled": true
+			}
+		}
+	},
+	"postCreateCommand": "pip install --no-cache-dir --use-pep517 -e .[devall]",
+	// Ensure mount dirs exist before mount - dev container will fail to open if absent
+	"initializeCommand": "mkdir -p ${localEnv:HOME}/.local; mkdir -p ${localEnv:HOME}/.claude",
+	"mounts": [
+	// Uncomment to use Claude Code
+	//    "source=${localEnv:HOME}/.local,target=/home/${localEnv:USER}/.local,type=bind",
+	//    "source=${localEnv:HOME}/.claude,target=/home/${localEnv:USER}/.claude,type=bind"
+	]
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+	// Uncomment the next line to run commands after the container is created.
+	// "postCreateCommand": "cat /etc/os-release",
+	// Configure tool-specific properties.
+	// "customizations": {},
+	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "devcontainer"
+	// "containerEnv": {}
+}
