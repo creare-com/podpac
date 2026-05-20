@@ -14,6 +14,7 @@ _TEST_COM = "test.com"
 
 _log = logging.getLogger(__name__)
 
+
 class TestAuthentication(object):
     def test_set_credentials(self):
         with settings:

@@ -6,8 +6,8 @@ import logging
 from podpac import settings
 from podpac.core.managers.multi_threading import FakeLock, thread_manager
 
-
 _log = logging.getLogger(__name__)
+
 
 class TestFakeLock(object):
     def test_enter_exist_single_thread(self):
