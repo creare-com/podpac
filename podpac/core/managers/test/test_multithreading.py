@@ -21,7 +21,7 @@ class TestFakeLock(object):
         lock = FakeLock()
 
         def f(s):
-            _log.debug("In", s)
+            _log.debug(f"In {s}")
             with lock:
                 _log.debug(f"Locked {s}")
                 assert lock._locked
@@ -68,11 +68,11 @@ class TestThreadManager(object):
 
     def test_request_release_threads_multi_threaded(self):
         def f(s):
-            _log.debug("In", s)
+            _log.debug(f"In {s}")
             n1 = thread_manager.release_n_threads(s)
             time.sleep(0.05)
             n2 = thread_manager.release_n_threads(s)
-            _log.debug("Released", s)
+            _log.debug(f"Released {s}")
             assert n2 >= n1
 
         with settings:

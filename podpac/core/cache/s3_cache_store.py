@@ -56,10 +56,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
         )
         self._s3_bucket = s3_bucket
 
-        try:
-            self._s3_client.head_bucket(Bucket=self._s3_bucket)
-        except Exception as e:
-            raise e
+        self._s3_client.head_bucket(Bucket=self._s3_bucket)
 
     # -----------------------------------------------------------------------------------------------------------------
     # main cache API
