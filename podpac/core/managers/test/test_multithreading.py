@@ -29,14 +29,8 @@ class TestFakeLock(object):
             _log.debug(f"Unlocked {s}")
             assert lock._locked == False
 
-        if sys.version_info.major == 2:
-            t1 = Thread(target=lambda: f("thread"))
-            t2 = Thread(target=lambda: f("thread"))
-            t1.daemon = True
-            t2.daemon = True
-        else:
-            t1 = Thread(target=lambda: f("thread"), daemon=True)
-            t2 = Thread(target=lambda: f("thread"), daemon=True)
+        t1 = Thread(target=lambda: f("thread"), daemon=True)
+        t2 = Thread(target=lambda: f("thread"), daemon=True)
         _log.debug("In Main Thread")
         f("main1")
         _log.debug("Starting Thread")
@@ -78,14 +72,8 @@ class TestThreadManager(object):
         with settings:
             settings["N_THREADS"] = 7
 
-            if sys.version_info.major == 2:
-                t1 = Thread(target=lambda: f(5))
-                t2 = Thread(target=lambda: f(6))
-                t1.daemon = True
-                t2.daemon = True
-            else:
-                t1 = Thread(target=lambda: f(5), daemon=True)
-                t2 = Thread(target=lambda: f(6), daemon=True)
+            t1 = Thread(target=lambda: f(5), daemon=True)
+            t2 = Thread(target=lambda: f(6), daemon=True)
             f(1)
             t1.run()
             t2.run()
