@@ -1600,7 +1600,7 @@ class Session(boto3.Session):
             _ = self.get_account_id()
         except botocore.exceptions.ClientError as e:
             _log.exception(
-                "AWS credential check failed. Confirm aws access key id and aws secred access key are valid.")
+                "AWS credential check failed. Confirm aws access key id and aws secred access key are valid."
             )
             raise ValueError(
                 "AWS credential check failed. Confirm aws access key id and aws secred access key are valid."
