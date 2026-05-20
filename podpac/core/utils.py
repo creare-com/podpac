@@ -375,7 +375,7 @@ def cached_property(*args, **kwargs):
         raise TypeError("cached_property decorator does not accept any positional arguments")
 
     if kwargs:
-        raise TypeError("cached_property decorator does not accept keyword argument '%s'" % list(kwargs.keys())[0])
+        raise TypeError("cached_property decorator does not accept keyword argument '%s'" % next(iter(kwargs.keys())))
 
     def d(fn):
         key = "_podpac_cached_property_%s" % fn.__name__

@@ -234,7 +234,7 @@ class Rasterio(S3Mixin, BaseFileSource):
             data = self.create_output_array(new_coords)
             data.data.ravel()[:] = raster_data.ravel()
         except (rasterio.errors.RasterioError, OSError, ValueError, IndexError, MemoryError) as e:
-            _logger.error("Error occurred when reading overview with Rasterio: {}".format(e))
+            _logger.exception("Error occurred when reading overview with Rasterio: {}".format(e))
 
         if overview_level is not None:
             dataset.close()

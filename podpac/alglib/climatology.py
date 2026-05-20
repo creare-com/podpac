@@ -45,7 +45,7 @@ class BetaFitDayOfYear(DayOfYearWindow):
             data[data == 0] += 1e-6
             a, b, loc, scale = beta.fit(data, floc=0, fscale=1)
         except FitSolverError as e:
-            _log.error(e)
+            _log.exception(e)
             return output
 
         # populate outputs for this point

@@ -23,10 +23,10 @@ class TestFakeLock(object):
         def f(s):
             _log.debug("In", s)
             with lock:
-                _log.debug("Locked", s)
+                _log.debug(f"Locked {s}")
                 assert lock._locked
                 time.sleep(0.05)
-            _log.debug("Unlocked", s)
+            _log.debug(f"Unlocked {s}")
             assert lock._locked == False
 
         if sys.version_info.major == 2:
