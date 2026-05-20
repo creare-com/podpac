@@ -185,7 +185,7 @@ def make_coord_value(val, dtype=None):
         val = float(val)
         if dtype is not None and dtype == np.timedelta64:
             val = int(val)
-            val = np.timedelta64(val)            
+            val = np.timedelta64(val)
     else:
         raise TypeError("Invalid coordinate value, unsupported type '%s'" % type(val))
 
