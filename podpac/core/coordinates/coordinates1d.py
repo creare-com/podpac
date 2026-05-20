@@ -336,17 +336,25 @@ class Coordinates1d(BaseCoordinates):
             bounds = bounds.get(self.name)
             if bounds is None:
                 return self._select_full(return_index)
-            
-        bounds = make_coord_value(bounds[0], self.dtype), make_coord_value(bounds[1], self.dtype)
+
+        bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
 
         # check type
         if not isinstance(bounds[0], self.dtype):
             raise TypeError(
-                "Input bounds do match the coordinates dtype (%s != %s)" % (type(bounds[0]), self.dtype)
+                (
+                    "Input bounds do match the coordinates dtype (%s != %s). "
+                    "Check the evaluation coordinate types to make sure that they match the node coordinate types."
+                )
+                % (type(bounds[0]), self.dtype)
             )
         if not isinstance(bounds[1], self.dtype):
             raise TypeError(
-                "Input bounds do match the coordinates dtype (%s != %s)" % (type(bounds[1]), self.dtype)
+                (
+                    "Input bounds do match the coordinates dtype (%s != %s). "
+                    "Check the evaluation coordinate types to make sure that they match the node coordinate types."
+                )
+                % (type(bounds[1]), self.dtype)
             )
 
         my_bounds = self.bounds
