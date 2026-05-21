@@ -6,6 +6,7 @@ All tests mock AWS API calls — no real AWS credentials needed.
 
 import io
 import json
+import numpy as np
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -50,7 +51,7 @@ from podpac.core.managers.aws import (
 class MockNode(Node):
     """Minimal concrete Node for use as Lambda source."""
 
-    def eval(self, coordinates, output=None, selector=None):
+    def eval(self, coordinates, output=None, selector=None):  # noqa: A003
         pass
 
 
@@ -285,7 +286,7 @@ class TestCreateFunction(object):
                     "test-fn",
                     "arn:role",
                     "handler.handler",
-                    function_source_dist_zip="/tmp/my.zip",
+                    function_source_dist_zip="my.zip",
                 )
 
 
@@ -317,7 +318,7 @@ class TestUpdateFunction(object):
         session = _mock_session()
         with patch("podpac.core.managers.aws.get_function", return_value=_function_dict()):
             with pytest.raises(NotImplementedError):
-                update_function(session, "test-fn", function_source_dist_zip="/tmp/my.zip")
+                update_function(session, "test-fn", function_source_dist_zip="my.zip")
 
 
 # ---------------------------------------------------------------------------
@@ -1133,7 +1134,7 @@ class TestLambdaClass(object):
             "BudgetLimit": {"Amount": "100.0", "Unit": "USD"},
         }
         node._set_budget(budget)
-        assert node.function_budget_amount == 100.0
+        assert np.isclose(node.function_budget_amount, 100.0, rtol=1e-09, atol=1e-09)
         assert node.function_budget_currency == "USD"
         assert node._budget is budget
 
