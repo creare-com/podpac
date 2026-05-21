@@ -34,7 +34,6 @@ from podpac.core.managers.aws import (
     get_object,
     put_object,
     get_api,
-    create_api,
     deploy_api,
     delete_api,
     get_budget,
@@ -42,7 +41,6 @@ from podpac.core.managers.aws import (
     delete_budget,
     get_logs,
 )
-
 
 # ---------------------------------------------------------------------------
 # Test helpers
