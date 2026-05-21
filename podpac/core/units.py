@@ -745,7 +745,7 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
         dtype=data.dtype,
         crs=crs,
         transform=geotransform,
-        nodata=np.nan
+        nodata=np.nan,
     )
     kwargs2.update(kwargs)
 
