@@ -133,12 +133,10 @@ class Rasterio(S3Mixin, BaseFileSource):
             crs = self.crs
         elif isinstance(self.dataset.crs, rasterio.crs.CRS) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
-            if self.dataset.crs.is_valid:
-                validate_crs = False
+            validate_crs = False
         elif isinstance(self.dataset.crs, dict) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
-            if self.dataset.crs.is_valid:
-                validate_crs = False
+            validate_crs = False
         else:
             try:
                 crs = pyproj.CRS(self.dataset.crs).to_wkt()
@@ -236,7 +234,7 @@ class Rasterio(S3Mixin, BaseFileSource):
             data = self.create_output_array(new_coords)
             data.data.ravel()[:] = raster_data.ravel()
         except (rasterio.errors.RasterioError, OSError, ValueError, IndexError, MemoryError) as e:
-            _logger.error("Error occurred when reading overview with Rasterio: {}".format(e))
+            _logger.exception("Error occurred when reading overview with Rasterio: {}".format(e))
 
         if overview_level is not None:
             dataset.close()

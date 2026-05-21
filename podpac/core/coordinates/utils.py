@@ -145,7 +145,7 @@ def make_coord_value(val):
 
     Returns
     -------
-    val : float, np.datetime64
+    val : float, np.datetime64, np.timedelta64
         Cast coordinate value.
 
     Notes

@@ -3,6 +3,7 @@ import requests
 import traitlets as tl
 import s3fs
 from numpy.testing import assert_equal
+import logging
 
 from podpac import settings, Node
 from podpac.core.authentication import RequestsSessionMixin, S3Mixin, set_credentials
@@ -10,6 +11,8 @@ from podpac.core.authentication import RequestsSessionMixin, S3Mixin, set_creden
 _USERNAME_TEST_COM = "username@test.com"
 _PASSWORD_TEST_COM = "password@test.com"
 _TEST_COM = "test.com"
+
+_log = logging.getLogger(__name__)
 
 
 class TestAuthentication(object):
@@ -129,7 +132,7 @@ class TestRequestsSessionMixin(object):
             node = SomeNode(hostname="auth2.com", auth_required=True)
             with pytest.raises(ValueError):
                 s = node.session
-                print(s)
+                _log.debug(s)
 
             node.set_credentials(username="testuser", password="testpass")
             assert node.session

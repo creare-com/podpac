@@ -375,7 +375,7 @@ def cached_property(*args, **kwargs):
         raise TypeError("cached_property decorator does not accept any positional arguments")
 
     if kwargs:
-        raise TypeError("cached_property decorator does not accept keyword argument '%s'" % list(kwargs.keys())[0])
+        raise TypeError("cached_property decorator does not accept keyword argument '%s'" % next(iter(kwargs.keys())))
 
     def d(fn):
         key = "_podpac_cached_property_%s" % fn.__name__
@@ -665,7 +665,6 @@ def get_ui_node_spec(module=None, category="default", help_as_html=False):
     spec[category] = {}
     disabled_categories = ["Algorithm", "DataSource", "DroughtMonitorCategory", "DroughtCategory", "IntakeCatalog"]
     for obj in dir(module):
-        # print(obj)
         if obj in disabled_categories:
             ob = getattr(module, obj)
             # print(ob)

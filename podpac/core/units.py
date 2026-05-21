@@ -698,10 +698,6 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
     if "alt" in dims and len(data.coords["alt"]) > 1:
         raise NotImplementedError("Cannot export GeoTIFF for dataset with multiple altitudes.")
 
-    # TODO: add proper checks, etc. to make sure we handle edge cases and throw errors when we cannot support
-    #       i.e. do work to remove this warning.
-    _logger.warning("GeoTIFF export assumes data is in a uniform, non-rotated coordinate system.")
-
     # Get the crs and geotransform that describes the coordinates
     if crs is None:
         crs = data.attrs.get("crs")
@@ -749,6 +745,7 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
         dtype=data.dtype,
         crs=crs,
         transform=geotransform,
+        nodata=np.nan,
     )
     kwargs2.update(kwargs)
 

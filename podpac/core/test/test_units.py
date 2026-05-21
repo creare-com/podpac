@@ -640,3 +640,11 @@ class TestToGeoTiff(object):
 
         #     rout = rnode.eval(rnode.coordinates)
         #     np.testing.assert_almost_equal(out.data, rout.data)
+
+    def test_to_geotiff_nonuniform(self):
+        node = self.make_square_array().interpolate(method="nearest")
+        nonuniform_coords = Coordinates([[2.5, 1.0, 0.5], [2.0, 2.5, 3.5]], dims=["lat", "lon"])
+        out = node.eval(nonuniform_coords)
+        with pytest.raises(ValueError):
+            with tempfile.NamedTemporaryFile("wb") as fp:
+                out.to_geotiff(fp)

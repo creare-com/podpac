@@ -4,7 +4,6 @@ import fnmatch
 from lazy_import import lazy_module
 
 boto3 = lazy_module("boto3")
-botocore = lazy_module("botocore")
 
 from podpac.core.settings import settings
 from podpac.core.cache.utils import CacheException, CacheWildCard
@@ -57,10 +56,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
         )
         self._s3_bucket = s3_bucket
 
-        try:
-            self._s3_client.head_bucket(Bucket=self._s3_bucket)
-        except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError) as e:
-            raise e
+        self._s3_client.head_bucket(Bucket=self._s3_bucket)
 
     # -----------------------------------------------------------------------------------------------------------------
     # main cache API

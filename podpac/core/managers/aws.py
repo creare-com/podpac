@@ -735,7 +735,7 @@ Lambda Node {status}
             budget_output=budget_output,
         )
 
-        print(output)
+        _log.debug(output)
 
     # Function
     def create_function(self):
@@ -1598,11 +1598,9 @@ class Session(boto3.Session):
 
         try:
             _ = self.get_account_id()
-        except botocore.exceptions.ClientError as e:
-            _log.error(
-                "AWS credential check failed. Confirm aws access key id and aws secred access key are valid. Credential check exception: {}".format(
-                    str(e)
-                )
+        except botocore.exceptions.ClientError:
+            _log.exception(
+                "AWS credential check failed. Confirm aws access key id and aws secred access key are valid."
             )
             raise ValueError(
                 "AWS credential check failed. Confirm aws access key id and aws secred access key are valid."
@@ -2510,8 +2508,8 @@ def get_api(session, api_name, api_endpoint=None):
 
         api = apigateway.get_rest_api(restApiId=api_id)
         del api["ResponseMetadata"]
-    except (botocore.exceptions.ParamValidationError, apigateway.exceptions.NotFoundException) as e:
-        _log.error("Failed to get API Gateway with name {} with exception: {}".format(api_name, e))
+    except (botocore.exceptions.ParamValidationError, apigateway.exceptions.NotFoundException):
+        _log.exception("Failed to get API Gateway with name {} with exception:".format(api_name))
         return None
 
     # try to get stage
@@ -2741,8 +2739,8 @@ def get_budget(session, budget_name):
     try:
         response = budgets.describe_budget(AccountId=session.get_account_id(), BudgetName=budget_name)
         budget = response["Budget"]
-    except (botocore.exceptions.ParamValidationError, budgets.exceptions.NotFoundException) as e:
-        _log.error("Failed to get budget with name {} with exception: {}".format(budget_name, e))
+    except (botocore.exceptions.ParamValidationError, budgets.exceptions.NotFoundException):
+        _log.exception("Failed to get budget with name {} with exception:".format(budget_name))
         return None
 
     return budget
