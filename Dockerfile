@@ -14,4 +14,4 @@ RUN apt-get update --yes --quiet && apt-get install --yes --quiet --no-install-r
 COPY . /opt/podpac
 WORKDIR /opt/podpac
 # Install PODPAC with all dependencies
-RUN pip install --prefer-binary .[devall]
+RUN pip install .[all]
