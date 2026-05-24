@@ -46,33 +46,33 @@ class TestBaseCompositor(object):
         assert node.source_coordinates is None
 
         # unstacked
-        node = BaseCompositor(
+        BaseCompositor(
             sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
             source_coordinates=podpac.Coordinates([[0, 1]], dims=["time"]),
         )
 
         # stacked
-        node = BaseCompositor(
+        BaseCompositor(
             sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
             source_coordinates=podpac.Coordinates([[[0, 1], [10, 20]]], dims=["time_alt"]),
         )
 
         # invalid size
         with pytest.raises(ValueError, match="Invalid source_coordinates, source and source_coordinates size mismatch"):
-            node = BaseCompositor(
+            BaseCompositor(
                 sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
                 source_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["time"]),
             )
 
         with pytest.raises(ValueError, match="Invalid source_coordinates, source and source_coordinates size mismatch"):
-            node = BaseCompositor(
+            BaseCompositor(
                 sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
                 source_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["time"]),
             )
 
         # invalid ndims
         with pytest.raises(ValueError, match="Invalid source_coordinates"):
-            node = BaseCompositor(
+            BaseCompositor(
                 sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
                 source_coordinates=podpac.Coordinates([[0, 1], [10, 20]], dims=["time", "alt"]),
             )
@@ -252,7 +252,7 @@ class TestBaseCompositor(object):
 
         # mixed
         with pytest.raises(ValueError, match="Cannot composite standard sources with multi-output sources."):
-            node = BaseCompositor(sources=[MULTI_2_X, ARRAY_LAT], auto_outputs=True)
+            BaseCompositor(sources=[MULTI_2_X, ARRAY_LAT], auto_outputs=True)
 
         # no sources
         node = BaseCompositor(sources=[], auto_outputs=True)

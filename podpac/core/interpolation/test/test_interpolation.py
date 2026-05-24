@@ -159,7 +159,7 @@ class TestInterpolationBehavior(object):
             coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),
         ).interpolate(interpolation=[{"method": "bilinear", "dims": ["lat"], "interpolators": [ScipyGrid]}])
         with pytest.raises(InterpolationException, match="can't be handled"):
-            o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
+            node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
 
         node = podpac.data.Array(
             source=[0, 1, 2],

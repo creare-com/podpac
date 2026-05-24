@@ -86,7 +86,7 @@ class TestReprojectedSource(object):
         # no source.interpolation to set (trigger logger warning)
         source = Node()
         with pytest.warns(DeprecationWarning):
-            node = ReprojectedSource(source=source, reprojected_coordinates=self.reprojected_coordinates).interpolate(
+            ReprojectedSource(source=source, reprojected_coordinates=self.reprojected_coordinates).interpolate(
                 source_interpolation="bilinear"
             )
 

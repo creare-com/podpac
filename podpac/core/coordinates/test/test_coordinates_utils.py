@@ -603,7 +603,7 @@ def test_add_custom_dimension():
 
     # Assert add_valid_dimension must be called
     with pytest.raises(tl.TraitError):
-        c1 = podpac.Coordinates([[1, 2, 3]], ["mydim"])
+        podpac.Coordinates([[1, 2, 3]], ["mydim"])
 
     # Add a valid dimension
     add_valid_dimension("mydim")

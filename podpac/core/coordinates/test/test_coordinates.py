@@ -537,7 +537,7 @@ class TestCoordinateCreation(object):
 
         # crs warning
         with pytest.warns(UserWarning, match="using default crs"):
-            c2 = Coordinates.from_xarray(x.coords)
+            Coordinates.from_xarray(x.coords)
 
         # invalid
         with pytest.raises(TypeError, match="Coordinates.from_xarray expects an xarray"):
@@ -840,7 +840,6 @@ class TestCoordinatesDict(object):
         coords.__setitem__("time", ArrayCoordinates1d([1, 2, 3], name="time"))
         coords.__setitem__("time", Coordinates([[1, 2, 3]], dims=["time"]))
 
-        # coords['lat_lon'] = [np.linspace(0, 10, 5), np.linspace(0, 10, 5)]
         coords.__setitem__("lat_lon", clinspace((0, 1), (10, 20), 5))
         coords.__setitem__("lat_lon", (np.linspace(0, 10, 5), np.linspace(0, 10, 5)))
         coords.__setitem__("lat_lon", Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"]))
@@ -1169,7 +1168,7 @@ class TestCoordinatesMethods(object):
         assert_equal(c2["time"].coordinates, [np.datetime64("2018-01-01"), np.datetime64("2018-01-02")])
         assert_equal(c2["alt"].coordinates, [])
 
-        # return indices
+        # check the returned indices
         c = Coordinates(
             [[2, 1, 0, 1], ["2018-01-01", "2018-01-02", "2018-01-01"], []],
             dims=["lat", "time", "alt"],

@@ -52,11 +52,6 @@ class NearestNeighbor(Interpolator):
     remove_nan = tl.Bool(False)
     use_selector = tl.Bool(True)
 
-    def __repr__(self):
-        rep = super(NearestNeighbor, self).__repr__()
-        # rep += '\n\tspatial_tolerance: {}\n\ttime_tolerance: {}'.format(self.spatial_tolerance, self.time_tolerance)
-        return rep
-
     @common_doc(COMMON_INTERPOLATOR_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """

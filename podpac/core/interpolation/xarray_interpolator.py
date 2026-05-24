@@ -55,11 +55,6 @@ class XarrayInterpolator(Interpolator):
 
     kwargs = tl.Dict({"bounds_error": False})
 
-    def __repr__(self):
-        rep = super(XarrayInterpolator, self).__repr__()
-        # rep += '\n\tspatial_tolerance: {}\n\ttime_tolerance: {}'.format(self.spatial_tolerance, self.time_tolerance)
-        return rep
-
     @common_doc(COMMON_INTERPOLATOR_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """

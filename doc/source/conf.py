@@ -20,8 +20,6 @@
 import os
 from shutil import copyfile
 
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
 import datetime
 
 # for parsing markdown files

@@ -120,7 +120,7 @@ class TestInterpolation(object):
 
         # should not allow custom methods if interpolators can't support
         with pytest.raises(InterpolatorException):
-            interp = InterpolationManager(
+            InterpolationManager(
                 [{"method": "myinter", "interpolators": [NearestNeighbor, NearestPreview], "dims": ["lat", "lon"]}]
             )
 
@@ -232,7 +232,7 @@ class TestInterpolation(object):
         # should throw an error if strict is set and not all dimensions can be handled
         with pytest.raises(InterpolationException):
             interp_copy = deepcopy(interp)
-            interpolator_queue = interp_copy._select_interpolator_queue(srccoords, reqcoords, "can_select", strict=True)
+            interp_copy._select_interpolator_queue(srccoords, reqcoords, "can_select", strict=True)
 
         # default = Nearest, which can handle all dims for can_interpolate
         interpolator_queue = interp._select_interpolator_queue(srccoords, reqcoords, "can_interpolate")

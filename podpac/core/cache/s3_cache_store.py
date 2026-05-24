@@ -50,7 +50,6 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
         aws_session = boto3.session.Session(region_name=aws_region_name)
         self._s3_client = aws_session.client(
             "s3",
-            # config= boto3.session.Config(signature_version='s3v4'),
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
         )

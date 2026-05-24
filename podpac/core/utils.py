@@ -202,12 +202,6 @@ class DimsTrait(tl.List):
     def __init__(self, *args, **kwargs):
         super().__init__(tl.Enum(VALID_DIMENSION_NAMES), *args, minlen=1, maxlen=4, **kwargs)
 
-    # def validate(self, obj, value):
-    #     super().validate(obj, value)
-    #     if podpac.core.settings.settings["DEBUG"]:
-    #         value = deepcopy(value)
-    #     return value
-
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -666,11 +660,6 @@ def get_ui_node_spec(module=None, category="default", help_as_html=False):
     disabled_categories = ["Algorithm", "DataSource", "DroughtMonitorCategory", "DroughtCategory", "IntakeCatalog"]
     for obj in dir(module):
         if obj in disabled_categories:
-            ob = getattr(module, obj)
-            # print(ob)
-            # print(ob.get_ui_spec())
-            # would be fairly annoying to have to check all of the attrs for abstract
-            # still need a better solution
             continue
         ob = getattr(module, obj)
         if not inspect.isclass(ob):

@@ -197,17 +197,3 @@ class PolarCoordinates(StackedCoordinates):
 
     def copy(self):
         return PolarCoordinates(self.center, self.radius, self.theta, dims=self.dims)
-
-    # TODO return PolarCoordinates when possible
-    # def select(self, other, outer=False):
-    #     raise NotImplementedError("TODO")
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Debug
-    # ------------------------------------------------------------------------------------------------------------------
-
-    # def plot(self, marker='b.', center_marker='bx'):
-    #     from matplotlib import pyplot
-    #     super(PolarCoordinates, self).plot(marker=marker)
-    #     cx, cy = self.center
-    #     pyplot.plot(cx, cy, center_marker)

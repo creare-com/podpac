@@ -113,7 +113,7 @@ class TestRequestsSessionMixin(object):
     def test_auth_required(self):
         with settings:
             with pytest.raises(tl.TraitError):
-                node = SomeNode(hostname="auth.com", auth_required="true")
+                SomeNode(hostname="auth.com", auth_required="true")
 
             # no auth
             node = SomeNode(hostname="auth.com")

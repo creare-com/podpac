@@ -204,7 +204,6 @@ class Selector(tl.HasTraits):
         # two udims could be stacked, but in different dim groups, e.g. source (lat, lon), request (lat, time), (lon, alt)
         stacked = {d for d in request.dims for ud in udims if ud in d and request.is_stacked(ud)}
 
-        inds = np.array([])
         # Parts of the below code is duplicated in NearestNeighborInterpolotor
         src_coords, req_coords_diag = _higher_precision_time_stack(source, request, udims)
         # For nD stacked coordinates we need to unravel the stacked dimension

@@ -448,12 +448,6 @@ class DataSource(Node):
         rsd = self._get_data(rsc, rsci)
 
         if output is None:
-            # if requested_coordinates.crs.lower() != coordinates.crs.lower():
-            #     if rsc.shape == rsd.shape:
-            #         rsd = self.create_output_array(rsc, data=rsd.data)
-            #     else:
-            #         crds = Coordinates.from_xarray(rsd, crs=data.attrs.get("crs", None))
-            #         rsd = self.create_output_array(crds.transform(rsc.crs), data=rsd.data)
             output = rsd
         else:
             output.data[:] = rsd.data
@@ -596,10 +590,9 @@ class DataSource(Node):
         boundary = {}
         for c, I in zip(self.coordinates.values(), index):
             for dim in c.dims:
-                if dim not in self.boundary:
-                    pass
-                elif np.array(self.boundary[dim]).ndim == 2:
-                    boundary[dim] = np.array(self.boundary[dim][I])
-                else:
-                    boundary[dim] = self.boundary[dim]
+                if dim in self.boundary:
+                    if np.array(self.boundary[dim]).ndim == 2:
+                        boundary[dim] = np.array(self.boundary[dim][I])
+                    else:
+                        boundary[dim] = self.boundary[dim]
         return boundary

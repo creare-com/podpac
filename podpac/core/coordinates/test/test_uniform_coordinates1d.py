@@ -286,7 +286,6 @@ class TestUniformCoordinatesCreation(object):
     def test_anchor_boundaries(self):
         # ascending, exact
         c = UniformCoordinates1d("2025-01-01T12", "2025-01-03T00", "1,D", anchor_boundary=None)
-        # a = np.array(["2025-01-01T12", "2025-01-03T00"]).astype(np.datetime64)
         assert c.start == np.datetime64("2025-01-01T12")
         assert c.stop == np.datetime64("2025-01-03T00")
         assert c.is_monotonic == True

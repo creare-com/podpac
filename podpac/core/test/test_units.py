@@ -436,11 +436,11 @@ class TestCreateDataArray(object):
 
         data = np.random.random(self.coords.shape + (2,))
         with pytest.raises(ValueError, match="data with shape .* does not match"):
-            a = UnitsDataArray.create(self.coords, data=data, outputs=["a", "b", "c"])
+            UnitsDataArray.create(self.coords, data=data, outputs=["a", "b", "c"])
 
         data = np.random.random(self.coords.shape)
         with pytest.raises(ValueError, match="data with shape .* does not match"):
-            a = UnitsDataArray.create(self.coords, data=data, outputs=["a", "b", "c"])
+            UnitsDataArray.create(self.coords, data=data, outputs=["a", "b", "c"])
 
     def test_invalid_coords(self):
         with pytest.raises(TypeError):
