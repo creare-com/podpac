@@ -40,12 +40,11 @@ extras_require = {
     "datatype": [
         "beautifulsoup4>=4.6",
         "h5py>=2.9",
-        "lxml>=4.2",
+        "lxml>=6.1.0",
         "rasterio>=1.0",
         "zarr>=2.3,<3",
         "owslib",
         "h5netcdf",
-        "intake>=0.5.1",
     ],
     "aws": ["awscli>=1.16", "boto3>=1.9.200", "s3fs>=0.4"],
     "algorithms": ["numexpr>=2.6"],
