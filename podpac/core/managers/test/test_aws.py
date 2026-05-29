@@ -60,8 +60,8 @@ class _MockBoto3Session(boto3_real.Session):
 
     def __init__(self):
         super().__init__(
-            aws_access_key_id="AKIAIOSFODNN7EXAMPLE",
-            aws_secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            aws_access_key_id="example key id",
+            aws_secret_access_key="example key",
             region_name="us-east-1",
         )
         self._clients = {}
