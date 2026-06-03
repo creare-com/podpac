@@ -6,6 +6,7 @@
 * Clarified error statement when input coordinates do not match expected `dtype`.
 * Removed old `crs.is_valid` calls.
 * Set Rasterio geotiff export `nodata` value to `np.nan` in `podpac.core.units.to_geotiff` for consistency. 
+* Fixed issue with opening Zarr data sources
 
 ## 4.0.1
 ### Bugfixes
