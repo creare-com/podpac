@@ -120,6 +120,26 @@ class TestInterpolationBehavior(object):
         o3 = node.eval(Coordinates(["2018-01-01"], dims=["time"]))
         assert o3.data[0] == 0
 
+    def test_stacked_coordinates_with_extra_dimension_and_non_default_crs(self):
+        """
+        Test interpolation for a request with stacked coordinates containing an extra dimension and non-default CRS.
+        Interpolation is set to "none" to ensure the _fix_coordinates_for_none_interp method is invoked.
+        """
+        node = Array(
+            source=[0, 1, 2],
+            coordinates=Coordinates([[[0, 2, 1], [10, 12, 11]]], dims=["lat_lon"]),
+        ).interpolate(interpolation="none")
+
+        o1 = node.eval(
+            coordinates=Coordinates(
+                [[[0, 2, 1], [10, 12, 11], ["2018-01-01", "2018-01-02", "2018-01-03"]]],
+                dims=["lat_lon_time"],
+                crs="EPSG:4326",
+            )
+        )
+
+        assert_array_equal(o1.data, [0, 1, 2])
+
     def test_ignored_interpolation_params_issue340(self, caplog):
         node = Array(source=[0, 1, 2], coordinates=Coordinates([[0, 2, 1]], dims=["time"])).interpolate(
             interpolation={"method": "nearest", "params": {"fake_param": 1.1, "spatial_tolerance": 1}}
@@ -139,7 +159,7 @@ class TestInterpolationBehavior(object):
             coordinates=podpac.Coordinates([[1, 5, 9]], dims=["lat"]),
         ).interpolate(interpolation=[{"method": "bilinear", "dims": ["lat"], "interpolators": [ScipyGrid]}])
         with pytest.raises(InterpolationException, match="can't be handled"):
-            o = node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
+            node.eval(podpac.Coordinates([podpac.crange(1, 9, 1)], dims=["lat"]))
 
         node = podpac.data.Array(
             source=[0, 1, 2],

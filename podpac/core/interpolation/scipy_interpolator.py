@@ -9,18 +9,16 @@ import traitlets as tl
 
 # Optional dependencies
 try:
-    import scipy
-    from scipy.interpolate import griddata, RectBivariateSpline, RegularGridInterpolator
+    from scipy.interpolate import RectBivariateSpline, RegularGridInterpolator
     from scipy.spatial import KDTree
 except ImportError:
     scipy = None
 
 # podac imports
-from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
+from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
+from podpac.core.coordinates import UniformCoordinates1d
 from podpac.core.utils import common_doc
-from podpac.core.coordinates.utils import get_timedelta
 
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)
@@ -55,7 +53,6 @@ class ScipyPoint(Interpolator):
             and self._dim_in(["lat", "lon"], source_coordinates, unstacked=True)
             and self._dim_in(["lat", "lon"], eval_coordinates, unstacked=True)
         ):
-
             return tuple(["lat", "lon"])
 
         # otherwise return no supported dims
@@ -162,7 +159,6 @@ class ScipyGrid(ScipyPoint):
             and self._dim_in(["lat", "lon"], source_coordinates)
             and self._dim_in(["lat", "lon"], eval_coordinates, unstacked=True)
         ):
-
             return ["lat", "lon"]
 
         # otherwise return no supported dims
@@ -188,7 +184,6 @@ class ScipyGrid(ScipyPoint):
     def _interpolate_irregular_grid(
         self, udims, source_coordinates, source_data, eval_coordinates, output_data, grid=True
     ):
-
         if len(source_data.dims) > 2:
             keep_dims = ["lat", "lon"]
             return self._loop_helper(

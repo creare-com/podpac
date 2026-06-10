@@ -2,6 +2,6 @@
 line-length = 120
 
 [tool.coverage.run]
-relative_files = true
+relative_files = false # For reasoning, see https://github.com/creare-com/podpac/pull/546
 source = ["podpac/"]
 branch = true

@@ -1,12 +1,9 @@
 import pydap
 import pytest
 import numpy as np
-import traitlets as tl
 import requests
 
 from podpac.core.coordinates import Coordinates, clinspace
-from podpac.core.units import UnitsDataArray
-from podpac.core import authentication
 from podpac.core.data.pydap_source import PyDAP
 from podpac import settings
 
@@ -14,7 +11,7 @@ from podpac import settings
 class MockPyDAP(PyDAP):
     """mock pydap data source"""
 
-    source = "http://demo.opendap.org"
+    source = "https://demo.opendap.org"
     data_key = "key"
     data = np.random.rand(11, 11)
 
@@ -31,11 +28,11 @@ class MockPyDAP(PyDAP):
 class TestPyDAP(object):
     """test pydap datasource"""
 
-    source = "http://demo.opendap.org"
+    source = "https://demo.opendap.org"
     data_key = "key"
 
     def test_init(self):
-        node = PyDAP(source="mysource", data_key="key")
+        _ = PyDAP(source="mysource", data_key="key")
 
     def test_coordinates_not_implemented(self):
         node = PyDAP(source="mysource", data_key="key")
@@ -76,7 +73,7 @@ class TestPyDAP(object):
 
             # throw auth error
             with pytest.raises(ValueError):
-                s = node.session
+                _ = node.session
 
             node.set_credentials(username="user", password="pass")
             assert node.session
@@ -88,8 +85,8 @@ class TestPyDAP(object):
 
     def test_url_error(self):
         node = PyDAP(source="mysource")
-        with pytest.raises(Exception):
-            node.dataset
+        with pytest.raises(TypeError, match="Invalid URL scheme"):
+            _ = node.dataset
 
     def test_get_data(self):
         """test get_data function of pydap"""

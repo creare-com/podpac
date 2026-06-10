@@ -66,12 +66,12 @@ class TestBaseCoordinates(object):
             pass
 
         try:
-            repr(c)
+            _ = repr(c)
         except NotImplementedError:
             pass
 
         try:
-            c == c
+            _ = c == c
         except NotImplementedError:
             pass
 

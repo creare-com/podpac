@@ -46,7 +46,7 @@ class OrderedCompositor(BaseCompositor):
         -------
         {eval_return} This composites the sources together until there are no nans or no more sources.
         """
-        
+
         self.return_index = 0
 
         if result is None:
@@ -74,7 +74,7 @@ class OrderedCompositor(BaseCompositor):
             # stop if the results are full
             if np.all(mask):
                 break
-            
+
             self.return_index += 1
 
         return result

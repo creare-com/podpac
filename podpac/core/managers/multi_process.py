@@ -1,7 +1,5 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import sys
-
 from multiprocessing import Process as mpProcess
 from multiprocessing import Queue
 import traitlets as tl
@@ -10,7 +8,6 @@ import logging
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
 from podpac.core.coordinates import Coordinates
-from podpac.core.settings import settings
 
 # Set up logging
 _log = logging.getLogger(__name__)
@@ -18,8 +15,8 @@ _log = logging.getLogger(__name__)
 
 def _f(definition, coords, q, outputkw):
     try:
-        n = Node.from_json(definition)
-        c = Coordinates.from_json(coords)
+        n: Node = Node.from_json(definition)
+        c: Coordinates = Coordinates.from_json(coords)
         o = n.eval(c)
         o._pp_serialize()
         _log.debug("o.shape: {}, output_format: {}".format(o.shape, outputkw))
@@ -27,7 +24,8 @@ def _f(definition, coords, q, outputkw):
             _log.debug("Saving output results to output format {}".format(outputkw))
             o = o.to_format(outputkw["format"], **outputkw.get("format_kwargs"))
         q.put(o)
-    except Exception as e:
+    # Note: this will permit KeyboardError, SystemExit, and other un-anticipated errors to end the thread.
+    except (ValueError, TypeError, RuntimeError, AttributeError, ImportError, KeyError) as e:
         q.put(str(e))
 
 
@@ -45,7 +43,7 @@ class Process(Node):
     def outputs(self):
         return self.source.outputs
 
-    def eval(self, coordinates, **kwargs):
+    def eval(self, coordinates, **kwargs):  # noqa: A003
         output = kwargs.get("output")
         definition = self.source.json
         coords = coordinates.json
@@ -60,10 +58,9 @@ class Process(Node):
         _log.debug("Joining.")
         process.join()  # This is blocking!
         _log.debug("Closing.")
-        if (sys.version_info.major + sys.version_info.minor / 10.0) >= 3.7:
-            process.close()  # New in version Python 3.7
+        process.close()  # New in version Python 3.7
         if isinstance(o, str):
-            raise Exception(o)
+            raise RuntimeError(o)
         if o is None:
             return
         o._pp_deserialize()

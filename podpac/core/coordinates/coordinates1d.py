@@ -2,18 +2,14 @@
 One-Dimensional Coordinates
 """
 
-
 from __future__ import division, unicode_literals, print_function, absolute_import
-
-import copy
 
 import numpy as np
 import traitlets as tl
 
 import podpac
-from podpac.core.utils import ArrayTrait, TupleTrait
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
-from podpac.core.coordinates.utils import add_coord, divide_delta, lower_precision_time_bounds
+from podpac.core.coordinates.utils import add_coord, lower_precision_time_bounds
 from podpac.core.coordinates.utils import Dimension
 from podpac.core.coordinates.utils import calculate_distance
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
@@ -95,7 +91,7 @@ class Coordinates1d(BaseCoordinates):
     def __contains__(self, item):
         try:
             item = make_coord_value(item)
-        except Exception:
+        except (TypeError, ValueError):
             return False
 
         if type(item) != self.dtype:
@@ -332,7 +328,6 @@ class Coordinates1d(BaseCoordinates):
         I : slice, boolean array
             index or slice for the selected coordinates (only if return_index=True)
         """
-
         # empty case
         if self.dtype is None:
             return self._select_empty(return_index)
@@ -347,11 +342,19 @@ class Coordinates1d(BaseCoordinates):
         # check type
         if not isinstance(bounds[0], self.dtype):
             raise TypeError(
-                "Input bounds do match the coordinates dtype (%s != %s)" % (type(self.bounds[0]), self.dtype)
+                (
+                    "Input bounds do match the coordinates dtype (%s != %s). "
+                    "Check the evaluation coordinate types to make sure that they match the node coordinate types."
+                )
+                % (type(bounds[0]), self.dtype)
             )
         if not isinstance(bounds[1], self.dtype):
             raise TypeError(
-                "Input bounds do match the coordinates dtype (%s != %s)" % (type(self.bounds[1]), self.dtype)
+                (
+                    "Input bounds do match the coordinates dtype (%s != %s). "
+                    "Check the evaluation coordinate types to make sure that they match the node coordinate types."
+                )
+                % (type(bounds[1]), self.dtype)
             )
 
         my_bounds = self.bounds

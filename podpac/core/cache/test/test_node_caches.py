@@ -16,16 +16,15 @@ class TestHashCache:
         hash_cache_node2 = my_node.cache("hash", "ram", uid=uid)
         hash_cache_node3 = my_node.cache("hash", "disk", uid=uid)
         assert hash_cache_node.hash == uid
-        o1 = hash_cache_node.eval(coords)
+        _ = hash_cache_node.eval(coords)
         assert not hash_cache_node._from_cache
-        o2 = hash_cache_node2.eval(coords)
+        _ = hash_cache_node2.eval(coords)
         assert hash_cache_node2._from_cache
         try:
-            o3 = hash_cache_node3.eval(coords)
+            _ = hash_cache_node3.eval(coords)
             assert not hash_cache_node3._from_cache
         finally:
-            hash_cache_node3.rem_cache("*",coordinates="*")
-
+            hash_cache_node3.rem_cache("*", coordinates="*")
 
     def test_global_ram_cache(self):
         my_node = SinCoords(cache_output=True)
@@ -89,13 +88,13 @@ class TestZarrCache:
         assert zarr_cache_node2.hash == uid
         assert zarr_cache_node3.hash == uid
 
-        o = zarr_cache_node.eval(coords)
+        _ = zarr_cache_node.eval(coords)
         assert not zarr_cache_node._from_cache
-        o2 = zarr_cache_node2.eval(coords)
+        _ = zarr_cache_node2.eval(coords)
         assert zarr_cache_node2._from_cache
-        o3 = zarr_cache_node3.eval(coords)
+        _ = zarr_cache_node3.eval(coords)
         assert not zarr_cache_node3._from_cache
-        o3 = zarr_cache_node3.eval(coords)
+        _ = zarr_cache_node3.eval(coords)
         assert zarr_cache_node3._from_cache
         zarr_cache_node3.rem_cache()  # Clean up!
 
@@ -106,19 +105,18 @@ class TestZarrCache:
         zarr_cache_node = my_node.cache("zarr", "ram")
         zarr_cache_node2 = my_node.cache("zarr", "ram")
 
-        o = zarr_cache_node.eval(coords)
+        _ = zarr_cache_node.eval(coords)
         assert not zarr_cache_node._from_cache
-        o = zarr_cache_node.eval(coords)
+        _ = zarr_cache_node.eval(coords)
         assert zarr_cache_node._from_cache
-        o2 = zarr_cache_node2.eval(coords)
+        _ = zarr_cache_node2.eval(coords)
         assert zarr_cache_node2._from_cache
 
         zarr_cache_node.rem_cache()
-        o3 = zarr_cache_node2.eval(coords)
+        _ = zarr_cache_node2.eval(coords)
         assert not zarr_cache_node2._from_cache
 
     def test_ZarrCache_fill_and_retrieve(self, source):
-
         # Initialize ZarrCache node
         node = ZarrCache(source=source)
 
@@ -167,13 +165,14 @@ class TestZarrCache:
         npt.assert_array_equal(data[valid_indices], expected_valid_data)
 
         # Check if the out-of-bounds data is filled with NaNs
-        invalid_indices = np.nonzero(~np.isin(request_coords["lat"].coordinates, valid_request_coords["lat"].coordinates))
+        invalid_indices = np.nonzero(
+            ~np.isin(request_coords["lat"].coordinates, valid_request_coords["lat"].coordinates)
+        )
         assert np.isnan(data[invalid_indices]).all()
 
         node.rem_cache()  # Cleanup
 
     def test_ZarrCache_partial_caching(self, source):
-
         # Initialize ZarrCache node
         node = ZarrCache(source=source)
 
@@ -204,7 +203,6 @@ class TestZarrCache:
         node.rem_cache()  # Cleanup
 
     def test_ZarrCache_rem_cache(self, source):
-
         # Initialize ZarrCache node
         node = ZarrCache(source=source)
         coords = source.coordinates
@@ -230,7 +228,6 @@ class TestZarrCache:
         node.rem_cache()  # Cleanup
 
     def test_ZarrCache_get_coordinates(self, source):
-
         # Initialize ZarrCache node
         node = ZarrCache(source=source)
         coords = source.coordinates

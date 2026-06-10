@@ -1,11 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
-from io import StringIO
 
-import os
-import sys
 import json
 import datetime
-import warnings
 from collections import OrderedDict
 
 import pytest
@@ -13,7 +9,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import traitlets as tl
-from requests import ConnectionError
 from unittest.mock import MagicMock, patch
 
 import podpac
@@ -36,6 +31,7 @@ class TestCommonDocs(object):
         f2 = common_doc({"key": "value"})(f)
         assert f(42) == f2(42)
         assert f.__doc__ is None
+
 
 @pytest.mark.skip("Traitlets behavior changes based on version.")
 class TestTraitletsHelpers(object):
@@ -148,7 +144,7 @@ class TestArrayTrait(object):
 
     def test_args(self):
         # shape and ndim must match
-        t = ArrayTrait(ndim=2, shape=(2, 2))
+        ArrayTrait(ndim=2, shape=(2, 2))
 
         with pytest.raises(ValueError):
             ArrayTrait(ndim=1, shape=(2, 2))
@@ -167,7 +163,7 @@ class TestNodeTrait(object):
         class MyClass(tl.HasTraits):
             node = NodeTrait()
 
-        t = MyClass(node=podpac.Node())
+        MyClass(node=podpac.Node())
 
         with pytest.raises(tl.TraitError):
             MyClass(node=0)
@@ -487,16 +483,18 @@ class TestNodeProber(object):
     another_one = AnotherOne()
 
     def test_single_prober(self):
-        expected = OrderedDict({
-            "Array": {
-                "active": True,
-                "value": 1,
-                "label": "o",
-                "inputs": [],
-                "name": "one_style",
-                "node_hash": self.one.hash,
+        expected = OrderedDict(
+            {
+                "Array": {
+                    "active": True,
+                    "value": 1,
+                    "label": "o",
+                    "inputs": [],
+                    "name": "one_style",
+                    "node_hash": self.one.hash,
+                }
             }
-        })
+        )
         out = probe_node(self.one, lat=1, lon=1)
         assert out == expected
 
@@ -676,36 +674,42 @@ class TestNodeProber(object):
         a = podpac.compositor.OrderedCompositor(
             sources=[self.one, self.arange], style=podpac.style.Style(name="composited", units="c")
         )
-        expected = OrderedDict({
-            "name": "composited",
-            "value": "1.0",
-            "label": "c",
-            "active": True,
-            "node_id": a.hash,
-            "params": {},
-            "inputs": {
-                "inputs": [
-                    OrderedDict({
-                        "name": "one_style",
-                        "value": "1.0",
-                        "label": "o",
-                        "active": True,
-                        "node_id": self.one.hash,
-                        "params": {},
-                        "inputs": {},
-                    }),
-                    OrderedDict({
-                        "name": "Arange",
-                        "value": "0.0",
-                        "label": "",
-                        "active": False,
-                        "node_id": self.arange.hash,
-                        "params": {},
-                        "inputs": {},
-                    }),
-                ]
-            },
-        })
+        expected = OrderedDict(
+            {
+                "name": "composited",
+                "value": "1.0",
+                "label": "c",
+                "active": True,
+                "node_id": a.hash,
+                "params": {},
+                "inputs": {
+                    "inputs": [
+                        OrderedDict(
+                            {
+                                "name": "one_style",
+                                "value": "1.0",
+                                "label": "o",
+                                "active": True,
+                                "node_id": self.one.hash,
+                                "params": {},
+                                "inputs": {},
+                            }
+                        ),
+                        OrderedDict(
+                            {
+                                "name": "Arange",
+                                "value": "0.0",
+                                "label": "",
+                                "active": False,
+                                "node_id": self.arange.hash,
+                                "params": {},
+                                "inputs": {},
+                            }
+                        ),
+                    ]
+                },
+            }
+        )
         out = probe_node(a, lat=1, lon=1, nested=True)
         assert out == expected
 
@@ -721,84 +725,90 @@ class TestNodeProber(object):
         zero = podpac.data.Array(source=np.zeros((3, 3), int), coordinates=self.coords, style=enumeration_style)
         a = podpac.compositor.OrderedCompositor(sources=[nan, one, zero], style=enumeration_style)
 
-        expected = OrderedDict({
-            "name": "composited",
-            "value": "1.0",
-            "label": "sand",
-            "active": True,
-            "node_id": a.hash,
-            "params": {},
-            "inputs": {
-                "inputs": [
-                    OrderedDict({
-                        "name": "composited",
-                        "value": "nan",
-                        "label": "unknown",
-                        "active": False,
-                        "node_id": nan.hash,
-                        "params": {},
-                        "inputs": {},
-                    }),
-                    OrderedDict({
-                        "name": "composited",
-                        "value": "1.0",
-                        "label": "sand",
-                        "active": True,
-                        "node_id": one.hash,
-                        "params": {},
-                        "inputs": {},
-                    }),
-                    OrderedDict({
-                        "name": "composited",
-                        "value": "0.0",
-                        "label": "dirt",
-                        "active": False,
-                        "node_id": zero.hash,
-                        "params": {},
-                        "inputs": {},
-                    }),
-                ]
-            },
-        })
+        expected = OrderedDict(
+            {
+                "name": "composited",
+                "value": "1.0",
+                "label": "sand",
+                "active": True,
+                "node_id": a.hash,
+                "params": {},
+                "inputs": {
+                    "inputs": [
+                        OrderedDict(
+                            {
+                                "name": "composited",
+                                "value": "nan",
+                                "label": "unknown",
+                                "active": False,
+                                "node_id": nan.hash,
+                                "params": {},
+                                "inputs": {},
+                            }
+                        ),
+                        OrderedDict(
+                            {
+                                "name": "composited",
+                                "value": "1.0",
+                                "label": "sand",
+                                "active": True,
+                                "node_id": one.hash,
+                                "params": {},
+                                "inputs": {},
+                            }
+                        ),
+                        OrderedDict(
+                            {
+                                "name": "composited",
+                                "value": "0.0",
+                                "label": "dirt",
+                                "active": False,
+                                "node_id": zero.hash,
+                                "params": {},
+                                "inputs": {},
+                            }
+                        ),
+                    ]
+                },
+            }
+        )
         out = probe_node(a, lat=1, lon=1, nested=True, add_enumeration_labels=True)
         assert out == expected
 
+
 def test_align_xarray_dict():
-    data_a = np.random.random((20,15))
+    data_a = np.random.random((20, 15))
     a = podpac.UnitsDataArray(
         np.array(data_a),
-        coords={"lat": np.linspace(0,5,20), "lon": np.linspace(10,20,15)},
+        coords={"lat": np.linspace(0, 5, 20), "lon": np.linspace(10, 20, 15)},
         dims=["lat", "lon"],
     )
 
-    data_b = np.random.random((20,15))
+    data_b = np.random.random((20, 15))
     b = podpac.UnitsDataArray(
         np.array(data_b),
-        coords={"lat": np.linspace(0.2,5.2,20), "lon": np.linspace(10.1,20.1,15)},
+        coords={"lat": np.linspace(0.2, 5.2, 20), "lon": np.linspace(10.1, 20.1, 15)},
         dims=["lat", "lon"],
     )
 
-    data_c = np.random.random((20,15))
+    data_c = np.random.random((20, 15))
     c = podpac.UnitsDataArray(
         np.array(data_c),
-        coords={"lat": np.linspace(-44,18,20), "lon": np.linspace(-101,-90,15)},
+        coords={"lat": np.linspace(-44, 18, 20), "lon": np.linspace(-101, -90, 15)},
         dims=["lat", "lon"],
     )
 
-    inputs = {'A':a,
-              'B':b,
-              'C':c}
-
+    inputs = {"A": a, "B": b, "C": c}
 
     inputs = align_xarray_dict(inputs)
 
-    for k in ['lat','lon']:
-        assert(np.all(inputs['A'][k]==inputs['B'][k]))
-        assert(np.all(inputs['A'][k]==inputs['C'][k]))
-    assert(np.all(inputs['A'].data==data_a))
-    assert(np.all(inputs['B'].data==data_b))
-    assert(np.all(inputs['C'].data==data_c))
-    assert(np.all((inputs['A'] + inputs['B'] + inputs['C']).shape == inputs['A'].shape))
+    for k in ["lat", "lon"]:
+        assert np.all(inputs["A"][k] == inputs["B"][k])
+        assert np.all(inputs["A"][k] == inputs["C"][k])
+    assert np.all(inputs["A"].data == data_a)
+    assert np.all(inputs["B"].data == data_b)
+    assert np.all(inputs["C"].data == data_c)
+    assert np.all((inputs["A"] + inputs["B"] + inputs["C"]).shape == inputs["A"].shape)
 
 
 class TestGetParam:
@@ -825,8 +835,10 @@ class TestGetParam:
 
 class TestGetFromUrl:
     def test_raise_requests_error(self):
+        from requests.exceptions import ConnectionError as RequestsConnectionError
+
         mock_requests = MagicMock()
-        mock_requests.get.side_effect = Exception("Test Connection Error")
+        mock_requests.get.side_effect = RequestsConnectionError("Test Connection Error")
 
         with patch("podpac.core.utils.requests", mock_requests):
             ret = _get_from_url("TEST/URL", None)

@@ -12,7 +12,7 @@ import numpy as np
 from multiprocessing.pool import ThreadPool
 
 from podpac.core.managers.multi_threading import Lock
-from podpac.core.node import Node
+from podpac.core.node import Node, NodeException
 from podpac.core.utils import NodeTrait
 from podpac.core.data.zarr_source import Zarr
 from podpac.core.coordinates import Coordinates, merge_dims
@@ -80,7 +80,7 @@ class Parallel(Node):
     errors = tl.List()
     start_i = tl.Int(0)
 
-    def eval(self, coordinates, **kwargs):
+    def eval(self, coordinates, **kwargs):  # noqa: A003
         output = kwargs.get("output")
         # Make a thread pool to manage queue
         pool = ThreadPool(processes=self.number_of_workers)
@@ -96,7 +96,6 @@ class Parallel(Node):
                 shape.append(coordinates[d].size)
 
         results = []
-        #         inputs = []
         i = 0
         for coords, slc in coordinates.iterchunks(shape, True):
             #             inputs.append(coords)
@@ -124,7 +123,18 @@ class Parallel(Node):
             # Try to get the results / wait for the results
             try:
                 o, slc = res.get()
-            except Exception as e:
+            except (
+                NodeException,
+                ValueError,
+                KeyError,
+                IndexError,
+                TypeError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                ImportError,
+                ArithmeticError,
+            ) as e:
                 o = None
                 slc = None
                 self.errors.append((i, res, e))
@@ -230,7 +240,7 @@ class ParallelAsync(Parallel):
                     success = False
                     time.sleep(self.sleep_time)
             else:
-                _log.debug("Worker unavailable for {}".format(i, e))
+                _log.debug("Worker unavailable for {}".format(i))
                 time.sleep(self.sleep_time)
         _log.info("Submitting source {}".format(i))
         return (o, coordinates_index)
@@ -287,7 +297,7 @@ class ZarrOutputMixin(tl.HasTraits):
     aws_client_kwargs = tl.Dict()
     aws_config_kwargs = tl.Dict()
 
-    def eval(self, coordinates, **kwargs):
+    def eval(self, coordinates, **kwargs):  # noqa: A003
         output = kwargs.get("output")
         if self.zarr_shape is None:
             self._shape = coordinates.shape
@@ -363,7 +373,7 @@ class ZarrOutputMixin(tl.HasTraits):
         # Intialize the output zarr arrays
         for dk in data_key:
             try:
-                arr = zf.create_dataset(
+                _ = zf.create_dataset(
                     dk,
                     shape=shape,
                     chunks=chunks,
@@ -390,7 +400,7 @@ class ZarrOutputMixin(tl.HasTraits):
                 exists = self.zarr_node.chunk_exists(
                     coordinates_index, data_key=dk, list_dir=self._list_dir, chunks=self._chunks
                 )
-            except ValueError as e:  # This was needed in cases where a poor internet connection caused read errors
+            except ValueError:  # This was needed in cases where a poor internet connection caused read errors
                 exists = False
             if exists:
                 _log.info("Skipping {} (already exists)".format(i))

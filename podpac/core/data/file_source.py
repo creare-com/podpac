@@ -5,6 +5,7 @@ Datasources from files
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import sys
+import os
 
 if sys.version_info.major == 2:
     from urllib2 import urlopen
@@ -17,7 +18,7 @@ import logging
 import traitlets as tl
 import xarray as xr
 
-from lazy_import import lazy_module, lazy_class
+from lazy_import import lazy_module
 
 boto3 = lazy_module("boto3")
 s3fs = lazy_module("s3fs")
@@ -103,20 +104,28 @@ class LoadFileMixin(S3Mixin):
             return self._open(self._file, cache=False)
 
         # otherwise, open the file (and cache it if desired)
+        # A note on these NOSONAR lines: SonarQube considers it a security hotspot when
+        # non-encrypted protocols are used.  However, it's not a security risk to permit
+        # this package to draw data from sources via unencrypted links.  Some external geospatial data
+        # sources are public by design, and they can choose deliver data via FTP or HTTP if they please.
+        # Users concerned about these data sources being somehow poisoned can just not configure podpac
+        # to use unencrypted sources.
         if self.source.startswith("s3://"):
             _logger.info("Loading AWS resource: %s" % self.source)
             self._file = self.s3.open(self.source, "rb")
-        elif self.source.startswith("http://") or self.source.startswith("https://"):
+        elif self.source.startswith("http://") or self.source.startswith("https://"):  # NOSONAR(S5332)
             _logger.info("Downloading: %s" % self.source)
             response = requests.get(self.source)
             self._file = BytesIO(response.content)
-        elif self.source.startswith("ftp://"):
+        elif self.source.startswith("ftp://"):  # NOSONAR(S5332)
             _logger.info("Downloading: %s" % self.source)
             addinfourl = urlopen(self.source)
             self._file = BytesIO(addinfourl.read())
         elif self.source.startswith("file://"):
             addinfourl = urlopen(self.source)
             self._file = BytesIO(addinfourl.read())
+        elif os.path.isdir(self.source):
+            return self.open_dataset(self.source)
         else:
             self._file = open(self.source, "rb")
 

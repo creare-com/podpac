@@ -6,8 +6,6 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 from six import string_types
 
-import numpy as np
-import xarray as xr
 import traitlets as tl
 
 # Internal dependencies
@@ -95,6 +93,6 @@ class Reproject(Interpolate):
         else:
             return self.source.eval(coords, output=output, _selector=selector)
 
-    @tl.default('base_ref')
+    @tl.default("base_ref")
     def _default_base_ref(self):
         return "{}_reprojected".format(self.source.base_ref)

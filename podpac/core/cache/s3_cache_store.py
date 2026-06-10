@@ -5,14 +5,12 @@ from lazy_import import lazy_module
 
 boto3 = lazy_module("boto3")
 
-import podpac
 from podpac.core.settings import settings
 from podpac.core.cache.utils import CacheException, CacheWildCard
 from podpac.core.cache.file_cache_store import FileCacheStore
 
 
 class S3CacheStore(FileCacheStore):  # pragma: no cover
-
     cache_mode = "s3"
     cache_modes = set(["s3", "all"])
     _limit_setting = "S3_CACHE_MAX_BYTES"
@@ -52,16 +50,12 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
         aws_session = boto3.session.Session(region_name=aws_region_name)
         self._s3_client = aws_session.client(
             "s3",
-            # config= boto3.session.Config(signature_version='s3v4'),
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
         )
         self._s3_bucket = s3_bucket
 
-        try:
-            self._s3_client.head_bucket(Bucket=self._s3_bucket)
-        except Exception as e:
-            raise e
+        self._s3_client.head_bucket(Bucket=self._s3_bucket)
 
     # -----------------------------------------------------------------------------------------------------------------
     # main cache API

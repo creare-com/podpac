@@ -3,6 +3,7 @@ Test interpolation methods
 
 
 """
+
 # pylint: disable=C0111,W0212,R0903
 
 from collections import OrderedDict
@@ -11,6 +12,7 @@ from copy import deepcopy
 import pytest
 import traitlets as tl
 import numpy as np
+import logging
 
 import podpac
 from podpac.core.units import UnitsDataArray
@@ -23,6 +25,8 @@ from podpac.core.interpolation.interpolation_manager import (
 )
 from podpac.core.interpolation.interpolator import Interpolator, InterpolatorException
 from podpac.core.interpolation.nearest_neighbor_interpolator import NearestNeighbor, NearestPreview
+
+_log = logging.getLogger(__name__)
 
 
 class TestInterpolation(object):
@@ -54,7 +58,6 @@ class TestInterpolation(object):
         assert isinstance(interp.config[("default",)]["interpolators"][0], Interpolator)
 
     def test_dict_definition(self):
-
         # should handle a default definition without any dimensions
         interp = InterpolationManager({"method": "nearest", "params": {"spatial_tolerance": 1}})
         assert isinstance(interp.config[("default",)], dict)
@@ -64,7 +67,7 @@ class TestInterpolation(object):
 
         # handle string methods
         interp = InterpolationManager({"method": "nearest", "dims": ["lat", "lon"]})
-        print(interp.config)
+        _log.debug(interp.config)
         assert isinstance(interp.config[("lat", "lon")], dict)
         assert interp.config[("lat", "lon")]["method"] == "nearest"
         assert isinstance(interp.config[list(interp.config.keys())[-1]]["interpolators"][0], Interpolator)
@@ -117,7 +120,7 @@ class TestInterpolation(object):
 
         # should not allow custom methods if interpolators can't support
         with pytest.raises(InterpolatorException):
-            interp = InterpolationManager(
+            InterpolationManager(
                 [{"method": "myinter", "interpolators": [NearestNeighbor, NearestPreview], "dims": ["lat", "lon"]}]
             )
 
@@ -160,7 +163,6 @@ class TestInterpolation(object):
         assert interp.config[("lat", "lon")]["method"] == "bilinear"
 
     def test_init_interpolators(self):
-
         # should set method
         interp = InterpolationManager("nearest")
         assert interp.config[("default",)]["interpolators"][0].method == "nearest"
@@ -177,7 +179,6 @@ class TestInterpolation(object):
             interp.config[("default",)]["interpolators"][0].myarg
 
     def test_select_interpolator_queue(self):
-
         reqcoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"])
         srccoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"])
 
@@ -231,7 +232,7 @@ class TestInterpolation(object):
         # should throw an error if strict is set and not all dimensions can be handled
         with pytest.raises(InterpolationException):
             interp_copy = deepcopy(interp)
-            interpolator_queue = interp_copy._select_interpolator_queue(srccoords, reqcoords, "can_select", strict=True)
+            interp_copy._select_interpolator_queue(srccoords, reqcoords, "can_select", strict=True)
 
         # default = Nearest, which can handle all dims for can_interpolate
         interpolator_queue = interp._select_interpolator_queue(srccoords, reqcoords, "can_interpolate")
@@ -239,7 +240,6 @@ class TestInterpolation(object):
         assert isinstance(interpolator_queue[("lat", "lon")], LatLon)
 
     def test_select_coordinates(self):
-
         reqcoords = Coordinates(
             [[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"], crs="+proj=merc +vunits=m"
         )
@@ -294,7 +294,6 @@ class TestInterpolation(object):
                 return udims
 
             def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
-                output_data = source_data
                 return output_data
 
         # test basic functionality

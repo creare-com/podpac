@@ -1,8 +1,5 @@
 import os
 import traitlets as tl
-import numpy as np
-
-from io import BytesIO
 
 from lazy_import import lazy_module, lazy_class, lazy_function
 
@@ -13,7 +10,7 @@ zarrGroup = lazy_class("zarr.Group")
 
 from podpac.core.authentication import S3Mixin
 from podpac.core.utils import common_doc, cached_property
-from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
+from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin
 
 _S3_PREFIX = "s3://"
@@ -68,7 +65,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
             store = str(self.source)  # has to be a string in Python2.7 for local files
         return store
 
-    def chunk_exists(self, index=None, chunk_str=None, data_key=None, chunks=None, list_dir=[]):
+    def chunk_exists(self, index=None, chunk_str=None, data_key=None, chunks=None, list_dir=None):
         """
         Test to see if a chunk exists for a particular slice.
         Note: Only the start of the index is used.
@@ -86,6 +83,9 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
         list_dir: list, optional
             A list of existing paths -- used in lieu of 'exist' calls
         """
+
+        if list_dir is None:
+            list_dir = []
 
         if not data_key:
             data_key = ""
@@ -161,7 +161,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
             key = self.data_key[0]
         try:
             return self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
-        except Exception:
+        except (KeyError, AttributeError):
             lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
             return [lookup[key] for key in self.dataset if key in lookup]
 

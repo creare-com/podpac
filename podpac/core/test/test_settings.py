@@ -7,7 +7,6 @@ _SETTINGS_FILENAME = "settings.json"
 
 
 class TestSettingsFile(object):
-
     @pytest.fixture
     def settings_tmp_dir(self, tmp_path):
         path = os.path.join(tmp_path, ".__tmp__")

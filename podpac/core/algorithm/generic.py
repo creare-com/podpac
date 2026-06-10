@@ -4,7 +4,6 @@ General-purpose Algorithm Nodes.
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import sys
 import warnings
 
 import numpy as np
@@ -21,11 +20,6 @@ from podpac import Coordinates
 from podpac.core.node import Node, NodeException
 from podpac.core.utils import NodeTrait
 from podpac.core.algorithm.algorithm import Algorithm
-
-if sys.version_info.major == 2:
-
-    class PermissionError(OSError):
-        pass
 
 
 class GenericInputs(Algorithm):
@@ -113,8 +107,6 @@ class Arithmetic(GenericInputs):
         f_locals = dict(zip(fields, res))
 
         try:
-            from numexpr import evaluate  # Needed for some systems to get around lazy_module issues
-
             result = ne.evaluate(eqn, f_locals)
         except (NotImplementedError, ImportError):
             result = eval(eqn, f_locals)

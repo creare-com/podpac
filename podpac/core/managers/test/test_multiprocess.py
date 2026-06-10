@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from multiprocessing import Queue
 
@@ -32,7 +31,7 @@ class TestProcess(object):
         output[:] = np.nan
 
         node_mp = Process(source=node)
-        o_mp = node_mp.eval(coords, output=output)
+        _ = node_mp.eval(coords, output=output)
 
         np.testing.assert_array_equal(o_sp, output)
 

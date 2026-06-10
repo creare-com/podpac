@@ -1,9 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from collections import OrderedDict
-import io
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
-import re
 
 from six import string_types
 import traitlets as tl
@@ -18,11 +16,9 @@ boto3 = lazy_module("boto3")
 
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.coordinates import UniformCoordinates1d, Coordinates, merge_dims
-from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
+from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.data.file_source import BaseFileSource
 from podpac.core.authentication import S3Mixin
-from podpac.core.interpolation.selector import Selector
-
 
 _logger = logging.getLogger(__name__)
 
@@ -135,14 +131,11 @@ class Rasterio(S3Mixin, BaseFileSource):
         validate_crs = True
         if self.crs is not None:
             crs = self.crs
-        elif isinstance(self.dataset.crs, rasterio.crs.CRS) and "init" in self.dataset.crs:
+        elif (
+            isinstance(self.dataset.crs, rasterio.crs.CRS) or isinstance(self.dataset.crs, dict)
+        ) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
-            if self.dataset.crs.is_valid:
-                validate_crs = False
-        elif isinstance(self.dataset.crs, dict) and "init" in self.dataset.crs:
-            crs = self.dataset.crs["init"].upper()
-            if self.dataset.crs.is_valid:
-                validate_crs = False
+            validate_crs = False
         else:
             try:
                 crs = pyproj.CRS(self.dataset.crs).to_wkt()
@@ -201,7 +194,6 @@ class Rasterio(S3Mixin, BaseFileSource):
             )
         # Find the overview that's closest to this reduction factor
         if (reduction_factor < 2) or (len(self.overviews) == 0):  # Then we shouldn't use an overview
-            overview = 1
             overview_level = None
         else:
             diffs = reduction_factor - np.array(self.overviews)
@@ -210,7 +202,6 @@ class Rasterio(S3Mixin, BaseFileSource):
             else:
                 diffs[diffs < 0] = np.inf
             overview_level = np.argmin(diffs)
-            overview = self.overviews[np.argmin(diffs)]
 
         # Now read the data
         if overview_level is None:
@@ -241,8 +232,8 @@ class Rasterio(S3Mixin, BaseFileSource):
             # set raster data to output array
             data = self.create_output_array(new_coords)
             data.data.ravel()[:] = raster_data.ravel()
-        except Exception as e:
-            _logger.error("Error occurred when reading overview with Rasterio: {}".format(e))
+        except (rasterio.errors.RasterioError, OSError, ValueError, IndexError, MemoryError) as e:
+            _logger.exception("Error occurred when reading overview with Rasterio: {}".format(e))
 
         if overview_level is not None:
             dataset.close()

@@ -40,12 +40,11 @@ extras_require = {
     "datatype": [
         "beautifulsoup4>=4.6",
         "h5py>=2.9",
-        "lxml>=4.2",
+        "lxml>=6.1.0",
         "rasterio>=1.0",
         "zarr>=2.3,<3",
         "owslib",
         "h5netcdf",
-        # "intake>=0.5"  Not supported in Python 3.5
     ],
     "aws": ["awscli>=1.16", "boto3>=1.9.200", "s3fs>=0.4"],
     "algorithms": ["numexpr>=2.6"],
@@ -58,10 +57,6 @@ extras_require = {
         "nodejs",
         #'cartopy'
     ],
-    "stac": [
-        "sat-search>=0.2",
-        "sat-stac>=0.3",
-    ],
     "node_ui": ["numpydoc"],
     "dev": [
         "pylint>=1.8.2",
@@ -71,26 +66,20 @@ extras_require = {
         "myst-parser>=1.0.0",
         "six>=1.0",
         "attrs>=17.4.0",
-        "pre_commit>=1"
-    ],
-}
-
-if sys.version_info.major == 2:
-    extras_require["dev"] += ["pytest>=3.3.2"]
-else:
-    extras_require["dev"] += [
-        "sphinx>=2.3",
+        "pre_commit>=1",
+        "sphinx>=3.5",
         "sphinx-rtd-theme>=0.4",
         "sphinx-autobuild>=0.7",
         "pytest>=5.0",
+        "pytest-cov",
         "numpydoc",
-    ]
-
-if sys.version_info[0:2] >= (3, 6):
-    extras_require["dev"] += [
         "black",
-    ]
-    extras_require["intake"] = ["intake>=0.5.1"]
+        "flake8",
+        "flake8-bugbear",
+        "flake8-builtins",
+        "flake8-blind-except",
+    ],
+}
 
 # set long description to readme
 with open("README.MD") as f:
@@ -98,32 +87,32 @@ with open("README.MD") as f:
 
 all_reqs = []
 for key, val in extras_require.items():
-    if "key" == "dev":
+    if key == "dev":
         continue
     all_reqs += val
 extras_require["all"] = all_reqs
 extras_require["devall"] = all_reqs + extras_require["dev"]
+
 
 # install pre-commit hooks after setup in develop mode
 class PostDevelopCommand(develop):
     def run(self):
         try:
             subprocess.check_call(["pre-commit", "install"])
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
             print("Failed to install pre-commit hook")
 
         develop.run(self)
 
 
 setup(
-    # ext_modules=None,
     name="podpac",
     version=__version__,
     description="Pipeline for Observational Data Processing, Analysis, and Collaboration",
     author="Creare",
     url="https://podpac.org",
     license="APACHE 2.0",
-    python_requires='>=3.7',
+    python_requires=">=3.12",
     classifiers=[
         # How mature is this project? Common values are
         # 3 - Alpha
@@ -144,8 +133,5 @@ setup(
     extras_require=extras_require,
     cmdclass={"develop": PostDevelopCommand},
     long_description=long_description,
-    long_description_content_type="text/markdown"
-    # entry_points = {
-    #     'console_scripts' : []
-    # }
+    long_description_content_type="text/markdown",
 )

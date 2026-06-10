@@ -5,7 +5,6 @@ Utils Summary
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import os
-import sys
 import json
 import datetime
 import logging
@@ -34,7 +33,6 @@ _log = logging.getLogger(__name__)
 import podpac
 from . import settings
 from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
-
 
 OrderedDictTrait = tl.Dict
 
@@ -81,7 +79,7 @@ def trait_is_defined(obj, trait_name):
 def create_logfile(
     filename=settings.settings["LOG_FILE_PATH"],
     level=logging.INFO,
-    format="[%(asctime)s] %(name)s.%(funcName)s[%(lineno)d] - %(levelname)s - %(message)s",
+    fmt="[%(asctime)s] %(name)s.%(funcName)s[%(lineno)d] - %(levelname)s - %(message)s",
 ):
     """Convience method to create a log file that only logs
     podpac related messages
@@ -116,7 +114,7 @@ def create_logfile(
 
     # create a logging format
     # see https://docs.python.org/3/library/logging.html#logrecord-attributes
-    formatter = logging.Formatter(format)
+    formatter = logging.Formatter(fmt)
     handler.setFormatter(formatter)
 
     # add the handlers to the logger
@@ -141,7 +139,7 @@ class ArrayTrait(tl.TraitType):
         self.ndim = ndim
         self.shape = shape
         self.dtype = dtype
-        super(ArrayTrait, self).__init__(default_value=default_value, *args, **kwargs)
+        super(ArrayTrait, self).__init__(*args, default_value=default_value, **kwargs)
 
     def validate(self, obj, value):
         # coerce type
@@ -166,7 +164,7 @@ class ArrayTrait(tl.TraitType):
         if self.dtype is not None:
             try:
                 value = value.astype(self.dtype)
-            except Exception:
+            except (TypeError, ValueError):
                 raise tl.TraitError(
                     "The '%s' trait of an %s instance must have dtype %s, but a value with dtype %s was specified"
                     % (self.name, obj.__class__.__name__, self.dtype, value.dtype)
@@ -203,12 +201,6 @@ class DimsTrait(tl.List):
 
     def __init__(self, *args, **kwargs):
         super().__init__(tl.Enum(VALID_DIMENSION_NAMES), *args, minlen=1, maxlen=4, **kwargs)
-
-    # def validate(self, obj, value):
-    #     super().validate(obj, value)
-    #     if podpac.core.settings.settings["DEBUG"]:
-    #         value = deepcopy(value)
-    #     return value
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -265,7 +257,7 @@ class JSONEncoder(json.JSONEncoder):
 def is_json_serializable(obj, cls=json.JSONEncoder):
     try:
         json.dumps(obj, cls=cls)
-    except Exception:
+    except (TypeError, ValueError):
         return False
     else:
         return True
@@ -309,6 +301,10 @@ def _get_from_url(url, session=None):
         Text response from request.
         See https://2.python-requests.org/en/master/api/#requests.Response.text
     """
+    # Import locally so the real exception class is bound here even when
+    # tests patch `podpac.core.utils.requests` with a MagicMock.
+    from requests.exceptions import RequestException
+
     try:
         if session is None:
             r = requests.get(url)
@@ -321,7 +317,7 @@ def _get_from_url(url, session=None):
                     url, r.status_code, r.text
                 )
             )
-    except Exception as e:
+    except (RequestException, OSError, RuntimeError) as e:
         _log.warning("Cannot authenticate to {}. Check credentials. Error was as follows:".format(url) + str(e))
         r = None
 
@@ -373,7 +369,7 @@ def cached_property(*args, **kwargs):
         raise TypeError("cached_property decorator does not accept any positional arguments")
 
     if kwargs:
-        raise TypeError("cached_property decorator does not accept keyword argument '%s'" % list(kwargs.keys())[0])
+        raise TypeError("cached_property decorator does not accept keyword argument '%s'" % next(iter(kwargs.keys())))
 
     def d(fn):
         key = "_podpac_cached_property_%s" % fn.__name__
@@ -608,7 +604,7 @@ def probe_node(
             "value": value,
             "label": _get_label(value, n.style, add_enumeration_labels),
             "inputs": inputs,
-            "name": n.style.name if n.style.name else item
+            "name": n.style.name if n.style.name else item,
         }
         if compute_hash:
             out[item]["node_hash"] = n.hash
@@ -663,13 +659,7 @@ def get_ui_node_spec(module=None, category="default", help_as_html=False):
     spec[category] = {}
     disabled_categories = ["Algorithm", "DataSource", "DroughtMonitorCategory", "DroughtCategory", "IntakeCatalog"]
     for obj in dir(module):
-        # print(obj)
         if obj in disabled_categories:
-            ob = getattr(module, obj)
-            # print(ob)
-            # print(ob.get_ui_spec())
-            # would be fairly annoying to have to check all of the attrs for abstract
-            # still need a better solution
             continue
         ob = getattr(module, obj)
         if not inspect.isclass(ob):
@@ -701,3 +691,6 @@ def align_xarray_dict(inputs):
         _, b = xr.align(inputs[keys[0]], inputs[k], join="override")
         inputs[k] = b
     return inputs
+
+
+__all__ = ["hash_alg"]

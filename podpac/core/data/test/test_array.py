@@ -4,7 +4,6 @@ import pytest
 
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.units import UnitsDataArray
-from podpac.core.node import Node
 from podpac.core.data.array_source import Array
 
 
@@ -15,15 +14,15 @@ class TestArray(object):
     coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
 
     def test_data_array(self):
-        node = Array(source=self.data, coordinates=self.coordinates).interpolate()
+        _ = Array(source=self.data, coordinates=self.coordinates).interpolate()
 
     def test_data_list(self):
         # list is coercable to array
-        node = Array(source=[0, 1, 1], coordinates=self.coordinates).interpolate()
+        _ = Array(source=[0, 1, 1], coordinates=self.coordinates).interpolate()
 
     def test_invalid_data(self):
         with pytest.raises(ValueError, match="Array 'source' data must be numerical"):
-            node = Array(source=["a", "b"], coordinates=self.coordinates).interpolate()
+            _ = Array(source=["a", "b"], coordinates=self.coordinates).interpolate()
 
     def test_get_data(self):
         """defined get_data function"""

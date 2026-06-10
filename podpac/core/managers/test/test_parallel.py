@@ -1,15 +1,10 @@
 import os
 import shutil
-import sys
 import time
 import numpy as np
-from threading import Thread
 import tempfile
 import logging
 
-import pytest
-
-from podpac import settings
 from podpac.core.coordinates import Coordinates
 from podpac.core.algorithm.utility import CoordData
 from podpac.core.managers.parallel import Parallel, ParallelOutputZarr, ParallelAsync, ParallelAsyncOutputZarr
@@ -75,7 +70,6 @@ class TestParallelOutputZarr(object):
         )
         o_zarr = node_p.eval(coords)
         time.sleep(0.1)
-        # print(o_zarr.info)
         np.testing.assert_array_equal([1, 2, 3, 4, 5], o_zarr["data"][:])
 
         shutil.rmtree(tmpdir)
@@ -90,7 +84,6 @@ class TestParallelOutputZarr(object):
             source=node, number_of_workers=5, chunks={"time": 2}, fill_output=False, zarr_file=tmpdir
         )
         o_zarr = node_p.eval(coords)
-        # print(o_zarr.info)
         time.sleep(0.01)
         np.testing.assert_array_equal([1, 2, 3, 4, 5], o_zarr["data"][:])
 
@@ -106,7 +99,6 @@ class TestParallelOutputZarr(object):
             source=node, number_of_workers=5, chunks={"time": 2}, fill_output=False, zarr_file=tmpdir, start_i=1
         )
         o_zarr = node_p.eval(coords)
-        # print(o_zarr.info)
         time.sleep(0.01)
         np.testing.assert_array_equal([np.nan, np.nan, 3, 4, 5], o_zarr["data"][:])
 

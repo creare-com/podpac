@@ -3,9 +3,9 @@ Test interpolation methods
 
 
 """
+
 # pylint: disable=C0111,W0212,R0903
 
-import traitlets as tl
 import numpy as np
 
 from podpac.core.coordinates import Coordinates, clinspace

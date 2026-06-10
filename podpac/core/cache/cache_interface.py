@@ -1,12 +1,8 @@
 import traitlets as tl
-from copy import deepcopy
-import json
 
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
 from podpac.core.utils import cached_property
-from podpac.core.utils import hash_alg
-from podpac.core.utils import JSONEncoder
 
 
 class CacheNode(Node):
@@ -35,7 +31,7 @@ class CacheNode(Node):
     cache_uid = tl.Unicode(allow_none=True, default="").tag(attr=True)
 
     @cached_property
-    def hash(self):
+    def hash(self):  # noqa: A003
         """hash for this node, used in caching and to determine equality."""
         if self.cache_uid:
             return self.cache_uid

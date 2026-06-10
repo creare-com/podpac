@@ -50,7 +50,7 @@ class OGR(Node):
         layer = self.datasource.GetLayerByName(self.layer)
         return layer.GetExtent()
 
-    def get_source_data(self, bounds={}):
+    def get_source_data(self, bounds=None):
         """
         Not available for OGR nodes.
 

@@ -9,11 +9,11 @@ import traitlets as tl
 
 from podpac.core.utils import common_doc, NodeTrait, cached_property
 from podpac.core.coordinates import Coordinates
-from podpac.core.node import Node
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.interpolation import InterpolationTrait
 
 _logger = logging.getLogger(__name__)
+
 
 # TODO: Move this to algorithm Nodes based on the Interpolation Refactor -- should be much more streamlined now.
 class ReprojectedSource(DataSource):
@@ -80,7 +80,6 @@ class ReprojectedSource(DataSource):
         if not isinstance(self.source, DataSource):
             return self.reprojected_coordinates
 
-        sc = self.source.coordinates
         rc = self.reprojected_coordinates
         return Coordinates(
             [rc[dim] if dim in rc.dims else self.source.coordinates[dim] for dim in self.source.coordinates.dims],
@@ -102,6 +101,6 @@ class ReprojectedSource(DataSource):
         coordinates.drop(drop_dims)
         return data
 
-    @tl.default('base_ref')
+    @tl.default("base_ref")
     def _default_base_ref(self):
         return "{}_reprojected".format(self.source.base_ref)

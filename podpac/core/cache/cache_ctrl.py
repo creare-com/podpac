@@ -8,10 +8,7 @@ from podpac.core.cache.utils import CacheWildCard, CacheException
 from podpac.core.cache.ram_cache_store import RamCacheStore
 from podpac.core.cache.disk_cache_store import DiskCacheStore
 from podpac.core.cache.s3_cache_store import S3CacheStore
-import traitlets as tl
 import logging
-
-
 
 _CACHE_STORES = {"ram": RamCacheStore, "disk": DiskCacheStore, "s3": S3CacheStore}
 
@@ -27,6 +24,7 @@ _INVALID_MODE = "Invalid mode (must be one of %s, not '%s')"
 _INVALID_ITEM_ASTERISK = "Invalid item ('*' is reserved)"
 
 _logger = logging.getLogger(__name__)
+
 
 def get_default_cache_ctrl():
     """
@@ -72,7 +70,7 @@ def make_cache_ctrl(names):
         try:
             cache_store = _CACHE_STORES[name]()
             cache_stores.append(cache_store)
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError, CacheException) as e:
             _logger.warning("Cannot create cache_store of type {} -- error={}".format(name, e))
 
     return CacheCtrl(cache_stores)
@@ -101,12 +99,11 @@ def cache_cleanup():
 
 
 class CacheCtrl(object):
-
     """Objects of this class are used to manage multiple CacheStore objects of different types
     (e.g. RAM, local disk, s3) and serve as the interface to the caching module.
     """
 
-    def __init__(self, cache_stores=[]):
+    def __init__(self, cache_stores=None):
         """Initialize a CacheCtrl object with a list of CacheStore objects.
         Care should be taken to provide the cache_stores list in the order that
         they should be interogated. CacheStore objects with faster access times
@@ -118,7 +115,7 @@ class CacheCtrl(object):
             list of CacheStore objects to manage, in the order that they should be interrogated.
         """
 
-        self._cache_stores = cache_stores
+        self._cache_stores = cache_stores if cache_stores is not None else []
 
     def __repr__(self):
         return "CacheCtrl(cache_stores=%s)" % self.cache_stores
@@ -129,9 +126,9 @@ class CacheCtrl(object):
 
     def _get_cache_stores_by_mode(self, mode="all"):
         return [c for c in self._cache_stores if mode in c.cache_modes]
-    
+
     @staticmethod
-    def _validate_args(node, item, coordinates,  mode):
+    def _validate_args(node, item, coordinates, mode):
         """Raise an exception if any of the provided arguments are invalid
 
         Parameters

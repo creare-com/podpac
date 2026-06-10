@@ -10,7 +10,6 @@ Utilities functions for handling podpac coordinates.
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import datetime
-import re
 import calendar
 import numbers
 import warnings
@@ -18,7 +17,6 @@ import warnings
 import numpy as np
 import traitlets as tl
 from six import string_types
-import pyproj
 
 from lazy_import import lazy_function
 
@@ -147,7 +145,7 @@ def make_coord_value(val):
 
     Returns
     -------
-    val : float, np.datetime64
+    val : float, np.datetime64, np.timedelta64
         Cast coordinate value.
 
     Notes
@@ -181,12 +179,11 @@ def make_coord_value(val):
             else:
                 raise e
 
-    elif isinstance(val, np.datetime64) | isinstance(val, np.timedelta64):
-        pass
-    elif isinstance(val, numbers.Number):
-        val = float(val)
-    else:
-        raise TypeError("Invalid coordinate value, unsupported type '%s'" % type(val))
+    elif not (isinstance(val, np.datetime64) | isinstance(val, np.timedelta64)):
+        if isinstance(val, numbers.Number):
+            val = float(val)
+        else:
+            raise TypeError("Invalid coordinate value, unsupported type '%s'" % type(val))
 
     return val
 
@@ -231,12 +228,11 @@ def make_coord_delta(val):
         val = get_timedelta(val)
     elif isinstance(val, datetime.timedelta):
         val = np.timedelta64(val)
-    elif isinstance(val, np.timedelta64):
-        pass
-    elif isinstance(val, numbers.Number):
-        val = float(val)
-    else:
-        raise TypeError("Invalid coordinate delta, unsupported type '%s'" % type(val))
+    elif not isinstance(val, np.timedelta64):
+        if isinstance(val, numbers.Number):
+            val = float(val)
+        else:
+            raise TypeError("Invalid coordinate delta, unsupported type '%s'" % type(val))
 
     return val
 
@@ -264,19 +260,17 @@ def make_coord_array(values):
 
     a = np.atleast_1d(values)
 
-    if a.dtype == float or np.issubdtype(a.dtype, np.datetime64) or np.issubdtype(a.dtype, np.timedelta64):
-        pass
+    if not (a.dtype == float or np.issubdtype(a.dtype, np.datetime64) or np.issubdtype(a.dtype, np.timedelta64)):
+        if np.issubdtype(a.dtype, np.number):
+            a = a.astype(float)
 
-    elif np.issubdtype(a.dtype, np.number):
-        a = a.astype(float)
+        else:
+            a = np.array(
+                [make_coord_value(e) for e in np.atleast_1d(np.array(values, dtype=object)).flatten()]
+            ).reshape(a.shape)
 
-    else:
-        a = np.array([make_coord_value(e) for e in np.atleast_1d(np.array(values, dtype=object)).flatten()]).reshape(
-            a.shape
-        )
-
-        if not (np.issubdtype(a.dtype, np.datetime64) or np.issubdtype(a.dtype, np.timedelta64)):
-            raise ValueError("Invalid coordinate values (must be all numbers, all datetimes, or all timedeltas)")
+            if not (np.issubdtype(a.dtype, np.datetime64) or np.issubdtype(a.dtype, np.timedelta64)):
+                raise ValueError("Invalid coordinate values (must be all numbers, all datetimes, or all timedeltas)")
 
     return a
 
@@ -307,17 +301,15 @@ def make_coord_delta_array(values):
     if a.ndim != 1:
         raise ValueError("Invalid coordinate deltas (ndim=%d, must be ndim=1)" % a.ndim)
 
-    if a.dtype == float or np.issubdtype(a.dtype, np.timedelta64):
-        pass
+    if not (a.dtype == float or np.issubdtype(a.dtype, np.timedelta64)):
+        if np.issubdtype(a.dtype, np.number):
+            a = a.astype(float)
 
-    elif np.issubdtype(a.dtype, np.number):
-        a = a.astype(float)
+        else:
+            a = np.array([make_coord_delta(e) for e in np.atleast_1d(np.array(values, dtype=object))])
 
-    else:
-        a = np.array([make_coord_delta(e) for e in np.atleast_1d(np.array(values, dtype=object))])
-
-        if not np.issubdtype(a.dtype, np.timedelta64):
-            raise ValueError("Invalid coordinate deltas (must be all numbers or all compatible timedeltas)")
+            if not np.issubdtype(a.dtype, np.timedelta64):
+                raise ValueError("Invalid coordinate deltas (must be all numbers or all compatible timedeltas)")
 
     return a
 

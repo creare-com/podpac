@@ -7,11 +7,9 @@ import json
 import fnmatch
 import logging
 
-import podpac
 from podpac.core.settings import settings
 from podpac.core.cache.utils import CacheException, CacheWildCard
 from podpac.core.cache.file_cache_store import FileCacheStore
-
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +39,7 @@ class DiskCacheStore(FileCacheStore):
     @property
     def size(self):
         total_size = 0
-        for dirpath, dirnames, filenames in os.walk(self._root_dir_path):
+        for dirpath, _dirnames, filenames in os.walk(self._root_dir_path):
             for f in filenames:
                 fp = os.path.join(dirpath, f)
                 total_size += os.path.getsize(fp)
@@ -144,7 +142,7 @@ class DiskCacheStore(FileCacheStore):
         Remove expired entries and orphaned metadata.
         """
 
-        for root, dirnames, filenames in os.walk(self._root_dir_path):
+        for root, _dirnames, filenames in os.walk(self._root_dir_path):
             for filename in fnmatch.filter(filenames, "*.meta"):
                 metadata_path = os.path.join(root, filename)
                 path = os.path.join(root, filename[:-5])  # strip .meta
@@ -155,7 +153,7 @@ class DiskCacheStore(FileCacheStore):
                     pass
 
         # remove empty directories
-        for root, dirnames, filenames in os.walk(self._root_dir_path):
+        for root, dirnames, _filenames in os.walk(self._root_dir_path):
             for dirname in dirnames:
                 path = os.path.join(root, dirname)
                 if not os.path.exists(path):

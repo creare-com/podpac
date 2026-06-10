@@ -20,8 +20,6 @@
 import os
 from shutil import copyfile
 
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
 import datetime
 
 # for parsing markdown files
@@ -35,7 +33,7 @@ GIT_URL = "https://github.com/creare-com/podpac"
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-needs_sphinx = "1.8"
+needs_sphinx = "3.5"
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -67,7 +65,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "PODPAC"
-copyright = "2017-{}, Creare".format(datetime.datetime.now().year)
+project_copyright = "2017-{}, Creare".format(datetime.datetime.now().year)
 author = "Creare"
 
 # The version info for the project you're documenting, acts as replacement for

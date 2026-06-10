@@ -575,15 +575,6 @@ class Skew(Reduce):
         UnitsDataArray
             Skew of the source data over dims
         """
-        # N = np.isfinite(x).sum(dim=self._dims)
-        # M1 = x.mean(dim=self._dims)
-        # E = x - M1
-        # E2 = E**2
-        # E3 = E2*E
-        # M2 = (E2).sum(dim=self._dims)
-        # M3 = (E3).sum(dim=self._dims)
-        # skew = self.skew(M3, M2, N)
-
         a = self._reshape(x)
         skew = scipy.stats.skew(a, nan_policy="omit")
         return skew
@@ -605,7 +596,6 @@ class Skew(Reduce):
         M1 = xr.zeros_like(output)
         M2 = xr.zeros_like(output)
         M3 = xr.zeros_like(output)
-        check_empty = True
 
         for x in xs:
             Nx = np.isfinite(x).sum(dim=self._dims)
@@ -661,15 +651,6 @@ class Kurtosis(Reduce):
         UnitsDataArray
             Kurtosis of the source data over dims
         """
-        # N = np.isfinite(x).sum(dim=self._dims)
-        # M1 = x.mean(dim=self._dims)
-        # E = x - M1
-        # E2 = E**2
-        # E4 = E2**2
-        # M2 = (E2).sum(dim=self._dims)
-        # M4 = (E4).sum(dim=self._dims)
-        # kurtosis = N * M4 / M2**2 - 3
-
         a = self._reshape(x)
         kurtosis = scipy.stats.kurtosis(a, nan_policy="omit")
         return kurtosis
@@ -911,12 +892,6 @@ class GroupReduce(UnaryAlgorithm):
         else:
             output.data[:] = out.data[:]
 
-        ## map
-        # eval_time = xr.DataArray(coordinates.coords["time"])
-        # E = getattr(eval_time.dt, self.groupby)
-        # out = out.sel(**{self.groupby: E}).rename({self.groupby: "time"})
-        # output[:] = out.transpose(*output.dims).data
-
         return output
 
     @tl.default("base_ref")
@@ -1002,12 +977,6 @@ class ResampleReduce(UnaryAlgorithm):
             output.attrs = source_output.attrs
         else:
             output.data[:] = out.data[:]
-
-        ## map
-        # eval_time = xr.DataArray(coordinates.coords["time"])
-        # E = getattr(eval_time.dt, self.groupby)
-        # out = out.sel(**{self.groupby: E}).rename({self.groupby: "time"})
-        # output[:] = out.transpose(*output.dims).data
 
         return output
 
@@ -1168,13 +1137,13 @@ class DayOfYearWindow(Algorithm):
             # If either the start or end runs over the year, we need to do an OR on the bool index
             # ----->s....<=e------   .in -out
             # ..<=e----------->s..
-            if doy - win < 1: 
+            if doy - win < 1:
                 # Start of window is before the start of the year
                 window_is_split = True
             elif doy + win > self._DAYS_PER_YEAR:
                 # End of the window is after the end of the year
                 window_is_split = True
-            else: 
+            else:
                 window_is_split = False
 
             start = ((doy - 1) - win) % self._DAYS_PER_YEAR + 1

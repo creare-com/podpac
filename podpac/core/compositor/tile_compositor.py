@@ -1,14 +1,11 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import numpy as np
 import xarray as xr
 import pandas as pd
-import traitlets as tl
 
 from podpac.core.utils import common_doc
 from podpac.core.compositor.compositor import COMMON_COMPOSITOR_DOC, BaseCompositor
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import Coordinates
 
 
 @common_doc(COMMON_COMPOSITOR_DOC)
@@ -69,7 +66,7 @@ class TileCompositor(BaseCompositor):
             return result
         return res
 
-    def get_source_data(self, bounds={}):
+    def get_source_data(self, bounds=None):
         """
         Get composited source data, without interpolation.
 
@@ -90,6 +87,8 @@ class TileCompositor(BaseCompositor):
                 "Cannot get composited source data; all sources must have `get_source_data` implemented (such as nodes derived from a DataSource or TileCompositor node)."
             )
 
+        if bounds is None:
+            bounds = {}
         coords = None  # n/a
         source_data_arrays = (source.get_source_data(bounds) for source in self.sources)  # generator
         return self.composite(coords, source_data_arrays)

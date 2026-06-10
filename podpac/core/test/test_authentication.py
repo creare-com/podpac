@@ -3,6 +3,7 @@ import requests
 import traitlets as tl
 import s3fs
 from numpy.testing import assert_equal
+import logging
 
 from podpac import settings, Node
 from podpac.core.authentication import RequestsSessionMixin, S3Mixin, set_credentials
@@ -11,9 +12,11 @@ _USERNAME_TEST_COM = "username@test.com"
 _PASSWORD_TEST_COM = "password@test.com"
 _TEST_COM = "test.com"
 
+_log = logging.getLogger(__name__)
+
+
 class TestAuthentication(object):
     def test_set_credentials(self):
-
         with settings:
             if _USERNAME_TEST_COM in settings:
                 del settings[_USERNAME_TEST_COM]
@@ -78,10 +81,10 @@ class TestRequestsSessionMixin(object):
         node = SomeNode(hostname="propertyerrors.com")
 
         with pytest.raises(ValueError, match="set_credentials"):
-            u = node.username
+            _ = node.username
 
         with pytest.raises(ValueError, match="set_credentials"):
-            p = node.password
+            _ = node.password
 
     def test_set_credentials(self):
         with settings:
@@ -110,7 +113,7 @@ class TestRequestsSessionMixin(object):
     def test_auth_required(self):
         with settings:
             with pytest.raises(tl.TraitError):
-                node = SomeNode(hostname="auth.com", auth_required="true")
+                SomeNode(hostname="auth.com", auth_required="true")
 
             # no auth
             node = SomeNode(hostname="auth.com")
@@ -129,7 +132,7 @@ class TestRequestsSessionMixin(object):
             node = SomeNode(hostname="auth2.com", auth_required=True)
             with pytest.raises(ValueError):
                 s = node.session
-                print(s)
+                _log.debug(s)
 
             node.set_credentials(username="testuser", password="testpass")
             assert node.session
