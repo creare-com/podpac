@@ -515,7 +515,7 @@ def _get_label(value, style, add_enumeration_labels):
         for v in np.unique(value):
             try:
                 new_label = style.enumeration_legend[int(v)]
-            except ValueError:
+            except (ValueError, KeyError):
                 _log.warning(
                     "Enumeration label lookup failed for node of name {}, returning unknown".format(style.name)
                 )
@@ -527,7 +527,7 @@ def _get_label(value, style, add_enumeration_labels):
             return "unknown"
         try:
             return str(style.enumeration_legend[int(value)])
-        except ValueError:
+        except (ValueError, KeyError):
             _log.warning("Enumeration label lookup failed for node of name {}, returning unknown".format(style.name))
             return "unknown"
 
