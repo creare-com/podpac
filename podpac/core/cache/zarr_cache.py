@@ -5,7 +5,7 @@ import podpac
 from podpac.data import Zarr, ZarrMemory
 from podpac.core.interpolation.selector import Selector
 from podpac.core.cache.cache_interface import CacheNode
-from podpac.core.data.zarr_compat import zarr_open, zarr_group, create_zarr_array
+from podpac.core.data.zarr_compat import create_zarr_array
 from podpac import settings
 
 
@@ -92,12 +92,12 @@ class ZarrCache(CacheNode):
     def _default_group_data(self):
         try:
             if self.cache_type == "disk":
-                group = zarr_open(
+                group = zarr.open(
                     self._zarr_path_data, mode="a"
                 )  # no need to close, see https://zarr.readthedocs.io/en/stable/tutorial.html#persistent-arrays
             if self.cache_type == "ram":
                 if self.hash not in self._global_zarr_ram_cache:
-                    self._global_zarr_ram_cache[self.hash] = zarr_group()
+                    self._global_zarr_ram_cache[self.hash] = zarr.group()
                 group = self._global_zarr_ram_cache[self.hash]  # assumes ram not persistent
             if "data" not in group:
                 shape = self.source.coordinates.shape
@@ -119,12 +119,12 @@ class ZarrCache(CacheNode):
     def _default_group_bool(self):
         try:
             if self.cache_type == "disk":
-                group = zarr_open(
+                group = zarr.open(
                     self._zarr_path_bool, mode="a"
                 )  # no need to close, see https://zarr.readthedocs.io/en/stable/tutorial.html#persistent-arrays
             if self.cache_type == "ram":
                 if self.hash not in self._global_zarr_bool_ram_cache:
-                    self._global_zarr_bool_ram_cache[self.hash] = zarr_group()
+                    self._global_zarr_bool_ram_cache[self.hash] = zarr.group()
                 group = self._global_zarr_bool_ram_cache[self.hash]  # assumes ram not persistent
             if "contains" not in group:
                 shape = self.source.coordinates.shape

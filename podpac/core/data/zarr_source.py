@@ -5,7 +5,7 @@ from lazy_import import lazy_module
 
 zarr = lazy_module("zarr")
 
-from podpac.core.data.zarr_compat import zarr_open, zarr_open_consolidated, get_s3_store
+from podpac.core.data.zarr_compat import get_s3_store
 from podpac.core.authentication import S3Mixin
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC
@@ -135,12 +135,15 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
         store = self._get_store()
         try:
             if self.file_mode == "r":
-                consolidated = zarr_open_consolidated(store)
+                try:
+                    consolidated = zarr.open_consolidated(store)
+                except (KeyError, ValueError):
+                    consolidated = None  # No consolidated metadata available
                 if consolidated is not None:
                     self._consolidated = True
                     return consolidated
             self._consolidated = False
-            return zarr_open(store, mode=self.file_mode)
+            return zarr.open(store, mode=self.file_mode)
         except (ValueError, FileNotFoundError):
             raise ValueError("No Zarr store found at path '%s'" % self.source)
 

@@ -15,7 +15,7 @@ from podpac.core.managers.multi_threading import Lock
 from podpac.core.node import Node, NodeException
 from podpac.core.utils import NodeTrait
 from podpac.core.data.zarr_source import Zarr
-from podpac.core.data.zarr_compat import zarr_open, create_zarr_array
+from podpac.core.data.zarr_compat import create_zarr_array
 from podpac.core.coordinates import Coordinates, merge_dims
 
 # Optional dependencies
@@ -368,7 +368,7 @@ class ZarrOutputMixin(tl.HasTraits):
         else:
             data_key = ["data"]
 
-        zf = zarr_open(zn._get_store(), mode=self.init_file_mode)
+        zf = zarr.open(zn._get_store(), mode=self.init_file_mode)
 
         # Intialize the output zarr arrays
         for dk in data_key:
