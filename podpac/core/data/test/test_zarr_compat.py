@@ -1,8 +1,16 @@
 import os
 import shutil
 import tempfile
+from unittest.mock import MagicMock
 
-from podpac.core.data.zarr_compat import zarr_open, zarr_open_consolidated, zarr_group, create_zarr_array
+from podpac.core.data import zarr_compat
+from podpac.core.data.zarr_compat import (
+    zarr_open,
+    zarr_open_consolidated,
+    zarr_group,
+    create_zarr_array,
+    get_s3_store,
+)
 
 
 class TestZarrCompat(object):
@@ -34,3 +42,55 @@ class TestZarrCompat(object):
         create_zarr_array(group, "data", shape=(2, 2), chunks=True, dtype="float64", fill_value=0.0)
         assert "data" in group
         assert group["data"].shape == (2, 2)
+
+
+class TestZarrV3Detection:
+    def test_v2_version_string(self, monkeypatch):
+        monkeypatch.setattr(zarr_compat, "zarr", MagicMock(__version__="2.18.4"))
+        assert zarr_compat._zarr_v3() is False
+
+    def test_v3_version_string(self, monkeypatch):
+        monkeypatch.setattr(zarr_compat, "zarr", MagicMock(__version__="3.2.1"))
+        assert zarr_compat._zarr_v3() is True
+
+
+class TestGetS3Store:
+    def test_v3_uses_fsspec_store(self, monkeypatch):
+        monkeypatch.setattr(zarr_compat, "_zarr_v3", lambda: True)
+        mock_zarr = MagicMock()
+        monkeypatch.setattr(zarr_compat, "zarr", mock_zarr)
+
+        fake_s3 = object()
+        store = get_s3_store(fake_s3, "my-bucket/my-key.zarr")
+
+        mock_zarr.storage.FsspecStore.assert_called_once_with(fake_s3, path="my-bucket/my-key.zarr")
+        assert store is mock_zarr.storage.FsspecStore.return_value
+
+    def test_v2_uses_s3map(self, monkeypatch):
+        monkeypatch.setattr(zarr_compat, "_zarr_v3", lambda: False)
+        mock_s3fs = MagicMock()
+        monkeypatch.setattr(zarr_compat, "lazy_module", lambda name: mock_s3fs)
+
+        fake_s3 = object()
+        store = get_s3_store(fake_s3, "my-bucket/my-key.zarr")
+
+        mock_s3fs.S3Map.assert_called_once_with(root="my-bucket/my-key.zarr", s3=fake_s3, check=False)
+        assert store is mock_s3fs.S3Map.return_value
+
+
+class TestCreateZarrArrayV2Fallback:
+    def test_uses_create_dataset_when_create_array_absent(self):
+        # Duck-typed stand-in for a zarr 2.x Group, which only has create_dataset.
+        class FakeV2Group:
+            def __init__(self):
+                self.calls = []
+
+            def create_dataset(self, name, **kwargs):
+                self.calls.append((name, kwargs))
+                return "created"
+
+        group = FakeV2Group()
+        result = create_zarr_array(group, "data", shape=(3, 4), chunks=True, dtype="float64")
+
+        assert result == "created"
+        assert group.calls == [("data", {"shape": (3, 4), "dtype": "float64", "chunks": True})]

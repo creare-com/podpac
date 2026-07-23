@@ -8,6 +8,7 @@ of `Group.create_array`, changed the exception raised when consolidated metadata
 missing, and no longer accepts fsspec `MutableMapping` stores (like `s3fs.S3Map`)
 directly.
 """
+
 from lazy_import import lazy_module
 
 zarr = lazy_module("zarr")
@@ -36,8 +37,15 @@ def create_zarr_array(group, name, chunks=None, **kwargs):
     if hasattr(group, "create_array"):
         if chunks is True:
             chunks = "auto"
-        return group.create_array(name, chunks=chunks, **kwargs)
-    return group.create_dataset(name, chunks=chunks, **kwargs)
+        if chunks is not None:
+            kwargs["chunks"] = chunks
+        # v3's create_array, unlike v2's create_dataset, has no implicit dtype fallback
+        # when `data` isn't provided directly.
+        kwargs.setdefault("dtype", "float64")
+        return group.create_array(name, **kwargs)
+    if chunks is not None:
+        kwargs["chunks"] = chunks
+    return group.create_dataset(name, **kwargs)
 
 
 def get_s3_store(s3, root):

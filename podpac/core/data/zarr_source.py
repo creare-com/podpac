@@ -141,7 +141,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
                     return consolidated
             self._consolidated = False
             return zarr_open(store, mode=self.file_mode)
-        except ValueError:
+        except (ValueError, FileNotFoundError):
             raise ValueError("No Zarr store found at path '%s'" % self.source)
 
     # -------------------------------------------------------------------------
@@ -181,7 +181,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
             keys = full_keys.copy()
             full_keys = self._add_keys(keys)
 
-        return full_keys
+        return sorted(full_keys)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):

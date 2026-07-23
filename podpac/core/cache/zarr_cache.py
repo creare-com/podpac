@@ -49,7 +49,7 @@ class ZarrCache(CacheNode):
     base_path = tl.Unicode().tag(attr=True, required=True)
     group_data = tl.Instance(zarr.Group)
     group_bool = tl.Instance(zarr.Group)
-    chunks = tl.List(allow_none=True).tag(attr=True)
+    chunks = tl.List(allow_none=True, default_value=None).tag(attr=True)
     selector_method = tl.Unicode(allow_none=True).tag(attr=True)
     cache_type = tl.Enum(["disk", "ram"], default_value="disk")
 
