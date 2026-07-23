@@ -101,7 +101,7 @@ class ZarrCache(CacheNode):
                 group = self._global_zarr_ram_cache[self.hash]  # assumes ram not persistent
             if "data" not in group:
                 shape = self.source.coordinates.shape
-                create_zarr_array(
+                arr = create_zarr_array(
                     group,
                     "data",
                     shape=shape,
@@ -109,6 +109,7 @@ class ZarrCache(CacheNode):
                     dtype="float64",
                     fill_value=np.nan,
                 )  # adjust dtype as necessary
+                arr.attrs["_ARRAY_DIMENSIONS"] = self.source.coordinates.dims
                 self._create_coordinate_zarr_dataset(group)
             return group
         except (OSError, RuntimeError, ValueError, KeyError, tl.TraitError) as e:
@@ -127,7 +128,8 @@ class ZarrCache(CacheNode):
                 group = self._global_zarr_bool_ram_cache[self.hash]  # assumes ram not persistent
             if "contains" not in group:
                 shape = self.source.coordinates.shape
-                create_zarr_array(group, "contains", shape=shape, dtype="bool", fill_value=False)
+                arr = create_zarr_array(group, "contains", shape=shape, dtype="bool", fill_value=False)
+                arr.attrs["_ARRAY_DIMENSIONS"] = self.source.coordinates.dims
                 self._create_coordinate_zarr_dataset(group)
             return group
         except (OSError, RuntimeError, ValueError, KeyError, tl.TraitError) as e:
