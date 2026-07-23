@@ -5,6 +5,7 @@ import podpac
 from podpac.data import Zarr, ZarrMemory
 from podpac.core.interpolation.selector import Selector
 from podpac.core.cache.cache_interface import CacheNode
+from podpac.core.data.zarr_compat import zarr_open, zarr_group, create_zarr_array
 from podpac import settings
 
 
@@ -24,9 +25,9 @@ class ZarrCache(CacheNode):
         The path to the Zarr archive for storing data. Default is f"{self.base_path}/zarr_cache_{self.hash}"
     base_path : str
         Base path for caching to disk. Default is `podpac.settings.cache_path`
-    group_data : zarr.hierarchy.Group
+    group_data : zarr.Group
         The Zarr group for storing data.
-    group_bool : zarr.hierarchy.Group
+    group_bool : zarr.Group
         The Zarr group for storing boolean indicators of data availability.
     chunks: list
         Chunk size for the Zarr array. If None, the default chunk size is used.
@@ -46,8 +47,8 @@ class ZarrCache(CacheNode):
     # Public Traits
     zarr_path = tl.Unicode()
     base_path = tl.Unicode().tag(attr=True, required=True)
-    group_data = tl.Instance(zarr.hierarchy.Group)
-    group_bool = tl.Instance(zarr.hierarchy.Group)
+    group_data = tl.Instance(zarr.Group)
+    group_bool = tl.Instance(zarr.Group)
     chunks = tl.List(allow_none=True).tag(attr=True)
     selector_method = tl.Unicode(allow_none=True).tag(attr=True)
     cache_type = tl.Enum(["disk", "ram"], default_value="disk")
@@ -91,16 +92,17 @@ class ZarrCache(CacheNode):
     def _default_group_data(self):
         try:
             if self.cache_type == "disk":
-                group = zarr.open(
+                group = zarr_open(
                     self._zarr_path_data, mode="a"
                 )  # no need to close, see https://zarr.readthedocs.io/en/stable/tutorial.html#persistent-arrays
             if self.cache_type == "ram":
                 if self.hash not in self._global_zarr_ram_cache:
-                    self._global_zarr_ram_cache[self.hash] = zarr.group()
+                    self._global_zarr_ram_cache[self.hash] = zarr_group()
                 group = self._global_zarr_ram_cache[self.hash]  # assumes ram not persistent
             if "data" not in group:
                 shape = self.source.coordinates.shape
-                group.create_dataset(
+                create_zarr_array(
+                    group,
                     "data",
                     shape=shape,
                     chunks=self.chunks if self.chunks is not None else True,
@@ -116,16 +118,16 @@ class ZarrCache(CacheNode):
     def _default_group_bool(self):
         try:
             if self.cache_type == "disk":
-                group = zarr.open(
+                group = zarr_open(
                     self._zarr_path_bool, mode="a"
                 )  # no need to close, see https://zarr.readthedocs.io/en/stable/tutorial.html#persistent-arrays
             if self.cache_type == "ram":
                 if self.hash not in self._global_zarr_bool_ram_cache:
-                    self._global_zarr_bool_ram_cache[self.hash] = zarr.group()
+                    self._global_zarr_bool_ram_cache[self.hash] = zarr_group()
                 group = self._global_zarr_bool_ram_cache[self.hash]  # assumes ram not persistent
             if "contains" not in group:
                 shape = self.source.coordinates.shape
-                group.create_dataset("contains", shape=shape, dtype="bool", fill_value=False)
+                create_zarr_array(group, "contains", shape=shape, dtype="bool", fill_value=False)
                 self._create_coordinate_zarr_dataset(group)
             return group
         except (OSError, RuntimeError, ValueError, KeyError, tl.TraitError) as e:
@@ -173,13 +175,14 @@ class ZarrCache(CacheNode):
         for dim in self.source.coordinates.dims:
             if dim not in group:
                 if dim == "time":
-                    group.create_dataset(
+                    create_zarr_array(
+                        group,
                         dim,
                         shape=self.source.coordinates[dim].shape,
                         dtype=str(self.source.coordinates["time"].bounds[0].dtype),
                     )
                 else:
-                    group.create_dataset(dim, shape=self.source.coordinates[dim].shape, dtype="float64")
+                    create_zarr_array(group, dim, shape=self.source.coordinates[dim].shape, dtype="float64")
                 group[dim][:] = self.source.coordinates.xcoords[dim][1]
 
     def _create_slices(self, c3, index_arrays):

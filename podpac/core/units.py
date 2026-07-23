@@ -189,7 +189,7 @@ class UnitsDataArray(xr.DataArray):
             r = cPickle.dumps(self)
         elif format == "zarr_part":
             from podpac.core.data.zarr_source import Zarr
-            import zarr
+            from podpac.core.data.zarr_compat import zarr_open
 
             if "part" in kwargs:
                 part = kwargs.pop("part")
@@ -200,7 +200,7 @@ class UnitsDataArray(xr.DataArray):
             zn = Zarr(source=kwargs.pop("source"))
             store = zn._get_store()
 
-            zf = zarr.open(store, *args, **kwargs)
+            zf = zarr_open(store, **kwargs)
 
             if "output" in self.dims:
                 for key in self.coords["output"].data:

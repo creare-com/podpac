@@ -80,6 +80,37 @@ jobs:
           path: coverage.xml
           retention-days: 1
 
+  zarr-compat-testing:
+    name: Zarr Compatibility Testing
+    runs-on: ubuntu-22.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        zarr-version: ["zarr>=2.3,<3", "zarr>=3,<4"]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip setuptools && pip install .[devall]
+          pip install "${{ matrix.zarr-version }}" "numcodecs>=0.15.1"
+
+      - name: Run Zarr Tests
+        run: |
+          pytest podpac/core/data/test/test_zarr.py podpac/core/data/test/test_zarr_compat.py \
+                 podpac/core/cache/test/test_node_caches.py podpac/core/managers/test/test_parallel.py \
+                 -m "not integration"
+
   document-testing:
     name: Document Testing
     runs-on: ubuntu-22.04

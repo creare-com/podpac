@@ -1,13 +1,11 @@
 import os
 import traitlets as tl
 
-from lazy_import import lazy_module, lazy_class, lazy_function
+from lazy_import import lazy_module
 
 zarr = lazy_module("zarr")
-zarr_open = lazy_function("zarr.convenience.open")
-zarr_open_consolidated = lazy_function("zarr.convenience.open_consolidated")
-zarrGroup = lazy_class("zarr.Group")
 
+from podpac.core.data.zarr_compat import zarr_open, zarr_open_consolidated, get_s3_store
 from podpac.core.authentication import S3Mixin
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC
@@ -57,10 +55,8 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
 
     def _get_store(self):
         if self.source.startswith(_S3_PREFIX):
-            s3fs = lazy_module("s3fs")
-            root = self.source.strip(_S3_PREFIX)
-            s3map = s3fs.S3Map(root=root, s3=self.s3, check=False)
-            store = s3map
+            root = self.source[len(_S3_PREFIX) :]
+            store = get_s3_store(self.s3, root)
         else:
             store = str(self.source)  # has to be a string in Python2.7 for local files
         return store
@@ -139,11 +135,10 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
         store = self._get_store()
         try:
             if self.file_mode == "r":
-                try:
+                consolidated = zarr_open_consolidated(store)
+                if consolidated is not None:
                     self._consolidated = True
-                    return zarr_open_consolidated(store)
-                except KeyError:
-                    pass  # No consolidated metadata available
+                    return consolidated
             self._consolidated = False
             return zarr_open(store, mode=self.file_mode)
         except ValueError:

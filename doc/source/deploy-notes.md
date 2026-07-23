@@ -74,7 +74,7 @@ $ pip install pint>=0.8 lazy-import>=0.2.2
 
 # Install dependencies for handling various file datatype
 $ # conda install rasterio>=1.0  # Installed above alongside pyproj
-$ conda install beautifulsoup4>=4.6 h5py>=2.9 lxml>=4.2 zarr>=2.3 intake>=0.5
+$ conda install beautifulsoup4>=4.6 h5py>=2.9 lxml>=4.2 zarr>=2.3,<4 numcodecs>=0.15.1 intake>=0.5
 $ pip install pydap>=3.2
 
 # Install dependencies for AWS

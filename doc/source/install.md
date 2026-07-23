@@ -57,7 +57,7 @@ following packages in a clean `conda` environment:
 
 ```bash
 # Install core dependencies
-> conda install matplotlib>=2.1 numpy>=1.14 scipy>=1.0 traitlets>=4.3 xarray>=0.10 ipython psutil requests>=2.18 owslib beautifulsoup4>=4.6 h5py>=2.9 lxml>=4.2 zarr>=2.3 intake>=0.5 boto3>=1.4 s3fs>=0.2 numexpr>=2.6 jupyterlab ipywidgets nodejs
+> conda install matplotlib>=2.1 numpy>=1.14 scipy>=1.0 traitlets>=4.3 xarray>=0.10 ipython psutil requests>=2.18 owslib beautifulsoup4>=4.6 h5py>=2.9 lxml>=4.2 zarr>=2.3,<4 numcodecs>=0.15.1 intake>=0.5 boto3>=1.4 s3fs>=0.2 numexpr>=2.6 jupyterlab ipywidgets nodejs
 > conda install pyproj>=2.2 rasterio>=1.0 ipympl ipyleaflet -c conda-forge
 
 # Set up jupyter lab extensions
