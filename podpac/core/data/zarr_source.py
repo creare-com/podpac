@@ -133,6 +133,13 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
     @cached_property
     def dataset(self):
         store = self._get_store()
+        if (
+            isinstance(store, str)
+            and self.file_mode in ("r", "r+")
+            and not store.startswith(_S3_PREFIX)
+            and not os.path.exists(store)
+        ):
+            raise ValueError("No Zarr store found at path '%s'" % self.source)
         try:
             if self.file_mode == "r":
                 try:
@@ -144,7 +151,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
                     return consolidated
             self._consolidated = False
             return zarr.open(store, mode=self.file_mode)
-        except (ValueError, FileNotFoundError):
+        except (OSError, ValueError):
             raise ValueError("No Zarr store found at path '%s'" % self.source)
 
     # -------------------------------------------------------------------------
