@@ -1,13 +1,11 @@
 import os
 import traitlets as tl
 
-from lazy_import import lazy_module, lazy_class, lazy_function
+from lazy_import import lazy_module
 
 zarr = lazy_module("zarr")
-zarr_open = lazy_function("zarr.convenience.open")
-zarr_open_consolidated = lazy_function("zarr.convenience.open_consolidated")
-zarrGroup = lazy_class("zarr.Group")
 
+from podpac.core.data.zarr_compat import get_s3_store
 from podpac.core.authentication import S3Mixin
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC
@@ -57,10 +55,8 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
 
     def _get_store(self):
         if self.source.startswith(_S3_PREFIX):
-            s3fs = lazy_module("s3fs")
-            root = self.source.strip(_S3_PREFIX)
-            s3map = s3fs.S3Map(root=root, s3=self.s3, check=False)
-            store = s3map
+            root = self.source[len(_S3_PREFIX) :]
+            store = get_s3_store(self.s3, root)
         else:
             store = str(self.source)  # has to be a string in Python2.7 for local files
         return store
@@ -137,16 +133,25 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
     @cached_property
     def dataset(self):
         store = self._get_store()
+        if (
+            isinstance(store, str)
+            and self.file_mode in ("r", "r+")
+            and not store.startswith(_S3_PREFIX)
+            and not os.path.exists(store)
+        ):
+            raise ValueError("No Zarr store found at path '%s'" % self.source)
         try:
             if self.file_mode == "r":
                 try:
+                    consolidated = zarr.open_consolidated(store)
+                except (KeyError, ValueError):
+                    consolidated = None  # No consolidated metadata available
+                if consolidated is not None:
                     self._consolidated = True
-                    return zarr_open_consolidated(store)
-                except KeyError:
-                    pass  # No consolidated metadata available
+                    return consolidated
             self._consolidated = False
-            return zarr_open(store, mode=self.file_mode)
-        except ValueError:
+            return zarr.open(store, mode=self.file_mode)
+        except (OSError, ValueError):
             raise ValueError("No Zarr store found at path '%s'" % self.source)
 
     # -------------------------------------------------------------------------
@@ -186,7 +191,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
             keys = full_keys.copy()
             full_keys = self._add_keys(keys)
 
-        return full_keys
+        return sorted(full_keys)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
