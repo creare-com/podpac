@@ -43,7 +43,7 @@ extras_require = {
         "lxml>=6.1.0",
         "rasterio>=1.0",
         "zarr>=2.3,<4",
-        "numcodecs>=0.15.1",
+        "numcodecs",
         "owslib",
         "h5netcdf",
     ],
