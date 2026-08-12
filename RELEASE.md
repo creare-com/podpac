@@ -4,7 +4,7 @@ How to release `podpac`
 
 ## Updating main
 
-1. Ensure your local main / main-3.X branch is synced to upstream:
+1. Ensure your local main branch is synced to upstream:
 
 ```bash
 $ git pull upstream main  # or just git pull
@@ -53,16 +53,28 @@ $ python setup.py bdist_wheel sdist
 8. Upload package to [TestPypi](https://packaging.python.org/guides/using-testpypi/). You will need to be listed as a package owner at
 https://pypi.python.org/pypi/podpac for this to work. You now need to use a pypi generated token, can no longer use your password. 
 
-```bash
-$ twine upload --repository-url https://test.pypi.org/legacy/ dist/podpac-X.Y.Z*
+First create a `${HOME}/.pypirc` file with the below contents, replacing `YOUR_API_TOKEN` with your valid pypi token (file template taken from here https://stackoverflow.com/questions/69065069/http-403-error-while-uploading-python-package-to-pypi):
+```
+[distutils]
+  index-servers =
+    pypi
+    podpac
+
+[pypi]
+  username = __token__
+  password = YOUR_API_TOKEN
+
+[YOUR_PROJECT_NAME]
+  repository = https://upload.pypi.org/legacy/
+  username = __token__
+  password = YOUR_API_TOKEN
+
 ```
 
-9. Use twine to register and upload the release on pypi. Be careful, you can't
-take this back! You will need to be listed as a package owner at
-https://pypi.python.org/pypi/podpac for this to work.
+Then run the upload command from your podpac directory
 
 ```bash
 $ twine upload dist/podpac-X.Y.Z*
 ```
 
-11. Issue the release announcement (via github)
+9. Issue the release announcement (via github)
