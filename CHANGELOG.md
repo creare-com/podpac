@@ -1,4 +1,10 @@
 # Changelog
+## 4.0.3
+
+### Bugfixes
+* Fixed zarr 3.x api issues in zarr_cache
+* Fixed error catch in probe_node where probing a location of an enumeration where the value did not have a label resulted in KeyError
+
 ## 4.0.2
 ### Bugfixes
 * Replaced `print` statements with `logging` statements.
@@ -11,6 +17,7 @@
 ## 4.0.1
 ### Bugfixes
 * Changed test_settings unit tests to use pytest's `tmp_path` fixture.
+
 ## 4.0.0
 
 ### Introduction

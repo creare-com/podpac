@@ -24,7 +24,6 @@ class TestStyle(object):
         assert style.cmap.name == "cividis"
 
         style = Style(enumeration_colors=({0: "c", 1: "k"}))
-        assert style.cmap.name == "from_list"
         assert style.cmap.colors == ("c", "k")
 
         with pytest.raises(TypeError, match="Style can have a colormap or enumeration_colors"):

@@ -15,13 +15,13 @@ from podpac.core.managers.multi_threading import Lock
 from podpac.core.node import Node, NodeException
 from podpac.core.utils import NodeTrait
 from podpac.core.data.zarr_source import Zarr
+from podpac.core.data.zarr_compat import create_zarr_array
 from podpac.core.coordinates import Coordinates, merge_dims
 
 # Optional dependencies
-from lazy_import import lazy_module, lazy_class
+from lazy_import import lazy_module
 
 zarr = lazy_module("zarr")
-zarrGroup = lazy_class("zarr.Group")
 try:
     import botocore
 except ImportError:
@@ -349,7 +349,7 @@ class ZarrOutputMixin(tl.HasTraits):
             self.dataset[dk].attrs["_ARRAY_DIMENSIONS"] = coordinates.dims
         for d in coordinates.dims:
             # TODO ADD UNITS AND TIME DECODING INFORMATION
-            self.dataset.create_dataset(d, shape=coordinates[d].size, overwrite=True)
+            create_zarr_array(self.dataset, d, shape=coordinates[d].size, overwrite=True)
             self.dataset[d][:] = coordinates[d].coordinates
 
     def initialize_zarr_array(self, shape, chunks):
@@ -373,7 +373,8 @@ class ZarrOutputMixin(tl.HasTraits):
         # Intialize the output zarr arrays
         for dk in data_key:
             try:
-                _ = zf.create_dataset(
+                _ = create_zarr_array(
+                    zf,
                     dk,
                     shape=shape,
                     chunks=chunks,
