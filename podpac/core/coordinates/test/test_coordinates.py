@@ -1647,6 +1647,18 @@ class TestCoordinatesMethods(object):
         assert c3.issubset(c1)
         assert not c3.issubset(c2)
 
+    def test_are_stacked_dimensions(self):
+        """Test the are_stacked method with varying dimensions."""
+
+        coords_stacked_dims = Coordinates([[[0], [0]]], ["lat_lon"])
+        coords_unstacked_dims = Coordinates([[0], [0]], ["lat", "lon"])
+        coords_missing_dim = Coordinates([[0]], ["lat"])
+
+        assert coords_stacked_dims.are_stacked("lat", "lon") is True
+        assert coords_unstacked_dims.are_stacked("lat", "lon") is False
+        assert coords_missing_dim.are_stacked("lat", "lon") is False
+        assert coords_stacked_dims.are_stacked("lat", "lon", "time") is False
+
 
 class TestCoordinatesSpecial(object):
     def test_repr(self):
