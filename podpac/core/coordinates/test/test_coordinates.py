@@ -1650,14 +1650,26 @@ class TestCoordinatesMethods(object):
     def test_are_stacked_dimensions(self):
         """Test the are_stacked method with varying dimensions."""
 
-        coords_stacked_dims = Coordinates([[[0], [0]]], ["lat_lon"])
-        coords_unstacked_dims = Coordinates([[0], [0]], ["lat", "lon"])
-        coords_missing_dim = Coordinates([[0]], ["lat"])
+        coords_stacked_2d = Coordinates([[[0], [0]]], ["lat_lon"])
+        coords_unstacked_2d = Coordinates([[0], [0]], ["lat", "lon"])
+        coords_stacked_3d = Coordinates([[[0], [0], [0]]], ["lat_lon_time"])
+        coords_partially_stacked_3d = Coordinates([[[0], [0]], [0]], ["lat_lon", "time"])
+        coords_unstacked_3d = Coordinates([[0], [0], [0]], ["lat", "lon", "time"])
+        coords_missing_dims = Coordinates([[0]], ["lat"])
 
-        assert coords_stacked_dims.are_stacked("lat", "lon") is True
-        assert coords_unstacked_dims.are_stacked("lat", "lon") is False
-        assert coords_missing_dim.are_stacked("lat", "lon") is False
-        assert coords_stacked_dims.are_stacked("lat", "lon", "time") is False
+        # Check 2D cases stacked and unstacked
+        assert coords_stacked_2d.are_stacked("lat") is True
+        assert coords_stacked_2d.are_stacked("lat", "lon") is True
+        assert coords_unstacked_2d.are_stacked("lat", "lon") is False
+        assert coords_missing_dims.are_stacked("lat", "lon") is False
+
+        # Check 3D cases stacked and unstacked
+        assert coords_stacked_3d.are_stacked("lat", "lon") is True
+        assert coords_stacked_3d.are_stacked("lat", "lon", "time") is True
+        assert coords_partially_stacked_3d.are_stacked("lat", "lon") is True
+        assert coords_partially_stacked_3d.are_stacked("lat", "time") is False
+        assert coords_unstacked_3d.are_stacked("lat", "lon", "time") is False
+        assert coords_missing_dims.are_stacked("lat", "lon", "time") is False
 
 
 class TestCoordinatesSpecial(object):
