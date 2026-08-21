@@ -1668,6 +1668,7 @@ class TestCoordinatesMethods(object):
         assert coords_stacked_3d.are_stacked("lat", "lon", "time") is True
         assert coords_partially_stacked_3d.are_stacked("lat", "lon") is True
         assert coords_partially_stacked_3d.are_stacked("lat", "time") is False
+        assert coords_partially_stacked_3d.are_stacked("time") is False
         assert coords_unstacked_3d.are_stacked("lat", "lon", "time") is False
         assert coords_missing_dims.are_stacked("lat", "lon", "time") is False
 
