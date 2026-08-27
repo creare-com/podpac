@@ -7,6 +7,7 @@ import zarr
 
 from podpac.core.data import zarr_compat
 from podpac.core.data.zarr_compat import (
+    _ensure_async_fs,
     create_zarr_array,
     get_s3_store,
 )
@@ -72,6 +73,29 @@ class FakeNonAsyncFileSystem:
     async_impl = False
     asynchronous = False
     protocol = "file"
+
+
+class TestEnsureAsyncFs:
+    def test_returns_already_async_fs_unchanged(self):
+        fake_s3 = FakeS3FileSystem(key="abc", asynchronous=True)
+        assert _ensure_async_fs(fake_s3) is fake_s3
+
+    def test_rebuilds_async_capable_sync_fs_as_async(self):
+        fake_s3 = FakeS3FileSystem("arg1", key="abc", asynchronous=False)
+        result = _ensure_async_fs(fake_s3)
+
+        assert result is not fake_s3
+        assert isinstance(result, FakeS3FileSystem)
+        assert result.asynchronous is True
+        assert result.storage_args == ("arg1",)
+        assert result.storage_options == {"key": "abc"}
+
+    def test_wraps_non_async_capable_fs(self):
+        fake_s3 = FakeNonAsyncFileSystem()
+        result = _ensure_async_fs(fake_s3)
+
+        assert result is not fake_s3
+        assert type(result).__name__ == "AsyncFileSystemWrapper"
 
 
 class TestGetS3Store:

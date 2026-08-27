@@ -5,6 +5,8 @@ zarr 3 removed `Group.create_dataset` in favor of `Group.create_array`, and no
 longer accepts fsspec `MutableMapping` stores (like `s3fs.S3Map`) directly.
 """
 
+from typing import Any
+
 from lazy_import import lazy_module
 
 zarr = lazy_module("zarr")
@@ -29,13 +31,32 @@ def create_zarr_array(group, name, chunks=None, **kwargs):
     return group.create_dataset(name, **kwargs)
 
 
-def _ensure_async_fs(fs):
-    # S3Mixin builds a synchronous s3fs instance, but zarr 3's FsspecStore requires
-    # an async-native filesystem: it raises TypeError if the filesystem's class never
-    # implemented the async protocol (e.g. s3fs versions predating fsspec.asyn.AsyncFileSystem,
-    # which podpac's own "s3fs>=0.4" floor still technically allows), and warns even when the
-    # class is async-capable but this particular instance wasn't created with asynchronous=True.
-    # This mirrors zarr's own internal `_make_async` helper (used by FsspecStore.from_url/from_mapper).
+def _ensure_async_fs(fs: Any) -> Any:
+    """Coerce an fsspec filesystem instance into one zarr 3's FsspecStore accepts.
+
+    `S3Mixin` builds a synchronous `s3fs` instance, but zarr 3's `FsspecStore`
+    requires an async-native filesystem: it raises `TypeError` if the
+    filesystem's class never implemented the async protocol (e.g. s3fs
+    versions predating `fsspec.asyn.AsyncFileSystem`, which podpac's own
+    "s3fs>=0.4" floor still technically allows), and warns even when the class
+    is async-capable but this particular instance wasn't created with
+    `asynchronous=True`. This mirrors zarr's own internal `_make_async` helper
+    (used by `FsspecStore.from_url`/`from_mapper`).
+
+    Parameters
+    ----------
+    fs : fsspec.spec.AbstractFileSystem
+        The filesystem instance to coerce, e.g. an `s3fs.S3FileSystem`. May
+        already be async, async-capable but synchronous, or not async-capable
+        at all.
+
+    Returns
+    -------
+    fsspec.spec.AbstractFileSystem
+        `fs` itself if it is already asynchronous; otherwise a new instance
+        of `type(fs)` constructed with `asynchronous=True` if the class
+        supports it; otherwise `fs` wrapped in an `AsyncFileSystemWrapper`.
+    """
     if getattr(fs, "asynchronous", False):
         return fs
     if getattr(fs, "async_impl", False):
