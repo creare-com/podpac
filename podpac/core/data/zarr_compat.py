@@ -5,8 +5,6 @@ zarr 3 removed `Group.create_dataset` in favor of `Group.create_array`, and no
 longer accepts fsspec `MutableMapping` stores (like `s3fs.S3Map`) directly.
 """
 
-from typing import Any
-
 from lazy_import import lazy_module
 
 zarr = lazy_module("zarr")
