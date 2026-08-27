@@ -5,6 +5,8 @@ zarr 3 removed `Group.create_dataset` in favor of `Group.create_array`, and no
 longer accepts fsspec `MutableMapping` stores (like `s3fs.S3Map`) directly.
 """
 
+from typing import Any
+
 from lazy_import import lazy_module
 
 zarr = lazy_module("zarr")
@@ -29,7 +31,7 @@ def create_zarr_array(group, name, chunks=None, **kwargs):
     return group.create_dataset(name, **kwargs)
 
 
-def _ensure_async_fs(fs: fsspec.spec.AbstractFileSystem) -> fsspec.spec.AbstractFileSystem:
+def _ensure_async_fs(fs: Any) -> Any:
     """Coerce an fsspec filesystem instance into one zarr 3's FsspecStore accepts.
 
     `S3Mixin` builds a synchronous `s3fs` instance, but zarr 3's `FsspecStore`
@@ -55,8 +57,12 @@ def _ensure_async_fs(fs: fsspec.spec.AbstractFileSystem) -> fsspec.spec.Abstract
         of `type(fs)` constructed with `asynchronous=True` if the class
         supports it; otherwise `fs` wrapped in an `AsyncFileSystemWrapper`.
     """
+    if getattr(fs, "asynchronous", False):
+        return fs
+    if getattr(fs, "async_impl", False):
+        return type(fs)(*fs.storage_args, **{**fs.storage_options, "asynchronous": True})
     from fsspec.implementations.asyn_wrapper import AsyncFileSystemWrapper
-    
+
     return AsyncFileSystemWrapper(fs, asynchronous=True)
 
 
