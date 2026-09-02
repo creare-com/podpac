@@ -1,4 +1,15 @@
 # Changelog
+## 4.0.4
+
+### Features
+* Added method `are_stacked` to the `Coordinates` class which can be used to determine whether dimensions are stacked together.
+
+### Bug Fixes
+* Resolve an issue with `zarr.storage.FsspecStore` requiring a filesystem which supports asynchronous operations.
+
+### Maintenance
+* Address SonarQube findings related to unquoted variables in Dockerfiles.
+
 ## 4.0.3
 
 ### Bugfixes

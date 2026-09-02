@@ -1545,6 +1545,29 @@ class Coordinates(tl.HasTraits):
         elif value == 2:  # both true
             return False
 
+    def are_stacked(self, *dims: str) -> bool:
+        """Check whether the specified dimensions are stacked together.
+
+        Parameters
+        ----------
+        *dims : str
+            One or more dimension names to check.
+
+        Returns
+        -------
+        bool
+            True if all specified dimensions are contained within the same
+            StackedCoordinates object, False otherwise.
+        """
+        unique_dims = set(dims)
+
+        for dim in self.dims:
+            coords = self[dim]
+            if isinstance(coords, StackedCoordinates) and unique_dims.issubset(coords.dims):
+                return True
+
+        return False
+
     def horizontal_resolution(self, units="meter", restype="nominal"):
         """
         Returns horizontal resolution of coordinate system.

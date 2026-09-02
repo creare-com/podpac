@@ -8,8 +8,8 @@ ARG HOST_USER
 ARG HOST_UID
 ARG HOST_GID
 RUN <<EOF
-    addgroup --gid ${HOST_GID} ${HOST_USER}
-    adduser --uid ${HOST_UID} --gid ${HOST_GID} ${HOST_USER}
+    addgroup --gid "${HOST_GID}" "${HOST_USER}"
+    adduser --uid "${HOST_UID}" --gid "${HOST_GID}" "${HOST_USER}"
 EOF
 
 ENV HOME /home/${HOST_USER}
