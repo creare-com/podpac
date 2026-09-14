@@ -158,11 +158,13 @@ class RequestsSessionMixin(tl.HasTraits):
 
 
 class _SessionWithHeaderRedirection(requests.Session):
-    """NASA's `requests.Session` for Earthdata Login (URS) authentication
+    """Session with header redirection for Earthdata Login (URS) authentication
     (see https://urs.earthdata.nasa.gov/documentation/for_users/data_access/python).
     """
 
-    AUTH_HOST = "urs.earthdata.nasa.gov"
+    def __init__(self, auth_host: str) -> None:
+        super().__init__()
+        self.auth_host = auth_host
 
     def rebuild_auth(self, prepared_request: requests.PreparedRequest, response: requests.Response) -> None:
         """Overrides :meth:`requests.Session.rebuild_auth` to keep the `Authorization` header
@@ -191,8 +193,8 @@ class _SessionWithHeaderRedirection(requests.Session):
 
             if (
                 (original_parsed.hostname != redirect_parsed.hostname)
-                and redirect_parsed.hostname != self.AUTH_HOST
-                and original_parsed.hostname != self.AUTH_HOST
+                and redirect_parsed.hostname != self.auth_host
+                and original_parsed.hostname != self.auth_host
             ):
                 del headers["Authorization"]
 
@@ -213,7 +215,7 @@ class NASAURSSessionMixin(RequestsSessionMixin):
         -----
         The session is authenticated against the user-provided self.check_url
         """
-        s = _SessionWithHeaderRedirection()
+        s = _SessionWithHeaderRedirection(self.hostname)
 
         try:
             s.auth = (self.username, self.password)
@@ -222,6 +224,11 @@ class NASAURSSessionMixin(RequestsSessionMixin):
                 raise e
             else:
                 _log.warning("No auth provided for session")
+
+        if self.check_url:
+            response = s.get(self.check_url)
+            if "html" in response.headers.get("Content-Type", "").lower() and "<form" in response.text.lower():
+                _log.warning("Checked %s, and a form was returned. Manual registration is required.", self.check_url)
 
         return s
 

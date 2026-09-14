@@ -149,6 +149,7 @@ class TestRequestsSessionMixin(object):
 class TestSessionWithHeaderRedirection(object):
     AUTH = "TEST"
     AUTH_HEADER = {"Authorization": AUTH}
+    AUTH_HOST = "urs.earthdata.nasa.gov"
 
     def _prepared_request(self, url: str, headers: dict | None = None) -> requests.PreparedRequest:
         """Build a request from the URL and headers.
@@ -186,35 +187,35 @@ class TestSessionWithHeaderRedirection(object):
 
     def test_noop_without_authorization_header(self) -> None:
         """No Authorization header means there is nothing for rebuild_auth to strip."""
-        session = _SessionWithHeaderRedirection()
+        session = _SessionWithHeaderRedirection(auth_host=self.AUTH_HOST)
         prepared = self._prepared_request("https://data.example.com/file.nc")
         session.rebuild_auth(prepared, self._response("https://data.example.com/other"))
         assert "Authorization" not in prepared.headers
 
     def test_keeps_header_when_redirecting_to_urs(self) -> None:
         """Redirecting to the URS auth host keeps the Authorization header."""
-        session = _SessionWithHeaderRedirection()
+        session = _SessionWithHeaderRedirection(auth_host=self.AUTH_HOST)
         prepared = self._prepared_request("https://urs.earthdata.nasa.gov/oauth/authorize", headers=self.AUTH_HEADER)
         session.rebuild_auth(prepared, self._response("https://data.example.com/file.nc"))
         assert prepared.headers["Authorization"] == self.AUTH
 
     def test_keeps_header_when_redirecting_from_urs(self) -> None:
         """Redirecting away from the URS auth host keeps the Authorization header."""
-        session = _SessionWithHeaderRedirection()
+        session = _SessionWithHeaderRedirection(auth_host=self.AUTH_HOST)
         prepared = self._prepared_request("https://data.example.com/file.nc", headers=self.AUTH_HEADER)
         session.rebuild_auth(prepared, self._response("https://urs.earthdata.nasa.gov/oauth/authorize"))
         assert prepared.headers["Authorization"] == self.AUTH
 
     def test_keeps_header_for_same_host_redirect(self) -> None:
         """A same-host redirect keeps the Authorization header regardless of URS."""
-        session = _SessionWithHeaderRedirection()
+        session = _SessionWithHeaderRedirection(auth_host=self.AUTH_HOST)
         prepared = self._prepared_request("https://data.example.com/file2.nc", headers=self.AUTH_HEADER)
         session.rebuild_auth(prepared, self._response("https://data.example.com/file.nc"))
         assert prepared.headers["Authorization"] == self.AUTH
 
     def test_strips_header_for_unrelated_host_redirect(self) -> None:
         """A cross-host redirect unrelated to URS strips the Authorization header."""
-        session = _SessionWithHeaderRedirection()
+        session = _SessionWithHeaderRedirection(auth_host=self.AUTH_HOST)
         prepared = self._prepared_request("https://other-host.example.com/file.nc", headers=self.AUTH_HEADER)
         session.rebuild_auth(prepared, self._response("https://data.example.com/file.nc"))
         assert "Authorization" not in prepared.headers
