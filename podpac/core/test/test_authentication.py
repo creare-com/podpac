@@ -3,10 +3,17 @@ import requests
 import traitlets as tl
 import s3fs
 from numpy.testing import assert_equal
+from unittest.mock import patch, PropertyMock
 import logging
 
 from podpac import settings, Node
-from podpac.core.authentication import RequestsSessionMixin, S3Mixin, set_credentials
+from podpac.core.authentication import (
+    RequestsSessionMixin,
+    NASAURSSessionMixin,
+    S3Mixin,
+    set_credentials,
+    _SessionWithHeaderRedirection,
+)
 
 _USERNAME_TEST_COM = "username@test.com"
 _PASSWORD_TEST_COM = "password@test.com"
@@ -137,6 +144,101 @@ class TestRequestsSessionMixin(object):
             node.set_credentials(username="testuser", password="testpass")
             assert node.session
             assert isinstance(node.session, requests.Session)
+
+
+class TestSessionWithHeaderRedirection(object):
+    AUTH = "TEST"
+    AUTH_HEADER = {"Authorization": AUTH}
+
+    def _prepared_request(self, url: str, headers: dict | None = None) -> requests.PreparedRequest:
+        """Build a request from the URL and headers.
+
+        Parameters
+        ----------
+        url : str
+            The request URL.
+        headers : dict | None
+            Request headers, by default None
+
+        Returns
+        -------
+        requests.PreparedRequest
+            The request prepared for testing.
+        """
+        return requests.Request(method="GET", url=url, headers=headers or {}).prepare()
+
+    def _response(self, url: str) -> requests.Response:
+        """Build a response for the URL.
+
+        Parameters
+        ----------
+        url : str
+            The request URL.
+
+        Returns
+        -------
+        requests.Response
+            The request response.
+        """
+        response = requests.Response()
+        response.request = self._prepared_request(url)
+        return response
+
+    def test_noop_without_authorization_header(self) -> None:
+        """No Authorization header means there is nothing for rebuild_auth to strip."""
+        session = _SessionWithHeaderRedirection()
+        prepared = self._prepared_request("https://data.example.com/file.nc")
+        session.rebuild_auth(prepared, self._response("https://data.example.com/other"))
+        assert "Authorization" not in prepared.headers
+
+    def test_keeps_header_when_redirecting_to_urs(self) -> None:
+        """Redirecting to the URS auth host keeps the Authorization header."""
+        session = _SessionWithHeaderRedirection()
+        prepared = self._prepared_request("https://urs.earthdata.nasa.gov/oauth/authorize", headers=self.AUTH_HEADER)
+        session.rebuild_auth(prepared, self._response("https://data.example.com/file.nc"))
+        assert prepared.headers["Authorization"] == self.AUTH
+
+    def test_keeps_header_when_redirecting_from_urs(self) -> None:
+        """Redirecting away from the URS auth host keeps the Authorization header."""
+        session = _SessionWithHeaderRedirection()
+        prepared = self._prepared_request("https://data.example.com/file.nc", headers=self.AUTH_HEADER)
+        session.rebuild_auth(prepared, self._response("https://urs.earthdata.nasa.gov/oauth/authorize"))
+        assert prepared.headers["Authorization"] == self.AUTH
+
+    def test_keeps_header_for_same_host_redirect(self) -> None:
+        """A same-host redirect keeps the Authorization header regardless of URS."""
+        session = _SessionWithHeaderRedirection()
+        prepared = self._prepared_request("https://data.example.com/file2.nc", headers=self.AUTH_HEADER)
+        session.rebuild_auth(prepared, self._response("https://data.example.com/file.nc"))
+        assert prepared.headers["Authorization"] == self.AUTH
+
+    def test_strips_header_for_unrelated_host_redirect(self) -> None:
+        """A cross-host redirect unrelated to URS strips the Authorization header."""
+        session = _SessionWithHeaderRedirection()
+        prepared = self._prepared_request("https://other-host.example.com/file.nc", headers=self.AUTH_HEADER)
+        session.rebuild_auth(prepared, self._response("https://data.example.com/file.nc"))
+        assert "Authorization" not in prepared.headers
+
+
+class TestNASAURSSessionMixin(object):
+    def test_session(self) -> None:
+        """Test NASAURSSessionMixin session with authetication."""
+        node = NASAURSSessionMixin()
+        with (
+            patch.object(NASAURSSessionMixin, "username", new_callable=PropertyMock, return_value="testuser"),
+            patch.object(NASAURSSessionMixin, "password", new_callable=PropertyMock, return_value="testpass"),
+        ):
+            assert isinstance(node.session, _SessionWithHeaderRedirection)
+            assert node.session.auth == ("testuser", "testpass")
+
+    def test_auth_required_traitlet(self) -> None:
+        """Test auth_required for the the session mixin."""
+        node_auth_required = NASAURSSessionMixin()
+        node_no_auth_required = NASAURSSessionMixin(auth_required=False)
+        with patch.object(NASAURSSessionMixin, "username", new_callable=PropertyMock, side_effect=ValueError):
+            with pytest.raises(ValueError):
+                node_auth_required.session
+            assert isinstance(node_no_auth_required.session, _SessionWithHeaderRedirection)
 
 
 class TestS3Mixin(object):
