@@ -8,14 +8,10 @@ import logging
 import requests
 import traitlets as tl
 from lazy_import import lazy_module
+from urllib.parse import urlparse
 
 from podpac.core.settings import settings
 from podpac.core.utils import cached_property
-
-# Optional dependencies
-# see pydap_source.py for import note
-# pydap_setup_session = lazy_function("pydap.cas.urs.setup_session")
-from pydap.cas.urs import setup_session as pydap_setup_session
 
 _log = logging.getLogger(__name__)
 _USERNAME_AT = "username@{}"
@@ -161,6 +157,48 @@ class RequestsSessionMixin(tl.HasTraits):
         return s
 
 
+class _SessionWithHeaderRedirection(requests.Session):
+    """Session with header redirection for Earthdata Login (URS) authentication
+    (see https://urs.earthdata.nasa.gov/documentation/for_users/data_access/python).
+    """
+
+    def __init__(self, auth_host: str) -> None:
+        super().__init__()
+        self.auth_host = auth_host
+
+    def rebuild_auth(self, prepared_request: requests.PreparedRequest, response: requests.Response) -> None:
+        """Overrides :meth:`requests.Session.rebuild_auth` to keep the `Authorization` header
+        attached across redirects to or from NASA's Earthdata Login (URS) host.
+
+        Parameters
+        ----------
+        prepared_request : requests.PreparedRequest
+            The request about to be sent following the redirect.
+        response : requests.Response
+            The response that triggered the redirect.
+
+        Notes
+        -----
+        `requests` strips the `Authorization` header by default whenever a redirect changes
+        hostname, to avoid leaking credentials to unrelated hosts. NASA Earthdata Login's
+        OAuth flow relies on redirecting between the data host and `self.AUTH_HOST`, so that
+        default behavior would break authentication unless overridden here.
+        """
+        headers = prepared_request.headers
+        url = prepared_request.url
+
+        if "Authorization" in headers:
+            original_parsed = urlparse(response.request.url)
+            redirect_parsed = urlparse(url)
+
+            if (
+                (original_parsed.hostname != redirect_parsed.hostname)
+                and redirect_parsed.hostname != self.auth_host
+                and original_parsed.hostname != self.auth_host
+            ):
+                del headers["Authorization"]
+
+
 class NASAURSSessionMixin(RequestsSessionMixin):
     check_url = tl.Unicode()
     hostname = tl.Unicode(default_value="urs.earthdata.nasa.gov")
@@ -177,14 +215,22 @@ class NASAURSSessionMixin(RequestsSessionMixin):
         -----
         The session is authenticated against the user-provided self.check_url
         """
+        s = _SessionWithHeaderRedirection(self.hostname)
 
         try:
-            s = pydap_setup_session(self.username, self.password, check_url=self.check_url)
+            s.auth = (self.username, self.password)
         except ValueError as e:
             if self.auth_required:
                 raise e
             else:
                 _log.warning("No auth provided for session")
+
+        if self.check_url:
+            response = s.get(self.check_url)
+            if "html" in response.headers.get("Content-Type", "").lower() and "<form" in response.text.lower():
+                raise ValueError(
+                    "Checked %s, and a form was returned. Manual registration is required.", self.check_url
+                )
 
         return s
 
