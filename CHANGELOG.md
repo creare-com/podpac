@@ -1,4 +1,9 @@
 # Changelog
+## 4.0.5
+
+### Maintenance
+* Removed reference to `pydap.cas` module which was removed in 3.5.11.
+
 ## 4.0.4
 
 ### Features
