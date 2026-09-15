@@ -241,6 +241,35 @@ class TestNASAURSSessionMixin(object):
                 node_auth_required.session
             assert isinstance(node_no_auth_required.session, _SessionWithHeaderRedirection)
 
+    def test_raises_when_check_url_requires_registration(self) -> None:
+        """Test check_url returning an HTML form raises instead of silently continuing."""
+        response = requests.Response()
+        response.headers["Content-Type"] = "text/html"
+        response._content = "<html><form></form></html>".encode()
+        node = NASAURSSessionMixin(check_url="https://data.example.com/file.nc")
+        with (
+            patch.object(NASAURSSessionMixin, "username", new_callable=PropertyMock, return_value="testuser"),
+            patch.object(NASAURSSessionMixin, "password", new_callable=PropertyMock, return_value="testpass"),
+            patch.object(_SessionWithHeaderRedirection, "get", return_value=response),
+        ):
+            with pytest.raises(ValueError):
+                node.session
+
+    def test_no_raise_when_check_url_returns_data(self) -> None:
+        """Test check_url returning non-HTML data does not raise."""
+        response = requests.Response()
+        response.headers["Content-Type"] = "application/octet-stream"
+        response._content = b""
+        node = NASAURSSessionMixin(check_url="https://data.example.com/file.nc")
+        with (
+            patch.object(NASAURSSessionMixin, "username", new_callable=PropertyMock, return_value="testuser"),
+            patch.object(NASAURSSessionMixin, "password", new_callable=PropertyMock, return_value="testpass"),
+            patch.object(_SessionWithHeaderRedirection, "get", return_value=response),
+        ):
+            session = node.session
+
+        assert isinstance(session, _SessionWithHeaderRedirection)
+
 
 class TestS3Mixin(object):
     class S3Node(S3Mixin, Node):

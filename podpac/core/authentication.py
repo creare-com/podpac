@@ -228,7 +228,9 @@ class NASAURSSessionMixin(RequestsSessionMixin):
         if self.check_url:
             response = s.get(self.check_url)
             if "html" in response.headers.get("Content-Type", "").lower() and "<form" in response.text.lower():
-                _log.warning("Checked %s, and a form was returned. Manual registration is required.", self.check_url)
+                raise ValueError(
+                    "Checked %s, and a form was returned. Manual registration is required.", self.check_url
+                )
 
         return s
 
