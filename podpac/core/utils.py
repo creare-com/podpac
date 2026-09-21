@@ -301,10 +301,6 @@ def _get_from_url(url, session=None):
         Text response from request.
         See https://2.python-requests.org/en/master/api/#requests.Response.text
     """
-    # Import locally so the real exception class is bound here even when
-    # tests patch `podpac.core.utils.requests` with a MagicMock.
-    from requests.exceptions import RequestException
-
     try:
         if session is None:
             r = requests.get(url)
@@ -317,7 +313,7 @@ def _get_from_url(url, session=None):
                     url, r.status_code, r.text
                 )
             )
-    except (RequestException, OSError, RuntimeError) as e:
+    except (OSError, RuntimeError) as e:
         _log.warning("Cannot authenticate to {}. Check credentials. Error was as follows:".format(url) + str(e))
         r = None
 

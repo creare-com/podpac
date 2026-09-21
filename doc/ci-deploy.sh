@@ -7,8 +7,8 @@ set -e # Exit with nonzero exit code if anything fails
 # Cloning repositories is handled by workflow actions in previous step
 PODPAC_DOCS="https://github.com/creare-com/podpac-docs"
 PODPAC_DOCS_PATH="../../podpac-docs"
-COMMIT_AUTHOR=`git log --format="%cn" -n 1`
-COMMIT_AUTHOR_EMAIL=`git log --format="%ce" -n 1`
+COMMIT_AUTHOR=$(git log --format="%cn" -n 1)
+COMMIT_AUTHOR_EMAIL=$(git log --format="%ce" -n 1)
 
 # Run our compile script
 ./release-docs.sh
