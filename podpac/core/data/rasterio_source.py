@@ -80,7 +80,8 @@ class Rasterio(S3Mixin, BaseFileSource):
             kwargs = {"overview_level": overview_level}
         if source.startswith("s3://"):
             if self.aws_get_auth_from_env:
-                envargs["session"] = rasterio.session.AWSSession()
+                session = boto3.Session()
+                envargs["session"] = rasterio.session.AWSSession(session)
             else:
                 envargs["session"] = rasterio.session.AWSSession(
                     aws_access_key_id=self.aws_access_key_id,
