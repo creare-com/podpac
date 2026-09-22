@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 from podpac.core.settings import settings
 from podpac.core.utils import cached_property
+from boto3 import Session as BotoSession
 
 _log = logging.getLogger(__name__)
 _USERNAME_AT = "username@{}"
@@ -279,7 +280,8 @@ class S3Mixin(tl.HasTraits):
         s3fs = lazy_module("s3fs")
 
         if self.aws_get_auth_from_env:
-            return s3fs.S3FileSystem()
+            session = BotoSession()
+            return s3fs.S3FileSystem(session)
         elif self.anon:
             return s3fs.S3FileSystem(anon=True, client_kwargs=self.aws_client_kwargs)
         else:
