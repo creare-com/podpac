@@ -1,5 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import os
 from collections import OrderedDict
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
@@ -80,7 +81,7 @@ class Rasterio(S3Mixin, BaseFileSource):
             kwargs = {"overview_level": overview_level}
         if source.startswith("s3://"):
             if self.aws_get_auth_from_env:
-                session = boto3.Session()
+                session = boto3.Session(region_name=os.getenv("AWS_REGION",default=None))
                 envargs["session"] = rasterio.session.AWSSession(session)
             else:
                 envargs["session"] = rasterio.session.AWSSession(
