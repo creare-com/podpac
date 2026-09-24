@@ -1,6 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import multiprocessing
+from multiprocessing import Process as mpProcess
+from multiprocessing import Queue
 import traitlets as tl
 import logging
 
@@ -31,23 +32,12 @@ def _f(definition, coords, q, outputkw):
 class Process(Node):
     """
     Source node will be evaluated in another process, and it is blocking!
-
-    Attributes
-    ----------
-    start_method : str
-        The `multiprocessing` start method to use: "fork", "spawn", or "forkserver".
-        Default is "spawn".
-
-        .. warning::
-            "fork" is not safe: it can deadlock or crash if the parent process is
-            multithreaded, and neither "fork" nor "forkserver" is available on Windows.
     """
 
     source = NodeTrait().tag(attr=True)
     output_format = tl.Dict(None, allow_none=True).tag(attr=True)
     timeout = tl.Int(None, allow_none=True)
     block = tl.Bool(True)
-    start_method = tl.Enum(["fork", "spawn", "forkserver"], default_value="spawn")
 
     @property
     def outputs(self):
@@ -58,9 +48,8 @@ class Process(Node):
         definition = self.source.json
         coords = coordinates.json
 
-        ctx = multiprocessing.get_context(self.start_method)
-        q = ctx.Queue()
-        process = ctx.Process(target=_f, args=(definition, coords, q, self.output_format))  # type: ignore[attr-defined]
+        q = Queue()
+        process = mpProcess(target=_f, args=(definition, coords, q, self.output_format))
         process.daemon = True
         _log.debug("Starting process.")
         process.start()
