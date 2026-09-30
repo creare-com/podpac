@@ -6,6 +6,9 @@
 * added Node.hash_equal function to preserve previous _eq_ behavior
 * fixed CRS comparison
 
+### Maintenance
+* deprecated multi_process.Process node
+
 ## 4.0.5
 
 ### Maintenance
