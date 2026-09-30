@@ -1,4 +1,10 @@
 # Changelog
+## 4.0.6
+
+### Bug Fixes
+* removed _eq_ and _neq_ override due to poor interaction with traitlets' hold_trait_notifications function
+* added Node.hash_equal function to preserve previous _eq_ behavior
+
 ## 4.0.5
 
 ### Maintenance
