@@ -4,6 +4,7 @@
 ### Bug Fixes
 * removed _eq_ and _neq_ override due to poor interaction with traitlets' hold_trait_notifications function
 * added Node.hash_equal function to preserve previous _eq_ behavior
+* fixed CRS comparison
 
 ## 4.0.5
 
