@@ -17,8 +17,8 @@ CODE = "import numpy as np\noutput = np.minimum(a,b)"
 class TestGenericInputs(object):
     def test_init(self):
         node = GenericInputs(a=Arange(), b=SinCoords())
-        assert node.inputs["a"] == Arange()
-        assert node.inputs["b"] == SinCoords()
+        assert node.inputs["a"].hash_equal(Arange())
+        assert node.inputs["b"].hash_equal(SinCoords())
 
     def test_base_definition(self):
         node = GenericInputs(a=Arange(), b=SinCoords())

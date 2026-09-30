@@ -748,7 +748,7 @@ class TestSerialization(object):
             node = Node.from_definition(d)
 
         assert node is not self.node
-        assert node == self.node
+        assert node.hash_equal(self.node)
         assert isinstance(node, podpac.algorithm.Arithmetic)
         assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
@@ -771,7 +771,7 @@ class TestSerialization(object):
 
         node1 = MyNodeWithArrayInput(my_array=[podpac.algorithm.Arange()])
         node2 = Node.from_definition(node1.definition)
-        assert node2 is not node1 and node2 == node1
+        assert node2 is not node1 and node2.hash_equal(node1)
 
     def test_definition_inputs_dict(self):
         global MyNodeWithDictInput
@@ -781,7 +781,7 @@ class TestSerialization(object):
 
         node1 = MyNodeWithDictInput(my_dict={"a": podpac.algorithm.Arange()})
         node2 = Node.from_definition(node1.definition)
-        assert node2 is not node1 and node2 == node1
+        assert node2 is not node1 and node2.hash_equal(node1)
 
     def test_definition_version(self):
         d = self.node.definition
@@ -799,7 +799,7 @@ class TestSerialization(object):
             warnings.filterwarnings("ignore", _INSECURE_EVAL)
             node = Node.from_json(s)
         assert node is not self.node
-        assert node == self.node
+        assert node.hash_equal(self.node)
         assert isinstance(node, podpac.algorithm.Arithmetic)
         assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
@@ -818,7 +818,7 @@ class TestSerialization(object):
             node = Node.load(filename)
 
         assert node is not self.node
-        assert node == self.node
+        assert node.hash_equal(self.node)
         assert isinstance(node, podpac.algorithm.Arithmetic)
         assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
@@ -889,43 +889,6 @@ class TestSerialization(object):
         finally:
             # reset version
             podpac.__version__ = version
-
-    def test_eq(self):
-        class N(Node):
-            my_attr = tl.Int().tag(attr=True)
-
-        class M(Node):
-            my_attr = tl.Int().tag(attr=True)
-
-        n1 = N(my_attr=1)
-        n2 = N(my_attr=1)
-        n3 = N(my_attr=2)
-        m1 = M(my_attr=1)
-
-        # eq
-        assert n1 == n2
-        assert not n1.__eq__(n3)
-        assert not n1.__eq__(m1)
-        assert not n1.__eq__("other")
-
-        # ne
-        assert n1 != n3
-        assert n1 != m1
-        assert n1 != "other"
-
-    def test_eq_ignore_style(self):
-        class N(Node):
-            my_attr = tl.Int().tag(attr=True)
-
-        n1 = N(my_attr=1, style=Style(name="a"))
-        n2 = N(my_attr=1, style=Style(name="b"))
-
-        # json has style in it
-        assert n1.json != n2.json
-
-        # but == and != don't care
-        assert n1 == n2
-        assert not n1.__ne__(n2)
 
     def test_from_url(self):
         url = (
@@ -1799,7 +1762,7 @@ class TestLookupFunctions:
         with podpac.settings:
             podpac.settings["DEBUG"] = True
             result = _lookup_attr(nodes, "b", "a")
-            assert result == node_a
+            assert result.hash_equal(node_a)
             assert result is not node_a
 
     def test_lookup_input_debug_deepcopy(self):
@@ -1812,7 +1775,7 @@ class TestLookupFunctions:
         with podpac.settings:
             podpac.settings["DEBUG"] = True
             result = _lookup_input(nodes, "test", "Arange", {})
-            assert result == arange
+            assert result.hash_equal(arange)
             assert result is not arange
 
 
