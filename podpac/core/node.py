@@ -727,15 +727,10 @@ class Node(tl.HasTraits):
         with open(path, "w") as f:
             json.dump(self.definition, f, separators=(",", ":"), cls=JSONEncoder)
 
-    def __eq__(self, other):
+    def hash_equal(self, other):
         if not isinstance(other, Node):
             return False
         return self.hash == other.hash
-
-    def __ne__(self, other):
-        if not isinstance(other, Node):
-            return True
-        return self.hash != other.hash
 
     # -----------------------------------------------------------------------------------------------------------------
     # Caching Interface

@@ -52,27 +52,18 @@ class TestZarrV3Detection:
         assert zarr_compat._zarr_v3() is True
 
 
-class FakeS3FileSystem:
-    """Duck-typed stand-in for an async-capable fsspec-cached filesystem class
-    (e.g. a reasonably modern s3fs.S3FileSystem, which always subclasses
-    fsspec.asyn.AsyncFileSystem regardless of how it was instantiated)."""
-
-    async_impl = True
+class FakeS3FileSystem(MagicMock):
+    """Mock of an async-capable filesystem, e.g. a modern s3fs.S3FileSystem"""
 
     def __init__(self, *args, asynchronous=False, **kwargs):
-        self.asynchronous = asynchronous
-        self.storage_args = args
-        self.storage_options = kwargs
+        super().__init__(async_impl=True, asynchronous=asynchronous, storage_args=args, storage_options=kwargs)
 
 
-class FakeNonAsyncFileSystem:
-    """Duck-typed stand-in for a filesystem class that never implemented the async
-    protocol at all -- e.g. s3fs versions predating fsspec.asyn.AsyncFileSystem,
-    which podpac's own "s3fs>=0.4" floor still technically allows."""
+class FakeNonAsyncFileSystem(MagicMock):
+    """Mock of a filesystem that never implemented the async protocol"""
 
-    async_impl = False
-    asynchronous = False
-    protocol = "file"
+    def __init__(self, **kwargs):
+        super().__init__(async_impl=False, asynchronous=False, protocol="file", root_marker="", **kwargs)
 
 
 class TestEnsureAsyncFs:
