@@ -151,8 +151,8 @@ class HashCache(CacheNode):
 
         # Cache the output
         if self.source.cache_output:
-            self.put_cache(data, item, to_cache_coords.drop(extra))
-            self.put_cache(self.relevant_dimensions, "relevant_dimensions")
+            self.put_cache(data, item, to_cache_coords.drop(extra), expires=self.expires)
+            self.put_cache(self.relevant_dimensions, "relevant_dimensions", expires=self.expires)
 
         return data
 
