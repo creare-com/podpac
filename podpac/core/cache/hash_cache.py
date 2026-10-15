@@ -28,7 +28,7 @@ class HashCache(CacheNode):
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
     _from_cache = tl.Bool(allow_none=True, default_value=False)
     cache_type = tl.Union(
-        [tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default=None
+        [tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default_value=None
     )
 
     @tl.default("cache_ctrl")
@@ -151,8 +151,8 @@ class HashCache(CacheNode):
 
         # Cache the output
         if self.source.cache_output:
-            self.put_cache(data, item, to_cache_coords.drop(extra))
-            self.put_cache(self.relevant_dimensions, "relevant_dimensions")
+            self.put_cache(data, item, to_cache_coords.drop(extra), expires=self.expires)
+            self.put_cache(self.relevant_dimensions, "relevant_dimensions", expires=self.expires)
 
         return data
 
