@@ -6,7 +6,7 @@ import numpy as np
 from unittest.mock import patch
 from podpac import Coordinates
 from podpac.data import Array
-from podpac.caches import ZarrCache
+from podpac.caches import HashCache, ZarrCache
 from podpac.core.algorithm.utility import SinCoords
 from podpac.core.cache.cache_ctrl import clear_cache
 from podpac.core.settings import settings, DEFAULT_SETTINGS
@@ -71,6 +71,18 @@ class TestHashCache:
         assert hash_cache_node._from_cache
         hash_cache_node2.eval(coords)
         assert hash_cache_node2._from_cache
+
+    def test_default_cache_type(self):
+        """Test the cache node uses the default cache stores when cache_type is not provided."""
+        coords = Coordinates([[1]], ["alt"])
+
+        with patch.dict(settings, {"DEFAULT_CACHE": ["ram"]}):
+            hash_cache_node = HashCache(source=SinCoords(cache_output=True))
+            hash_cache_node.eval(coords)
+            assert not hash_cache_node._from_cache
+
+            hash_cache_node.eval(coords)
+            assert hash_cache_node._from_cache
 
     def test_relevant_dimensions_cache(self):
         lat = np.linspace(0, 10, 11)
