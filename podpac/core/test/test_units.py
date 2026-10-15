@@ -648,3 +648,17 @@ class TestToGeoTiff(object):
         with pytest.raises(ValueError):
             with tempfile.NamedTemporaryFile("wb") as fp:
                 out.to_geotiff(fp)
+
+    def test_custom_time_dimension_with_serialization(self):
+        """Test a custom time dimension can go through serialization without raising an error."""
+        from podpac.core.coordinates.utils import add_valid_dimension
+
+        times = [np.datetime64("2026-06-26 14:27:00")]
+        add_valid_dimension("CUSTOM")
+        data = np.random.rand(11, 11, 1)
+        coordinates = Coordinates(
+            [clinspace(-25, 25, 11), clinspace(-25, 25, 11), times], dims=["lat", "lon", "CUSTOM"]
+        )
+        node = Array(source=data, coordinates=coordinates)
+        output = node.eval(coordinates)
+        output._pp_serialize()
