@@ -452,7 +452,7 @@ class Node(tl.HasTraits):
         """
         return probe_node(self, lat, lon, time, alt, crs)
 
-    def cache(self, node_type="hash", cache_type=None, uid=None, **kwargs):
+    def cache(self, node_type="hash", cache_type=None, uid=None, expires=None, **kwargs):
         """This is a convenience function that creates a Cache node following this Node.
         This means that any evaluation of the output of this function is cached using the
         requested caching method
@@ -467,6 +467,10 @@ class Node(tl.HasTraits):
         uid : str, optional
             A unique identifier for this node. This is used to extract data from the cache. By default uses
             self.hash of the output `CacheNode` from this function.
+        expires : float, datetime, timedelta, str, optional
+            Expiration date. If timedelta or timedelta string is supplied,
+            the expiration date will be calculated from the current time. Floats are interpreted as timestamps.
+            Not yet supported by the "zarr" node_type.
         **kwargs : dict
             Any remaining key-word arguments are passed on to the constructor of the `CacheNode`.
 
@@ -493,12 +497,12 @@ class Node(tl.HasTraits):
         if node_type == "hash":
             if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
                 kwargs["cache_ctrl"] = podpac.core.cache.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
-            return podpac.caches.HashCache(source=self, cache_type=cache_type, **kwargs)
+            return podpac.caches.HashCache(source=self, cache_type=cache_type, expires=expires, **kwargs)
         elif node_type == "zarr":
             if not trait_is_defined(self, "coordinates") or self.coordinates is None:
                 raise ValueError("Cannot use ZarrCache without coordinates")
             else:
-                return podpac.caches.ZarrCache(source=self, cache_type=cache_type, **kwargs)
+                return podpac.caches.ZarrCache(source=self, cache_type=cache_type, expires=expires, **kwargs)
         else:
             raise ValueError("Invalid cache type: %s. Valid cache types: zarr, hash" % cache_type)
 
