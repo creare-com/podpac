@@ -14,7 +14,8 @@ from podpac.core.settings import settings, DEFAULT_SETTINGS
 
 @pytest.fixture(autouse=True)
 def isolated_cache(tmp_path: Path) -> Iterator[None]:
-    """Isolate cache settings from the user's settings file and clear the ram and disk caches before each test.
+    """Isolate cache settings from the user's settings file and clear the ram and disk caches before each test
+    and after as needed.
 
     Parameters
     ----------
@@ -37,6 +38,7 @@ def isolated_cache(tmp_path: Path) -> Iterator[None]:
         clear_cache(mode="ram")
         clear_cache(mode="disk")
         yield
+        clear_cache(mode="ram")
 
 
 class TestHashCache:
