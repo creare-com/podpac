@@ -10,6 +10,7 @@ import xarray as xr
 from pint.errors import DimensionalityError
 
 from podpac.core.coordinates import Coordinates, clinspace, AffineCoordinates
+from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES, add_valid_dimension
 from podpac.core.style import Style
 
 from podpac.core.units import ureg
@@ -649,16 +650,25 @@ class TestToGeoTiff(object):
             with tempfile.NamedTemporaryFile("wb") as fp:
                 out.to_geotiff(fp)
 
-    def test_custom_time_dimension_with_serialization(self):
-        """Test a custom time dimension can go through serialization without raising an error."""
-        from podpac.core.coordinates.utils import add_valid_dimension
 
-        times = [np.datetime64("2026-06-26 14:27:00")]
+class TestBoundsSerialization:
+    @pytest.mark.parametrize(
+        "values",
+        [
+            [np.datetime64("2026-06-26"), np.datetime64("2026-06-27")],
+            [np.timedelta64(1, "h"), np.timedelta64(2, "h")],
+        ],
+    )
+    def test_custom_dimension(self, values):
+        """Test bounds on a custom dimension survive netcdf and rebuild a node with the same data."""
         add_valid_dimension("CUSTOM")
-        data = np.random.rand(11, 11, 1)
-        coordinates = Coordinates(
-            [clinspace(-25, 25, 11), clinspace(-25, 25, 11), times], dims=["lat", "lon", "CUSTOM"]
-        )
-        node = Array(source=data, coordinates=coordinates)
-        output = node.eval(coordinates)
-        output._pp_serialize()
+        try:
+            coordinates = Coordinates([values], dims=["CUSTOM"])
+            output = Array(source=[1.0, 2.0], coordinates=coordinates).eval(coordinates)
+            restored = UnitsDataArray(xr.open_dataarray(io.BytesIO(output.to_netcdf())))
+            node = Array(source=restored.data, coordinates=Coordinates.from_xarray(restored))
+
+            assert restored.attrs["bounds"]["CUSTOM"] == tuple(values)
+            np.testing.assert_array_equal(node.eval(coordinates).data, output.data)
+        finally:
+            VALID_DIMENSION_NAMES.remove("CUSTOM")
