@@ -95,21 +95,20 @@ class TestHashCache:
         my_node = Array(
             source=np.random.rand(coords_time.shape[0], coords_time.shape[1]), coordinates=coords_time.drop("time")
         )
-        hash_node = my_node.cache("hash", "ram")
+        hash_node = my_node.cache("hash", "ram", relevant_dimensions=["lat", "lon"])
         hash_node.rem_cache("*")
         hash_node.eval(coords_time)
 
-        assert hash_node._from_cache == False
-
-        hash_node2 = my_node.cache("hash", "ram")
+        assert not hash_node._from_cache
+        hash_node2 = my_node.cache("hash", "ram", relevant_dimensions=["lat", "lon"])
         hash_node2.eval(coords_time.drop("time"))
 
-        assert hash_node2._from_cache == True
+        assert hash_node2._from_cache
 
-        hash_node3 = my_node.cache("hash", "ram")
+        hash_node3 = my_node.cache("hash", "ram", relevant_dimensions=["lat", "lon"])
         hash_node3.eval(coords_time)
 
-        assert hash_node3._from_cache == True
+        assert hash_node3._from_cache
 
     def test_relevant_dimensions_not_shared(self):
         """Test the cache node does not use relevant dimensions from another cache node of the same source."""
