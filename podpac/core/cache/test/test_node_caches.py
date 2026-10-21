@@ -111,6 +111,22 @@ class TestHashCache:
 
         assert hash_node3._from_cache == True
 
+    def test_relevant_dimensions_not_shared(self):
+        """Test the cache node does not use relevant dimensions from another cache node of the same source."""
+        coords = Coordinates([[0, 1], [0, 1], ["2018-01-01"]], ["lat", "lon", "time"])
+        source = Array(source=np.ones((2, 2, 1)), coordinates=coords)
+
+        hash_cache_relevant_dims_node = source.cache("hash", "ram", relevant_dimensions=["lat", "lon"])
+        hash_cache_relevant_dims_node.eval(coords)
+        assert not hash_cache_relevant_dims_node._from_cache
+
+        hash_cache_relevant_dims_node.eval(coords)
+        assert hash_cache_relevant_dims_node._from_cache
+
+        hash_cache_node = source.cache("hash", "ram")
+        hash_cache_node.eval(coords)
+        assert not hash_cache_node._from_cache
+
     def test_expires(self):
         """Test the cache node uses existing data until cache expires."""
         coords = Coordinates([[1]], ["alt"])
