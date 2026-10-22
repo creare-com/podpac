@@ -1,3 +1,4 @@
+import os
 import copy
 import tempfile
 import shutil
@@ -41,8 +42,10 @@ class TestCacheCtrl(object):
         if hasattr(_thread_local, "cache"):
             del _thread_local.cache
 
-        # delete the disk cache
+        # delete the disk cache and its lock file
         shutil.rmtree(self.test_cache_dir, ignore_errors=True)
+        if os.path.exists(self.test_cache_dir + ".lock"):
+            os.remove(self.test_cache_dir + ".lock")
 
         # reset the settings
         for key in podpac.settings:
