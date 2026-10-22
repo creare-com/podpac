@@ -6,6 +6,7 @@ from podpac.core.managers.multi_threading import thread_manager
 from podpac import settings
 from podpac.core.cache.cache_ctrl import _CACHE_STORES
 from podpac.core.cache.cache_interface import CacheNode
+from podpac.core.cache.utils import CacheException
 
 _CACHE_UNAVAIL = "Cache unavailable, %s (key='%s')"
 
@@ -21,14 +22,15 @@ class HashCache(CacheNode):
     cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
         Class that controls caching. If not provided, uses default based on settings.
     relevant_dimensions : list, optional
-        The relevant dimensions for caching.
+        The relevant dimensions for caching. Other requested dimensions are dropped from the cache key.
+        Default None (all requested dimensions).
     """
 
-    relevant_dimensions = tl.Instance(list, allow_none=True, default_value=None)
+    relevant_dimensions = tl.List(allow_none=True, default_value=None).tag(attr=True)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
     _from_cache = tl.Bool(allow_none=True, default_value=False)
     cache_type = tl.Union(
-        [tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default=None
+        [tl.List(tl.Enum(_CACHE_STORES.keys())), tl.Enum(_CACHE_STORES.keys())], allow_none=True, default_value=None
     )
 
     @tl.default("cache_ctrl")
@@ -36,13 +38,6 @@ class HashCache(CacheNode):
         if self.cache_type is None:
             return get_default_cache_ctrl()
         return make_cache_ctrl(self.cache_type)
-
-    @tl.default("relevant_dimensions")
-    def _relevant_dimensions_default(self):
-        if self.has_cache("relevant_dimensions"):
-            return self.get_cache("relevant_dimensions")
-        else:
-            return None
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -116,10 +111,8 @@ class HashCache(CacheNode):
         # Get standardized coordinates for caching
         to_cache_coords = coordinates.transpose(*sorted(coordinates.dims)).simplify()
 
-        # Cache the relevant dims
-        extra = None
         if self.relevant_dimensions is not None:
-            extra = list(set(to_cache_coords.dims) - set(self.relevant_dimensions))  # drop extra dims
+            extra = list(set(to_cache_coords.dims) - set(self.relevant_dimensions))
             to_cache_coords = to_cache_coords.drop(extra)
 
         # Check the cache
@@ -129,30 +122,28 @@ class HashCache(CacheNode):
             and self.source.cache_output
             and self.has_cache(item, to_cache_coords)
         ):
-            data = self.get_cache(item, to_cache_coords)
-            if output is not None:
-                order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
-                output.transpose(*order)[:] = data
-            self._from_cache = True
-            self.source._from_cache = self._from_cache
-            if extra is not None:
-                return data.transpose(*(coordinates.drop(extra)).dims)
-            else:
-                return data.transpose(*(coordinates).dims)
+            try:
+                data = self.get_cache(item, to_cache_coords)
+            except (NodeException, CacheException):
+                data = None  # expired or removed by another process since has_cache
+
+            if data is not None:
+                if output is not None:
+                    order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
+                    output.transpose(*order)[:] = data
+                self._from_cache = True
+                self.source._from_cache = self._from_cache
+                # the source may drop requested dims from its output
+                return data.transpose(*[dim for dim in coordinates.dims if dim in data.dims])
 
         # Evaluate the node
         data = self.source.eval(coordinates, **kwargs)
         self._from_cache = False
         self.source._from_cache = self._from_cache
 
-        # Get relevant dimensions to cache
-        self.relevant_dimensions = list(data.dims)
-        extra = list(set(to_cache_coords.dims) - set(self.relevant_dimensions))  # drop extra dims
-
         # Cache the output
         if self.source.cache_output:
-            self.put_cache(data, item, to_cache_coords.drop(extra))
-            self.put_cache(self.relevant_dimensions, "relevant_dimensions")
+            self.put_cache(data, item, to_cache_coords, expires=self.expires)
 
         return data
 

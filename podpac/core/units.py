@@ -31,6 +31,7 @@ ureg = UnitRegistry()
 
 import podpac
 from podpac import Coordinates
+from podpac.core.coordinates.utils import make_coord_value, make_timedelta_string
 from podpac.core.settings import settings
 from podpac.core.utils import JSONEncoder
 from podpac.core.style import Style
@@ -253,15 +254,18 @@ class UnitsDataArray(xr.DataArray):
         if self.attrs.get("layer_style") and not isinstance(self.attrs["layer_style"], string_types):
             self.attrs["layer_style"] = self.attrs["layer_style"].json
         if self.attrs.get("bounds"):
-            if isinstance(self.attrs["bounds"], dict) and "time" in self.attrs["bounds"]:
-                time_bounds = self.attrs["bounds"]["time"]
-                new_bounds = []
-                for tb in time_bounds:
-                    if isinstance(tb, np.datetime64):
-                        new_bounds.append(str(tb))
-                    else:
-                        new_bounds.append(tb)
-                self.attrs["bounds"]["time"] = tuple(new_bounds)
+            if isinstance(self.attrs["bounds"], dict):
+                for dim, bound_values in self.attrs["bounds"].items():
+                    new_bounds = []
+                    for bound in bound_values:
+                        if isinstance(bound, np.datetime64):
+                            new_bounds.append(str(bound))
+                        elif isinstance(bound, np.timedelta64):
+                            new_bounds.append(make_timedelta_string(bound))
+                        else:
+                            new_bounds.append(bound)
+
+                    self.attrs["bounds"][dim] = tuple(new_bounds)
             self.attrs["bounds"] = json.dumps(self.attrs["bounds"])
         if self.attrs.get("boundary_data") is not None and not isinstance(self.attrs["boundary_data"], string_types):
             self.attrs["boundary_data"] = json.dumps(self.attrs["boundary_data"])
@@ -277,15 +281,14 @@ class UnitsDataArray(xr.DataArray):
 
         if self.attrs.get("bounds") and isinstance(self.attrs["bounds"], string_types):
             self.attrs["bounds"] = json.loads(self.attrs["bounds"])
-            if "time" in self.attrs["bounds"]:
-                time_bounds = self.attrs["bounds"]["time"]
+            for dim, bound_values in self.attrs["bounds"].items():
                 new_bounds = []
-                for tb in time_bounds:
-                    if isinstance(tb, string_types):
-                        new_bounds.append(np.datetime64(tb))
+                for bound in bound_values:
+                    if isinstance(bound, string_types):
+                        new_bounds.append(make_coord_value(bound))
                     else:
-                        new_bounds.append(tb)
-                self.attrs["bounds"]["time"] = tuple(new_bounds)
+                        new_bounds.append(bound)
+                self.attrs["bounds"][dim] = tuple(new_bounds)
         if self.attrs.get("boundary_data") and isinstance(self.attrs["boundary_data"], string_types):
             self.attrs["boundary_data"] = json.loads(self.attrs["boundary_data"])
 
