@@ -4,7 +4,10 @@ import copy
 import tempfile
 import time
 import datetime
+from typing import Any
+from unittest.mock import DEFAULT, patch
 
+import filelock
 import pytest
 import xarray as xr
 import numpy as np
@@ -453,6 +456,23 @@ class TestDiskCacheStore(FileCacheStoreTests):
         super(TestDiskCacheStore, self).teardown_method()
 
         shutil.rmtree(self.test_cache_dir, ignore_errors=True)
+        lock_path = self.get_lock_path(self.test_cache_dir)
+        if os.path.exists(lock_path):
+            os.remove(lock_path)
+
+    def get_lock_path(self, cache_dir: str) -> str:
+        """Get a lock file path based on a cache directory path."""
+        return f"{os.path.normpath(cache_dir)}.lock"
+
+    def _assert_locked(self, *args: Any, **kwargs: Any) -> Any:
+        """Side effect asserting the lock is held, DEFAULT returns the normal value of the function."""
+        assert self.Store()._lock().is_locked
+        return DEFAULT
+
+    def _assert_unlocked(self, *args: Any, **kwargs: Any) -> Any:
+        """Side effect asserting the lock is not held, DEFAULT returns the normal value of the function."""
+        assert not self.Store()._lock().is_locked
+        return DEFAULT
 
     def test_cache_dir(self):
         with podpac.settings:
@@ -475,6 +495,7 @@ class TestDiskCacheStore(FileCacheStoreTests):
             store.put(NODE1, 10, "mykey1")
             assert store.find(NODE1, "mykey1").startswith(expected)
             store.clear()
+            os.remove(self.get_lock_path(expected))
 
     def test_rem_node_dir(self):
         store = self.Store()
@@ -555,6 +576,80 @@ class TestDiskCacheStore(FileCacheStoreTests):
             store.get(NODE1, "mykey2")
 
         assert len(store.search(NODE1)) == 1
+
+    @pytest.mark.parametrize(
+        "method, args, patched",
+        [
+            ("put", (NODE1, 10, "mykey1"), "_save"),
+            ("get", (NODE1, "mykey1"), "_load"),
+            ("has", (NODE1, "mykey1"), "_expired"),
+            ("find", (NODE1, "mykey1"), "search"),
+            ("rem", (NODE1, "mykey1"), "_remove"),
+            ("clear", (), "_rmtree"),
+            ("cleanup", (), "_expired"),
+        ],
+    )
+    def test_public_method_locked(self, method: str, args: tuple, patched: str):
+        """Test each public method for the store handles locking.
+
+        The patched function should be called with the lock and the lock should be released after.
+
+        Parameters
+        ----------
+        method : str
+            Name of the public store method to call.
+        args : tuple
+            Arguments passed to `method`.
+        patched : str
+            Name of the store helper that `method` should call while holding the lock.
+        """
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1")
+        with patch.object(store, patched, wraps=getattr(store, patched), side_effect=self._assert_locked) as mock:
+            getattr(store, method)(*args)
+        assert mock.called
+        self._assert_unlocked()
+
+    def test_get_deserializes_outside_lock(self):
+        """Test deserialization happens outside the lock to avoid unneeded blocking."""
+        store = self.Store()
+        store.put(NODE1, np.array([0, 1, 2]), "mykey1")
+        with patch.object(np, "load", wraps=np.load, side_effect=self._assert_unlocked) as load:
+            store.get(NODE1, "mykey1")
+        assert load.called
+        self._assert_unlocked()
+
+    def test_size_locked(self):
+        """Test size uses the lock and releases it."""
+        store = self.Store()
+        with patch.object(os, "walk", wraps=os.walk, side_effect=self._assert_locked) as walk:
+            _ = store.size
+        assert walk.called
+        self._assert_unlocked()
+
+    def test_lock_file_persists_cache_clear(self):
+        """Test lock file persists when cache is cleared."""
+        store = self.Store()
+
+        store.clear()
+        assert os.path.exists(store._lock().lock_file)
+
+    def test_lock_shared_between_instances(self):
+        """Test each instance uses the same singleton lock."""
+        assert self.Store()._lock() is self.Store()._lock()
+
+    def test_lock_reentrant(self):
+        """Test the lock is re-entrant with nested lock calls."""
+        store = self.Store()
+        with store._lock():
+            store.put(NODE1, 10, "mykey1")
+
+    def test_lock_blocks_other_lock(self):
+        """Test lock held by the store cannot be acquired through another lock on the same file."""
+        store = self.Store()
+        with store._lock():
+            with pytest.raises(filelock.Timeout):
+                filelock.FileLock(store._lock().lock_file).acquire(timeout=0)
 
 
 @pytest.mark.aws

@@ -6,6 +6,7 @@ import shutil
 import json
 import fnmatch
 import logging
+from filelock import FileLock
 
 from podpac.core.settings import settings
 from podpac.core.cache.utils import CacheException, CacheWildCard
@@ -32,17 +33,22 @@ class DiskCacheStore(FileCacheStore):
 
         self._root_dir_path = settings.cache_path
 
+        # lock file defined outside the cache to persist through cache clears
+        # define a re-entrant singleton lock shared by all instantiations of the store
+        self._file_lock = FileLock(f"{os.path.normpath(self._root_dir_path)}.lock", is_singleton=True)
+
     # -----------------------------------------------------------------------------------------------------------------
     # public cache API
     # -----------------------------------------------------------------------------------------------------------------
 
     @property
     def size(self):
-        total_size = 0
-        for dirpath, _dirnames, filenames in os.walk(self._root_dir_path):
-            for f in filenames:
-                fp = os.path.join(dirpath, f)
-                total_size += os.path.getsize(fp)
+        with self._lock():
+            total_size = 0
+            for dirpath, _dirnames, filenames in os.walk(self._root_dir_path):
+                for f in filenames:
+                    fp = os.path.join(dirpath, f)
+                    total_size += os.path.getsize(fp)
         return total_size
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -50,8 +56,20 @@ class DiskCacheStore(FileCacheStore):
     # -----------------------------------------------------------------------------------------------------------------
 
     def search(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
-        pattern = self._path_join(self._get_node_dir(node), self._get_filename_pattern(node, item, coordinates))
-        return [path for path in glob.glob(pattern) if not path.endswith(".meta")]
+        with self._lock():
+            pattern = self._path_join(self._get_node_dir(node), self._get_filename_pattern(node, item, coordinates))
+            paths = [path for path in glob.glob(pattern) if not path.endswith(".meta")]
+        return paths
+
+    def _lock(self) -> FileLock:
+        """File lock aquired by all public methods.
+
+        Returns
+        -------
+        FileLock
+            The file lock for caching.
+        """
+        return self._file_lock
 
     # -----------------------------------------------------------------------------------------------------------------
     # file storage abstraction
@@ -141,22 +159,22 @@ class DiskCacheStore(FileCacheStore):
         """
         Remove expired entries and orphaned metadata.
         """
+        with self._lock():
+            for root, _dirnames, filenames in os.walk(self._root_dir_path):
+                for filename in fnmatch.filter(filenames, "*.meta"):
+                    metadata_path = os.path.join(root, filename)
+                    path = os.path.join(root, filename[:-5])  # strip .meta
+                    if not os.path.exists(path):  # orphaned
+                        os.remove(metadata_path)
+                    elif self._expired(path):
+                        # _expired removes the entry automatically
+                        pass
 
-        for root, _dirnames, filenames in os.walk(self._root_dir_path):
-            for filename in fnmatch.filter(filenames, "*.meta"):
-                metadata_path = os.path.join(root, filename)
-                path = os.path.join(root, filename[:-5])  # strip .meta
-                if not os.path.exists(path):  # orphaned
-                    os.remove(metadata_path)
-                elif self._expired(path):
-                    # _expired removes the entry automatically
-                    pass
-
-        # remove empty directories
-        for root, dirnames, _filenames in os.walk(self._root_dir_path):
-            for dirname in dirnames:
-                path = os.path.join(root, dirname)
-                if not os.path.exists(path):
-                    continue
-                if not [f for r, d, fs in os.walk(path) for f in fs]:
-                    shutil.rmtree(path)
+            # remove empty directories
+            for root, dirnames, _filenames in os.walk(self._root_dir_path):
+                for dirname in dirnames:
+                    path = os.path.join(root, dirname)
+                    if not os.path.exists(path):
+                        continue
+                    if not [f for r, d, fs in os.walk(path) for f in fs]:
+                        shutil.rmtree(path)
