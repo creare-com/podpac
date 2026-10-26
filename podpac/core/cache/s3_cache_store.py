@@ -62,42 +62,52 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
     # main cache API
     # -----------------------------------------------------------------------------------------------------------------
 
-    @property
-    def size(self):
-        with self.lock:
-            paginator = self._s3_client.get_paginator("list_objects")
-            operation_parameters = {"Bucket": self._s3_bucket, "Prefix": self._root_dir_path}
-            page_iterator = paginator.paginate(**operation_parameters)
-            total_size = 0
-            for page in page_iterator:
-                if "Contents" in page:
-                    for obj in page["Contents"]:
-                        total_size += obj["Size"]
+    def _size(self):
+        paginator = self._s3_client.get_paginator("list_objects")
+        operation_parameters = {"Bucket": self._s3_bucket, "Prefix": self._root_dir_path}
+        page_iterator = paginator.paginate(**operation_parameters)
+        total_size = 0
+        for page in page_iterator:
+            if "Contents" in page:
+                for obj in page["Contents"]:
+                    total_size += obj["Size"]
         return total_size
 
     @property
-    def lock(self) -> contextlib.nullcontext:
-        """Lock for file cache access.
+    def _read_lock(self) -> contextlib.nullcontext:
+        """No lock is needed for S3 reads.
+
+        S3 operations are atomic per object with read-after-write consistency.
 
         Returns
         -------
         contextlib.nullcontext
-            A null context until locking is implemented.
+            A null context.
         """
-        return contextlib.nullcontext(None)
+        return contextlib.nullcontext()
 
-    def cleanup(self):
-        """
-        Remove expired entries.
-        """
+    @property
+    def _write_lock(self) -> contextlib.nullcontext:
+        """No lock is needed for S3 writes.
 
+        S3 operations are atomic per object with read-after-write consistency.
+        Writing operations are last writer wins.
+
+        Returns
+        -------
+        contextlib.nullcontext
+            A null context.
+        """
+        return contextlib.nullcontext()
+
+    def _cleanup(self):
         pass  # TODO metadata
 
     # -----------------------------------------------------------------------------------------------------------------
     # helper methods
     # -----------------------------------------------------------------------------------------------------------------
 
-    def search(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
+    def _search(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
         """Fileglob to match files that could be storing cached data for specified node,key,coordinates
 
         Parameters
@@ -113,20 +123,19 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
         TYPE : str
             Fileglob of existing paths that match the request
         """
-        with self.lock:
-            delim = self._delim
-            prefix = self._get_node_dir(node)
-            prefix = prefix if prefix.endswith(delim) else prefix + delim
-            response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix, Delimiter=delim)
+        delim = self._delim
+        prefix = self._get_node_dir(node)
+        prefix = prefix if prefix.endswith(delim) else prefix + delim
+        response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix, Delimiter=delim)
 
-            if response["KeyCount"] > 0:
-                obj_names = [o["Key"].replace(prefix, "") for o in response["Contents"]]
-            else:
-                obj_names = []
+        if response["KeyCount"] > 0:
+            obj_names = [o["Key"].replace(prefix, "") for o in response["Contents"]]
+        else:
+            obj_names = []
 
-            node_dir = self._get_node_dir(node)
-            obj_names = fnmatch.filter(obj_names, self._get_filename_pattern(node, item, coordinates))
-            paths = [self._path_join(node_dir, filename) for filename in obj_names]
+        node_dir = self._get_node_dir(node)
+        obj_names = fnmatch.filter(obj_names, self._get_filename_pattern(node, item, coordinates))
+        paths = [self._path_join(node_dir, filename) for filename in obj_names]
         return paths
 
     # -----------------------------------------------------------------------------------------------------------------

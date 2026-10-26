@@ -2,6 +2,7 @@ import os
 import copy
 import tempfile
 import shutil
+from unittest.mock import patch
 
 import pytest
 
@@ -114,6 +115,15 @@ class TestCacheCtrl(object):
             ctrl._cache_stores[0].get(NODE, "key")
         assert ctrl._cache_stores[1].get(NODE, "key") == 10
         assert ctrl.get(NODE, "key") == 10
+
+    def test_get_skips_has(self):
+        """Test get reads each store directly instead of checking has first, to avoid changes between calls."""
+        ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
+        ctrl._cache_stores[1].put(NODE, 10, "key")
+
+        with patch.object(DiskCacheStore, "has") as has:
+            assert ctrl.get(NODE, "key") == 10
+        assert not has.called
 
     def test_get_cache_miss(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])

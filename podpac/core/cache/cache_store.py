@@ -31,13 +31,28 @@ class CacheStore(object):
         raise NotImplementedError
 
     @property
-    def lock(self) -> contextlib.AbstractContextManager:
-        """Locking mechanism for multi-thread and multi-process safe access.
+    def _read_lock(self) -> contextlib.AbstractContextManager:
+        """Shared lock for multi-thread and multi-process safe reads.
+
+        Only public methods acquire the store locks, read and write locks cannot be nested.
 
         Returns
         -------
         AbstractContextManager
-            The context manager for the lock.
+            The context manager for the read lock.
+        """
+        raise NotImplementedError
+
+    @property
+    def _write_lock(self) -> contextlib.AbstractContextManager:
+        """Exclusive lock for multi-thread and multi-process safe writes.
+
+        Only public methods acquire the store locks, read and write locks cannot be nested.
+
+        Returns
+        -------
+        AbstractContextManager
+            The context manager for the write lock.
         """
         raise NotImplementedError
 

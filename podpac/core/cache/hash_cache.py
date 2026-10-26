@@ -115,16 +115,11 @@ class HashCache(CacheNode):
             to_cache_coords = to_cache_coords.drop(extra)
 
         # Check the cache
-        if (
-            settings["ENABLE_CACHE"]
-            and not self.source.force_eval
-            and self.source.cache_output
-            and self.has_cache(item, to_cache_coords)
-        ):
+        if settings["ENABLE_CACHE"] and not self.source.force_eval and self.source.cache_output:
             try:
                 data = self.get_cache(item, to_cache_coords)
             except (NodeException, CacheException):
-                data = None  # expired or removed by another process since has_cache
+                data = None  # missing, expired, or removed by another process
 
             if data is not None:
                 if output is not None:
@@ -180,10 +175,14 @@ class HashCache(CacheNode):
         except NodeDefinitionError as e:
             raise NodeException(_CACHE_UNAVAIL % (e.args[0], key))
 
-        if self.cache_ctrl is None or not self.has_cache(key, coordinates=coordinates):
-            raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
+        message = "cached data not found for key '%s' and coordinates %s" % (key, coordinates)
+        if self.cache_ctrl is None:
+            raise NodeException(message)
 
-        return self.cache_ctrl.get(self, key, coordinates=coordinates)
+        try:
+            return self.cache_ctrl.get(self, key, coordinates=coordinates)
+        except CacheException:
+            raise NodeException(message)
 
     def put_cache(self, data, key, coordinates=None, expires=None, overwrite=True):
         """
