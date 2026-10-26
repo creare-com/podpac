@@ -117,7 +117,10 @@ class TestCacheCtrl(object):
         assert ctrl.get(NODE, "key") == 10
 
     def test_get_skips_has(self):
-        """Test get reads each store directly instead of checking has first, to avoid changes between calls."""
+        """Test `get` reads each store directly instead of checking `has` first.
+
+        Another process could remove the entry between the two calls.
+        """
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
         ctrl._cache_stores[1].put(NODE, 10, "key")
 

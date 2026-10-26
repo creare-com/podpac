@@ -473,11 +473,11 @@ class TestDiskCacheStore(FileCacheStoreTests):
         return f"{os.path.normpath(cache_dir)}.lock"
 
     def get_probe(self) -> filelock.ReadWriteLock:
-        """Get a separate lock on the store lock file to probe the store's lock state."""
+        """Get a separate lock on the store lock file to probe the lock state."""
         return filelock.ReadWriteLock(self.get_lock_path(self.test_cache_dir), is_singleton=False)
 
     def _assert_read_locked(self, *args: Any, **kwargs: Any) -> Any:
-        """Side effect asserting a read lock is held, DEFAULT returns the normal value of the function."""
+        """Side effect asserting a read lock is held, `DEFAULT` returns the normal value of the function."""
         probe = self.get_probe()
         with probe.read_lock(blocking=False):
             pass
@@ -487,7 +487,7 @@ class TestDiskCacheStore(FileCacheStoreTests):
         return DEFAULT
 
     def _assert_write_locked(self, *args: Any, **kwargs: Any) -> Any:
-        """Side effect asserting a write lock is held, DEFAULT returns the normal value of the function."""
+        """Side effect asserting a write lock is held, `DEFAULT` returns the normal value of the function."""
         probe = self.get_probe()
         with pytest.raises(filelock.Timeout):
             probe.acquire_read(blocking=False)
@@ -499,7 +499,7 @@ class TestDiskCacheStore(FileCacheStoreTests):
         locks.append(self.Store()._rw_lock)
 
     def _assert_unlocked(self, *args: Any, **kwargs: Any) -> Any:
-        """Side effect asserting no lock is held, DEFAULT returns the normal value of the function."""
+        """Side effect asserting no lock is held, `DEFAULT` returns the normal value of the function."""
         probe = self.get_probe()
         with probe.write_lock(blocking=False):
             pass

@@ -238,9 +238,7 @@ class FileCacheStore(CacheStore):
             self._rmtree(self._root_dir_path)
 
     def cleanup(self):
-        """
-        Remove expired entries.
-        """
+        """Remove expired entries."""
         with self._write_lock:
             self._cleanup()
 
