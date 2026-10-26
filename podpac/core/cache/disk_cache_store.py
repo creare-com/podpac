@@ -33,17 +33,13 @@ class DiskCacheStore(FileCacheStore):
 
         self._root_dir_path = settings.cache_path
 
-        # lock file defined outside the cache to persist through cache clears
-        # define a re-entrant singleton lock shared by all instantiations of the store
-        self._file_lock = FileLock(f"{os.path.normpath(self._root_dir_path)}.lock", is_singleton=True)
-
     # -----------------------------------------------------------------------------------------------------------------
     # public cache API
     # -----------------------------------------------------------------------------------------------------------------
 
     @property
     def size(self):
-        with self._lock():
+        with self.lock:
             total_size = 0
             for dirpath, _dirnames, filenames in os.walk(self._root_dir_path):
                 for f in filenames:
@@ -51,25 +47,26 @@ class DiskCacheStore(FileCacheStore):
                     total_size += os.path.getsize(fp)
         return total_size
 
+    @property
+    def lock(self):
+        """A re-entrant singleton lock for store access.
+
+        Returns
+        -------
+        FileLock
+            The lock for all instances of the store.
+        """
+        return FileLock(f"{os.path.normpath(self._root_dir_path)}.lock", is_singleton=True)
+
     # -----------------------------------------------------------------------------------------------------------------
     # helper methods
     # -----------------------------------------------------------------------------------------------------------------
 
     def search(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
-        with self._lock():
+        with self.lock:
             pattern = self._path_join(self._get_node_dir(node), self._get_filename_pattern(node, item, coordinates))
             paths = [path for path in glob.glob(pattern) if not path.endswith(".meta")]
         return paths
-
-    def _lock(self) -> FileLock:
-        """File lock aquired by all public methods.
-
-        Returns
-        -------
-        FileLock
-            The file lock for caching.
-        """
-        return self._file_lock
 
     # -----------------------------------------------------------------------------------------------------------------
     # file storage abstraction
@@ -159,7 +156,7 @@ class DiskCacheStore(FileCacheStore):
         """
         Remove expired entries and orphaned metadata.
         """
-        with self._lock():
+        with self.lock:
             for root, _dirnames, filenames in os.walk(self._root_dir_path):
                 for filename in fnmatch.filter(filenames, "*.meta"):
                     metadata_path = os.path.join(root, filename)

@@ -466,12 +466,12 @@ class TestDiskCacheStore(FileCacheStoreTests):
 
     def _assert_locked(self, *args: Any, **kwargs: Any) -> Any:
         """Side effect asserting the lock is held, DEFAULT returns the normal value of the function."""
-        assert self.Store()._lock().is_locked
+        assert self.Store().lock.is_locked
         return DEFAULT
 
     def _assert_unlocked(self, *args: Any, **kwargs: Any) -> Any:
         """Side effect asserting the lock is not held, DEFAULT returns the normal value of the function."""
-        assert not self.Store()._lock().is_locked
+        assert not self.Store().lock.is_locked
         return DEFAULT
 
     def test_cache_dir(self):
@@ -632,24 +632,24 @@ class TestDiskCacheStore(FileCacheStoreTests):
         store = self.Store()
 
         store.clear()
-        assert os.path.exists(store._lock().lock_file)
+        assert os.path.exists(store.lock.lock_file)
 
     def test_lock_shared_between_instances(self):
         """Test each instance uses the same singleton lock."""
-        assert self.Store()._lock() is self.Store()._lock()
+        assert self.Store().lock is self.Store().lock
 
     def test_lock_reentrant(self):
         """Test the lock is re-entrant with nested lock calls."""
         store = self.Store()
-        with store._lock():
+        with store.lock:
             store.put(NODE1, 10, "mykey1")
 
     def test_lock_blocks_other_lock(self):
         """Test lock held by the store cannot be acquired through another lock on the same file."""
         store = self.Store()
-        with store._lock():
+        with store.lock:
             with pytest.raises(filelock.Timeout):
-                filelock.FileLock(store._lock().lock_file).acquire(timeout=0)
+                filelock.FileLock(store.lock.lock_file).acquire(timeout=0)
 
 
 @pytest.mark.aws

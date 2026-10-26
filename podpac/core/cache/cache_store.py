@@ -4,6 +4,7 @@ Defines the common interface for a cache store.
 
 from __future__ import division, print_function, absolute_import
 
+import contextlib
 from podpac.core.settings import settings
 
 
@@ -27,6 +28,17 @@ class CacheStore(object):
     def size(self):
         """Return size of cache store in bytes"""
 
+        raise NotImplementedError
+
+    @property
+    def lock(self) -> contextlib.AbstractContextManager:
+        """Locking mechanism for multi-thread and multi-process safe access.
+
+        Returns
+        -------
+        AbstractContextManager
+            The context manager for the lock.
+        """
         raise NotImplementedError
 
     def put(self, node, data, item, coordinates=None, expires=None, update=True):

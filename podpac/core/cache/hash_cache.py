@@ -220,8 +220,7 @@ class HashCache(CacheNode):
         if not overwrite and self.has_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
-        with thread_manager.cache_lock:
-            self.cache_ctrl.put(self, data, key, coordinates=coordinates, expires=expires, update=overwrite)
+        self.cache_ctrl.put(self, data, key, coordinates=coordinates, expires=expires, update=overwrite)
 
     def has_cache(self, key, coordinates=None):
         """
@@ -248,8 +247,7 @@ class HashCache(CacheNode):
         if self.cache_ctrl is None:
             return False
 
-        with thread_manager.cache_lock:
-            return self.cache_ctrl.has(self, key, coordinates=coordinates)
+        return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
     def rem_cache(self, key, coordinates=None, mode="all"):
         """

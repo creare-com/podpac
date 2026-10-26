@@ -5,7 +5,6 @@ import io
 import warnings
 import re
 import time
-import contextlib
 
 try:
     import cPickle as pickle  # python 2
@@ -55,7 +54,7 @@ class FileCacheStore(CacheStore):
         has_cache : bool
              True if there is a valid cached object for this node for the given key and coordinates.
         """
-        with self._lock():
+        with self.lock:
             path = self.find(node, item, coordinates)
             has_cache = path is not None and not self._expired(path)
         return has_cache
@@ -112,7 +111,7 @@ class FileCacheStore(CacheStore):
             ext = "pkl"
             s = pickle.dumps(data)
 
-        with self._lock():
+        with self.lock:
             # check for valid existing entry (expired entries are automatically ignored and overwritten)
             if self.has(node, item, coordinates):
                 if not update:
@@ -174,7 +173,7 @@ class FileCacheStore(CacheStore):
             If the data is not in the cache.
         """
 
-        with self._lock():
+        with self.lock:
             path = self.find(node, item, coordinates)
             if path is None:
                 raise CacheException("Cache miss. Requested data not found.")
@@ -223,7 +222,7 @@ class FileCacheStore(CacheStore):
         coordinates : :class:`podpac.Coordinates`, CacheWildCard, None, optional
             Delete only cached objects for these coordinates, or any coordinates if `coordinates` is a CacheWildCard. `None` specifically indicates entries that do not have coordinates.
         """
-        with self._lock():
+        with self.lock:
             # delete matching cached objects
             for path in self.search(node, item=item, coordinates=coordinates):
                 self._remove(path)
@@ -239,7 +238,7 @@ class FileCacheStore(CacheStore):
         """
         Clear all cached data.
         """
-        with self._lock():
+        with self.lock:
             self._rmtree(self._root_dir_path)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -256,7 +255,7 @@ class FileCacheStore(CacheStore):
         """
         Find the path for a specific cached object.
         """
-        with self._lock():
+        with self.lock:
             paths = self.search(node, item=item, coordinates=coordinates)
 
         if len(paths) == 0:
@@ -304,19 +303,6 @@ class FileCacheStore(CacheStore):
             self._remove(path)
             return True
         return False
-
-    def _lock(self) -> contextlib.AbstractContextManager:
-        """Base context manager for locking.
-
-        Should be overriden to implement an actual locking mechanism.
-        The lock should be a re-entrant singleton shared by all instantiations of a store.
-
-        Returns
-        -------
-        AbstractContextManager
-            The context manager for the lock.
-        """
-        return contextlib.nullcontext(None)
 
     # -----------------------------------------------------------------------------------------------------------------
     # file storage abstraction

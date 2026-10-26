@@ -1,6 +1,7 @@
 from __future__ import division, print_function, absolute_import
 
 import fnmatch
+import contextlib
 from lazy_import import lazy_module
 
 boto3 = lazy_module("boto3")
@@ -63,15 +64,27 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
 
     @property
     def size(self):
-        paginator = self._s3_client.get_paginator("list_objects")
-        operation_parameters = {"Bucket": self._s3_bucket, "Prefix": self._root_dir_path}
-        page_iterator = paginator.paginate(**operation_parameters)
-        total_size = 0
-        for page in page_iterator:
-            if "Contents" in page:
-                for obj in page["Contents"]:
-                    total_size += obj["Size"]
+        with self.lock:
+            paginator = self._s3_client.get_paginator("list_objects")
+            operation_parameters = {"Bucket": self._s3_bucket, "Prefix": self._root_dir_path}
+            page_iterator = paginator.paginate(**operation_parameters)
+            total_size = 0
+            for page in page_iterator:
+                if "Contents" in page:
+                    for obj in page["Contents"]:
+                        total_size += obj["Size"]
         return total_size
+
+    @property
+    def lock(self) -> contextlib.nullcontext:
+        """Lock for file cache access.
+
+        Returns
+        -------
+        contextlib.nullcontext
+            A null context until locking is implemented.
+        """
+        return contextlib.nullcontext(None)
 
     def cleanup(self):
         """
@@ -100,20 +113,20 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
         TYPE : str
             Fileglob of existing paths that match the request
         """
+        with self.lock:
+            delim = self._delim
+            prefix = self._get_node_dir(node)
+            prefix = prefix if prefix.endswith(delim) else prefix + delim
+            response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix, Delimiter=delim)
 
-        delim = self._delim
-        prefix = self._get_node_dir(node)
-        prefix = prefix if prefix.endswith(delim) else prefix + delim
-        response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix, Delimiter=delim)
+            if response["KeyCount"] > 0:
+                obj_names = [o["Key"].replace(prefix, "") for o in response["Contents"]]
+            else:
+                obj_names = []
 
-        if response["KeyCount"] > 0:
-            obj_names = [o["Key"].replace(prefix, "") for o in response["Contents"]]
-        else:
-            obj_names = []
-
-        node_dir = self._get_node_dir(node)
-        obj_names = fnmatch.filter(obj_names, self._get_filename_pattern(node, item, coordinates))
-        paths = [self._path_join(node_dir, filename) for filename in obj_names]
+            node_dir = self._get_node_dir(node)
+            obj_names = fnmatch.filter(obj_names, self._get_filename_pattern(node, item, coordinates))
+            paths = [self._path_join(node_dir, filename) for filename in obj_names]
         return paths
 
     # -----------------------------------------------------------------------------------------------------------------
