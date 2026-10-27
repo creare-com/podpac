@@ -79,7 +79,8 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
         if not isinstance(self.data_key, list):
             data = self.dataset[self.data_key][self.selection or {}]
-            data = data.transpose(*[self._lookup_key(dim) for dim in self.dims])
+            if len(self.dims) > 0:
+                data = data.transpose(*[self._lookup_key(dim) for dim in self.dims])
         else:
             data = self.dataset[self.data_key].to_array(dim="output")[self.selection or {}]
             tdims = tuple(self.dataset.dims) + ("output",)

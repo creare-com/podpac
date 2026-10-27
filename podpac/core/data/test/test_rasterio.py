@@ -56,7 +56,7 @@ class TestRasterio(object):
         """test band count method"""
         node = Rasterio(source=self.source)
         assert isinstance(node.band_descriptions, OrderedDict)
-        assert list(node.band_descriptions.keys()) == [0, 1, 2]
+        assert list(node.band_descriptions.keys()) == [1, 2, 3]
 
     def test_band_keys(self):
         """test band keys methods"""

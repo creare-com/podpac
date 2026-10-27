@@ -116,9 +116,10 @@ class Node(tl.HasTraits):
     units : str
         The units of the output data. Must be pint compatible.
     outputs : list
-        For multiple-output nodes, the names of the outputs. Default is ``None`` for standard nodes.
+        For multiple-output nodes, the names of the outputs. Default is ``None`` for standard nodes. Note, this defines
+        the NAMES of ALL the outputs. Users can subselect from these using 'output'
     output : str
-        For multiple-output nodes only, specifies a particular output to evaluate, if desired. Must be one of ``outputs``.
+        For multiple-output nodes only, specifies a particular output(s) to evaluate, if desired. Must be one of ``outputs``.
 
     Notes
     -----
@@ -129,7 +130,7 @@ class Node(tl.HasTraits):
     """
 
     outputs = tl.List(trait=tl.Unicode(), allow_none=True).tag(attr=True)
-    output = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
+    output = tl.Union([tl.Unicode(), tl.List()], default_value=None, allow_none=True).tag(attr=True)
     units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True, hidden=True)
     style = tl.Instance(Style)
 
@@ -158,7 +159,10 @@ class Node(tl.HasTraits):
         if d["value"] is not None:
             if self.outputs is None:
                 raise TypeError("Invalid output '%s' (output must be None for single-output nodes)." % self.output)
-            if d["value"] not in self.outputs:
+            if isinstance(d["value"], list):
+                if not np.all([o in self.outputs for o in d["value"]]):
+                    raise ValueError("Invalid output '%s' (available outputs are %s)" % (self.output, self.outputs))
+            elif d["value"] not in self.outputs:
                 raise ValueError("Invalid output '%s' (available outputs are %s)" % (self.output, self.outputs))
         return d["value"]
 
@@ -460,7 +464,7 @@ class Node(tl.HasTraits):
         Parameters
         ----------
         node_type : str, optional
-            One of "hash" or "Zarr", "hash" by default.
+            One of "hash" or "zarr", "hash" by default.
         cache_type : str, optional
             One of "ram" or "disk", controlling where the output is cached, by default uses podpac.settings["DEFAULT_CACHE"].
             Note, "disk" caching uses the path specified by the user in `podpac.settings.cache_path`.
@@ -499,12 +503,12 @@ class Node(tl.HasTraits):
                 kwargs["cache_ctrl"] = podpac.core.cache.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
             return podpac.caches.HashCache(source=self, cache_type=cache_type, expires=expires, **kwargs)
         elif node_type == "zarr":
-            if not trait_is_defined(self, "coordinates") or self.coordinates is None:
+            if not hasattr(self, "coordinates") or self.coordinates is None:
                 raise ValueError("Cannot use ZarrCache without coordinates")
             else:
                 return podpac.caches.ZarrCache(source=self, cache_type=cache_type, expires=expires, **kwargs)
         else:
-            raise ValueError("Invalid cache type: %s. Valid cache types: zarr, hash" % cache_type)
+            raise ValueError("Invalid node_type: %s. Valid node_types: zarr, hash" % node_type)
 
     def interpolate(self, interpolation="nearest", **kwargs):
         """This is a convenient function that creates an Interpolation Node following this Node.

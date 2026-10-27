@@ -53,7 +53,7 @@ class Rasterio(S3Mixin, BaseFileSource):
     Rasterio : Interpolated rasterio datasource for general use.
     """
 
-    band = tl.CInt(allow_none=True).tag(attr=True)
+    band = tl.Union([tl.List(trait=tl.CInt), tl.CInt()], allow_none=True).tag(attr=True)
     crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
 
     driver = tl.Unicode(allow_none=True, default_value=None)
@@ -99,7 +99,10 @@ class Rasterio(S3Mixin, BaseFileSource):
     @tl.default("band")
     def _band_default(self):
         if self.outputs is not None and self.output is not None:
-            return self.outputs.index(self.output)
+            if isinstance(self.output, list):
+                # Note +1 below because bands are numbered starting from 1, not zero
+                return [self.outputs.index(o) + 1 for o in self.output]
+            return self.outputs.index(self.output) + 1
         elif self.outputs is None:
             return 1
         else:
@@ -150,16 +153,24 @@ class Rasterio(S3Mixin, BaseFileSource):
         if self.prefer_overviews:
             return self.get_data_overviews(coordinates)
 
-        data = self.create_output_array(coordinates)
         slc = coordinates_index
 
         # read data within coordinates_index window
         window = ((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
 
-        if self.outputs is not None:  # read all the bands
+        if self.outputs is not None and self.band is None:  # read all the bands
+            data = self.create_output_array(coordinates)
             raster_data = self.dataset.read(out_shape=(len(self.outputs),) + tuple(coordinates.shape), window=window)
             raster_data = np.moveaxis(raster_data, 0, 2)
+        elif isinstance(self.band, list):
+            data = self.create_output_array(coordinates, outputs=[self.outputs[b - 1] for b in self.band])
+            raster_data = self.dataset.read(
+                self.band, out_shape=(len(self.band),) + tuple(coordinates.shape), window=window
+            )
+            raster_data = np.moveaxis(raster_data, 0, 2)
         else:  # read the requested band
+            outputs = None if self.outputs is None else [self.outputs[self.band - 1]]
+            data = self.create_output_array(coordinates, outputs=outputs)
             raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape)[:2], window=window)
 
         # set raster data to output array
@@ -223,14 +234,21 @@ class Rasterio(S3Mixin, BaseFileSource):
             coordinates_shape = new_coords.shape[:2]
 
             # The following lines are *nearly* copied/pasted from get_data
+            outputs = self.outputs
             if self.outputs is not None:  # read all the bands
                 raster_data = dataset.read(out_shape=(len(self.outputs),) + coordinates_shape, window=window)
+                raster_data = np.moveaxis(raster_data, 0, 2)
+            elif isinstance(self.band, list):
+                outputs = [self.outputs[b - 1] for b in self.band]
+                raster_data = self.dataset.read(
+                    self.band, out_shape=(len(self.band),) + tuple(coordinates.shape), window=window
+                )
                 raster_data = np.moveaxis(raster_data, 0, 2)
             else:  # read the requested band
                 raster_data = dataset.read(self.band, out_shape=coordinates_shape, window=window)
 
             # set raster data to output array
-            data = self.create_output_array(new_coords)
+            data = self.create_output_array(new_coords, outputs=outputs)
             data.data.ravel()[:] = raster_data.ravel()
         except (rasterio.errors.RasterioError, OSError, ValueError, IndexError, MemoryError) as e:
             _logger.exception("Error occurred when reading overview with Rasterio: {}".format(e))
@@ -273,7 +291,7 @@ class Rasterio(S3Mixin, BaseFileSource):
             containing a number of keys -- depending on the metadata
         """
 
-        return OrderedDict((i, self.dataset.tags(i + 1)) for i in range(self.band_count))
+        return OrderedDict((i + 1, self.dataset.tags(i + 1)) for i in range(self.band_count))
 
     @cached_property
     def band_keys(self):
@@ -286,8 +304,19 @@ class Rasterio(S3Mixin, BaseFileSource):
             For example, band_keys['TIME'] = ['2015', '2016', '2017'] for a dataset with three bands.
         """
 
-        keys = {k for i in range(self.band_count) for k in self.band_descriptions[i]}  # set
-        return {k: [self.band_descriptions[i].get(k) for i in range(self.band_count)] for k in keys}
+        keys = {k for i in range(self.band_count) for k in self.band_descriptions[i + 1]}  # set
+        return {k: [self.band_descriptions[i + 1].get(k) for i in range(self.band_count)] for k in keys}
+
+    @property
+    def descriptions(self):
+        """Returns additional description of the dataset, if available
+
+        Returns
+        --------
+        tuple(str)
+            Descriptions of variables in the file. Returns self.dataset.descriptions
+        """
+        return self.dataset.descriptions
 
     def get_band_numbers(self, key, value):
         """Return the bands that have a key equal to a specified value.
@@ -313,6 +342,6 @@ class Rasterio(S3Mixin, BaseFileSource):
         match = np.ones(self.band_count, bool)
         for k, v in zip(key, value):
             match = match & (np.array(self.band_keys[k]) == v)
-        matches = np.nonzero(match)[0] + 1
+        matches = np.argwhere(match)[:, 0] + 1
 
         return matches

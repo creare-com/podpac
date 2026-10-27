@@ -1525,7 +1525,7 @@ class TestNodeConvenienceMethods:
 
     def test_cache_invalid_node_type(self):
         node = Node()
-        with pytest.raises(ValueError, match="Invalid cache type"):
+        with pytest.raises(ValueError, match="Invalid node_type"):
             node.cache(node_type="invalid_type")
 
     def test_cache_with_cache_ctrl_list(self):
