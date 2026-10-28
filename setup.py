@@ -29,6 +29,7 @@ install_requires = [
     "geopy",
     "webob",
     "pydap>=3.3",
+    "filelock>=3.21.1",
 ]
 
 if sys.version_info.major == 2:

@@ -54,9 +54,9 @@ class FileCacheStore(CacheStore):
         has_cache : bool
              True if there is a valid cached object for this node for the given key and coordinates.
         """
-
-        path = self.find(node, item, coordinates)
-        return path is not None and not self._expired(path)
+        with self._read_lock:
+            path = self._find(node, item, coordinates)
+            return path is not None and not self._expired(path)
 
     def put(self, node, data, item, coordinates=None, expires=None, update=True):
         """Cache data for specified node.
@@ -76,15 +76,7 @@ class FileCacheStore(CacheStore):
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         """
-
-        # check for valid existing entry (expired entries are automatically ignored and overwritten)
-        if self.has(node, item, coordinates):
-            if not update:
-                raise CacheException("Cache entry already exists. Use `update=True` to overwrite.")
-            else:
-                self._remove(self.find(node, item, coordinates))
-
-        # serialize
+        # serialize before locking
         root = self._get_filename(node, item, coordinates)
 
         if isinstance(data, podpac.core.units.UnitsDataArray):
@@ -118,34 +110,43 @@ class FileCacheStore(CacheStore):
             ext = "pkl"
             s = pickle.dumps(data)
 
-        # check size
-        if self.max_size is not None:
-            new_size = self.size + len(s)
+        with self._write_lock:
+            # remove existing entry (expired entries are ignored and overwritten)
+            existing = self._find(node, item, coordinates)
+            if existing is not None:
+                if not update and not self._expired(existing):
+                    raise CacheException("Cache entry already exists. Use `update=True` to overwrite.")
+                self._remove(existing)
 
-            if new_size > self.max_size:
-                # cleanup and check again
-                self.cleanup()
+            # check size
+            if self.max_size is not None:
+                new_size = self._size() + len(s)
 
-            if new_size > self.max_size:
-                # TODO removal policy (using create time, last access, etc)
-                warnings.warn(
-                    "Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in "
-                    "settings.{cache_limit_setting} or try clearing the cache (e.g. podpac.utils.clear_cache(, "
-                    "mode='{cache_mode}') to clear ALL cached results in {cache_mode} cache)".format(
-                        cache_mode=self.cache_mode, cache_limit_setting=self._limit_setting
-                    ),
-                    UserWarning,
-                )
-                return False
+                if new_size > self.max_size:
+                    # cleanup and check again
+                    self._cleanup()
+                    new_size = self._size() + len(s)
 
-        # save
-        node_dir = self._get_node_dir(node)
-        path = self._path_join(node_dir, "%s.%s" % (root, ext))
+                if new_size > self.max_size:
+                    # TODO removal policy (using create time, last access, etc)
+                    warnings.warn(
+                        "Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in "
+                        "settings.{cache_limit_setting} or try clearing the cache (e.g. podpac.utils.clear_cache(, "
+                        "mode='{cache_mode}') to clear ALL cached results in {cache_mode} cache)".format(
+                            cache_mode=self.cache_mode, cache_limit_setting=self._limit_setting
+                        ),
+                        UserWarning,
+                    )
+                    return False
 
-        metadata = {"created": time.time(), "accessed": None, "expires": expiration_timestamp(expires)}
+            # save
+            node_dir = self._get_node_dir(node)
+            path = self._path_join(node_dir, "%s.%s" % (root, ext))
 
-        self._make_dir(node_dir)
-        self._save(path, s, metadata=metadata)
+            metadata = {"created": time.time(), "expires": expiration_timestamp(expires)}
+
+            self._make_dir(node_dir)
+            self._save(path, s, metadata=metadata)
 
         return True
 
@@ -172,19 +173,16 @@ class FileCacheStore(CacheStore):
             If the data is not in the cache.
         """
 
-        path = self.find(node, item, coordinates)
-        if path is None:
-            raise CacheException("Cache miss. Requested data not found.")
+        with self._read_lock:
+            path = self._find(node, item, coordinates)
+            if path is None:
+                raise CacheException("Cache miss. Requested data not found.")
 
-        # get metadata
-        if self._expired(path):
-            raise CacheException("Cache miss. Requested data expired.")
+            if self._expired(path):
+                raise CacheException("Cache miss. Requested data expired.")
+            s = self._load(path)
 
-        # read
-        s = self._load(path)
-        self._set_metadata(path, "accessed", time.time())
-
-        # deserialize
+        # deserialize after unlocking
         if path.endswith(".uda.nc"):
             x = xr.open_dataarray(s)
             data = podpac.core.units.UnitsDataArray(x)._pp_deserialize()
@@ -220,24 +218,35 @@ class FileCacheStore(CacheStore):
         coordinates : :class:`podpac.Coordinates`, CacheWildCard, None, optional
             Delete only cached objects for these coordinates, or any coordinates if `coordinates` is a CacheWildCard. `None` specifically indicates entries that do not have coordinates.
         """
+        with self._write_lock:
+            # delete matching cached objects
+            for path in self._search(node, item=item, coordinates=coordinates):
+                self._remove(path)
 
-        # delete matching cached objects
-        for path in self.search(node, item=item, coordinates=coordinates):
-            self._remove(path)
-
-        # remove empty node directories
-        if not self.search(node):
-            path = self._get_node_dir(node=node)
-            while self._is_empty(path):
-                self._rmtree(path)
-                path = self._dirname(path)
+            # remove empty node directories
+            if not self._search(node):
+                path = self._get_node_dir(node=node)
+                while self._is_empty(path):
+                    self._rmtree(path)
+                    path = self._dirname(path)
 
     def clear(self):
         """
         Clear all cached data.
         """
+        with self._write_lock:
+            self._rmtree(self._root_dir_path)
 
-        self._rmtree(self._root_dir_path)
+    def cleanup(self):
+        """Remove expired entries."""
+        with self._write_lock:
+            self._cleanup()
+
+    @property
+    def size(self):
+        """Return size of cache store in bytes"""
+        with self._read_lock:
+            return self._size()
 
     # -----------------------------------------------------------------------------------------------------------------
     # helper methods
@@ -247,21 +256,25 @@ class FileCacheStore(CacheStore):
         """
         Search for matching cached objects.
         """
-        raise NotImplementedError
+        with self._read_lock:
+            return self._search(node, item=item, coordinates=coordinates)
 
     def find(self, node, item, coordinates=None):
         """
         Find the path for a specific cached object.
         """
+        with self._read_lock:
+            return self._find(node, item, coordinates)
 
-        paths = self.search(node, item=item, coordinates=coordinates)
+    def _find(self, node, item, coordinates=None):
+        paths = self._search(node, item=item, coordinates=coordinates)
 
         if len(paths) == 0:
             return None
         elif len(paths) == 1:
             return paths[0]
-        elif len(paths) > 1:
-            return RuntimeError("Too many cached files matching '%s'" % self._root_dir_path)
+        else:
+            raise RuntimeError("Too many cached files matching '%s'" % self._root_dir_path)
 
     def _get_node_dir(self, node):
         fullclass = str(node.__class__)[8:-2]
@@ -297,14 +310,20 @@ class FileCacheStore(CacheStore):
 
     def _expired(self, path):
         expires = self._get_metadata(path, "expires")
-        if expires is not None and time.time() >= expires:
-            self._remove(path)
-            return True
-        return False
+        return expires is not None and time.time() >= expires
 
     # -----------------------------------------------------------------------------------------------------------------
     # file storage abstraction
     # -----------------------------------------------------------------------------------------------------------------
+
+    def _search(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
+        raise NotImplementedError
+
+    def _size(self):
+        raise NotImplementedError
+
+    def _cleanup(self):
+        raise NotImplementedError
 
     def _save(self, path, s, metadata=None):
         raise NotImplementedError

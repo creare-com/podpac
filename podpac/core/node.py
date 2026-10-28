@@ -30,9 +30,9 @@ from podpac.core.utils import NodeTrait
 from podpac.core.utils import hash_alg
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
-from podpac.core.managers.multi_threading import thread_manager
 from podpac.core.cache import CacheCtrl, make_cache_ctrl, get_default_cache_ctrl, S3CacheStore
 from podpac.core.cache.cache_ctrl import _CACHE_STORES
+from podpac.core.cache.utils import CacheException
 
 _logger = logging.getLogger(__name__)
 
@@ -764,10 +764,14 @@ class Node(tl.HasTraits):
         except NodeDefinitionError as e:
             raise NodeException(_CACHE_UNAVAILABLE % (e.args[0], key))
 
-        if self.property_cache_ctrl is None or not self.has_property_cache(key, coordinates=coordinates):
-            raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
+        message = "cached data not found for key '%s' and coordinates %s" % (key, coordinates)
+        if self.property_cache_ctrl is None:
+            raise NodeException(message)
 
-        return self.property_cache_ctrl.get(self, key, coordinates=coordinates)
+        try:
+            return self.property_cache_ctrl.get(self, key, coordinates=coordinates)
+        except CacheException:
+            raise NodeException(message)
 
     def put_property_cache(self, data, key, coordinates=None, expires=None, overwrite=True):
         """
@@ -801,8 +805,7 @@ class Node(tl.HasTraits):
         if not overwrite and self.has_property_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
-        with thread_manager.cache_lock:
-            self.property_cache_ctrl.put(self, data, key, coordinates=coordinates, expires=expires, update=overwrite)
+        self.property_cache_ctrl.put(self, data, key, coordinates=coordinates, expires=expires, update=overwrite)
 
     def has_property_cache(self, key, coordinates=None):
         """
@@ -827,8 +830,7 @@ class Node(tl.HasTraits):
         if self.property_cache_ctrl is None:
             return False
 
-        with thread_manager.cache_lock:
-            return self.property_cache_ctrl.has(self, key, coordinates=coordinates)
+        return self.property_cache_ctrl.has(self, key, coordinates=coordinates)
 
     def rem_property_cache(self, key, coordinates=None, mode="all"):
         """

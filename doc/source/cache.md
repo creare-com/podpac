@@ -70,6 +70,8 @@ podpac.settings["DEFAULT_CACHE"] = ['ram', 'disk']
 
 The disk cache directory can be set using the `DISK_CACHE_DIR` setting.
 
+The disk cache is safe to share between threads and processes. Access is coordinated with a lock file `<DISK_CACHE_DIR>.lock` placed next to the cache directory, which persists when the cache is cleared.
+
 ## S3 Cache
 
 PODPAC also provides caching to the cloud using AWS S3. Configure the S3 bucket and cache subdirectory using the `S3_BUCKET_NAME` and `S3_CACHE_DIR` settings.
@@ -128,7 +130,7 @@ In general, the node cache can be managed using the `Node.put_cache`, `Node.get_
 
 ### Cache Expiration
 
-Cached entries can optionally have an expiration date, after which the entry is considered invalid. An expired entry is removed when it is next retrieved (with the same node, key, and coordinates), when its cache store is full and a new entry is added, or by `podpac.utils.cache_cleanup()`.
+Cached entries can optionally have an expiration date, after which the entry is considered invalid. An expired entry is treated as missing. It is removed when a new entry is cached (with the same node, key, and coordinates), when its cache store is full and a new entry is added, or by `podpac.utils.cache_cleanup()`.
 
 To specify an expiration date
 

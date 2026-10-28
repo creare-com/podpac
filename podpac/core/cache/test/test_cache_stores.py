@@ -4,7 +4,11 @@ import copy
 import tempfile
 import time
 import datetime
+import threading
+from typing import Any
+from unittest.mock import DEFAULT, patch
 
+import filelock
 import pytest
 import xarray as xr
 import numpy as np
@@ -12,7 +16,7 @@ import numpy as np
 import podpac
 from podpac.core.cache.utils import CacheException
 from podpac.core.cache.ram_cache_store import RamCacheStore
-from podpac.core.cache.disk_cache_store import DiskCacheStore
+from podpac.core.cache.disk_cache_store import DiskCacheStore, _thread_local
 from podpac.core.cache.s3_cache_store import S3CacheStore
 
 COORDS1 = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"])
@@ -410,7 +414,8 @@ class TestRamCacheStore(BaseCacheStoreTests):
         store.cleanup()
         assert len(_thread_local.cache) == 1
 
-    def test_has_auto_cleanup(self):
+    def test_has_keeps_expired(self):
+        """Test expired data is not removed by the read-only `has` method."""
         from podpac.core.cache.ram_cache_store import _thread_local
 
         store = self.Store()
@@ -421,9 +426,10 @@ class TestRamCacheStore(BaseCacheStoreTests):
         assert store.has(NODE1, "mykey1") is True
         assert store.has(NODE1, "mykey2") is False
 
-        assert len(_thread_local.cache) == 1
+        assert len(_thread_local.cache) == 2
 
-    def test_get_auto_cleanup(self):
+    def test_get_keeps_expired(self):
+        """Test expired data is not removed by the read-only `get` method."""
         from podpac.core.cache.ram_cache_store import _thread_local
 
         store = self.Store()
@@ -435,7 +441,7 @@ class TestRamCacheStore(BaseCacheStoreTests):
         with pytest.raises(CacheException, match=CACHE_MISS):
             store.get(NODE1, "mykey2")
 
-        assert len(_thread_local.cache) == 1
+        assert len(_thread_local.cache) == 2
 
 
 class TestDiskCacheStore(FileCacheStoreTests):
@@ -452,7 +458,53 @@ class TestDiskCacheStore(FileCacheStoreTests):
     def teardown_method(self):
         super(TestDiskCacheStore, self).teardown_method()
 
+        if hasattr(_thread_local, "locks"):
+            for lock in _thread_local.locks.values():
+                lock.close()
+            del _thread_local.locks
+
         shutil.rmtree(self.test_cache_dir, ignore_errors=True)
+        lock_path = self.get_lock_path(self.test_cache_dir)
+        if os.path.exists(lock_path):
+            os.remove(lock_path)
+
+    def get_lock_path(self, cache_dir: str) -> str:
+        """Get a lock file path based on a cache directory path."""
+        return f"{os.path.normpath(cache_dir)}.lock"
+
+    def get_probe(self) -> filelock.ReadWriteLock:
+        """Get a separate lock on the store lock file to probe the lock state."""
+        return filelock.ReadWriteLock(self.get_lock_path(self.test_cache_dir), is_singleton=False)
+
+    def _assert_read_locked(self, *args: Any, **kwargs: Any) -> Any:
+        """Side effect asserting a read lock is held, `DEFAULT` returns the normal value of the function."""
+        probe = self.get_probe()
+        with probe.read_lock(blocking=False):
+            pass
+        with pytest.raises(filelock.Timeout):
+            probe.acquire_write(blocking=False)
+        probe.close()
+        return DEFAULT
+
+    def _assert_write_locked(self, *args: Any, **kwargs: Any) -> Any:
+        """Side effect asserting a write lock is held, `DEFAULT` returns the normal value of the function."""
+        probe = self.get_probe()
+        with pytest.raises(filelock.Timeout):
+            probe.acquire_read(blocking=False)
+        probe.close()
+        return DEFAULT
+
+    def _append_lock(self, locks: list):
+        """Append this thread's store lock to `locks`."""
+        locks.append(self.Store()._rw_lock)
+
+    def _assert_unlocked(self, *args: Any, **kwargs: Any) -> Any:
+        """Side effect asserting no lock is held, `DEFAULT` returns the normal value of the function."""
+        probe = self.get_probe()
+        with probe.write_lock(blocking=False):
+            pass
+        probe.close()
+        return DEFAULT
 
     def test_cache_dir(self):
         with podpac.settings:
@@ -475,6 +527,7 @@ class TestDiskCacheStore(FileCacheStoreTests):
             store.put(NODE1, 10, "mykey1")
             assert store.find(NODE1, "mykey1").startswith(expected)
             store.clear()
+            os.remove(self.get_lock_path(expected))
 
     def test_rem_node_dir(self):
         store = self.Store()
@@ -533,7 +586,8 @@ class TestDiskCacheStore(FileCacheStoreTests):
         assert len(store.search(NODE1)) == 0
         assert not store._exists(store._get_node_dir(NODE1))  # empty node directories are removed
 
-    def test_has_auto_cleanup(self):
+    def test_has_keeps_expired(self):
+        """Test expired data is not removed by the read-only `has` method."""
         store = self.Store()
         store.put(NODE1, 10, "mykey1", expires=time.time() + 100)
         store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
@@ -542,9 +596,10 @@ class TestDiskCacheStore(FileCacheStoreTests):
         assert store.has(NODE1, "mykey1") is True
         assert store.has(NODE1, "mykey2") is False
 
-        assert len(store.search(NODE1)) == 1
+        assert len(store.search(NODE1)) == 2
 
-    def test_get_auto_cleanup(self):
+    def test_get_keeps_expired(self):
+        """Test expired data is not removed by the read-only `get` method."""
         store = self.Store()
         store.put(NODE1, 10, "mykey1", expires=time.time() + 100)
         store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
@@ -554,6 +609,137 @@ class TestDiskCacheStore(FileCacheStoreTests):
         with pytest.raises(CacheException, match=CACHE_MISS):
             store.get(NODE1, "mykey2")
 
+        assert len(store.search(NODE1)) == 2
+
+    @pytest.mark.parametrize(
+        "method, args, patched",
+        [
+            ("get", (NODE1, "mykey1"), "_load"),
+            ("has", (NODE1, "mykey1"), "_find"),
+            ("find", (NODE1, "mykey1"), "_search"),
+            ("search", (NODE1,), "_search"),
+        ],
+    )
+    def test_public_method_read_locked(self, method: str, args: tuple, patched: str):
+        """Test each read method holds the shared lock while calling `patched` and releases it after."""
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1")
+        with patch.object(store, patched, wraps=getattr(store, patched), side_effect=self._assert_read_locked) as mock:
+            getattr(store, method)(*args)
+        assert mock.called
+        self._assert_unlocked()
+
+    @pytest.mark.parametrize(
+        "method, args, patched",
+        [
+            ("put", (NODE1, 10, "mykey1"), "_save"),
+            ("rem", (NODE1, "mykey1"), "_remove"),
+            ("clear", (), "_rmtree"),
+            ("cleanup", (), "_expired"),
+        ],
+    )
+    def test_public_method_write_locked(self, method: str, args: tuple, patched: str):
+        """Test each mutating method holds the exclusive lock while calling `patched` and releases it after."""
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1")
+        with patch.object(store, patched, wraps=getattr(store, patched), side_effect=self._assert_write_locked) as mock:
+            getattr(store, method)(*args)
+        assert mock.called
+        self._assert_unlocked()
+
+    def test_expired_removed_by_put_under_write_lock(self):
+        """Test an expired entry is removed by `put` method under the write lock."""
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1", expires=time.time() - 100)
+        with patch.object(store, "_remove", wraps=store._remove, side_effect=self._assert_write_locked) as remove:
+            store.put(NODE1, 20, "mykey1", update=False)
+        assert remove.called
+        assert store.get(NODE1, "mykey1") == 20
+        self._assert_unlocked()
+
+    def test_get_deserializes_outside_lock(self):
+        """Test deserialization happens outside the lock to avoid unneeded blocking."""
+        store = self.Store()
+        store.put(NODE1, np.array([0, 1, 2]), "mykey1")
+        with patch.object(np, "load", wraps=np.load, side_effect=self._assert_unlocked) as load:
+            store.get(NODE1, "mykey1")
+        assert load.called
+        self._assert_unlocked()
+
+    def test_size_read_locked(self):
+        """Test size holds the read lock and releases it."""
+        store = self.Store()
+        with patch.object(os, "walk", wraps=os.walk, side_effect=self._assert_read_locked) as walk:
+            _ = store.size
+        assert walk.called
+        self._assert_unlocked()
+
+    def test_lock_file_persists_cache_clear(self):
+        """Test lock file persists when cache is cleared."""
+        store = self.Store()
+
+        store.clear()
+        assert os.path.exists(self.get_lock_path(self.test_cache_dir))
+
+    def test_lock_shared_between_instances(self):
+        """Test store instances share one lock within a thread."""
+        assert self.Store()._rw_lock is self.Store()._rw_lock
+
+    def test_lock_per_thread(self):
+        """Test each thread gets its a different lock instance."""
+        locks = []
+        thread = threading.Thread(target=self._append_lock, args=(locks,))
+        thread.start()
+        thread.join()
+        assert locks[0] is not self.Store()._rw_lock
+
+    def test_lock_reentrant(self):
+        """Test the lock is re-entrant with nested calls of the same mode."""
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1")
+        with store._read_lock:
+            assert store.get(NODE1, "mykey1") == 10
+        with store._write_lock:
+            store.put(NODE1, 10, "mykey1")
+
+    def test_read_lock_allows_reads(self):
+        """Test a read lock held elsewhere does not block reads."""
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1")
+        with self.get_probe().read_lock(blocking=False):
+            assert store.get(NODE1, "mykey1") == 10
+
+    def test_read_lock_blocks_writes(self):
+        """Test a shared lock held elsewhere blocks writes until it is released."""
+        store = self.Store()
+        with patch.object(store._rw_lock, "blocking", False):
+            with self.get_probe().read_lock(blocking=False):
+                with pytest.raises(filelock.Timeout):
+                    store.put(NODE1, 10, "mykey1")
+            store.put(NODE1, 10, "mykey1")
+        assert store.get(NODE1, "mykey1") == 10
+
+    def test_write_lock_blocks_other_lock(self):
+        """Test an exclusive lock held by the store blocks other readers."""
+        store = self.Store()
+        with store._write_lock:
+            with pytest.raises(filelock.Timeout):
+                self.get_probe().acquire_read(blocking=False)
+
+    def test_find_multiple_raises(self):
+        """Test find raises when more than one cached file matches."""
+        store = self.Store()
+        with patch.object(store, "_search", return_value=["mykey1.json", "mykey1.pkl"]):
+            with pytest.raises(RuntimeError, match="Too many cached files"):
+                store.find(NODE1, "mykey1")
+
+    def test_put_cleanup_frees_space(self):
+        """Test put stores the entry when cleanup frees enough space."""
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1", expires=time.time() - 100)
+        podpac.settings[self.limit_setting] = store.size
+        assert store.put(NODE1, 10, "mykey2") is True
+        assert store.get(NODE1, "mykey2") == 10
         assert len(store.search(NODE1)) == 1
 
 

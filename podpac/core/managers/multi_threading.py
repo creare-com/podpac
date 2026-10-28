@@ -46,7 +46,6 @@ class ThreadManager(object):
     """This is a singleton class that keeps track of the total number of threads used in an application."""
 
     _lock = Lock()
-    cache_lock = Lock()
     _n_threads_used = 0
     __instance = None
 

@@ -209,8 +209,10 @@ class CacheCtrl(object):
         CacheCtrl._validate_args(node, item, coordinates, mode)
 
         for c in self._get_cache_stores_by_mode(mode):
-            if c.has(node=node, item=item, coordinates=coordinates):
+            try:
                 return c.get(node=node, item=item, coordinates=coordinates)
+            except CacheException:
+                continue
         raise CacheException("Requested data is not in any cache stores.")
 
     def has(self, node, item, coordinates=None, mode="all"):
