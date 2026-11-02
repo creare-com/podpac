@@ -532,7 +532,7 @@ class TestDataSource(object):
 
             node = podpac.data.Array(
                 source=np.ones((3, 4)), coordinates=podpac.Coordinates([range(3), range(4)], ["lat", "lon"])
-            ).cache(cache_tpe=["ram"])
+            ).cache(cache_tpe=["ram"], relevant_dimensions=["lat", "lon"])
             coords1 = podpac.Coordinates([range(3), range(4), "2012-05-19"], ["lat", "lon", "time"])
             coords2 = podpac.Coordinates([range(3), range(4), "2019-09-10"], ["lat", "lon", "time"])
 

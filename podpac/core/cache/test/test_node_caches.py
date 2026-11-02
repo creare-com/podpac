@@ -1,9 +1,44 @@
+from pathlib import Path
+from typing import Iterator
+
 import pytest
 import numpy as np
+from unittest.mock import patch
 from podpac import Coordinates
 from podpac.data import Array
-from podpac.caches import ZarrCache
+from podpac.caches import HashCache, ZarrCache
 from podpac.core.algorithm.utility import SinCoords
+from podpac.core.cache.cache_ctrl import clear_cache
+from podpac.core.settings import settings, DEFAULT_SETTINGS
+
+
+@pytest.fixture(autouse=True)
+def isolated_cache(tmp_path: Path) -> Iterator[None]:
+    """Isolate cache settings from the user's settings file and clear the ram and disk caches before each test
+    and after as needed.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Temporary directory, used for the disk cache provided by pytest.
+
+    Yields
+    ------
+    None
+        Control to the test with isolated settings active, with the original settings restored afterwards.
+    """
+    cache_settings = {
+        "AUTOSAVE_SETTINGS": False,
+        "ENABLE_CACHE": True,
+        "RAM_CACHE_MAX_BYTES": DEFAULT_SETTINGS["RAM_CACHE_MAX_BYTES"],
+        "DISK_CACHE_MAX_BYTES": DEFAULT_SETTINGS["DISK_CACHE_MAX_BYTES"],
+        "DISK_CACHE_DIR": str(tmp_path / "cache"),
+    }
+    with patch.dict(settings, cache_settings):
+        clear_cache(mode="ram")
+        clear_cache(mode="disk")
+        yield
+        clear_cache(mode="ram")
 
 
 class TestHashCache:
@@ -39,6 +74,18 @@ class TestHashCache:
         hash_cache_node2.eval(coords)
         assert hash_cache_node2._from_cache
 
+    def test_default_cache_type(self):
+        """Test the cache node uses the default cache stores when cache_type is not provided."""
+        coords = Coordinates([[1]], ["alt"])
+
+        with patch.dict(settings, {"DEFAULT_CACHE": ["ram"]}):
+            hash_cache_node = HashCache(source=SinCoords(cache_output=True))
+            hash_cache_node.eval(coords)
+            assert not hash_cache_node._from_cache
+
+            hash_cache_node.eval(coords)
+            assert hash_cache_node._from_cache
+
     def test_relevant_dimensions_cache(self):
         lat = np.linspace(0, 10, 11)
         lon = np.linspace(0, 10, 11)
@@ -48,21 +95,66 @@ class TestHashCache:
         my_node = Array(
             source=np.random.rand(coords_time.shape[0], coords_time.shape[1]), coordinates=coords_time.drop("time")
         )
-        hash_node = my_node.cache("hash", "ram")
+        hash_node = my_node.cache("hash", "ram", relevant_dimensions=["lat", "lon"])
         hash_node.rem_cache("*")
         hash_node.eval(coords_time)
 
-        assert hash_node._from_cache == False
-
-        hash_node2 = my_node.cache("hash", "ram")
+        assert not hash_node._from_cache
+        hash_node2 = my_node.cache("hash", "ram", relevant_dimensions=["lat", "lon"])
         hash_node2.eval(coords_time.drop("time"))
 
-        assert hash_node2._from_cache == True
+        assert hash_node2._from_cache
 
-        hash_node3 = my_node.cache("hash", "ram")
+        hash_node3 = my_node.cache("hash", "ram", relevant_dimensions=["lat", "lon"])
         hash_node3.eval(coords_time)
 
-        assert hash_node3._from_cache == True
+        assert hash_node3._from_cache
+
+    def test_relevant_dimensions_not_shared(self):
+        """Test the cache node does not use relevant dimensions from another cache node of the same source."""
+        coords = Coordinates([[0, 1], [0, 1], ["2018-01-01"]], ["lat", "lon", "time"])
+        source = Array(source=np.ones((2, 2, 1)), coordinates=coords)
+
+        hash_cache_relevant_dims_node = source.cache("hash", "ram", relevant_dimensions=["lat", "lon"])
+        hash_cache_relevant_dims_node.eval(coords)
+        assert not hash_cache_relevant_dims_node._from_cache
+
+        hash_cache_relevant_dims_node.eval(coords)
+        assert hash_cache_relevant_dims_node._from_cache
+
+        hash_cache_node = source.cache("hash", "ram")
+        hash_cache_node.eval(coords)
+        assert not hash_cache_node._from_cache
+
+    def test_expires(self):
+        """Test the cache node uses existing data until cache expires."""
+        coords = Coordinates([[1]], ["alt"])
+
+        with patch("time.time") as mock_time:
+            mock_time.return_value = 0.0
+
+            hash_cache_node = SinCoords(cache_output=True).cache("hash", "ram", expires=60.0)
+            hash_cache_node.eval(coords)
+
+            mock_time.return_value = 59.0
+
+            hash_cache_node.eval(coords)
+            assert hash_cache_node._from_cache
+
+            mock_time.return_value = 60.0
+
+            hash_cache_node.eval(coords)
+            assert not hash_cache_node._from_cache
+
+    def test_expires_invalid(self):
+        """Test the cache node raises error for invalid expires property."""
+        with pytest.raises(ValueError, match="Invalid expiration"):
+            SinCoords(cache_output=True).cache("hash", "ram", expires="invalid")
+
+    def test_expires_does_not_change_hash(self):
+        """Test the cache node does not include the expires property in its hash."""
+        node = SinCoords(cache_output=True)
+        assert node.cache("hash", "ram").hash == node.cache("hash", "ram", expires="1,h").hash
 
 
 class TestZarrCache:

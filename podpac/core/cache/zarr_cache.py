@@ -36,6 +36,10 @@ class ZarrCache(CacheNode):
     cache_type : tl.Enum
         One of 'disk' (default) or 'ram'
 
+    Notes
+    -----
+    `expires` is not yet supported, and is ignored.
+
     _z_node : Zarr
         Zarr node for data.
     _z_bool : Zarr
