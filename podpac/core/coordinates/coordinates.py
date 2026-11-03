@@ -1691,7 +1691,7 @@ def merge_dims(coords_list, validate_crs=True):
 
     # check crs
     crs = coords_list[0].crs
-    if validate_crs and not all(coords.crs == crs for coords in coords_list):
+    if validate_crs and not all(_crs_equal(coords.crs, crs) for coords in coords_list):
         raise ValueError("Cannot merge Coordinates, crs mismatch")
 
     # merge
@@ -1728,7 +1728,7 @@ def concat(coords_list):
 
     # check crs
     crs = coords_list[0].crs
-    if not all(coords.crs == crs for coords in coords_list):
+    if not all(_crs_equal(coords.crs, crs) for coords in coords_list):
         raise ValueError("Cannot concat Coordinates, crs mismatch")
 
     # concatenate
@@ -1769,3 +1769,25 @@ def union(coords_list):
     """
 
     return concat(coords_list).unique()
+
+
+def _crs_equal(a: str | None, b: str | None) -> bool:
+    """Check if two CRS strings define the same coordinate reference system.
+
+    Parameters
+    ----------
+    a : str | None
+        The first CRS string or None.
+    b : str | None
+        The second CRS string or None.
+
+    Returns
+    -------
+    bool
+        True if the strings define the same CRS, otherwise False.
+    """
+    if a == b:
+        return True
+    if a is None or b is None:
+        return False
+    return pyproj.CRS(a) == pyproj.CRS(b)

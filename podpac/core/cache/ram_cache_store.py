@@ -22,6 +22,7 @@ class RamCacheStore(CacheStore):
     Notes
     -----
      * the cache is thread-safe, but not yet accessible across separate processes
+     * each thread only reads and writes its own entries so no locking is needed
      * there is not yet a max RAM usage setting or a removal policy.
     """
 
@@ -227,12 +228,7 @@ class RamCacheStore(CacheStore):
         _thread_local.cache[full_key][key] = value
 
     def _expired(self, full_key):
-        """Check if the given entry is expired. Expired entries are removed."""
+        """Check if the given entry is expired."""
 
         expires = self._get_metadata(full_key, "expires")
-
-        if expires is not None and time.time() >= expires:
-            del _thread_local.cache[full_key]
-            return True
-
-        return False
+        return expires is not None and time.time() >= expires

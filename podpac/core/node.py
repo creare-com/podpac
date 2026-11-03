@@ -30,9 +30,9 @@ from podpac.core.utils import NodeTrait
 from podpac.core.utils import hash_alg
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
-from podpac.core.managers.multi_threading import thread_manager
 from podpac.core.cache import CacheCtrl, make_cache_ctrl, get_default_cache_ctrl, S3CacheStore
 from podpac.core.cache.cache_ctrl import _CACHE_STORES
+from podpac.core.cache.utils import CacheException
 
 _logger = logging.getLogger(__name__)
 
@@ -452,7 +452,7 @@ class Node(tl.HasTraits):
         """
         return probe_node(self, lat, lon, time, alt, crs)
 
-    def cache(self, node_type="hash", cache_type=None, uid=None, **kwargs):
+    def cache(self, node_type="hash", cache_type=None, uid=None, expires=None, **kwargs):
         """This is a convenience function that creates a Cache node following this Node.
         This means that any evaluation of the output of this function is cached using the
         requested caching method
@@ -467,6 +467,10 @@ class Node(tl.HasTraits):
         uid : str, optional
             A unique identifier for this node. This is used to extract data from the cache. By default uses
             self.hash of the output `CacheNode` from this function.
+        expires : float, datetime, timedelta, str, optional
+            Expiration date. If timedelta or timedelta string is supplied,
+            the expiration date will be calculated from the current time. Floats are interpreted as timestamps.
+            Not yet supported by the "zarr" node_type.
         **kwargs : dict
             Any remaining key-word arguments are passed on to the constructor of the `CacheNode`.
 
@@ -493,12 +497,12 @@ class Node(tl.HasTraits):
         if node_type == "hash":
             if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
                 kwargs["cache_ctrl"] = podpac.core.cache.cache_ctrl.make_cache_ctrl(kwargs["cache_ctrl"])
-            return podpac.caches.HashCache(source=self, cache_type=cache_type, **kwargs)
+            return podpac.caches.HashCache(source=self, cache_type=cache_type, expires=expires, **kwargs)
         elif node_type == "zarr":
             if not trait_is_defined(self, "coordinates") or self.coordinates is None:
                 raise ValueError("Cannot use ZarrCache without coordinates")
             else:
-                return podpac.caches.ZarrCache(source=self, cache_type=cache_type, **kwargs)
+                return podpac.caches.ZarrCache(source=self, cache_type=cache_type, expires=expires, **kwargs)
         else:
             raise ValueError("Invalid cache type: %s. Valid cache types: zarr, hash" % cache_type)
 
@@ -727,15 +731,10 @@ class Node(tl.HasTraits):
         with open(path, "w") as f:
             json.dump(self.definition, f, separators=(",", ":"), cls=JSONEncoder)
 
-    def __eq__(self, other):
+    def hash_equal(self, other):
         if not isinstance(other, Node):
             return False
         return self.hash == other.hash
-
-    def __ne__(self, other):
-        if not isinstance(other, Node):
-            return True
-        return self.hash != other.hash
 
     # -----------------------------------------------------------------------------------------------------------------
     # Caching Interface
@@ -765,10 +764,14 @@ class Node(tl.HasTraits):
         except NodeDefinitionError as e:
             raise NodeException(_CACHE_UNAVAILABLE % (e.args[0], key))
 
-        if self.property_cache_ctrl is None or not self.has_property_cache(key, coordinates=coordinates):
-            raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
+        message = "cached data not found for key '%s' and coordinates %s" % (key, coordinates)
+        if self.property_cache_ctrl is None:
+            raise NodeException(message)
 
-        return self.property_cache_ctrl.get(self, key, coordinates=coordinates)
+        try:
+            return self.property_cache_ctrl.get(self, key, coordinates=coordinates)
+        except CacheException:
+            raise NodeException(message)
 
     def put_property_cache(self, data, key, coordinates=None, expires=None, overwrite=True):
         """
@@ -802,8 +805,7 @@ class Node(tl.HasTraits):
         if not overwrite and self.has_property_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
-        with thread_manager.cache_lock:
-            self.property_cache_ctrl.put(self, data, key, coordinates=coordinates, expires=expires, update=overwrite)
+        self.property_cache_ctrl.put(self, data, key, coordinates=coordinates, expires=expires, update=overwrite)
 
     def has_property_cache(self, key, coordinates=None):
         """
@@ -828,8 +830,7 @@ class Node(tl.HasTraits):
         if self.property_cache_ctrl is None:
             return False
 
-        with thread_manager.cache_lock:
-            return self.property_cache_ctrl.has(self, key, coordinates=coordinates)
+        return self.property_cache_ctrl.has(self, key, coordinates=coordinates)
 
     def rem_property_cache(self, key, coordinates=None, mode="all"):
         """

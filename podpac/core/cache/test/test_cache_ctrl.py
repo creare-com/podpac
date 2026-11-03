@@ -1,6 +1,8 @@
+import os
 import copy
 import tempfile
 import shutil
+from unittest.mock import patch
 
 import pytest
 
@@ -41,8 +43,10 @@ class TestCacheCtrl(object):
         if hasattr(_thread_local, "cache"):
             del _thread_local.cache
 
-        # delete the disk cache
+        # delete the disk cache and its lock file
         shutil.rmtree(self.test_cache_dir, ignore_errors=True)
+        if os.path.exists(self.test_cache_dir + ".lock"):
+            os.remove(self.test_cache_dir + ".lock")
 
         # reset the settings
         for key in podpac.settings:
@@ -111,6 +115,18 @@ class TestCacheCtrl(object):
             ctrl._cache_stores[0].get(NODE, "key")
         assert ctrl._cache_stores[1].get(NODE, "key") == 10
         assert ctrl.get(NODE, "key") == 10
+
+    def test_get_skips_has(self):
+        """Test `get` reads each store directly instead of checking `has` first.
+
+        Another process could remove the entry between the two calls.
+        """
+        ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
+        ctrl._cache_stores[1].put(NODE, 10, "key")
+
+        with patch.object(DiskCacheStore, "has") as has:
+            assert ctrl.get(NODE, "key") == 10
+        assert not has.called
 
     def test_get_cache_miss(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])

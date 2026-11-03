@@ -4,6 +4,7 @@ Defines the common interface for a cache store.
 
 from __future__ import division, print_function, absolute_import
 
+import contextlib
 from podpac.core.settings import settings
 
 
@@ -27,6 +28,32 @@ class CacheStore(object):
     def size(self):
         """Return size of cache store in bytes"""
 
+        raise NotImplementedError
+
+    @property
+    def _read_lock(self) -> contextlib.AbstractContextManager:
+        """Shared lock for multi-thread and multi-process safe reads.
+
+        Only public methods acquire the store locks, read and write locks cannot be nested.
+
+        Returns
+        -------
+        AbstractContextManager
+            The context manager for the read lock.
+        """
+        raise NotImplementedError
+
+    @property
+    def _write_lock(self) -> contextlib.AbstractContextManager:
+        """Exclusive lock for multi-thread and multi-process safe writes.
+
+        Only public methods acquire the store locks, read and write locks cannot be nested.
+
+        Returns
+        -------
+        AbstractContextManager
+            The context manager for the write lock.
+        """
         raise NotImplementedError
 
     def put(self, node, data, item, coordinates=None, expires=None, update=True):

@@ -238,7 +238,7 @@ class TestNASAURSSessionMixin(object):
         node_no_auth_required = NASAURSSessionMixin(auth_required=False)
         with patch.object(NASAURSSessionMixin, "username", new_callable=PropertyMock, side_effect=ValueError):
             with pytest.raises(ValueError):
-                node_auth_required.session
+                _ = node_auth_required.session
             assert isinstance(node_no_auth_required.session, _SessionWithHeaderRedirection)
 
     def test_raises_when_check_url_requires_registration(self) -> None:
@@ -253,7 +253,7 @@ class TestNASAURSSessionMixin(object):
             patch.object(_SessionWithHeaderRedirection, "get", return_value=response),
         ):
             with pytest.raises(ValueError):
-                node.session
+                _ = node.session
 
     def test_no_raise_when_check_url_returns_data(self) -> None:
         """Test check_url returning non-HTML data does not raise."""

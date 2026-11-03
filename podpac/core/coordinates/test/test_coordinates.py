@@ -16,7 +16,7 @@ from podpac.core.coordinates.affine_coordinates import AffineCoordinates
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.cfunctions import crange, clinspace
 from podpac.core.coordinates.coordinates import Coordinates
-from podpac.core.coordinates.coordinates import concat, union, merge_dims
+from podpac.core.coordinates.coordinates import concat, union, merge_dims, _crs_equal
 
 _DIMENSION_MISMATCH = "Dimension mismatch"
 _MERCATOR_CRS = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
@@ -1821,6 +1821,40 @@ class TestCoordinatesFunctions(object):
 
         with pytest.raises(ValueError, match="Cannot concat Coordinates"):
             concat([c1, c2])
+
+    def test_crs_equal(self):
+        """Test CRS equality for WKT strings and shorthand codes."""
+        wkt = pyproj.CRS("EPSG:4326").to_wkt()
+        assert _crs_equal("EPSG:4326", "EPSG:4326")
+        assert _crs_equal("EPSG:4326", wkt)
+        assert _crs_equal(None, None)
+        assert not _crs_equal("EPSG:4326", None)
+        assert not _crs_equal(None, "EPSG:4326")
+        assert not _crs_equal("EPSG:4326", "EPSG:2193")
+
+    def test_merge_dims_equivalent_crs(self):
+        """Test coordinate merging with equivalent WKT strings and shorthand codes."""
+        wkt = pyproj.CRS("EPSG:4326").to_wkt()
+        clat = Coordinates([[2, 4, 5]], dims=["lat"], crs=wkt)
+        clon = Coordinates([[3, -1, 5]], dims=["lon"], crs="EPSG:4326")
+
+        c = merge_dims([clat, clon])
+        assert c.dims == ("lat", "lon")
+        assert c.crs == wkt
+
+    def test_concat_and_union_equivalent_crs(self):
+        """Test concatenation and union with equivalent WKT strings and shorthand codes."""
+        wkt = pyproj.CRS("EPSG:4326").to_wkt()
+        c1 = Coordinates([[0, 1]], dims=["lat"], crs=wkt)
+        c2 = Coordinates([[1, 2]], dims=["lat"], crs="EPSG:4326")
+
+        c = concat([c1, c2])
+        assert c.shape == (4,)
+        assert c.crs == wkt
+
+        c = union([c1, c2])
+        assert c.shape == (3,)
+        assert c.crs == wkt
 
 
 class TestCoordinatesGeoTransform(object):

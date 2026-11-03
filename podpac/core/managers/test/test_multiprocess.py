@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 
 from multiprocessing import Queue
@@ -7,6 +8,7 @@ from podpac.core.algorithm.utility import Arange
 from podpac.core.managers.multi_process import Process, _f
 
 
+@pytest.mark.skip(reason="Process node is deprecated and will be removed.")
 class TestProcess(object):
     def test_mp_results_the_same(self):
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])

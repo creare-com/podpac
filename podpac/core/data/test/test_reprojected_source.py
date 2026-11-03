@@ -81,7 +81,7 @@ class TestReprojectedSource(object):
         assert node.source.interpolation == "nearest"
         assert node.eval_source.interpolation == "bilinear"
         assert node.eval_source.coordinates == source.coordinates
-        np.testing.assert_array_equal(node.eval_source.source, source.source)
+        np.testing.assert_array_equal(node.eval_source.source.source, source.source.source)
 
         # no source.interpolation to set (trigger logger warning)
         source = Node()

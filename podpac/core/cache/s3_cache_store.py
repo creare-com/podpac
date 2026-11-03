@@ -1,6 +1,7 @@
 from __future__ import division, print_function, absolute_import
 
 import fnmatch
+import contextlib
 from lazy_import import lazy_module
 
 boto3 = lazy_module("boto3")
@@ -61,8 +62,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
     # main cache API
     # -----------------------------------------------------------------------------------------------------------------
 
-    @property
-    def size(self):
+    def _size(self):
         paginator = self._s3_client.get_paginator("list_objects")
         operation_parameters = {"Bucket": self._s3_bucket, "Prefix": self._root_dir_path}
         page_iterator = paginator.paginate(**operation_parameters)
@@ -73,18 +73,41 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
                     total_size += obj["Size"]
         return total_size
 
-    def cleanup(self):
-        """
-        Remove expired entries.
-        """
+    @property
+    def _read_lock(self) -> contextlib.nullcontext:
+        """No lock is needed for S3 reads.
 
+        S3 operations are atomic per object with read-after-write consistency.
+
+        Returns
+        -------
+        contextlib.nullcontext
+            A null context.
+        """
+        return contextlib.nullcontext()
+
+    @property
+    def _write_lock(self) -> contextlib.nullcontext:
+        """No lock is needed for S3 writes.
+
+        S3 operations are atomic per object with read-after-write consistency.
+        Writing operations are last writer wins.
+
+        Returns
+        -------
+        contextlib.nullcontext
+            A null context.
+        """
+        return contextlib.nullcontext()
+
+    def _cleanup(self):
         pass  # TODO metadata
 
     # -----------------------------------------------------------------------------------------------------------------
     # helper methods
     # -----------------------------------------------------------------------------------------------------------------
 
-    def search(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
+    def _search(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
         """Fileglob to match files that could be storing cached data for specified node,key,coordinates
 
         Parameters
@@ -100,7 +123,6 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
         TYPE : str
             Fileglob of existing paths that match the request
         """
-
         delim = self._delim
         prefix = self._get_node_dir(node)
         prefix = prefix if prefix.endswith(delim) else prefix + delim

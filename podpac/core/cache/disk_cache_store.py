@@ -6,6 +6,8 @@ import shutil
 import json
 import fnmatch
 import logging
+import threading
+from filelock import ReadWriteLock
 
 from podpac.core.settings import settings
 from podpac.core.cache.utils import CacheException, CacheWildCard
@@ -15,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 _DOT_META = "%s.meta"
 _ERROR_READING_METADATA_FILE = "Error reading metadata file: '%s'"
+
+_thread_local = threading.local()
 
 
 class DiskCacheStore(FileCacheStore):
@@ -37,21 +41,58 @@ class DiskCacheStore(FileCacheStore):
     # -----------------------------------------------------------------------------------------------------------------
 
     @property
-    def size(self):
-        total_size = 0
-        for dirpath, _dirnames, filenames in os.walk(self._root_dir_path):
-            for f in filenames:
-                fp = os.path.join(dirpath, f)
-                total_size += os.path.getsize(fp)
-        return total_size
+    def _read_lock(self):
+        """Shared lock for reads, held concurrently by any number of threads and processes.
+
+        Returns
+        -------
+        contextlib.AbstractContextManager
+            The read lock context manager.
+        """
+        return self._rw_lock.read_lock()
+
+    @property
+    def _write_lock(self):
+        """Exclusive lock for writes, blocks all other readers and writers.
+
+        Returns
+        -------
+        contextlib.AbstractContextManager
+            The write lock context manager.
+        """
+        return self._rw_lock.write_lock()
+
+    @property
+    def _rw_lock(self):
+        """A read-write lock for file operations.
+
+        Locked state is tracked per instance of the lock so each thread needs to hold its own instance separately.
+        """
+        if not hasattr(_thread_local, "locks"):
+            _thread_local.locks = {}
+        locks = _thread_local.locks
+        path = f"{os.path.normpath(self._root_dir_path)}.lock"
+
+        # forked children inherit thread-locals, use process id to avoid using a parent lock
+        key = (os.getpid(), path)
+        if key not in locks:
+            locks[key] = ReadWriteLock(path, is_singleton=False)
+        return locks[key]
 
     # -----------------------------------------------------------------------------------------------------------------
     # helper methods
     # -----------------------------------------------------------------------------------------------------------------
 
-    def search(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
+    def _search(self, node, item=CacheWildCard(), coordinates=CacheWildCard()):
         pattern = self._path_join(self._get_node_dir(node), self._get_filename_pattern(node, item, coordinates))
         return [path for path in glob.glob(pattern) if not path.endswith(".meta")]
+
+    def _size(self):
+        total_size = 0
+        for dirpath, _dirnames, filenames in os.walk(self._root_dir_path):
+            for f in filenames:
+                total_size += os.path.getsize(os.path.join(dirpath, f))
+        return total_size
 
     # -----------------------------------------------------------------------------------------------------------------
     # file storage abstraction
@@ -137,11 +178,7 @@ class DiskCacheStore(FileCacheStore):
         with open(metadata_path, "w") as f:
             json.dump(metadata, f)
 
-    def cleanup(self):
-        """
-        Remove expired entries and orphaned metadata.
-        """
-
+    def _cleanup(self):
         for root, _dirnames, filenames in os.walk(self._root_dir_path):
             for filename in fnmatch.filter(filenames, "*.meta"):
                 metadata_path = os.path.join(root, filename)
@@ -149,8 +186,7 @@ class DiskCacheStore(FileCacheStore):
                 if not os.path.exists(path):  # orphaned
                     os.remove(metadata_path)
                 elif self._expired(path):
-                    # _expired removes the entry automatically
-                    pass
+                    self._remove(path)
 
         # remove empty directories
         for root, dirnames, _filenames in os.walk(self._root_dir_path):

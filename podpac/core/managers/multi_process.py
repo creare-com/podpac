@@ -4,6 +4,7 @@ from multiprocessing import Process as mpProcess
 from multiprocessing import Queue
 import traitlets as tl
 import logging
+import warnings
 
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
@@ -38,6 +39,14 @@ class Process(Node):
     output_format = tl.Dict(None, allow_none=True).tag(attr=True)
     timeout = tl.Int(None, allow_none=True)
     block = tl.Bool(True)
+
+    def _first_init(self, **kwargs):
+        warnings.warn(
+            "Process node is deprecated and will be removed in a future version of podpac.",
+            DeprecationWarning,
+            stacklevel=1,
+        )
+        return super(Process, self)._first_init(**kwargs)
 
     @property
     def outputs(self):
