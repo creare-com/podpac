@@ -36,7 +36,7 @@ from podpac.core.coordinates.cfunctions import clinspace
 from podpac.core.utils import hash_alg
 
 # Optional dependencies
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 
 rasterio = lazy_module("rasterio")
 

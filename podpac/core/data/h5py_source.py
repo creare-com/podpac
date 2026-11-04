@@ -1,6 +1,6 @@
 import traitlets as tl
 
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 
 h5py = lazy_module("h5py")
 

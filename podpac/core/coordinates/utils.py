@@ -18,9 +18,9 @@ import numpy as np
 import traitlets as tl
 from six import string_types
 
-from lazy_import import lazy_function
+from podpac.core.lazy_loading import lazy_module
 
-geodesic = lazy_function("geopy.distance.geodesic")
+geopy_distance = lazy_module("geopy.distance")
 
 import podpac
 
@@ -628,15 +628,15 @@ def calculate_distance(point1, point2, ellipsoid_tuple, coordinate_name, units="
         if not isinstance(point1, tuple) and point1.size > 2:
             distances = np.empty(len(point1))
             for i in range(len(point1)):
-                distances[i] = geodesic(point1[i], point2[i], ellipsoid=ellipsoid_tuple).m
+                distances[i] = geopy_distance.geodesic(point1[i], point2[i], ellipsoid=ellipsoid_tuple).m
             return distances * podpac.units("metre").to(podpac.units(units))
         if not isinstance(point2, tuple) and point2.size > 2:
             distances = np.empty(len(point2))
             for i in range(len(point2)):
-                distances[i] = geodesic(point1, point2[i], ellipsoid=ellipsoid_tuple).m
+                distances[i] = geopy_distance.geodesic(point1, point2[i], ellipsoid=ellipsoid_tuple).m
             return distances * podpac.units("metre").to(podpac.units(units))
         else:
-            return (geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m) * podpac.units("metre").to(
+            return (geopy_distance.geodesic(point1, point2, ellipsoid=ellipsoid_tuple).m) * podpac.units("metre").to(
                 podpac.units(units)
             )
 

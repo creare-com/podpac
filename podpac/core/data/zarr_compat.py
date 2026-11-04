@@ -7,7 +7,7 @@ longer accepts fsspec `MutableMapping` stores (like `s3fs.S3Map`) directly.
 
 from typing import Any
 
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 
 zarr = lazy_module("zarr")
 
