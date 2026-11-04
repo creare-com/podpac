@@ -15,7 +15,7 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d, Coordinates1d, StackedCoordinates
 
 # Optional dependencies
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 
 bs4 = lazy_module("bs4")
 lxml = lazy_module("lxml")  # used by bs4 so want to check if it's available

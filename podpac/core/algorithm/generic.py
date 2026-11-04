@@ -11,7 +11,7 @@ import xarray as xr
 import traitlets as tl
 
 # Optional dependencies
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 
 ne = lazy_module("numexpr")
 

@@ -6,12 +6,14 @@ from podpac.data import Zarr, ZarrMemory
 from podpac.core.interpolation.selector import Selector
 from podpac.core.cache.cache_interface import CacheNode
 from podpac.core.data.zarr_compat import create_zarr_array
+from podpac.core.lazy_loading import lazy_module
 from podpac import settings
 
 
 import numpy as np
 import traitlets as tl
-import zarr
+
+zarr = lazy_module("zarr")
 
 
 class ZarrCache(CacheNode):

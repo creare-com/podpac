@@ -7,17 +7,15 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import numpy as np
 import traitlets as tl
 
-# Optional dependencies
-try:
-    import rasterio
-    from rasterio import transform
-    from rasterio.warp import reproject, Resampling
-except ImportError:
-    rasterio = None
-
 # podac imports
 from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator
 from podpac.core.utils import common_doc
+
+# Optional dependencies
+from podpac.core.lazy_loading import lazy_module
+
+rasterio = lazy_module("rasterio")
+rasterio_warp = lazy_module("rasterio.warp")
 
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)
@@ -92,12 +90,12 @@ class RasterioInterpolator(Interpolator):
             )
 
         with rasterio.Env():
-            src_transform = transform.Affine.from_gdal(*source_coordinates.geotransform)
+            src_transform = rasterio.transform.Affine.from_gdal(*source_coordinates.geotransform)
             src_crs = rasterio.crs.CRS.from_string(source_coordinates.crs)
             # Need to make sure array is c-contiguous
             source = np.ascontiguousarray(source_data.data)
 
-            dst_transform = transform.Affine.from_gdal(*eval_coordinates.geotransform)
+            dst_transform = rasterio.transform.Affine.from_gdal(*eval_coordinates.geotransform)
             dst_crs = rasterio.crs.CRS.from_string(eval_coordinates.crs)
             # Need to make sure array is c-contiguous
             if not output_data.data.flags["C_CONTIGUOUS"]:
@@ -105,7 +103,7 @@ class RasterioInterpolator(Interpolator):
             else:
                 destination = output_data.data
 
-            reproject(
+            rasterio_warp.reproject(
                 source,
                 np.atleast_2d(destination.squeeze()),  # Needed for legacy compatibility
                 src_transform=src_transform,
@@ -114,7 +112,7 @@ class RasterioInterpolator(Interpolator):
                 dst_transform=dst_transform,
                 dst_crs=dst_crs,
                 dst_nodata=np.nan,
-                resampling=getattr(Resampling, self.method),
+                resampling=getattr(rasterio_warp.Resampling, self.method),
             )
             output_data.data[:] = destination
 

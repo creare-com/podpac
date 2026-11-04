@@ -9,7 +9,7 @@ import numpy as np
 import pyproj
 import logging
 
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 
 rasterio = lazy_module("rasterio")
 boto3 = lazy_module("boto3")

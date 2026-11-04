@@ -2,7 +2,7 @@ from __future__ import division, print_function, absolute_import
 
 import fnmatch
 import contextlib
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 
 boto3 = lazy_module("boto3")
 
