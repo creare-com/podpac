@@ -480,6 +480,7 @@ class TestDiskCacheStore(FileCacheStoreTests):
         """Side effect asserting a read lock is held, `DEFAULT` returns the normal value of the function."""
         probe = self.get_probe()
         with probe.read_lock(blocking=False):
+            # This will raise an exception if write lock already held (keep comment for SONAR S108)
             pass
         with pytest.raises(filelock.Timeout):
             probe.acquire_write(blocking=False)
@@ -502,6 +503,7 @@ class TestDiskCacheStore(FileCacheStoreTests):
         """Side effect asserting no lock is held, `DEFAULT` returns the normal value of the function."""
         probe = self.get_probe()
         with probe.write_lock(blocking=False):
+            # This will raise an exception if lock already held (keep comment for SONAR S108)
             pass
         probe.close()
         return DEFAULT
@@ -722,9 +724,10 @@ class TestDiskCacheStore(FileCacheStoreTests):
     def test_write_lock_blocks_other_lock(self):
         """Test an exclusive lock held by the store blocks other readers."""
         store = self.Store()
+        probe = self.get_probe()
         with store._write_lock:
             with pytest.raises(filelock.Timeout):
-                self.get_probe().acquire_read(blocking=False)
+                probe.acquire_read(blocking=False)
 
     def test_find_multiple_raises(self):
         """Test find raises when more than one cached file matches."""
