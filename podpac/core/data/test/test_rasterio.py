@@ -2,7 +2,9 @@ import os.path
 from collections import OrderedDict
 
 import numpy as np
+import pytest
 import rasterio
+import rasterio.cache
 
 from podpac.core.coordinates import Coordinates
 from podpac.core.units import UnitsDataArray
@@ -90,3 +92,72 @@ class TestRasterio(object):
             for a in ["lon", "lat"]:
                 assert np.isnan(data[a].coordinates).sum() == 0  # nan check
                 assert len(data[a]) == expected_values[i][a]  # guard against old issue of return being trimmed
+
+
+class TestRasterioFailSafe(object):
+    """Test that a failed open or read doesn't break later calls."""
+
+    source = os.path.join(os.path.dirname(__file__), "assets/RGB.byte.tif")
+
+    @pytest.fixture
+    def cache_clears(self, monkeypatch: pytest.MonkeyPatch) -> list:
+        """Record calls that clear GDAL's HTTP cache."""
+        calls = []
+
+        def clear(pattern: str) -> None:
+            calls.append(pattern)
+
+        monkeypatch.setattr(rasterio.cache, "invalidate", clear)
+        return calls
+
+    @pytest.fixture
+    def node(self) -> Rasterio:
+        """Single band rasterio node."""
+        return Rasterio(source=self.source, band=1)
+
+    @pytest.fixture
+    def expected(self) -> np.ndarray:
+        """Output of a read with no failures, from a separate node so ``node`` stays unopened."""
+        reference = Rasterio(source=self.source, band=1)
+        return reference.eval(reference.coordinates).data
+
+    def fail(self, monkeypatch: pytest.MonkeyPatch, owner: object, name: str, times: int) -> None:
+        """Make ``owner.name`` raise a RasterioIOError for its next ``times`` calls."""
+        original = getattr(owner, name)
+        remaining = [times]
+
+        def throw_remaining(*args, **kwargs):
+            if remaining[0]:
+                remaining[0] -= 1
+                raise rasterio.errors.RasterioIOError("simulated dropped response")
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(owner, name, throw_remaining)
+
+    def assert_evals(self, node: Rasterio, expected: np.ndarray) -> None:
+        """Check that the node evaluates to the expected data."""
+        np.testing.assert_array_equal(node.eval(node.coordinates).data, expected)
+
+    def test_read_failure_resets(self, monkeypatch, cache_clears, node, expected):
+        """A failed read raises, drops the handle and GDAL's cache, and the next eval works."""
+        handle = node.dataset
+        self.fail(monkeypatch, rasterio.io.DatasetReader, "read", 1)
+        with pytest.raises(rasterio.errors.RasterioIOError):
+            node.eval(node.coordinates)
+        assert cache_clears == [node.source]
+        assert handle.closed
+        self.assert_evals(node, expected)
+        assert node.dataset is not handle
+
+    def test_open_failure_resets(self, monkeypatch, node, expected):
+        """A failed open raises, and the next access works."""
+        self.fail(monkeypatch, rasterio, "open", 1)
+        with pytest.raises(rasterio.errors.RasterioIOError):
+            node.dataset
+        self.assert_evals(node, expected)
+
+    def test_close_dataset_reopens(self, node, expected):
+        """The dataset is reopened after close_dataset."""
+        node.dataset
+        node.close_dataset()
+        self.assert_evals(node, expected)
