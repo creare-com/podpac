@@ -37,7 +37,7 @@ from podpac.core.utils import JSONEncoder
 from podpac.core.style import Style
 
 # Optional dependencies
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 
 rasterio = lazy_module("rasterio")
 affine = lazy_module("affine")
@@ -189,7 +189,6 @@ class UnitsDataArray(xr.DataArray):
         elif format in ["pickle", "pkl"]:
             r = cPickle.dumps(self)
         elif format == "zarr_part":
-            from lazy_import import lazy_module
             from podpac.core.data.zarr_source import Zarr
 
             zarr = lazy_module("zarr")

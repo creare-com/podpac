@@ -9,6 +9,7 @@ import json
 import datetime
 import logging
 import inspect
+import requests
 from collections import OrderedDict
 from copy import deepcopy
 from hashlib import sha256 as hash_alg
@@ -17,15 +18,11 @@ import urllib.parse as urllib
 
 
 from six import string_types
-import lazy_import
 import traitlets as tl
 import numpy as np
 import xarray as xr
 import pandas as pd  # Core dependency of xarray
 import pyproj
-
-# Optional Imports
-requests = lazy_import.lazy_module("requests")
 
 # create log for module
 _log = logging.getLogger(__name__)

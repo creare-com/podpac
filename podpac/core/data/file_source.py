@@ -15,14 +15,14 @@ else:
 from io import BytesIO
 import logging
 
+import requests
 import traitlets as tl
 import xarray as xr
 
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 
 boto3 = lazy_module("boto3")
 s3fs = lazy_module("s3fs")
-requests = lazy_module("requests")
 
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.cache.utils import expiration_timestamp

@@ -23,7 +23,7 @@ install_requires = [
     "traitlets>=4.3",
     "xarray>=0.10",
     "requests>=2.18",
-    "lazy-import>=0.2.2",
+    "lazy-loader>=0.6",
     "psutil",
     "affine",
     "geopy",

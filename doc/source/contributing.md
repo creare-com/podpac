@@ -253,6 +253,35 @@ import podpac.settings                 # yes
 from podpac.settings import CACHE_CIR  # no
 ```
 
+### Lazy Imports
+
+Optional and slow-to-import dependencies are loaded lazily. A missing package raises `ModuleNotFoundError` the first time it is used, not when podpac is imported.
+
+Use `podpac.core.lazy_loading.lazy_module` for lazy imports:
+
+```python
+from podpac.core.lazy_loading import lazy_module
+
+rasterio = lazy_module("rasterio")
+gdal = lazy_module("osgeo.gdal")
+```
+
+Avoid module-level `from package import name` for optional dependencies: it imports the package immediately. Use `lazy_module` on the module and access the name at call time instead.
+
+```python
+# Avoid: rasterio.warp is imported when podpac is imported
+from rasterio.warp import reproject
+
+def mapping(source, destination):
+    reproject(source, destination)
+
+# Prefer: rasterio.warp is imported on first attribute access
+rasterio_warp = lazy_module("rasterio.warp")
+
+def mapping(source, destination):
+    rasterio_warp.reproject(source, destination)
+```
+
 ## Testing
 
 We use `pytest` to run unit tests. To run tests, run from the root of the repository:
