@@ -42,7 +42,7 @@ extras_require = {
         "beautifulsoup4>=4.6",
         "h5py>=2.9",
         "lxml>=6.1.0",
-        "rasterio>=1.4",
+        "rasterio>=1.5",
         "zarr>=2.3,<4",
         "numcodecs",
         "owslib",
