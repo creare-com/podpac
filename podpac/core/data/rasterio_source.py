@@ -62,7 +62,7 @@ class Rasterio(S3Mixin, BaseFileSource):
     aws_https = tl.Bool(True).tag(attr=True)
     prefer_overviews = tl.Bool(False).tag(attr=True)
     prefer_overviews_closest = tl.Bool(False).tag(attr=True)
-    _dataset = None
+    _dataset = tl.Instance("rasterio.io.DatasetReader", default_value=None, allow_none=True)
 
     @tl.default("coordinate_index_type")
     def _default_coordinate_index_type(self):
