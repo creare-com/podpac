@@ -1,7 +1,9 @@
+import sys
 import os.path
 from collections import OrderedDict
 
 import numpy as np
+import pytest
 import rasterio
 
 from podpac.core.coordinates import Coordinates
@@ -90,3 +92,85 @@ class TestRasterio(object):
             for a in ["lon", "lat"]:
                 assert np.isnan(data[a].coordinates).sum() == 0  # nan check
                 assert len(data[a]) == expected_values[i][a]  # guard against old issue of return being trimmed
+
+
+class TestRasterioFailSafe(object):
+    """Test that a failed open or read doesn't break later calls."""
+
+    source = os.path.join(os.path.dirname(__file__), "assets/RGB.byte.tif")
+
+    @pytest.fixture
+    def cache_clears(self, monkeypatch: pytest.MonkeyPatch) -> list:
+        """Record calls that clear GDAL's HTTP cache."""
+        cache = pytest.importorskip("rasterio.cache")
+        calls = []
+
+        def clear(pattern: str) -> None:
+            calls.append(pattern)
+
+        monkeypatch.setattr(cache, "invalidate", clear)
+        return calls
+
+    @pytest.fixture
+    def node(self) -> Rasterio:
+        """Single band rasterio node."""
+        return Rasterio(source=self.source, band=1)
+
+    @pytest.fixture
+    def expected(self) -> np.ndarray:
+        """Output of a read with no failures, from a separate node so ``node`` stays unopened."""
+        reference = Rasterio(source=self.source, band=1)
+        return reference.eval(reference.coordinates).data
+
+    def throw_once(self, monkeypatch: pytest.MonkeyPatch, target: object, name: str) -> None:
+        """Make ``target.name`` raise a RasterioIOError once then remaining calls return original method."""
+        original = getattr(target, name)
+        thrown = False
+
+        def _throw_sequence(*args, **kwargs):
+            nonlocal thrown
+            if not thrown:
+                thrown = True
+                raise rasterio.errors.RasterioIOError("simulated dropped response")
+
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(target, name, _throw_sequence)
+
+    def test_read_failure_resets(self, monkeypatch, cache_clears, node, expected):
+        """A failed read raises, drops the handle and GDAL's cache, and the next eval works."""
+        handle = node.dataset
+        self.throw_once(monkeypatch, rasterio.io.DatasetReader, "read")
+        with pytest.raises(rasterio.errors.RasterioIOError):
+            node.eval(node.coordinates)
+        assert cache_clears == [node.source]
+        assert handle.closed
+        data = node.eval(node.coordinates).data
+        np.testing.assert_array_equal(data, expected)
+        assert node.dataset is not handle
+
+    def test_read_failure_resets_without_invalidate(self, monkeypatch, node, expected):
+        """A failed read on rasterio < 1.5 raises and drops the handle, and the next eval works."""
+        monkeypatch.setitem(sys.modules, "rasterio.cache", None)
+        handle = node.dataset
+        self.throw_once(monkeypatch, rasterio.io.DatasetReader, "read")
+        with pytest.raises(rasterio.errors.RasterioIOError):
+            node.eval(node.coordinates)
+        assert handle.closed
+        data = node.eval(node.coordinates).data
+        np.testing.assert_array_equal(data, expected)
+
+    def test_open_failure_resets(self, monkeypatch, node, expected):
+        """A failed open raises, and the next access works."""
+        self.throw_once(monkeypatch, rasterio, "open")
+        with pytest.raises(rasterio.errors.RasterioIOError):
+            node.dataset
+        data = node.eval(node.coordinates).data
+        np.testing.assert_array_equal(data, expected)
+
+    def test_close_dataset_reopens(self, node, expected):
+        """The dataset is reopened after close_dataset."""
+        node.dataset
+        node.close_dataset()
+        data = node.eval(node.coordinates).data
+        np.testing.assert_array_equal(data, expected)

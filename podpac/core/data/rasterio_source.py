@@ -8,6 +8,7 @@ import traitlets as tl
 import numpy as np
 import pyproj
 import logging
+import contextlib
 
 from lazy_import import lazy_module
 
@@ -61,6 +62,7 @@ class Rasterio(S3Mixin, BaseFileSource):
     aws_https = tl.Bool(True).tag(attr=True)
     prefer_overviews = tl.Bool(False).tag(attr=True)
     prefer_overviews_closest = tl.Bool(False).tag(attr=True)
+    _dataset = tl.Instance("rasterio.io.DatasetReader", default_value=None, allow_none=True)
 
     @tl.default("coordinate_index_type")
     def _default_coordinate_index_type(self):
@@ -69,31 +71,43 @@ class Rasterio(S3Mixin, BaseFileSource):
         else:
             return "slice"
 
-    @cached_property
+    @property
     def dataset(self):
-        return self.open_dataset(self.source)
+        if self._dataset is None or self._dataset.closed:
+            self._dataset = self.open_dataset(self.source)
+        return self._dataset
+
+    def _env(self, source):
+        """Rasterio environment for accessing the source.
+
+        Returns
+        -------
+        rasterio.env.Env | contextlib.nullcontext
+            Context manager for environment.
+        """
+        if not source.startswith("s3://"):
+            return contextlib.nullcontext()
+
+        envargs = {"AWS_HTTPS": self.aws_https}
+        if self.aws_get_auth_from_env:
+            envargs["session"] = rasterio.session.AWSSession()
+        else:
+            envargs["session"] = rasterio.session.AWSSession(
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key,
+                region_name=self.aws_region_name,
+                requester_pays=self.aws_requester_pays,
+                aws_unsigned=self.anon,
+            )
+        return rasterio.env.Env(**envargs)
 
     def open_dataset(self, source, overview_level=None):
-        envargs = {"AWS_HTTPS": self.aws_https}
         kwargs = {}
         if overview_level is not None:
             kwargs = {"overview_level": overview_level}
-        if source.startswith("s3://"):
-            if self.aws_get_auth_from_env:
-                envargs["session"] = rasterio.session.AWSSession()
-            else:
-                envargs["session"] = rasterio.session.AWSSession(
-                    aws_access_key_id=self.aws_access_key_id,
-                    aws_secret_access_key=self.aws_secret_access_key,
-                    region_name=self.aws_region_name,
-                    requester_pays=self.aws_requester_pays,
-                    aws_unsigned=self.anon,
-                )
-
-            with rasterio.env.Env(**envargs) as env:
+        with self._env(source) as env:
+            if env is not None:
                 _logger.debug("Rasterio environment options: {}".format(env.options))
-                return rasterio.open(source, **kwargs)
-        else:
             return rasterio.open(source, **kwargs)
 
     @tl.default("band")
@@ -114,8 +128,43 @@ class Rasterio(S3Mixin, BaseFileSource):
         return np.unique(np.array(self.dataset.nodatavals).astype(self.dtype)).tolist()
 
     def close_dataset(self):
-        """Closes the file for the datasource"""
-        self.dataset.close()
+        """Closes the file for the datasource."""
+        if self._dataset is not None:
+            self._dataset.close()
+
+    def _read(self, dataset, *args, **kwargs):
+        """Read data from the source.
+
+        If the read fails, the handle is closed and GDAL's HTTP cache is cleared (rasterio>=1.5) before
+        the error is raised. A dropped or truncated HTTP response can be cached by GDAL in both the open handle
+        and its process-wide HTTP cache, so without dropping them every later read of the affected tiles
+        could keep failing.
+
+        Parameters
+        ----------
+        dataset : rasterio.io.DatasetReader
+            The open dataset to read from.
+        *args, **kwargs
+            Passed to rasterio data reader.
+
+        Returns
+        -------
+        np.ndarray
+            The data read.
+        """
+        try:
+            return dataset.read(*args, **kwargs)
+        except rasterio.errors.RasterioIOError:
+            try:
+                from rasterio.cache import invalidate
+            except ImportError:  # rasterio < 1.5
+                invalidate = None
+
+            if invalidate is not None:
+                with self._env(self.source):
+                    invalidate(self.source)
+            dataset.close()
+            raise
 
     @common_doc(COMMON_DATA_DOC)
     def get_coordinates(self):
@@ -157,10 +206,12 @@ class Rasterio(S3Mixin, BaseFileSource):
         window = ((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
 
         if self.outputs is not None:  # read all the bands
-            raster_data = self.dataset.read(out_shape=(len(self.outputs),) + tuple(coordinates.shape), window=window)
+            raster_data = self._read(
+                self.dataset, out_shape=(len(self.outputs),) + tuple(coordinates.shape), window=window
+            )
             raster_data = np.moveaxis(raster_data, 0, 2)
         else:  # read the requested band
-            raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape)[:2], window=window)
+            raster_data = self._read(self.dataset, self.band, out_shape=tuple(coordinates.shape)[:2], window=window)
 
         # set raster data to output array
         data.data.ravel()[:] = raster_data.ravel()
@@ -224,19 +275,20 @@ class Rasterio(S3Mixin, BaseFileSource):
 
             # The following lines are *nearly* copied/pasted from get_data
             if self.outputs is not None:  # read all the bands
-                raster_data = dataset.read(out_shape=(len(self.outputs),) + coordinates_shape, window=window)
+                raster_data = self._read(dataset, out_shape=(len(self.outputs),) + coordinates_shape, window=window)
                 raster_data = np.moveaxis(raster_data, 0, 2)
             else:  # read the requested band
-                raster_data = dataset.read(self.band, out_shape=coordinates_shape, window=window)
+                raster_data = self._read(dataset, self.band, out_shape=coordinates_shape, window=window)
 
             # set raster data to output array
             data = self.create_output_array(new_coords)
             data.data.ravel()[:] = raster_data.ravel()
         except (rasterio.errors.RasterioError, OSError, ValueError, IndexError, MemoryError) as e:
             _logger.exception("Error occurred when reading overview with Rasterio: {}".format(e))
-
-        if overview_level is not None:
-            dataset.close()
+            raise
+        finally:
+            if overview_level is not None:
+                dataset.close()
 
         return data
 
