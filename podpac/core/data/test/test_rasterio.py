@@ -150,7 +150,7 @@ class TestRasterioFailSafe(object):
 
     def test_open_failure_resets(self, monkeypatch, node, expected):
         """A failed open raises, and the next access works."""
-        self.throw_once(monkeypatch, rasterio, "open", 1)
+        self.throw_once(monkeypatch, rasterio, "open")
         with pytest.raises(rasterio.errors.RasterioIOError):
             node.dataset
         data = node.eval(node.coordinates).data
