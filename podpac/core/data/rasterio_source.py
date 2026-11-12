@@ -135,8 +135,8 @@ class Rasterio(S3Mixin, BaseFileSource):
     def _read(self, dataset, *args, **kwargs):
         """Read data from the source.
 
-        If the read fails, the handle is closed and GDAL's HTTP cache is cleared before the error
-        is raised. A dropped or truncated HTTP response can be cached by GDAL in both the open handle
+        If the read fails, the handle is closed and GDAL's HTTP cache is cleared (rasterio>=1.5) before
+        the error is raised. A dropped or truncated HTTP response can be cached by GDAL in both the open handle
         and its process-wide HTTP cache, so without dropping them every later read of the affected tiles
         could keep failing.
 
@@ -155,10 +155,14 @@ class Rasterio(S3Mixin, BaseFileSource):
         try:
             return dataset.read(*args, **kwargs)
         except rasterio.errors.RasterioIOError:
-            from rasterio.cache import invalidate
+            try:
+                from rasterio.cache import invalidate
+            except ImportError:  # rasterio < 1.5
+                invalidate = None
 
-            with self._env(self.source):
-                invalidate(self.source)
+            if invalidate is not None:
+                with self._env(self.source):
+                    invalidate(self.source)
             dataset.close()
             raise
 

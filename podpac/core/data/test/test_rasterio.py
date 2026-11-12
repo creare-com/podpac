@@ -1,10 +1,10 @@
+import sys
 import os.path
 from collections import OrderedDict
 
 import numpy as np
 import pytest
 import rasterio
-import rasterio.cache
 
 from podpac.core.coordinates import Coordinates
 from podpac.core.units import UnitsDataArray
@@ -102,12 +102,13 @@ class TestRasterioFailSafe(object):
     @pytest.fixture
     def cache_clears(self, monkeypatch: pytest.MonkeyPatch) -> list:
         """Record calls that clear GDAL's HTTP cache."""
+        cache = pytest.importorskip("rasterio.cache")
         calls = []
 
         def clear(pattern: str) -> None:
             calls.append(pattern)
 
-        monkeypatch.setattr(rasterio.cache, "invalidate", clear)
+        monkeypatch.setattr(cache, "invalidate", clear)
         return calls
 
     @pytest.fixture
@@ -147,6 +148,17 @@ class TestRasterioFailSafe(object):
         data = node.eval(node.coordinates).data
         np.testing.assert_array_equal(data, expected)
         assert node.dataset is not handle
+
+    def test_read_failure_resets_without_invalidate(self, monkeypatch, node, expected):
+        """A failed read on rasterio < 1.5 raises and drops the handle, and the next eval works."""
+        monkeypatch.setitem(sys.modules, "rasterio.cache", None)
+        handle = node.dataset
+        self.throw_once(monkeypatch, rasterio.io.DatasetReader, "read")
+        with pytest.raises(rasterio.errors.RasterioIOError):
+            node.eval(node.coordinates)
+        assert handle.closed
+        data = node.eval(node.coordinates).data
+        np.testing.assert_array_equal(data, expected)
 
     def test_open_failure_resets(self, monkeypatch, node, expected):
         """A failed open raises, and the next access works."""
