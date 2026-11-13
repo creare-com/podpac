@@ -1,5 +1,6 @@
 import os.path
 from collections import OrderedDict
+from unittest.mock import patch
 
 import numpy as np
 import rasterio
@@ -29,9 +30,8 @@ class TestRasterio(object):
             raster_reader = rasterio._io.RasterReader  # Rasterio < v1.0
         except AttributeError:
             raster_reader = rasterio.io.DatasetReader  # Rasterio >= v1.0
-        assert isinstance(node.dataset, raster_reader)
-
-        node.close_dataset()
+        with node.dataset as dataset:
+            assert isinstance(dataset, raster_reader)
 
     def test_coordinates(self):
         """test default coordinates implementations"""
@@ -90,3 +90,22 @@ class TestRasterio(object):
             for a in ["lon", "lat"]:
                 assert np.isnan(data[a].coordinates).sum() == 0  # nan check
                 assert len(data[a]) == expected_values[i][a]  # guard against old issue of return being trimmed
+
+    def test_dataset_opens_on_each_access(self):
+        """test each dataset access opens the dataset."""
+        node = Rasterio(source=self.source, band=self.band)
+        with node.dataset as first, node.dataset as second:
+            assert first is not second
+
+    def test_metadata_reads_from_one_dataset(self):
+        """test metadata is stored from a single dataset open."""
+        node = Rasterio(source=self.source, band=self.band)
+        node.coordinates
+        with patch.object(Rasterio, "open_dataset") as open_dataset:
+            assert isinstance(node.nan_vals, list)
+            assert isinstance(node.overviews, list)
+            assert isinstance(node.subdatasets, list)
+            assert node.tags == {"AREA_OR_POINT": "Area"}
+            assert node.band_count == len(node.band_descriptions) == 3
+
+        open_dataset.assert_not_called()

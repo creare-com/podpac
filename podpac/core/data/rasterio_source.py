@@ -61,6 +61,7 @@ class Rasterio(S3Mixin, BaseFileSource):
     aws_https = tl.Bool(True).tag(attr=True)
     prefer_overviews = tl.Bool(False).tag(attr=True)
     prefer_overviews_closest = tl.Bool(False).tag(attr=True)
+    _metadata = tl.Dict()
 
     @tl.default("coordinate_index_type")
     def _default_coordinate_index_type(self):
@@ -69,9 +70,41 @@ class Rasterio(S3Mixin, BaseFileSource):
         else:
             return "slice"
 
-    @cached_property
+    @property
     def dataset(self):
+        """Newly opened dataset.
+
+        Rasterio freezes AWS credentials into a handle at open. Credentials from the environment may rotate,
+        so the dataset is not cached.
+
+        Returns
+        -------
+        rasterio.io.DatasetReader
+            Open dataset, which should be closed when done.
+        """
         return self.open_dataset(self.source)
+
+    @tl.default("_metadata")
+    def _metadata_default(self):
+        """Header metadata, read once from a dataset that is closed straight after.
+
+        Returns
+        -------
+        dict
+            Metadata for the source.
+        """
+        with self.dataset as dataset:
+            return {
+                "transform": dataset.transform,
+                "crs": dataset.crs,
+                "shape": dataset.shape,
+                "nodatavals": dataset.nodatavals,
+                "count": dataset.count,
+                "tags": dataset.tags(),
+                "band_tags": [dataset.tags(i) for i in dataset.indexes],
+                "subdatasets": dataset.subdatasets,
+                "overviews": {i: dataset.overviews(i) for i in dataset.indexes},
+            }
 
     def open_dataset(self, source, overview_level=None):
         envargs = {"AWS_HTTPS": self.aws_https}
@@ -111,11 +144,7 @@ class Rasterio(S3Mixin, BaseFileSource):
 
     @cached_property
     def nan_vals(self):
-        return np.unique(np.array(self.dataset.nodatavals).astype(self.dtype)).tolist()
-
-    def close_dataset(self):
-        """Closes the file for the datasource"""
-        self.dataset.close()
+        return np.unique(np.array(self._metadata["nodatavals"]).astype(self.dtype)).tolist()
 
     @common_doc(COMMON_DATA_DOC)
     def get_coordinates(self):
@@ -127,22 +156,21 @@ class Rasterio(S3Mixin, BaseFileSource):
         """
 
         # check to see if the coordinates are rotated used affine
-        affine = self.dataset.transform
+        affine = self._metadata["transform"]
+        dataset_crs = self._metadata["crs"]
         validate_crs = True
         if self.crs is not None:
             crs = self.crs
-        elif (
-            isinstance(self.dataset.crs, rasterio.crs.CRS) or isinstance(self.dataset.crs, dict)
-        ) and "init" in self.dataset.crs:
-            crs = self.dataset.crs["init"].upper()
+        elif (isinstance(dataset_crs, rasterio.crs.CRS) or isinstance(dataset_crs, dict)) and "init" in dataset_crs:
+            crs = dataset_crs["init"].upper()
             validate_crs = False
         else:
             try:
-                crs = pyproj.CRS(self.dataset.crs).to_wkt()
+                crs = pyproj.CRS(dataset_crs).to_wkt()
             except pyproj.exceptions.CRSError:
-                raise RuntimeError("Unexpected rasterio crs '%s'" % self.dataset.crs)
+                raise RuntimeError("Unexpected rasterio crs '%s'" % dataset_crs)
 
-        return Coordinates.from_geotransform(affine.to_gdal(), self.dataset.shape, crs, validate_crs)
+        return Coordinates.from_geotransform(affine.to_gdal(), self._metadata["shape"], crs, validate_crs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -156,11 +184,12 @@ class Rasterio(S3Mixin, BaseFileSource):
         # read data within coordinates_index window
         window = ((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
 
-        if self.outputs is not None:  # read all the bands
-            raster_data = self.dataset.read(out_shape=(len(self.outputs),) + tuple(coordinates.shape), window=window)
-            raster_data = np.moveaxis(raster_data, 0, 2)
-        else:  # read the requested band
-            raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape)[:2], window=window)
+        with self.dataset as dataset:
+            if self.outputs is not None:  # read all the bands
+                raster_data = dataset.read(out_shape=(len(self.outputs),) + tuple(coordinates.shape), window=window)
+                raster_data = np.moveaxis(raster_data, 0, 2)
+            else:  # read the requested band
+                raster_data = dataset.read(self.band, out_shape=tuple(coordinates.shape)[:2], window=window)
 
         # set raster data to output array
         data.data.ravel()[:] = raster_data.ravel()
@@ -204,39 +233,34 @@ class Rasterio(S3Mixin, BaseFileSource):
             overview_level = np.argmin(diffs)
 
         # Now read the data
-        if overview_level is None:
-            dataset = self.dataset
-        else:
-            dataset = self.open_dataset(self.source, overview_level)
-        try:
-            # read data within coordinates_index window at the resolution of the overview
-            # Rasterio will then automatically pull from the overview
+        with self.open_dataset(self.source, overview_level) as dataset:
+            try:
+                # read data within coordinates_index window at the resolution of the overview
+                # Rasterio will then automatically pull from the overview
 
-            new_coords = Coordinates.from_geotransform(
-                dataset.transform.to_gdal(), dataset.shape, crs=self.coordinates.crs
-            )
-            window, new_coords = self._get_window_coords(coordinates, new_coords)
-            missing_coords = self.coordinates.drop(["lat", "lon"])
+                new_coords = Coordinates.from_geotransform(
+                    dataset.transform.to_gdal(), dataset.shape, crs=self.coordinates.crs
+                )
+                window, new_coords = self._get_window_coords(coordinates, new_coords)
+                missing_coords = self.coordinates.drop(["lat", "lon"])
 
-            new_coords = merge_dims([new_coords, missing_coords])
-            new_coords = new_coords.transpose(*self.coordinates.dims)
-            coordinates_shape = new_coords.shape[:2]
+                new_coords = merge_dims([new_coords, missing_coords])
+                new_coords = new_coords.transpose(*self.coordinates.dims)
+                coordinates_shape = new_coords.shape[:2]
 
-            # The following lines are *nearly* copied/pasted from get_data
-            if self.outputs is not None:  # read all the bands
-                raster_data = dataset.read(out_shape=(len(self.outputs),) + coordinates_shape, window=window)
-                raster_data = np.moveaxis(raster_data, 0, 2)
-            else:  # read the requested band
-                raster_data = dataset.read(self.band, out_shape=coordinates_shape, window=window)
+                # The following lines are *nearly* copied/pasted from get_data
+                if self.outputs is not None:  # read all the bands
+                    raster_data = dataset.read(out_shape=(len(self.outputs),) + coordinates_shape, window=window)
+                    raster_data = np.moveaxis(raster_data, 0, 2)
+                else:  # read the requested band
+                    raster_data = dataset.read(self.band, out_shape=coordinates_shape, window=window)
 
-            # set raster data to output array
-            data = self.create_output_array(new_coords)
-            data.data.ravel()[:] = raster_data.ravel()
-        except (rasterio.errors.RasterioError, OSError, ValueError, IndexError, MemoryError) as e:
-            _logger.exception("Error occurred when reading overview with Rasterio: {}".format(e))
-
-        if overview_level is not None:
-            dataset.close()
+                # set raster data to output array
+                data = self.create_output_array(new_coords)
+                data.data.ravel()[:] = raster_data.ravel()
+            except (rasterio.errors.RasterioError, OSError, ValueError, IndexError, MemoryError) as e:
+                _logger.exception("Error occurred when reading overview with Rasterio: {}".format(e))
+                raise
 
         return data
 
@@ -246,21 +270,21 @@ class Rasterio(S3Mixin, BaseFileSource):
 
     @property
     def overviews(self):
-        return self.dataset.overviews(self.band)
+        return self._metadata["overviews"][self.band]
 
     @property
     def tags(self):
-        return self.dataset.tags()
+        return self._metadata["tags"]
 
     @property
     def subdatasets(self):
-        return self.dataset.subdatasets
+        return self._metadata["subdatasets"]
 
     @property
     def band_count(self):
         """The number of bands"""
 
-        return self.dataset.count
+        return self._metadata["count"]
 
     @cached_property
     def band_descriptions(self):
@@ -273,7 +297,7 @@ class Rasterio(S3Mixin, BaseFileSource):
             containing a number of keys -- depending on the metadata
         """
 
-        return OrderedDict((i, self.dataset.tags(i + 1)) for i in range(self.band_count))
+        return OrderedDict(enumerate(self._metadata["band_tags"]))
 
     @cached_property
     def band_keys(self):
