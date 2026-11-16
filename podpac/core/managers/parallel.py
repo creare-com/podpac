@@ -19,7 +19,7 @@ from podpac.core.data.zarr_compat import create_zarr_array
 from podpac.core.coordinates import Coordinates, merge_dims
 
 # Optional dependencies
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 
 zarr = lazy_module("zarr")
 try:

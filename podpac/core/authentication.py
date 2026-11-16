@@ -7,7 +7,7 @@ import logging
 
 import requests
 import traitlets as tl
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 from urllib.parse import urlparse
 
 from podpac.core.settings import settings

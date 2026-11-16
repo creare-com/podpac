@@ -4,9 +4,9 @@ from collections import OrderedDict
 
 import numpy as np
 import traitlets as tl
-import lazy_import
+from podpac.core.lazy_loading import lazy_module
 
-rasterio = lazy_import.lazy_module("rasterio")
+rasterio = lazy_module("rasterio")
 
 from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.coordinates1d import Coordinates1d

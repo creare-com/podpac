@@ -1,7 +1,7 @@
 import os
 import traitlets as tl
 
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 
 zarr = lazy_module("zarr")
 

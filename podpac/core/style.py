@@ -2,14 +2,13 @@ from __future__ import division, print_function, absolute_import
 
 import json
 import six
+import traitlets as tl
 from collections import OrderedDict
 
-import traitlets as tl
-import matplotlib
-import matplotlib.cm
-from matplotlib.colors import ListedColormap
-
+from podpac.core.lazy_loading import lazy_module
 from podpac.core.utils import JSONEncoder
+
+matplotlib = lazy_module("matplotlib")
 
 DEFAULT_ENUMERATION_LEGEND = "unknown"
 DEFAULT_ENUMERATION_COLOR = (0.2, 0.2, 0.2)
@@ -109,7 +108,7 @@ class Style(tl.HasTraits):
                 # Need for matplotlib prior to 3.5
                 return matplotlib.cm.get_cmap(self.colormap)
         elif self.enumeration_colors:
-            return ListedColormap(self.full_enumeration_colors)
+            return matplotlib.colors.ListedColormap(self.full_enumeration_colors)
         else:
             try:
                 return matplotlib.colormaps["viridis"]

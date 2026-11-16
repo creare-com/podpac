@@ -3,7 +3,7 @@ import os.path
 import numpy as np
 import traitlets as tl
 
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 
 gdal = lazy_module("osgeo.gdal")
 ogr = lazy_module("osgeo.ogr")
