@@ -80,7 +80,8 @@ class Rasterio(S3Mixin, BaseFileSource):
             kwargs = {"overview_level": overview_level}
         if source.startswith("s3://"):
             if self.aws_get_auth_from_env:
-                envargs["session"] = rasterio.session.AWSSession()
+                # let GDAL find and refresh credentials itself
+                envargs["session"] = rasterio.session.DummySession()
             else:
                 envargs["session"] = rasterio.session.AWSSession(
                     aws_access_key_id=self.aws_access_key_id,
@@ -92,7 +93,8 @@ class Rasterio(S3Mixin, BaseFileSource):
 
             with rasterio.env.Env(**envargs) as env:
                 _logger.debug("Rasterio environment options: {}".format(env.options))
-                return rasterio.open(source, **kwargs)
+                # /vsis3/ stops rasterio from injecting a boto3 session with frozen credentials
+                return rasterio.open("/vsis3/" + source[len("s3://") :], **kwargs)
         else:
             return rasterio.open(source, **kwargs)
 
