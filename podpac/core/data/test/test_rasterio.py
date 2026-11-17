@@ -106,7 +106,6 @@ class TestRasterio(object):
     def test_open_s3_env_token_file(self, monkeypatch, tmp_path):
         """test GDAL resolves the token itself"""
         monkeypatch.setenv("GDAL_HTTP_PROXY", "invalid://proxy")
-        monkeypatch.setenv("AWS_ENDPOINT_URL_STS", "invalid://sts")
         token_file = tmp_path / "token"
         token_file.write_text("token")
         monkeypatch.setenv("AWS_WEB_IDENTITY_TOKEN_FILE", str(token_file))
