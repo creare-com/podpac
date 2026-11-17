@@ -100,7 +100,7 @@ class TestRasterio(object):
     def test_metadata_reads_from_one_dataset(self):
         """test metadata is stored from a single dataset open."""
         node = Rasterio(source=self.source, band=self.band)
-        node.coordinates
+        _ = node._metadata  # read once
         with patch.object(Rasterio, "open_dataset") as open_dataset:
             assert isinstance(node.nan_vals, list)
             assert isinstance(node.overviews, list)
