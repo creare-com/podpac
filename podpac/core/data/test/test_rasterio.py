@@ -2,7 +2,9 @@ import os.path
 from collections import OrderedDict
 
 import numpy as np
+import pytest
 import rasterio
+from rasterio.errors import RasterioIOError
 
 from podpac.core.coordinates import Coordinates
 from podpac.core.units import UnitsDataArray
@@ -90,3 +92,25 @@ class TestRasterio(object):
             for a in ["lon", "lat"]:
                 assert np.isnan(data[a].coordinates).sum() == 0  # nan check
                 assert len(data[a]) == expected_values[i][a]  # guard against old issue of return being trimmed
+
+    def test_open_s3_env_keys(self, monkeypatch):
+        """test GDAL finds env keys"""
+        monkeypatch.setenv("GDAL_HTTP_PROXY", "invalid://proxy")
+        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "key")
+        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "value")
+        source = Rasterio(aws_get_auth_from_env=True)
+        # Raises on proxy instead of InvalidCredentials
+        with pytest.raises(RasterioIOError, match="proxy"):
+            source.open_dataset("s3://bucket/key.tif")
+
+    def test_open_s3_env_token_file(self, monkeypatch, tmp_path):
+        """test GDAL resolves the token itself"""
+        monkeypatch.setenv("GDAL_HTTP_PROXY", "invalid://proxy")
+        token_file = tmp_path / "token"
+        token_file.write_text("token")
+        monkeypatch.setenv("AWS_WEB_IDENTITY_TOKEN_FILE", str(token_file))
+        monkeypatch.setenv("AWS_ROLE_ARN", "arn")
+        source = Rasterio(aws_get_auth_from_env=True)
+        # Raises a RasterioIOError not a botocore error
+        with pytest.raises(RasterioIOError):
+            source.open_dataset("s3://bucket/key.tif")
