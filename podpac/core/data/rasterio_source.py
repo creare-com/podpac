@@ -1,7 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from collections import OrderedDict
-from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
 from six import string_types
 import traitlets as tl
@@ -43,8 +42,8 @@ class Rasterio(S3Mixin, BaseFileSource):
     aws_https: bool
         Default is True. If False, will not use https when reading from AWS. This is useful for debugging when SSL certificates are invalid.
     prefer_overviews: bool, optional
-        Default is False. If True, will pull data from an overview with the closest resolution (step size) matching the smallest resolution
-        in the request.
+        Default is False. If True, will pull data from an overview with the closest resolution (step size) matching the
+        median resolution in the request.
     prefer_overviews_closest: bool, optional
         Default is False. If True, will find the closest overview instead of the closest
 
@@ -57,17 +56,11 @@ class Rasterio(S3Mixin, BaseFileSource):
     crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
 
     driver = tl.Unicode(allow_none=True, default_value=None)
-    coordinate_index_type = tl.Unicode()
     aws_https = tl.Bool(True).tag(attr=True)
     prefer_overviews = tl.Bool(False).tag(attr=True)
     prefer_overviews_closest = tl.Bool(False).tag(attr=True)
-
-    @tl.default("coordinate_index_type")
-    def _default_coordinate_index_type(self):
-        if self.prefer_overviews:
-            return "numpy"
-        else:
-            return "slice"
+    coordinate_index_type = tl.Unicode("slice")
+    _overview_grids: "tl.Dict[int, Coordinates]" = tl.Dict()  # overview grids read so far, keyed by level
 
     @cached_property
     def dataset(self):
@@ -149,9 +142,6 @@ class Rasterio(S3Mixin, BaseFileSource):
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}"""
-        if self.prefer_overviews:
-            return self.get_data_overviews(coordinates)
-
         data = self.create_output_array(coordinates)
         slc = coordinates_index
 
@@ -173,74 +163,93 @@ class Rasterio(S3Mixin, BaseFileSource):
         window = ((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
         return window, new_coords
 
-    def get_data_overviews(self, coordinates):
+    def _eval(self, coordinates, output=None, _selector=None):
+        if self.prefer_overviews:
+            # select from the overview grid instead of the full-resolution grid
+            grid = self._overview_grid(self._overview_level(coordinates))
+            scale = [n / m for n, m in zip(self.coordinates.shape, grid.shape)]
+            selector = _selector
+
+            def overview_selector(source_coordinates, request_coordinates, index_type=None):  # NOSONAR(S1172)
+                if selector is None:
+                    # no interpolator: read the overview pixels within the request bounds
+                    selected, index = grid.intersect(request_coordinates, outer=True, return_index=True)
+                else:
+                    selected, index = selector(grid, request_coordinates, index_type="slice")
+                if selected.size == 0:
+                    return selected, index
+                # drop any step so the coordinates cover whole window which get_data reads
+                index = tuple(slice(*i.indices(n)[:2]) for i, n in zip(index, grid.shape))
+                # full-resolution window aligned to the overview, which get_data reads at the overview size
+                window = tuple(slice(i.start * s, i.stop * s) for i, s in zip(index, scale))
+                return grid[index], window
+
+            return super()._eval(coordinates, output=output, _selector=overview_selector)
+
+        return super()._eval(coordinates, output=output, _selector=_selector)
+
+    def _overview_grid(self, level: int | None) -> Coordinates:
+        """Get the grid of an overview level.
+
+        The overview is opened once to read its exact shape and transform, then the grid is kept in `_overview_grids`.
+
+        Parameters
+        ----------
+        level : int | None
+            Index into `overviews`, or None for full resolution.
+
+        Returns
+        -------
+        Coordinates
+            Overview grid, with any non-spatial dims of the source. The source coordinates if level is None.
+        """
+        if level is None:
+            return self.coordinates
+        if level not in self._overview_grids:
+            with self.open_dataset(self.source, level) as dataset:
+                grid = Coordinates.from_geotransform(dataset.transform.to_gdal(), dataset.shape, self.coordinates.crs)
+            # keep any non-spatial dims of the source
+            grid = merge_dims([grid, self.coordinates.drop(["lat", "lon"])])
+            self._overview_grids[level] = grid.transpose(*self.coordinates.dims)
+        return self._overview_grids[level]
+
+    def _overview_level(self, coordinates: Coordinates) -> int | None:
+        """Find the overview matching the median request resolution.
+
+        Parameters
+        ----------
+        coordinates : :class:`podpac.Coordinates`
+            Requested coordinates, already transformed to the source crs.
+
+        Returns
+        -------
+        int | None
+            Index into `overviews` of the overview to read, or None to read full resolution.
+        """
+        if not isinstance(self.coordinates["lat"], UniformCoordinates1d):
+            return None
+
         # Figure out how much coarser the request is than the actual data
         reduction_factor = np.inf
         for c in ["lat", "lon"]:
-            crd = coordinates[c]
-            if crd.size == 1:
+            values = np.unique(coordinates[c].coordinates)
+            if values.size == 1:
                 reduction_factor = 0
                 break
-            if isinstance(crd, UniformCoordinates1d):
-                min_delta = crd.step
-            elif isinstance(crd, ArrayCoordinates1d) and crd.is_monotonic:
-                min_delta = crd.deltas.min()
-            else:
-                raise NotImplementedError(
-                    "The Rasterio node with prefer_overviews=True currently does not support request coordinates type {}".format(
-                        coordinates
-                    )
-                )
-            reduction_factor = min(
-                reduction_factor, np.abs(min_delta / self.coordinates[c].step)  # self.coordinates is always uniform
-            )
+            # median ignores outliers due to fine steps near the poles in web mercator or gaps between clustered points
+            min_delta = np.median(np.diff(values))
+            reduction_factor = min(reduction_factor, np.abs(min_delta / self.coordinates[c].step))
+
         # Find the overview that's closest to this reduction factor
-        if (reduction_factor < 2) or (len(self.overviews) == 0):  # Then we shouldn't use an overview
-            overview_level = None
+        eps = 1e-6  # round-off, so an exact match isn't skipped for the next finer overview
+        if (reduction_factor < 2 - eps) or (len(self.overviews) == 0):
+            return None
+        diffs = reduction_factor - np.array(self.overviews)
+        if self.prefer_overviews_closest:
+            diffs = np.abs(diffs)
         else:
-            diffs = reduction_factor - np.array(self.overviews)
-            if self.prefer_overviews_closest:
-                diffs = np.abs(diffs)
-            else:
-                diffs[diffs < 0] = np.inf
-            overview_level = np.argmin(diffs)
-
-        # Now read the data
-        if overview_level is None:
-            dataset = self.dataset
-        else:
-            dataset = self.open_dataset(self.source, overview_level)
-        try:
-            # read data within coordinates_index window at the resolution of the overview
-            # Rasterio will then automatically pull from the overview
-
-            new_coords = Coordinates.from_geotransform(
-                dataset.transform.to_gdal(), dataset.shape, crs=self.coordinates.crs
-            )
-            window, new_coords = self._get_window_coords(coordinates, new_coords)
-            missing_coords = self.coordinates.drop(["lat", "lon"])
-
-            new_coords = merge_dims([new_coords, missing_coords])
-            new_coords = new_coords.transpose(*self.coordinates.dims)
-            coordinates_shape = new_coords.shape[:2]
-
-            # The following lines are *nearly* copied/pasted from get_data
-            if self.outputs is not None:  # read all the bands
-                raster_data = dataset.read(out_shape=(len(self.outputs),) + coordinates_shape, window=window)
-                raster_data = np.moveaxis(raster_data, 0, 2)
-            else:  # read the requested band
-                raster_data = dataset.read(self.band, out_shape=coordinates_shape, window=window)
-
-            # set raster data to output array
-            data = self.create_output_array(new_coords)
-            data.data.ravel()[:] = raster_data.ravel()
-        except (rasterio.errors.RasterioError, OSError, ValueError, IndexError, MemoryError) as e:
-            _logger.exception("Error occurred when reading overview with Rasterio: {}".format(e))
-
-        if overview_level is not None:
-            dataset.close()
-
-        return data
+            diffs[diffs < -eps] = np.inf
+        return int(np.argmin(diffs))
 
     # -------------------------------------------------------------------------
     # additional methods and properties
@@ -248,7 +257,8 @@ class Rasterio(S3Mixin, BaseFileSource):
 
     @property
     def overviews(self):
-        return self.dataset.overviews(self.band)
+        # all bands share overview factors, so use the first band when reading all of them
+        return self.dataset.overviews(self.band if self.band is not None else 1)
 
     @property
     def tags(self):

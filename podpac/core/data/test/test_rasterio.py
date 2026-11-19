@@ -4,11 +4,14 @@ from collections import OrderedDict
 import numpy as np
 import pytest
 import rasterio
+from unittest.mock import patch
 from rasterio.errors import RasterioIOError
-
-from podpac.core.coordinates import Coordinates
+from rasterio import transform as RasterioTransform
+from rasterio.enums import Resampling
+from podpac.core.coordinates import Coordinates, merge_dims
 from podpac.core.units import UnitsDataArray
 from podpac.core.data.rasterio_source import Rasterio
+from podpac.core.interpolation.interpolation import Interpolate
 from podpac import clinspace
 
 
@@ -114,3 +117,146 @@ class TestRasterio(object):
         # Raises a RasterioIOError not a botocore error
         with pytest.raises(RasterioIOError):
             source.open_dataset("s3://bucket/key.tif")
+
+
+class TestRasterioOverviews(object):
+    """test prefer_overviews reads the overview matching the request resolution"""
+
+    @pytest.fixture
+    def source(self, tmp_path):
+        """raster with averaged overviews, so overview pixels differ from full-resolution pixels"""
+        path = str(tmp_path / "source.tif")
+        transform = RasterioTransform.from_origin(-180, 90, 360 / 512, 180 / 256)
+        with rasterio.open(
+            path,
+            "w",
+            driver="GTiff",
+            height=256,
+            width=512,
+            count=1,
+            dtype="float64",
+            crs="EPSG:4326",
+            transform=transform,
+            tiled=True,
+            blockxsize=128,
+            blockysize=128,
+        ) as dataset:
+            dataset.write(np.arange(256 * 512, dtype=float).reshape(256, 512) ** 1.5, 1)
+            dataset.build_overviews([2, 4], Resampling.average)
+        return path
+
+    @pytest.fixture
+    def overview(self, source, tmp_path):
+        """the factor 4 overview of source (level 1), as its own file"""
+        path = str(tmp_path / "overview.tif")
+        with rasterio.open(source, overview_level=1) as dataset:
+            data = dataset.read(1)
+            transform = dataset.transform
+        with rasterio.open(
+            path,
+            "w",
+            driver="GTiff",
+            height=data.shape[0],
+            width=data.shape[1],
+            count=1,
+            dtype="float64",
+            crs="EPSG:4326",
+            transform=transform,
+        ) as dataset:
+            dataset.write(data, 1)
+        return path
+
+    @pytest.fixture
+    def coarse(self):
+        """request about 6x coarser than source, which selects the factor 4 overview (level 1)"""
+        return Coordinates([clinspace(80, -80, 40, "lat"), clinspace(-170, 170, 80, "lon")])
+
+    def assert_overview_level(self, node, coordinates, level):
+        assert node._overview_level(coordinates.transform(node.coordinates.crs)) == level
+
+    def assert_interpolated_equal(self, node, expected_node, coordinates, interpolation):
+        output = Interpolate(source=node, interpolation=interpolation).eval(coordinates)
+        expected = Interpolate(source=expected_node, interpolation=interpolation).eval(coordinates)
+        np.testing.assert_allclose(output.data, expected.data, rtol=1e-12)
+
+    def test_nearest(self, source, overview, coarse):
+        """nearest interpolation reads the overview"""
+        self.assert_interpolated_equal(
+            Rasterio(source=source, prefer_overviews=True), Rasterio(source=overview), coarse, "nearest"
+        )
+
+    def test_bilinear(self, source, overview, coarse):
+        """bilinear interpolation reads the overview, not full resolution"""
+        self.assert_interpolated_equal(
+            Rasterio(source=source, prefer_overviews=True), Rasterio(source=overview), coarse, "bilinear"
+        )
+
+    def test_no_interpolation(self, source, overview, coarse):
+        """without an interpolator, the node returns the overview pixels within the request bounds"""
+        output = Rasterio(source=source, prefer_overviews=True).eval(coarse)
+        expected = Rasterio(source=overview).eval(coarse)
+        np.testing.assert_array_equal(output.data, expected.data)
+        np.testing.assert_allclose(output["lat"].data, expected["lat"].data, rtol=1e-12)
+        np.testing.assert_allclose(output["lon"].data, expected["lon"].data, rtol=1e-12)
+
+    def test_no_interpolation_outside(self, source):
+        """without an interpolator, a request outside the source returns an empty output"""
+        outside = Coordinates([clinspace(80, 70, 40, "lat"), clinspace(200, 210, 40, "lon")])
+        output = Rasterio(source=source, prefer_overviews=True).eval(outside)
+        assert output.size == 0
+
+    def test_overview_opened_once(self, source, coarse):
+        """the chosen overview level is opened once for its grid, then closed"""
+        node = Rasterio(source=source, prefer_overviews=True)
+        Interpolate(source=node, interpolation="nearest").eval(coarse)
+        with patch.object(node, "open_dataset") as open_dataset:
+            Interpolate(source=node, interpolation="nearest").eval(coarse)
+        open_dataset.assert_not_called()
+
+    def test_evenly_spaced(self, source, overview):
+        """a request on every third overview pixel reads those pixels"""
+        with rasterio.open(overview) as dataset:
+            data = dataset.read(1)
+            transform = dataset.transform
+        rows, cols = np.arange(0, 60, 3), np.arange(0, 120, 3)
+        coordinates = Coordinates(
+            [transform.f + transform.e * (rows + 0.5), transform.c + transform.a * (cols + 0.5)], dims=["lat", "lon"]
+        )
+        output = Interpolate(source=Rasterio(source=source, prefer_overviews=True), interpolation="nearest").eval(
+            coordinates
+        )
+        np.testing.assert_array_equal(output.data, data[np.ix_(rows, cols)])
+
+    def test_round_off_factor(self, source):
+        """a request with small epsilon under 4x coarser than the source, picks the factor 4 overview"""
+        step = 4 * (180 / 256) * (1 - 1e-12)
+        lat = 89 - step * np.arange(40)
+        lon = -179 + step * np.arange(80)
+        self.assert_overview_level(
+            Rasterio(source=source, prefer_overviews=True), Coordinates([lat, lon], dims=["lat", "lon"]), 1
+        )
+
+    def test_stacked(self, source):
+        """a stacked point request picks the overview from its lat and lon steps"""
+        points = Coordinates([[np.linspace(-80, 80, 40), np.linspace(-170, 170, 40)]], dims=["lat_lon"])
+        self.assert_overview_level(Rasterio(source=source, prefer_overviews=True), points, 1)
+
+    def test_extra_dim(self, source, overview, coarse):
+        """a source with a time dim picks the overview from lat and lon only and keeps time"""
+
+        class TimeRasterio(Rasterio):
+            def get_coordinates(self):
+                spatial = super().get_coordinates()
+                return merge_dims([spatial, Coordinates([["2020-01-01"]], dims=["time"], crs=spatial.crs)])
+
+        request = merge_dims([coarse, Coordinates([["2020-01-01"]], dims=["time"], crs=coarse.crs)])
+        node = TimeRasterio(source=source, prefer_overviews=True)
+        self.assert_overview_level(node, request, 1)
+        self.assert_interpolated_equal(node, TimeRasterio(source=overview), request, "nearest")
+
+    def test_full_resolution(self, source):
+        """a full-resolution request reads full resolution"""
+        fine = Coordinates([clinspace(45, 44, 3, "lat"), clinspace(10, 11, 3, "lon")])
+        self.assert_interpolated_equal(
+            Rasterio(source=source, prefer_overviews=True), Rasterio(source=source), fine, "bilinear"
+        )
