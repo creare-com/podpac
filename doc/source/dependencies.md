@@ -42,7 +42,7 @@ $ sudo apt-get install build-essential python-dev
     "xarray>=0.10",
     "requests>=2.18",
     "pyproj>=2.4",
-    "lazy-import>=0.2.2",
+    "lazy-loader>=0.6",
     "psutil",
 
 - [numpy](http://www.numpy.org/), [scipy](https://www.scipy.org/), [xarray](http://xarray.pydata.org/en/stable/): array handling

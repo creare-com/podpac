@@ -4,7 +4,7 @@ PODPAC node to compute beta fit of seasonal variables
 
 import logging
 import traitlets as tl
-from lazy_import import lazy_module
+from podpac.core.lazy_loading import lazy_module
 from scipy.stats import beta
 from scipy.stats._continuous_distns import FitSolverError
 

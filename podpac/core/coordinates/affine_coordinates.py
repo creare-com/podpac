@@ -4,12 +4,12 @@ from collections import OrderedDict
 
 import numpy as np
 import traitlets as tl
-import lazy_import
+from podpac.core.lazy_loading import lazy_module
 import warnings
 
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 
-affine = lazy_import.lazy_module("affine")
+affine = lazy_module("affine")
 
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
